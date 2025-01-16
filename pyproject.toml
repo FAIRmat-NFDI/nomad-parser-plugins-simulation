@@ -19,7 +19,7 @@ dynamic = ["version"]
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    { name = "Esma B. Boydas, email = "esma.boydas@physik.hu-berlin.de" },
+    { name = "Esma B. Boydas", email = "esma.boydas@physik.hu-berlin.de" },
     { name = "Nathan Daelman", email = "ndaelman@physik.hu-berlin.de" },
     { name = "Alvin N. Ladines", email = "ladinesa@physik.hu-berlin.de" },
     { name = "Bernadette Mohr", email = "mohrbern@physik.hu-berlin.de" },
