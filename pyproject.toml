@@ -120,8 +120,8 @@ where = ["src"]
 [tool.setuptools_scm]
 
 [project.entry-points.'nomad.plugin']
-parser_entry_point = "nomad_simulation_parsers.parsers:parser_entry_point"
-schema_package_entry_point = "nomad_simulation_parsers.schema_packages:schema_package_entry_point"
+exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
+exciting_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:exciting_schema_package_entry_point"
 
 
 
