@@ -20,7 +20,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
 
-import nomad_simulation_parsers.schema_packages.exciting_schema_package  # noqa
+import nomad_simulation_parsers.schema_packages.exciting  # noqa
 from nomad_simulation_parsers.parsers.utils import search_files
 
 from .eigval_reader import EigvalReader

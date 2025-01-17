@@ -17,5 +17,5 @@ class EntryPoint(SchemaPackageEntryPoint):
 exciting_schema_package_entry_point = EntryPoint(
     name='ExcitingSchemaPackage',
     description='Schema package for exciting.',
-    module='nomad_simulation_parsers.schema_packages.exciting_schema_package',
+    module='nomad_simulation_parsers.schema_packages.exciting',
 )
