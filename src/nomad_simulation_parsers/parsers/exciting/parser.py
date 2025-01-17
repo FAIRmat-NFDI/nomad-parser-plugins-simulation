@@ -17,6 +17,7 @@ from nomad.parsing.file_parser.mapping_parser import (
     TextParser,
     XMLParser,
 )
+from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
 
 import nomad_simulation_parsers.schema_packages.exciting_schema_package  # noqa
@@ -61,10 +62,64 @@ class InfoParser(TextParser):
             configurations.append(optimization)
         return configurations
 
+    def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
+        positions = source.get('positions')
+        initial = self.data.get('initialization', {})
+        lattice_vectors = initial.get('lattice_vectors')
+        if positions is not None and source.get('positions_format') == 'lattice':
+            positions = np.dot(positions, lattice_vectors.magnitude)
+        if positions is None:
+            positions = []
+            for species in initial.get('species', []):
+                positions_specie = species.get('positions')
+                if species.get('positions_format') == 'lattice':
+                    positions_specie = np.dot(positions_specie, lattice_vectors)
+                positions.extend(positions_specie)
+        atoms = []
+        exclude = ['positions', 'positions_format', 'radial_points']
+        for species in initial.get('species', []):
+            atom = {k: v for k, v in species.items() if k not in exclude}
+            atoms.extend([atom] * len(species.get('positions', [])))
+        if not atoms:
+            atoms = [dict(symbol=s) for s in source.get('symbols')]
+        return dict(positions=np.array(positions, dtype=float), atoms=atoms)
+
 
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
+
+
+class BandstructureXMLParser(XMLParser):
+    n_spin = 1
+
+    def get_bandstructures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        # TODO determine format for spin pol case
+        energies = [
+            p['@eval'] for b in source['bandstructure']['band'] for p in b['point']
+        ]
+        n_spin = source.get('n_spin', self.n_spin)
+        n_band = len(source['bandstructure']['band']) // n_spin
+        n_kpoints = len(source['bandstructure']['band'][0]['point'])
+        energies = np.array(energies, dtype=float).reshape((n_spin, n_band, n_kpoints))
+        return [
+            dict(energies=e.T * ureg.hartree, n_states=n_band, n_kpoints=n_kpoints)
+            for e in energies
+        ]
+
+    def reshape_coords(self, source: list[str]) -> np.ndarray:
+        return np.array([v.split() for v in source], dtype=float)
+
+
+class DosXMLParser(XMLParser):
+    def to_float(self, source: list[str]) -> np.ndarray:
+        return np.array(source, dtype=float)
+
+    def get_dos(self, source: list[dict[str, Any]]) -> dict[str, Any]:
+        return dict(
+            dos=np.array([p['@dos'] for p in source.get('point', [])], dtype=float),
+            energy=np.array([p['@e'] for p in source.get('point', [])], dtype=float),
+        )
 
 
 class EigvalParser(TextParser):
@@ -74,7 +129,12 @@ class EigvalParser(TextParser):
         occs = np.array([v.get('occupancies') for v in eigs_occs])
 
         return [
-            dict(eigenvalues=eigs[:, spin, :], occupancies=occs[:, spin, :])
+            dict(
+                eigenvalues=eigs[:, spin, :],
+                occupancies=occs[:, spin, :],
+                # n_states printed on file is actual n of states * n spin channels
+                n_states=len(eigs[0][spin]),
+            )
             for spin in range(len(eigs[0]))
         ]
 
@@ -86,6 +146,7 @@ class ExcitingParser(Parser):
         maindir = os.path.dirname(mainfile)
         mainbase = os.path.basename(mainfile)
 
+        # mainfile INFO.OUT parser
         info_parser = InfoParser(text_parser=InfoReader())
         info_parser.filepath = mainfile
 
@@ -94,6 +155,7 @@ class ExcitingParser(Parser):
 
         info_parser.convert(data_parser)
 
+        # read xc functionals from input.xml
         input_xml_files = (
             search_files('input.xml', maindir, mainbase)
             if not archive.m_xpath('data.model_method[0].xc_functionals')
@@ -104,6 +166,7 @@ class ExcitingParser(Parser):
             data_parser.annotation_key = 'input_xml'
             input_xml_parser.convert(data_parser)
 
+        # eigenvalues from eigval.out
         eigval_files = search_files('EIGVAL.OUT', maindir, mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
@@ -112,6 +175,25 @@ class ExcitingParser(Parser):
             data_parser.annotation_key = 'eigval'
             eigval_parser.convert(data_parser, update_mode='merge@-1')
             self.eigval_parser = eigval_parser
+
+        # bandstructure from bandstructure.xml
+        bandstructure_files = search_files('bandstructure.xml', maindir, mainbase)
+        if bandstructure_files:
+            bandstructure_parser = BandstructureXMLParser(
+                filepath=bandstructure_files[0]
+            )
+            # TODO set n_spin from info
+            data_parser.annotation_key = 'bandstructure_xml'
+            bandstructure_parser.convert(data_parser, update_mode='merge@-1')
+            self.bandstructure_parser = bandstructure_parser
+
+        # dos from dos.xml
+        dos_files = search_files('dos.xml', maindir, mainbase)
+        if dos_files:
+            dos_parser = DosXMLParser(filepath=dos_files[0])
+            data_parser.annotation_key = 'dos_xml'
+            dos_parser.convert(data_parser, update_mode='merge@-1')
+            self.dos_parser = dos_parser
 
         archive.data = data_parser.data_object
 

@@ -23,7 +23,8 @@ class EigvalReader(TextParser):
             Quantity('k_points', r'\s*\d+\s*([\d\.Ee\- ]+):\s*k\-point', repeats=True),
             Quantity(
                 'eigenvalues_occupancies',
-                r'\(state\, eigenvalue and occupancy below\)\s*([\d\.Ee\-\s]+?(?:\n *\n))',
+                r'\(state\, eigenvalue and occupancy below\)\s*'
+                r'([\d\.Ee\-\s]+?(?:\n *\n))',
                 str_operation=str_to_eigenvalues,
                 repeats=True,
             ),
