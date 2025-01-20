@@ -19,7 +19,7 @@ dynamic = ["version"]
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    { name = "Esma B. Boydas, email = "esma.boydas@physik.hu-berlin.de" },
+    { name = "Esma B. Boydas", email = "esma.boydas@physik.hu-berlin.de" },
     { name = "Nathan Daelman", email = "ndaelman@physik.hu-berlin.de" },
     { name = "Alvin N. Ladines", email = "ladinesa@physik.hu-berlin.de" },
     { name = "Bernadette Mohr", email = "mohrbern@physik.hu-berlin.de" },
@@ -120,8 +120,8 @@ where = ["src"]
 [tool.setuptools_scm]
 
 [project.entry-points.'nomad.plugin']
-parser_entry_point = "nomad_simulation_parsers.parsers:parser_entry_point"
-schema_package_entry_point = "nomad_simulation_parsers.schema_packages:schema_package_entry_point"
+exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
+exciting_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:exciting_schema_package_entry_point"
 
 
 

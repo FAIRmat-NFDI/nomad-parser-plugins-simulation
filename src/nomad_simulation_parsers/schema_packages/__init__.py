@@ -1,17 +1,21 @@
+import importlib
+
 from nomad.config.models.plugins import SchemaPackageEntryPoint
 from pydantic import Field
 
 
-class NewSchemaPackageEntryPoint(SchemaPackageEntryPoint):
-    parameter: int = Field(0, description='Custom configuration parameter')
+class EntryPoint(SchemaPackageEntryPoint):
+    module: str = Field(description="""Module from which schema is loaded""")
 
     def load(self):
-        from nomad_simulation_parsers.schema_packages.schema_package import m_package
+        try:
+            return importlib.import_module(self.module).m_package
+        except Exception:
+            return None
 
-        return m_package
 
-
-schema_package_entry_point = NewSchemaPackageEntryPoint(
-    name='NewSchemaPackage',
-    description='New schema package entry point configuration.',
+exciting_schema_package_entry_point = EntryPoint(
+    name='ExcitingSchemaPackage',
+    description='Schema package for exciting.',
+    module='nomad_simulation_parsers.schema_packages.exciting',
 )
