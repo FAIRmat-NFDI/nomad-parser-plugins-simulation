@@ -1,6 +1,9 @@
 import os
 import re
 from glob import glob
+from typing import Union
+
+from nomad.metainfo import Section, SubSection
 
 
 def search_files(
@@ -37,3 +40,31 @@ def search_files(
 
     filenames = [f for f in filenames if os.access(f, os.F_OK)]
     return filenames
+
+
+def remove_mapping_annotations(
+    property: Union[Section, SubSection], depth: int = 0
+) -> None:
+    max_depth = 5
+    if depth > max_depth:
+        return
+
+    annotation_key = 'mapping'
+    property.m_annotations.pop(annotation_key, None)
+
+    depth += 1
+    property_section = (
+        property.sub_section if isinstance(property, SubSection) else property
+    )
+    for quantity in property_section.all_quantities.values():
+        quantity.m_annotations.pop(annotation_key, None)
+
+    for sub_section in property_section.all_sub_sections.values():
+        if sub_section.m_annotations.get(annotation_key):
+            remove_mapping_annotations(sub_section, depth)
+        elif sub_section.sub_section.m_annotations.get(annotation_key):
+            remove_mapping_annotations(sub_section.sub_section, depth)
+        else:
+            for inheriting_section in sub_section.sub_section.all_inheriting_sections:
+                if inheriting_section.m_annotations.get(annotation_key):
+                    remove_mapping_annotations(inheriting_section, depth)
