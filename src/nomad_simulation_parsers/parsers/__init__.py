@@ -53,7 +53,7 @@ fhiaims_parser_entry_point = EntryPoint(
     description='NOMAD parser for FHIAIMS.',
     parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.FHIAimsParser',
     python_package='nomad_simulation_parsers',
-    code_name='phonopy',
+    code_name='fhiaims',
     code_homepage='https://aimsclub.fhi-berlin.mpg.de/',
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
