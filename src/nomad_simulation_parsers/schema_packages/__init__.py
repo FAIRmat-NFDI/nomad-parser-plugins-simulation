@@ -20,6 +20,12 @@ exciting_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.exciting',
 )
 
+fhiaims_schema_package_entry_point = EntryPoint(
+    name='FHIAimsSchemaPackage',
+    description='Schema package for FHIAims.',
+    module='nomad_simulation_parsers.schema_packages.fhiaims',
+)
+
 vasp_schema_package_entry_point = EntryPoint(
     name='VASPSchemaPackage',
     description='Schema package for VASP.',

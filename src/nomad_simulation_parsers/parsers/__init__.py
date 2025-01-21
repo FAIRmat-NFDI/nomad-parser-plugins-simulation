@@ -31,6 +31,15 @@ exciting_parser_entry_point = EntryPoint(
     code_homepage='http://exciting-code.org/',
 )
 
+fhiaims_parser_entry_point = EntryPoint(
+    name='parsers/fhiaims',
+    aliases=['parsers/fhi-aims', 'parsers/fhiaims'],
+    description='NOMAD parser for FHIAIMS.',
+    parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.FHIAimsParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
+)
+
 vasp_parser_entry_point = EntryPoint(
     name='parsers/vasp',
     description='Parser for VASP XML and OUTCAR outputs',
