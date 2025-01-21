@@ -24,7 +24,7 @@ from nomad_simulation_parsers.parsers.fhiaims.out_reader import (
     RE_GW_FLAG,
     FHIAimsOutReader,
 )
-from nomad_simulation_parsers.parsers.utils import remove_mapping_annotations
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 
 class FHIAimsOutConverter(TextMappingParser):
@@ -291,10 +291,6 @@ class FHIAimsOutConverter(TextMappingParser):
                 if res:
                     result.append(res)
         return result
-    
-    def to_array(self, data: Any, dtype=float) -> np.ndarray:
-        print('PPPPPP', data)
-        return data.get('positions')
     
 
 class FHIAimsParser:

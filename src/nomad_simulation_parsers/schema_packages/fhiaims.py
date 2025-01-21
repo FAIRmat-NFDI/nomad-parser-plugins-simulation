@@ -82,7 +82,7 @@ model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
 model_system.AtomicCell.positions.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(
-    dict(text=Mapper(mapper=('to_array', ['.structure']), unit='angstrom'))
+    dict(text=Mapper(mapper='.structure.positions'), unit='angstrom')
 )
 
 # outputs

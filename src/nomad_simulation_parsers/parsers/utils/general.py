@@ -1,9 +1,16 @@
 import os
 import re
 from glob import glob
-from typing import Union
+from typing import Union, Callable, Any, TYPE_CHECKING
+import functools
 
+
+if TYPE_CHECKING:
+    from structlog.stdlib import (
+        BoundLogger,
+    )
 from nomad.metainfo import Section, SubSection
+from nomad.utils import get_logger
 
 
 def search_files(
@@ -80,3 +87,42 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
                         _remove(inheriting_section, depth)
 
     _remove(property)
+
+
+def log(
+    function: Callable = None,
+    logger: 'BoundLogger' = get_logger(__name__),
+    exc_msg: str = None,
+    exc_raise: bool = False,
+    default: Any = None,
+):
+    '''
+    Function decorator to log exceptions.
+
+    Args:
+        function (Callable): function to evaluate
+        logger (Logger, optional): logger to attach exceptions
+        exc_msg (str, optional): prefix to exception
+        exc_raise (bool, optional): if True will raise error
+        default (Any, optional): return value of function if error
+    '''
+    def _log(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            _logger = kwargs.get('logger', logger)
+            _exc_msg = kwargs.get(
+                'exc_msg', exc_msg or f'Exception raised in {func.__name__}:'
+            )
+            _exc_raise = kwargs.get('exc_raise', exc_raise)
+
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                _logger.warning(f'{_exc_msg} {e}')
+                if _exc_raise:
+                    raise e
+                return kwargs.get('default', default)
+
+        return wrapper
+
+    return _log(function) if function else _log
