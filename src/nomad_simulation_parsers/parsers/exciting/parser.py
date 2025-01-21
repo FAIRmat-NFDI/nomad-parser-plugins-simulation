@@ -20,7 +20,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils import search_files, remove_mapping_annotations
+from nomad_simulation_parsers.parsers.utils.general import search_files, remove_mapping_annotations
 
 from .eigval_reader import EigvalReader
 from .info_reader import InfoReader

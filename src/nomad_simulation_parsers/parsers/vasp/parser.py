@@ -8,7 +8,7 @@ if TYPE_CHECKING:
         BoundLogger,
     )
 
-from nomad_simulation_parsers.parsers.utils import remove_mapping_annotations
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from .outcar_parser import VASPOutcarParser
 from .xml_parser import VASPXMLParser
 
@@ -29,8 +29,6 @@ class VASPParser:
             parser = VASPOutcarParser()
         else:
             parser = VASPXMLParser()
-        # TODO remove this for debug
-        self.parser = parser
         parser.parse(mainfile, archive, logger, child_archives)
 
         # remove annotations
