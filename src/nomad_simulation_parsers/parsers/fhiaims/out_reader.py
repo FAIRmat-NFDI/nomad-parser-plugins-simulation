@@ -7,7 +7,7 @@ from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 
-from nomad_simulation_parsers.parsers.utils import log
+from nomad_simulation_parsers.parsers.utils.general import log
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
