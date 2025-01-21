@@ -20,8 +20,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
 
-import nomad_simulation_parsers.schema_packages.exciting  # noqa
-from nomad_simulation_parsers.parsers.utils import search_files
+from nomad_simulation_parsers.parsers.utils.general import search_files, remove_mapping_annotations
 
 from .eigval_reader import EigvalReader
 from .info_reader import InfoReader
@@ -143,6 +142,8 @@ class ExcitingParser(Parser):
     def parse(
         self, mainfile: str, archive: 'EntryArchive', logger: 'BoundLogger'
     ) -> None:
+        from nomad_simulation_parsers.schema_packages import exciting
+
         maindir = os.path.dirname(mainfile)
         mainbase = os.path.basename(mainfile)
 
@@ -165,6 +166,7 @@ class ExcitingParser(Parser):
             input_xml_parser = InputXMLParser(filepath=input_xml_files[0])
             data_parser.annotation_key = 'input_xml'
             input_xml_parser.convert(data_parser)
+            input_xml_parser.close()
 
         # eigenvalues from eigval.out
         eigval_files = search_files('EIGVAL.OUT', maindir, mainbase)
@@ -174,7 +176,7 @@ class ExcitingParser(Parser):
             )
             data_parser.annotation_key = 'eigval'
             eigval_parser.convert(data_parser, update_mode='merge@-1')
-            self.eigval_parser = eigval_parser
+            eigval_parser.close()
 
         # bandstructure from bandstructure.xml
         bandstructure_files = search_files('bandstructure.xml', maindir, mainbase)
@@ -185,7 +187,7 @@ class ExcitingParser(Parser):
             # TODO set n_spin from info
             data_parser.annotation_key = 'bandstructure_xml'
             bandstructure_parser.convert(data_parser, update_mode='merge@-1')
-            self.bandstructure_parser = bandstructure_parser
+            bandstructure_parser.close()
 
         # dos from dos.xml
         dos_files = search_files('dos.xml', maindir, mainbase)
@@ -193,13 +195,13 @@ class ExcitingParser(Parser):
             dos_parser = DosXMLParser(filepath=dos_files[0])
             data_parser.annotation_key = 'dos_xml'
             dos_parser.convert(data_parser, update_mode='merge@-1')
-            self.dos_parser = dos_parser
+            dos_parser.close()
 
         archive.data = data_parser.data_object
 
-        self.info_parser = info_parser
         # close parsers
-        # info_parser.close()
-        # input_xml_parser.close()
-        # eigval_parser.close()
-        # data_parser.close()
+        info_parser.close()
+        data_parser.close()
+
+        # remove annotations
+        remove_mapping_annotations(exciting.general.Simulation.m_def)
