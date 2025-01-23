@@ -20,7 +20,10 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import search_files, remove_mapping_annotations
+from nomad_simulation_parsers.parsers.utils.general import (
+    remove_mapping_annotations,
+    search_files,
+)
 
 from .eigval_reader import EigvalReader
 from .info_reader import InfoReader
@@ -140,7 +143,12 @@ class EigvalParser(TextParser):
 
 class ExcitingParser(Parser):
     def parse(
-        self, mainfile: str, archive: 'EntryArchive', logger: 'BoundLogger'
+        self,
+        mainfile: str,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        child_archives: dict[str, 'EntryArchive'] = {},
+        **kwargs,
     ) -> None:
         from nomad_simulation_parsers.schema_packages import exciting
 
