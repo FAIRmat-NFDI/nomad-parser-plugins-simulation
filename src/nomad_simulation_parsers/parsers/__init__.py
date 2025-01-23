@@ -26,7 +26,6 @@ class EntryPoint(ParserEntryPoint):
                 f'Could not load parser class {self.parser_class_name}', exc_info=e
             )
 
-
 class Wannier90ParserEntryPoint(EntryPoint):
     equal_cell_positions_tolerance: float = Field(
         1e-2,
