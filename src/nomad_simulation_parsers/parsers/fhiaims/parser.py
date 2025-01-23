@@ -25,6 +25,7 @@ from nomad_simulations.schema_packages.workflow import (
     Phonon,
     SinglePoint,
 )
+<<<<<<< HEAD
 from nomad_simulations.schema_packages.workflow.general import (
     SimulationTaskReference,
 )
@@ -46,6 +47,10 @@ from nomad_simulation_parsers.schema_packages import fhiaims
 from .common import ControlParser, GeometryParser
 
 LOGGER = get_logger(__name__)
+=======
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+from nomad_simulation_parsers.parsers.baseclasses.workflow import WorkflowParser, DFTGWWorkflowParser
+>>>>>>> e780358 (Initial workflow parser classes)
 
 
 # TODO temporary fix for structlog unable to propagate logger
