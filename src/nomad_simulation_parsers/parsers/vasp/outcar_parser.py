@@ -1,21 +1,16 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from nomad.datamodel.datamodel import (
-        EntryArchive,
-    )
-    from structlog.stdlib import (
-        BoundLogger,
-    )
+    pass
 
 import re
 
 import numpy as np
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser import Quantity, TextParser
+from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Simulation
+
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 RE_N = r'[\n\r]'

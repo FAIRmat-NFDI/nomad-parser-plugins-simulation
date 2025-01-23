@@ -19,13 +19,7 @@ from nomad_simulations.schema_packages import (
 m_package = SchemaPackage()
 
 
-# def apply_annotations():
-#     """
-#     Apply VASP mapping annotations to Simulation.
-#     """
-general.Simulation.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(
+general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
         xml=MapperAnnotation(mapper='modeling'),
         xml2=MapperAnnotation(mapper='modeling'),
@@ -34,9 +28,7 @@ general.Simulation.m_def.m_annotations.setdefault(
 )
 
 # program
-general.Simulation.program.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(
+general.Simulation.program.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
         xml=MapperAnnotation(mapper='.generator'),
         outcar=MapperAnnotation(mapper='.header'),
@@ -62,15 +54,11 @@ general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).upd
 )
 general.Program.compilation_host.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(
-    dict(xml=MapperAnnotation(mapper='.i[?"@name"==\'platform\'] | [0].__value'))
-)
+).update(dict(xml=MapperAnnotation(mapper='.i[?"@name"==\'platform\'] | [0].__value')))
 # dft method
 model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
-        xml=MapperAnnotation(
-            mapper='.parameters.separator[?"@name"==\'electronic\']'
-        ),
+        xml=MapperAnnotation(mapper='.parameters.separator[?"@name"==\'electronic\']'),
         outcar=MapperAnnotation(mapper='parameters'),
     )
 )
@@ -134,22 +122,16 @@ numerical_settings.KMesh.offset.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(
     dict(
-        xml=MapperAnnotation(
-            mapper='.generation.v[?"@name"==\'shift\'] | [0].__value'
-        )
+        xml=MapperAnnotation(mapper='.generation.v[?"@name"==\'shift\'] | [0].__value')
     )
 )
 numerical_settings.KMesh.points.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(
-    dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'kpointlist\'].v | [0]'))
-)
+).update(dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'kpointlist\'].v | [0]')))
 
 numerical_settings.KMesh.weights.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(
-    dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'weights\'].v | [0]'))
-)
+).update(dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'weights\'].v | [0]')))
 # model system
 general.Simulation.model_system.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
@@ -192,9 +174,7 @@ model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
     )
 )
 # outputs
-general.Simulation.outputs.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(
+general.Simulation.outputs.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
         xml=MapperAnnotation(mapper='.calculation'),
         xml2=MapperAnnotation(mapper='.calculation'),
@@ -289,9 +269,7 @@ properties.forces.TotalForce.rank.m_annotations.setdefault(
 )
 properties.forces.TotalForce.variables.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(
-    dict(xml=MapperAnnotation(mapper='.@'), outcar=MapperAnnotation(mapper='.@'))
-)
+).update(dict(xml=MapperAnnotation(mapper='.@'), outcar=MapperAnnotation(mapper='.@')))
 properties.forces.TotalForce.value.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(

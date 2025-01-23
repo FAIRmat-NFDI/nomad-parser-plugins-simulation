@@ -2,14 +2,9 @@ import os
 from typing import Any
 
 import numpy as np
-
 from nomad.datamodel.datamodel import (
     EntryArchive,
 )
-from structlog.stdlib import (
-    BoundLogger,
-)
-
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
@@ -19,6 +14,9 @@ from nomad.parsing.file_parser.mapping_parser import (
 )
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Simulation
+from structlog.stdlib import (
+    BoundLogger,
+)
 
 from nomad_simulation_parsers.parsers.utils.general import (
     remove_mapping_annotations,
@@ -207,11 +205,19 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # remove annotations
         remove_mapping_annotations(exciting.general.Simulation.m_def)
 
+
 class ExcitingParser(MatchingParser):
-    '''
+    """
     Main parser interface to NOMAD.
-    '''
+    """
+
     archive_writer = ExcitingArchiveWriter()
 
-    def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger=None, child_archives: dict[str, EntryArchive]=None):
+    def parse(
+        self,
+        mainfile: str,
+        archive: EntryArchive,
+        logger: BoundLogger = None,
+        child_archives: dict[str, EntryArchive] = None,
+    ):
         self.archive_writer.write(mainfile, archive, logger, child_archives)

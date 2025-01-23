@@ -3,16 +3,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
-    from nomad.datamodel.datamodel import (
-        EntryArchive,
-    )
-    from structlog.stdlib import (
-        BoundLogger,
-    )
+    pass
 
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad_simulations.schema_packages.general import Simulation
+
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 
