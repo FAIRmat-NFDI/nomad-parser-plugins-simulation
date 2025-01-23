@@ -22,7 +22,6 @@ class VASPParser:
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] = None,
     ) -> None:
-
         # import schema to load annotations
         from nomad_simulation_parsers.schema_packages import vasp
 

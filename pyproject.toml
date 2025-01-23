@@ -122,6 +122,8 @@ where = ["src"]
 [project.entry-points.'nomad.plugin']
 exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
 exciting_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:exciting_schema_package_entry_point"
+fhiaims_parser_entry_point = "nomad_simulation_parsers.parsers:fhiaims_parser_entry_point"
+fhiaims_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:fhiaims_schema_package_entry_point"
 vasp_parser_entry_point = "nomad_simulation_parsers.parsers:vasp_parser_entry_point"
 vasp_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:vasp_schema_package_entry_point"
 

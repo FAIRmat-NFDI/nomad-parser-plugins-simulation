@@ -13,10 +13,7 @@ class EntryPoint(ParserEntryPoint):
     def load(self):
         from nomad.parsing.parser import MatchingParserInterface
 
-        return MatchingParserInterface(
-            self.parser_class_name,
-            **self.dict(),
-        )
+        return MatchingParserInterface(**self.dict())
 
 
 exciting_parser_entry_point = EntryPoint(
