@@ -9,6 +9,7 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
 
@@ -79,3 +80,7 @@ class XMLArchiveWriter(ArchiveWriter):
         # close file objects
         data_parser.close()
         xml_parser.close()
+
+        # remove annotations
+        # TODO cache? put in close context
+        remove_mapping_annotations(vasp.general.Simulation.m_def)
