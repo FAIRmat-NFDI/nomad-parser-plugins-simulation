@@ -10,8 +10,10 @@ if TYPE_CHECKING:
         BoundLogger,
     )
 
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 
 class VasprunParser(XMLParser):
@@ -50,19 +52,15 @@ class VasprunParser(XMLParser):
         return dict(forces=value, npoints=len(value), rank=[3])
 
 
-class VASPXMLParser:
-    def parse(
-        self,
-        mainfile: 'str',
-        archive: 'EntryArchive',
-        logger: 'BoundLogger',
-        child_archives: 'dict[str, EntryArchive]' = None,
-    ) -> None:
+class XMLArchiveWriter(ArchiveWriter):
+    def write_to_archive(self) -> None:
+        # import schema to load annotations
+        from nomad_simulation_parsers.schema_packages import vasp
 
         data_parser = MetainfoParser()
         data_parser.data_object = Simulation()
 
-        xml_parser = VasprunParser(filepath=mainfile)
+        xml_parser = VasprunParser(filepath=self.mainfile)
 
         data_parser.annotation_key = 'xml'
         xml_parser.convert(data_parser)
@@ -70,8 +68,12 @@ class VASPXMLParser:
         data_parser.annotation_key = 'xml2'
         xml_parser.convert(data_parser)
 
-        archive.data = data_parser.data_object
+        self.archive.data = data_parser.data_object
 
         # close file objects
         data_parser.close()
         xml_parser.close()
+
+        # remove annotations
+        # TODO cache? put in close context
+        remove_mapping_annotations(vasp.general.Simulation.m_def)

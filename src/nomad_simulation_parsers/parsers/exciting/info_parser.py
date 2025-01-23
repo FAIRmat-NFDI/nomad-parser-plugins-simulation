@@ -79,7 +79,7 @@ def str_to_energy_dict(val_in: str) -> dict[str, pint.Quantity]:
     return energies
 
 
-class InfoReader(TextParser):
+class InfoFileParser(TextParser):
     def init_quantities(self):
         self._quantities = [
             Quantity(

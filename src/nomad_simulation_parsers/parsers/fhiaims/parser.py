@@ -1,17 +1,12 @@
-from typing import TYPE_CHECKING, Any, Union
-
-if TYPE_CHECKING:
-    from nomad.datamodel.datamodel import (
-        EntryArchive,
-    )
-    from structlog.stdlib import (
-        BoundLogger,
-    )
-
 import os
 import re
+from collections.abc import Iterable
+from typing import Any, Union
 
 import numpy as np
+from nomad.datamodel.datamodel import EntryArchive
+from nomad.parsing import MatchingParser
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
     MetainfoParser,
 )
@@ -19,16 +14,20 @@ from nomad.parsing.file_parser.mapping_parser import (
     TextParser as TextMappingParser,
 )
 from nomad_simulations.schema_packages.general import Program, Simulation
+from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.fhiaims.out_reader import (
+from nomad_simulation_parsers.parsers.baseclasses.workflow import (
+    DFTGWWorkflowWriter,
+    WorkflowWriter,
+)
+from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
-    FHIAimsOutReader,
+    FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
-from nomad_simulation_parsers.parsers.baseclasses.workflow import WorkflowParser, DFTGWWorkflowParser
 
 
-class FHIAimsOutConverter(TextMappingParser):
+class FHIAimsOutMappingParser(TextMappingParser):
     _gw_flag_map = {
         'gw': 'G0W0',
         'gw_expt': 'G0W0',
@@ -294,73 +293,106 @@ class FHIAimsOutConverter(TextMappingParser):
         return result
 
 
-class FHIAimsParser(WorkflowParser):
+class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
 
-    def get_mainfile_keys(self, **kwargs) -> Union[bool, list[str]]:
-        buffer = kwargs.get('decoded_buffer', '')
-
-        match = re.search(RE_GW_FLAG, buffer)
-        if match:
-            gw_flag = match[1]
-        else:
-            gw_flag = None
-            with open(kwargs.get('filename')) as f:
-                while True:
-                    line = f.readline()
-                    match = re.match(RE_GW_FLAG, f'\n{line}')
-                    if match:
-                        gw_flag = match[1]
-                        break
-                    if not line:
-                        break
-        if gw_flag in FHIAimsOutConverter._gw_flag_map.keys():
-            return ['GW', 'GW_workflow']
-        return True
-
-    def write_to_archive(self,) -> None:
+    def write_to_archive(
+        self,
+    ) -> None:
         from nomad_simulation_parsers.schema_packages import fhiaims
 
-        out_converter = FHIAimsOutConverter()
-        out_converter.text_parser = FHIAimsOutReader()
-        out_converter.filepath = self.mainfile
+        out_parser = FHIAimsOutMappingParser()
+        out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser.filepath = self.mainfile
 
         archive_data_handler = MetainfoParser()
         archive_data_handler.annotation_key = self.annotation_key
         archive_data_handler.data_object = Simulation(program=Program(name='FHI-aims'))
 
-        out_converter.convert(archive_data_handler, remove=True)
+        out_parser.convert(archive_data_handler, remove=True)
 
         self.archive.data = archive_data_handler.data_object
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
         archive_data_handler.annotation_key = 'text_dos'
-        out_converter.convert(archive_data_handler, remove=True)
+        out_parser.convert(archive_data_handler, remove=True)
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
             # GW single point
-            parser = FHIAimsParser()
+            parser = FHIAimsArchiveWriter()
             parser.annotation_key = 'text_gw'
-            parser.parse(self.mainfile, gw_archive, self.logger)
+            parser.write(self.mainfile, gw_archive, self.logger)
 
             # DFT-GW workflow
             gw_workflow_archive = self.child_archives.get('GW_workflow')
-            parser = GWWorkflowFHIAimsParser()
+            parser = GWWorkflowFHIAimsWriter()
             parser.archives = dict(dft=self.archive, gw=gw_archive)
             parser.annotation_key = 'text_gw_workflow'
-            parser.parse(self.mainfile, gw_workflow_archive, self.logger)
+            parser.write(self.mainfile, gw_workflow_archive, self.logger)
 
         # close file contexts
-        self.out_parser = out_converter
-        # out_converter.close()
+        self.out_parser = out_parser
+        # out_parser.close()
         archive_data_handler.close()
 
         # remove annotations
         remove_mapping_annotations(fhiaims.general.Simulation.m_def)
 
 
-class GWWorkflowFHIAimsParser(FHIAimsParser, DFTGWWorkflowParser):
+class GWWorkflowFHIAimsWriter(FHIAimsArchiveWriter, DFTGWWorkflowWriter):
     def write_to_archive(self):
         super().write_to_archive()
+
+
+class FHIAimsParser(MatchingParser):
+    """
+    Main parser interface to NOMAD.
+    """
+
+    archive_writer = FHIAimsArchiveWriter()
+
+    def is_mainfile(
+        self,
+        filename: str,
+        mime: str,
+        buffer: bytes,
+        decoded_buffer: str,
+        compression: str = None,
+    ) -> Union[bool, Iterable[str]]:
+        is_mainfile = super().is_mainfile(
+            filename=filename,
+            mime=mime,
+            buffer=buffer,
+            decoded_buffer=decoded_buffer,
+            compression=compression,
+        )
+        if is_mainfile:
+            match = re.search(RE_GW_FLAG, decoded_buffer)
+            if match:
+                gw_flag = match[1]
+            else:
+                gw_flag = None
+                with open(filename) as f:
+                    while True:
+                        line = f.readline()
+                        match = re.match(RE_GW_FLAG, f'\n{line}')
+                        if match:
+                            gw_flag = match[1]
+                            break
+                        if not line:
+                            break
+            if gw_flag in FHIAimsOutMappingParser._gw_flag_map.keys():
+                self.creates_children = True
+                return ['GW', 'GW_workflow']
+        return is_mainfile
+
+    def parse(
+        self,
+        mainfile: str,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        child_archives: dict[str, EntryArchive] = None,
+    ) -> None:
+        self.archive_writer.write(mainfile, archive, logger, child_archives)

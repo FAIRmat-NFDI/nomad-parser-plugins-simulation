@@ -5,11 +5,11 @@ if TYPE_CHECKING:
         EntryArchive,
     )
 
-from nomad.parsing.file_parser import Parser
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad_simulations.schema_packages.workflow import SinglePoint
 
 
-class WorkflowParser(Parser):
+class WorkflowWriter(ArchiveWriter):
     """
     Base class for parsing the workflow section.
 
@@ -17,7 +17,7 @@ class WorkflowParser(Parser):
 
     archives: dict[str, 'EntryArchive'] = {}
 
-    def parse_workflow(self):
+    def write_workflow(self):
         """
         Abstract method to write workflow section.
         """
@@ -30,15 +30,15 @@ class WorkflowParser(Parser):
 
     def write_to_archive(self):
         super().write_to_archive()
-        self.parse_workflow()
+        self.write_workflow()
 
 
-class DFTGWWorkflowParser(WorkflowParser):
+class DFTGWWorkflowWriter(WorkflowWriter):
     """
     Base class for DFT + GW workflows.
     """
 
-    def parse_workflow(self):
+    def write_workflow(self):
         """
         Connect the DFT and GW archives in the workflow section.
         """

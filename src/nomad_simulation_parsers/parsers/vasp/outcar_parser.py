@@ -11,12 +11,12 @@ if TYPE_CHECKING:
 import re
 
 import numpy as np
-from nomad.datamodel import EntryArchive
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Simulation
-
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 
 RE_N = r'[\n\r]'
 
@@ -417,7 +417,7 @@ class OutcarParser(MappingTextParser):
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = []
         if parameters.get('LHFCALC', False):
-            hfscreen_06, hfscreen_03  = 0.2, 0.3
+            hfscreen_06, hfscreen_03 = 0.2, 0.3
             aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
             xc_functional = {}
             gga = parameters.get('GGA', 'PE')
@@ -457,14 +457,11 @@ class OutcarParser(MappingTextParser):
         return xc_functionals
 
 
-class VASPOutcarParser:
-    def parse(
-        self,
-        mainfile: 'str',
-        archive: 'EntryArchive',
-        logger: 'BoundLogger',
-        child_archives: 'dict[str, EntryArchive]' = None,
-    ) -> None:
+class OutcarArchiveWriter(ArchiveWriter):
+    def write_to_archive(self) -> None:
+        # import schema to load annotations
+        from nomad_simulation_parsers.schema_packages import vasp
+
         # set up archive parser
         archive_data_parser = MetainfoParser()
         archive_data = Simulation()
@@ -474,7 +471,7 @@ class VASPOutcarParser:
         # set up outcar parser
         source_parser = OutcarParser()
         source_parser.text_parser = OutcarTextParser()
-        source_parser.filepath = mainfile
+        source_parser.filepath = self.mainfile
 
         # TODO remove this for debug only
         self.archive_data_parser = archive_data_parser
@@ -484,8 +481,12 @@ class VASPOutcarParser:
         source_parser.convert(archive_data_parser)
 
         # assign simulation section to archive data
-        archive.data = archive_data_parser.data_object
+        self.archive.data = archive_data_parser.data_object
 
         # close file handles
         archive_data_parser.close()
         source_parser.close()
+
+        # remove annotations
+        # TODO cache? put in close context
+        remove_mapping_annotations(vasp.general.Simulation.m_def)

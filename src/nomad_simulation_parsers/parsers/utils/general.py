@@ -1,9 +1,8 @@
+import functools
 import os
 import re
 from glob import glob
-from typing import Union, Callable, Any, TYPE_CHECKING
-import functools
-
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 if TYPE_CHECKING:
     from structlog.stdlib import (
@@ -96,7 +95,7 @@ def log(
     exc_raise: bool = False,
     default: Any = None,
 ):
-    '''
+    """
     Function decorator to log exceptions.
 
     Args:
@@ -105,7 +104,8 @@ def log(
         exc_msg (str, optional): prefix to exception
         exc_raise (bool, optional): if True will raise error
         default (Any, optional): return value of function if error
-    '''
+    """
+
     def _log(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
