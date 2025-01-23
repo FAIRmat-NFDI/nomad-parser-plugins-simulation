@@ -18,7 +18,6 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.baseclasses.workflow import (
     DFTGWWorkflowWriter,
-    WorkflowWriter,
 )
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,

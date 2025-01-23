@@ -81,9 +81,7 @@ model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
 ).update(dict(text=Mapper(mapper='.lattice_vectors')))
 model_system.AtomicCell.positions.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(
-    dict(text=Mapper(mapper='.structure.positions'), unit='angstrom')
-)
+).update(dict(text=Mapper(mapper='.structure.positions'), unit='angstrom'))
 
 # outputs
 general.Simulation.outputs.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
@@ -121,9 +119,9 @@ variables.Variables.n_points.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(text=Mapper(mapper='.npoints')))
 # TODO this does not work as points is scalar
-# variables.Variables.points.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-#     dict(text=Mapper(mapper='.points'))
-# )
+# variables.Variables.points.m_annotations.setdefault(
+#     MAPPING_ANNOTATION_KEY, {}
+# ).update(dict(textttt=Mapper(mapper='.points')))
 variables.Energy2.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(text_dos=Mapper(mapper='.@'))
 )
