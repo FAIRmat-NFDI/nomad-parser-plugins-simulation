@@ -285,7 +285,7 @@ def str_to_md_control_in(val_in):
     return {val[0]: ' '.join(val[1:])}
 
 
-class FHIAimsOutReader(TextParser):
+class FHIAimsOutFileParser(TextParser):
     def init_quantities(self):
         structure_quantities = [
             Quantity(

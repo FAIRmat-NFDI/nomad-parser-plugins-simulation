@@ -1,17 +1,17 @@
 import os
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from nomad.datamodel.datamodel import (
-        EntryArchive,
-    )
-    from structlog.stdlib import (
-        BoundLogger,
-    )
+from nomad.datamodel.datamodel import (
+    EntryArchive,
+)
+from structlog.stdlib import (
+    BoundLogger,
+)
 
-from nomad.parsing.file_parser import Parser
+from nomad.parsing import MatchingParser
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
@@ -25,8 +25,8 @@ from nomad_simulation_parsers.parsers.utils.general import (
     search_files,
 )
 
-from .eigval_reader import EigvalReader
-from .info_reader import InfoReader
+from .eigval_parser import EigvalFileParser
+from .info_parser import InfoFileParser
 
 
 class InfoParser(TextParser):
@@ -141,23 +141,16 @@ class EigvalParser(TextParser):
         ]
 
 
-class ExcitingParser(Parser):
-    def parse(
-        self,
-        mainfile: str,
-        archive: 'EntryArchive',
-        logger: 'BoundLogger',
-        child_archives: dict[str, 'EntryArchive'] = {},
-        **kwargs,
-    ) -> None:
+class ExcitingArchiveWriter(ArchiveWriter):
+    def write_to_archive(self) -> None:
         from nomad_simulation_parsers.schema_packages import exciting
 
-        maindir = os.path.dirname(mainfile)
-        mainbase = os.path.basename(mainfile)
+        maindir = os.path.dirname(self.mainfile)
+        mainbase = os.path.basename(self.mainfile)
 
         # mainfile INFO.OUT parser
-        info_parser = InfoParser(text_parser=InfoReader())
-        info_parser.filepath = mainfile
+        info_parser = InfoParser(text_parser=InfoFileParser())
+        info_parser.filepath = self.mainfile
 
         data_parser = MetainfoParser(data_object=Simulation())
         data_parser.annotation_key = 'info'
@@ -167,7 +160,7 @@ class ExcitingParser(Parser):
         # read xc functionals from input.xml
         input_xml_files = (
             search_files('input.xml', maindir, mainbase)
-            if not archive.m_xpath('data.model_method[0].xc_functionals')
+            if not self.archive.m_xpath('data.model_method[0].xc_functionals')
             else []
         )
         if input_xml_files:
@@ -180,7 +173,7 @@ class ExcitingParser(Parser):
         eigval_files = search_files('EIGVAL.OUT', maindir, mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
-                filepath=eigval_files[0], text_parser=EigvalReader()
+                filepath=eigval_files[0], text_parser=EigvalFileParser()
             )
             data_parser.annotation_key = 'eigval'
             eigval_parser.convert(data_parser, update_mode='merge@-1')
@@ -205,7 +198,7 @@ class ExcitingParser(Parser):
             dos_parser.convert(data_parser, update_mode='merge@-1')
             dos_parser.close()
 
-        archive.data = data_parser.data_object
+        self.archive.data = data_parser.data_object
 
         # close parsers
         info_parser.close()
@@ -213,3 +206,12 @@ class ExcitingParser(Parser):
 
         # remove annotations
         remove_mapping_annotations(exciting.general.Simulation.m_def)
+
+class ExcitingParser(MatchingParser):
+    '''
+    Main parser interface to NOMAD.
+    '''
+    archive_writer = ExcitingArchiveWriter()
+
+    def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger=None, child_archives: dict[str, EntryArchive]=None):
+        self.archive_writer.write(mainfile, archive, logger, child_archives)

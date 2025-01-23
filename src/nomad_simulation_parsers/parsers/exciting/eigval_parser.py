@@ -17,7 +17,7 @@ def str_to_eigenvalues(val_in: str) -> dict[str, np.ndarray]:
     return data
 
 
-class EigvalReader(TextParser):
+class EigvalFileParser(TextParser):
     def init_quantities(self):
         self._quantities = [
             Quantity('k_points', r'\s*\d+\s*([\d\.Ee\- ]+):\s*k\-point', repeats=True),
