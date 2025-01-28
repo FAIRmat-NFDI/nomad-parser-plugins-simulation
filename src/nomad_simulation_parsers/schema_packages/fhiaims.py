@@ -23,7 +23,6 @@ general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).up
         text=Mapper(mapper='@'),
         text_dos=Mapper(mapper='@'),
         text_gw=Mapper(mapper='@'),
-        text_gw_workflow=Mapper(mapper='@'),
     )
 )
 

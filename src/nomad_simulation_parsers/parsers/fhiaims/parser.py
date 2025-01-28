@@ -5,6 +5,7 @@ from typing import Any, Union
 
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
+from nomad.datamodel.metainfo.workflow import TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
@@ -14,11 +15,9 @@ from nomad.parsing.file_parser.mapping_parser import (
     TextParser as TextMappingParser,
 )
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.workflow import DFTGWWorkflow, SinglePoint
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.baseclasses.workflow import (
-    DFTGWWorkflowWriter,
-)
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
     FHIAimsOutFileParser,
@@ -319,17 +318,20 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
+            self.archive.workflow2 = SinglePoint(name='DFT')
+
             # GW single point
             parser = FHIAimsArchiveWriter()
             parser.annotation_key = 'text_gw'
             parser.write(self.mainfile, gw_archive, self.logger)
+            gw_archive.workflow2 = SinglePoint(name='GW')
 
             # DFT-GW workflow
             gw_workflow_archive = self.child_archives.get('GW_workflow')
-            parser = GWWorkflowFHIAimsWriter()
-            parser.archives = dict(dft=self.archive, gw=gw_archive)
-            parser.annotation_key = 'text_gw_workflow'
-            parser.write(self.mainfile, gw_workflow_archive, self.logger)
+            gw_workflow_archive.workflow2 = DFTGWWorkflow(tasks=[
+                TaskReference(task=self.archive.workflow2),
+                TaskReference(task=gw_archive.workflow2)
+            ])
 
         # close file contexts
         self.out_parser = out_parser
@@ -338,11 +340,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         # remove annotations
         remove_mapping_annotations(fhiaims.general.Simulation.m_def)
-
-
-class GWWorkflowFHIAimsWriter(FHIAimsArchiveWriter, DFTGWWorkflowWriter):
-    def write_to_archive(self):
-        super().write_to_archive()
 
 
 class FHIAimsParser(MatchingParser):
