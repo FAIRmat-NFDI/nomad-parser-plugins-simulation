@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
@@ -13,10 +14,19 @@ from nomad_simulations.schema_packages import (
     outputs,
     properties,
     variables,
+    workflow,
 )
 
 m_package = SchemaPackage()
 
+EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+    dict(
+        text=Mapper(mapper='@'),
+        text_dos=Mapper(mapper='@'),
+        text_gw=Mapper(mapper='@'),
+        workflow=Mapper(mapper='@'),
+    )
+)
 
 general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
@@ -208,6 +218,25 @@ properties.spectral_profile.ElectronicDensityOfStates.value.m_annotations.setdef
 properties.spectral_profile.ElectronicDensityOfStates.projected_dos.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(text_dos=Mapper(mapper='.projected_dos')))
+
+
+# workflow
+workflow.geometry_optimization.GeometryOptimization.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(workflow=Mapper(mapper='.@')))
+# TODO find a more elegant fix to not parse tasks recursively, this will be filled in by
+# workflow normalizer from outputs
+workflow.geometry_optimization.GeometryOptimization.tasks.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(workflow=Mapper(napper='.tasks')))
+## workflow method
+workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(workflow=Mapper(mapper='.@')))
+### workflow method quantities
+workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
 m_package.__init_metainfo__()

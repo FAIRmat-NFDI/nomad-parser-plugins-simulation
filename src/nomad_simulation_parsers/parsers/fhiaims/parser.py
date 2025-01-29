@@ -290,6 +290,10 @@ class FHIAimsOutMappingParser(TextMappingParser):
                     result.append(res)
         return result
 
+    def get_relax(self, source):
+        print('!!!!!!!!!!!!!!!RR', source)
+        return source
+
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
@@ -303,18 +307,22 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         out_parser.text_parser = FHIAimsOutFileParser()
         out_parser.filepath = self.mainfile
 
-        archive_data_handler = MetainfoParser()
-        archive_data_handler.annotation_key = self.annotation_key
-        archive_data_handler.data_object = Simulation(program=Program(name='FHI-aims'))
+        archive_handler = MetainfoParser()
+        archive_handler.annotation_key = self.annotation_key
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
-        out_parser.convert(archive_data_handler, remove=True)
+        archive_handler.data_object = self.archive
 
-        self.archive.data = archive_data_handler.data_object
+        out_parser.convert(archive_handler, remove=True)
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
-        archive_data_handler.annotation_key = 'text_dos'
-        out_parser.convert(archive_data_handler, remove=True)
+        archive_handler.annotation_key = 'text_dos'
+        out_parser.convert(archive_handler, remove=True)
+
+        # workflow
+        archive_handler.annotation_key = 'workflow'
+        out_parser.convert(archive_handler)
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
@@ -328,15 +336,18 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
             # DFT-GW workflow
             gw_workflow_archive = self.child_archives.get('GW_workflow')
-            gw_workflow_archive.workflow2 = DFTGWWorkflow(tasks=[
-                TaskReference(task=self.archive.workflow2),
-                TaskReference(task=gw_archive.workflow2)
-            ])
+            gw_workflow_archive.workflow2 = DFTGWWorkflow(
+                tasks=[
+                    TaskReference(task=self.archive.workflow2),
+                    TaskReference(task=gw_archive.workflow2),
+                ]
+            )
 
         # close file contexts
         self.out_parser = out_parser
+        self.archive_handler = archive_handler
         # out_parser.close()
-        archive_data_handler.close()
+        # archive_handler.close()
 
         # remove annotations
         remove_mapping_annotations(fhiaims.general.Simulation.m_def)

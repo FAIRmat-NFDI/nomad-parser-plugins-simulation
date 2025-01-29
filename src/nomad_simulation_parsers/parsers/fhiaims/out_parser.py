@@ -505,6 +505,12 @@ class FHIAimsOutFileParser(TextParser):
                 dtype=float,
             ),
             Quantity(
+                'force_maximum',
+                rf'Maximum force component is +({RE_FLOAT}) *eV/A',
+                dtype=float,
+                unit='eV/angstrom',
+            ),
+            Quantity(
                 'time_calculation',
                 rf'{RE_N} *\| Time for this force evaluation\s*:'
                 rf'\s*[\d\.]+ s\s*([\d\.]+) s',
@@ -757,6 +763,23 @@ class FHIAimsOutFileParser(TextParser):
                 repeats=False,
             ),
             Quantity(
+                'convergence_energy',
+                rf'Convergence accuracy of total energy: *({RE_FLOAT})',
+                dtype=float,
+            ),
+            Quantity(
+                'convergence_forces',
+                rf'Convergence accuracy for geometry relaxation: '
+                rf'Maximum force < *({RE_FLOAT}) *eV/A',
+                dtype=float,
+                unit='eV/angstrom',
+            ),
+            Quantity(
+                'geometry_relaxation_method',
+                r'Geometry relaxation: ([\w ]+)',
+                flatten=False,
+            ),
+            Quantity(
                 'controlInOut_xc',
                 rf'{RE_N} *XC:\s*(?:Using)*\s*([\w\- ]+) with OMEGA ='
                 rf'\s*([\d\.Ee\-\+]+)',
@@ -955,6 +978,3 @@ class FHIAimsOutFileParser(TextParser):
             ),
         ]
         # TODO add SOC perturbed eigs, dielectric function
-
-    # def get_number_of_spin_channels(self):
-    #     return self.get('array_size_parameters', {}).get('Number of spin channels', 1)
