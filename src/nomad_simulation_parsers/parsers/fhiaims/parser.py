@@ -325,10 +325,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
                     result.append(res)
         return result
 
-    def get_relax(self, source):
-        print('!!!!!!!!!!!!!!!RR', source)
-        return source
-
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
