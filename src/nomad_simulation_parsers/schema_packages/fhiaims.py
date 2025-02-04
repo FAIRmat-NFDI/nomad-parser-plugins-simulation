@@ -24,7 +24,8 @@ EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
         text=Mapper(mapper='@'),
         text_dos=Mapper(mapper='@'),
         text_gw=Mapper(mapper='@'),
-        workflow=Mapper(mapper='@'),
+        md_workflow=Mapper(mapper='@'),
+        geo_opt_workflow=Mapper(mapper='@'),
     )
 )
 
@@ -220,23 +221,42 @@ properties.spectral_profile.ElectronicDensityOfStates.projected_dos.m_annotation
 ).update(dict(text_dos=Mapper(mapper='.projected_dos')))
 
 
-# workflow
-workflow.geometry_optimization.GeometryOptimization.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(workflow=Mapper(mapper='.@')))
+#workflow
 # TODO find a more elegant fix to not parse tasks recursively, this will be filled in by
 # workflow normalizer from outputs
-workflow.geometry_optimization.GeometryOptimization.tasks.m_annotations.setdefault(
+workflow.general.SimulationWorkflow.tasks.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(workflow=Mapper(napper='.tasks')))
+).update(dict(geo_opt_workflow=Mapper(mapper='.tasks'), md_workflow=Mapper(mapper='.tasks')))
+# geometry optimization workflow
+workflow.geometry_optimization.GeometryOptimization.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 ## workflow method
 workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(workflow=Mapper(mapper='.@')))
+).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 ### workflow method quantities
 workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(workflow=Mapper(mapper='.geometry_relaxation_method')))
-
+).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
+# molecular dynamics workflow
+workflow.molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='.@')))
+workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='.@')))
+workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
+workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
+workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='.@')))
+workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(md_workflow=Mapper(mapper='molecular_dynamics[*].md_calculation_info.\"Temperature (nuclei)\"')))
 
 m_package.__init_metainfo__()

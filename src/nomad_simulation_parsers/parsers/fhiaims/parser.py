@@ -290,10 +290,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
                     result.append(res)
         return result
 
-    def get_relax(self, source):
-        print('!!!!!!!!!!!!!!!RR', source)
-        return source
-
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
@@ -321,8 +317,14 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         out_parser.convert(archive_handler, remove=True)
 
         # workflow
-        archive_handler.annotation_key = 'workflow'
-        out_parser.convert(archive_handler)
+        workflow_key = None
+        if out_parser.data.get('geometry_optimization'):
+            workflow_key = 'geo_opt_workflow'
+        elif out_parser.data.get('molecular_dynamics'):
+            workflow_key = 'md_workflow'
+        if workflow_key:
+            archive_handler.annotation_key = workflow_key
+            out_parser.convert(archive_handler)
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
