@@ -1,11 +1,13 @@
 import os
 import re
 from collections.abc import Iterable
+from importlib import reload
 from typing import Any, Union
 
 import numpy as np
+from ase import Atoms
 from nomad.datamodel.datamodel import EntryArchive
-from nomad.datamodel.metainfo.workflow import TaskReference
+from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
@@ -15,14 +17,30 @@ from nomad.parsing.file_parser.mapping_parser import (
     TextParser as TextMappingParser,
 )
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.workflow import DFTGWWorkflow, SinglePoint
+from nomad_simulations.schema_packages.workflow import (
+    DFTGWWorkflow,
+    Phonon,
+    SinglePoint,
+)
+from nomad_simulations.schema_packages.workflow.general import (
+    SimulationTaskReference,
+)
+from phonopy import Phonopy
+from phonopy.structure.atoms import PhonopyAtoms
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
     FHIAimsOutFileParser,
 )
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
+from nomad_simulation_parsers.parsers.utils.general import (
+    remove_mapping_annotations,
+    search_files,
+)
+from nomad_simulation_parsers.schema_packages import fhiaims
+
+from .common import ControlParser, GeometryParser
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
@@ -293,11 +311,126 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
+    geometry_parser = GeometryParser()
+    control_parser = ControlParser()
+
+    def build_phonopy_object(
+        self, tolerance=1e-6
+    ) -> tuple[Phonopy, dict[str, EntryArchive]]:
+        """
+        Generate Phonopy object from FHI-aims files, also returns the archives
+        containing the force sets.
+        """
+
+        def is_equal(reference: Atoms, calculated: Atoms) -> bool:
+            """
+            Compare ase Atoms objects.
+            """
+            if len(reference) != len(calculated):
+                return False
+            if (
+                reference.get_atomic_numbers() != calculated.get_atomic_numbers()
+            ).any():
+                return False
+            if (abs(reference.get_cell() - calculated.get_cell()) > tolerance).any():
+                return False
+            # get normalized positions, wrapped to the bounding cell
+            ref_pos = reference.get_scaled_positions() % 1.0
+            cal_pos = calculated.get_scaled_positions() % 1.0
+            # resolve coordinates at the boundary
+            ref_pos = np.where(ref_pos != 1.0, ref_pos, 0.0)
+            cal_pos = np.where(cal_pos != 1.0, cal_pos, 0.0)
+            if (abs(ref_pos - cal_pos) > tolerance).any():
+                return False
+            return True
+
+        def get_forces(
+            mainfile: str, supercell: PhonopyAtoms, archive: EntryArchive = None
+        ) -> tuple[EntryArchive, np.ndarray]:
+            """
+            Load archive in upload corresponding to mainfile.
+            """
+            if archive is None:
+                archive = self.archive.m_context.resolve_archive(
+                    f'../upload/archive/mainfile/{mainfile}'
+                )
+            # check if supercell match calculation cell
+            calc_cell: Atoms = (
+                archive.data.model_system[-1].cell[-1].to_ase_atoms(self.logger)
+            )
+            supercell_atoms = Atoms(
+                positions=supercell.positions,
+                cell=supercell.cell,
+                symbols=supercell.symbols,
+                pbc=True,
+            )
+
+            if not is_equal(supercell_atoms, calc_cell):
+                self.logger.error('Phonopy supercell does not match calculation.')
+
+            forces = (
+                archive.data.outputs[-1]
+                .total_forces[-1]
+                .value.to('eV/angstrom')
+                .magnitude
+            )
+
+            return archive, forces
+
+        maindir = os.path.dirname(os.path.dirname(self.mainfile))
+
+        self.control_parser.mainfile = os.path.join(maindir, 'control.in')
+        supercell_matrix = self.control_parser.get('supercell')
+        displacement = self.control_parser.get('displacement', 0.001)
+        sym = self.control_parser.get('symmetry_thresh', 1e-6)
+
+        self.geometry_parser.mainfile = os.path.join(maindir, 'geometry.in')
+        unit_atoms = PhonopyAtoms(atoms=self.geometry_parser.get_atoms())
+
+        phonopy_obj = Phonopy(
+            unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
+        )
+        phonopy_obj.generate_displacements(distance=displacement)
+        supercells = phonopy_obj.get_supercells_with_displacements()
+
+        force_sets = []
+        n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
+        force_archives: dict[str, EntryArchive] = {}
+        supercell = supercells[0]
+        for n in range(3):
+            # for n, supercell in enumerate(supercells):
+            calc_dir = f'phonopy-FHI-aims-displacement-{str(n + 1).zfill(n_pad)}'
+            calc_file = search_files(
+                '*out', os.path.join(maindir, calc_dir), re_pattern=f'{calc_dir}.out'
+            )
+            if not calc_file:
+                self.logger.error('No FHI-aims phonon calculation file found.')
+                break
+
+            match = re.match(r'.+?/raw/(.+)', calc_file[0])
+            if not match:
+                break
+
+            # TODO put a try here, wait until archive is processed
+            archive, forces = get_forces(
+                match.group(1), supercell, self.archive if n == 0 else None
+            )
+            force_archives[f'supercell {n}'] = archive
+            force_sets.append(forces)
+
+        try:
+            phonopy_obj.set_forces(force_sets)
+            phonopy_obj.produce_force_constants()
+        except Exception:
+            self.logger.error('Error producing force constants.')
+
+        return phonopy_obj, force_archives
 
     def write_to_archive(
         self,
     ) -> None:
-        from nomad_simulation_parsers.schema_packages import fhiaims
+        # reload module to refresh annotations
+        reload(fhiaims)
 
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
@@ -309,32 +442,34 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler.data_object = self.archive
 
-        out_parser.convert(archive_handler, remove=True)
+        out_parser.convert(archive_handler, remove=False)
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
         archive_handler.annotation_key = 'text_dos'
-        out_parser.convert(archive_handler, remove=True)
+        out_parser.convert(archive_handler, remove=False)
 
         # workflow
-        workflow_key = None
         if out_parser.data.get('geometry_optimization'):
             workflow_key = 'geo_opt_workflow'
         elif out_parser.data.get('molecular_dynamics'):
             workflow_key = 'md_workflow'
+        else:
+            workflow_key = None
+            self.archive.workflow2 = SinglePoint()
         if workflow_key:
             archive_handler.annotation_key = workflow_key
             out_parser.convert(archive_handler)
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
-            self.archive.workflow2 = SinglePoint(name='DFT')
+            self.archive.workflow2.name = 'DFT'
 
             # GW single point
             parser = FHIAimsArchiveWriter()
             parser.annotation_key = 'text_gw'
             parser.write(self.mainfile, gw_archive, self.logger)
-            gw_archive.workflow2 = SinglePoint(name='GW')
+            gw_archive.workflow2.name = 'GW'
 
             # DFT-GW workflow
             gw_workflow_archive = self.child_archives.get('GW_workflow')
@@ -344,6 +479,50 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     TaskReference(task=gw_archive.workflow2),
                 ]
             )
+
+        phonon_archive = (
+            self.child_archives.get('phonon') if self.child_archives else None
+        )
+        if phonon_archive is not None:
+            # TODO generalize this to a parser/normalizer
+            # create phonony object
+            phonopy_obj, force_archives = self.build_phonopy_object()
+            # run phonopy calculation and fill phonon archive
+            try:
+                phonopy_obj_to_archive(phonopy_obj, phonon_archive, self.logger)
+            except Exception:
+                self.logger.error('Failed to run phonopy.')
+            # link calculations and phonon workflow
+            phonon_workflow_archive = self.child_archives.get('phonon_workflow')
+            phonon_workflow_archive.workflow2 = Phonon(
+                # unit cell
+                inputs=[
+                    Link(
+                        name='Input system', section=phonon_archive.data.model_system[0]
+                    )
+                ],
+                tasks=[
+                    # SimulationTask(name='Supercell generation'),
+                    *[
+                        SimulationTaskReference(
+                            task=a.workflow2,
+                        )
+                        for k, a in force_archives.items()
+                        if a.workflow2
+                    ],
+                    SimulationTaskReference(task=phonon_archive.workflow2),
+                ],
+            )
+            phonon_workflow_archive.workflow2.tasks[0].inputs.extend(
+                phonon_workflow_archive.workflow2.inputs
+            )
+            for archive in force_archives.values():
+                if not archive.workflow2:
+                    continue
+                archive.workflow2.normalize(archive, self.logger)
+                phonon_workflow_archive.workflow2.tasks[0].outputs.extend(
+                    archive.workflow2.inputs
+                )
 
         # close file contexts
         self.out_parser = out_parser
@@ -377,7 +556,9 @@ class FHIAimsParser(MatchingParser):
             decoded_buffer=decoded_buffer,
             compression=compression,
         )
+        children = []
         if is_mainfile:
+            # gw calculation
             match = re.search(RE_GW_FLAG, decoded_buffer)
             if match:
                 gw_flag = match[1]
@@ -393,9 +574,18 @@ class FHIAimsParser(MatchingParser):
                         if not line:
                             break
             if gw_flag in FHIAimsOutMappingParser._gw_flag_map.keys():
-                self.creates_children = True
-                return ['GW', 'GW_workflow']
-        return is_mainfile
+                children = ['GW', 'GW_workflow']
+            if not children:
+                # phonon calculation
+                match = re.search(r'.*/phonopy-FHI-aims-displacement-0+1/.*', filename)
+                if match:
+                    children = ['phonon', 'phonon_workflow']
+
+        if children:
+            self.level = 1
+            self.creates_children = True
+
+        return children or is_mainfile
 
     def parse(
         self,

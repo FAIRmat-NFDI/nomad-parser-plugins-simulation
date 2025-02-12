@@ -24,8 +24,9 @@ EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
         text=Mapper(mapper='@'),
         text_dos=Mapper(mapper='@'),
         text_gw=Mapper(mapper='@'),
-        md_workflow=Mapper(mapper='@'),
+        single_point=Mapper(mapper='@'),
         geo_opt_workflow=Mapper(mapper='@'),
+        md_workflow=Mapper(mapper='@'),
     )
 )
 
@@ -91,7 +92,13 @@ model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
 ).update(dict(text=Mapper(mapper='.lattice_vectors')))
 model_system.AtomicCell.positions.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(text=Mapper(mapper='.structure.positions'), unit='angstrom'))
+).update(dict(text=Mapper(mapper='.structure.positions', unit='angstrom')))
+model_system.AtomicCell.atoms_state.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(text=Mapper(mapper='.structure.labels')))
+model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(text=Mapper(mapper='.@')))
 
 # outputs
 general.Simulation.outputs.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
@@ -221,12 +228,18 @@ properties.spectral_profile.ElectronicDensityOfStates.projected_dos.m_annotation
 ).update(dict(text_dos=Mapper(mapper='.projected_dos')))
 
 
-#workflow
+# workflow
 # TODO find a more elegant fix to not parse tasks recursively, this will be filled in by
 # workflow normalizer from outputs
 workflow.general.SimulationWorkflow.tasks.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(geo_opt_workflow=Mapper(mapper='.tasks'), md_workflow=Mapper(mapper='.tasks')))
+).update(
+    dict(geo_opt_workflow=Mapper(mapper='.tasks'), md_workflow=Mapper(mapper='.tasks'))
+)
+# single point workflow
+workflow.single_point.SinglePoint.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(single_point=Mapper(mapper='.@')))
 # geometry optimization workflow
 workflow.geometry_optimization.GeometryOptimization.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
@@ -257,6 +270,12 @@ workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefa
 ).update(dict(md_workflow=Mapper(mapper='.@')))
 workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(md_workflow=Mapper(mapper='molecular_dynamics[*].md_calculation_info.\"Temperature (nuclei)\"')))
+).update(
+    dict(
+        md_workflow=Mapper(
+            mapper='molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"'
+        )
+    )
+)
 
 m_package.__init_metainfo__()
