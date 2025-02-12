@@ -23,8 +23,9 @@ EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
         text=Mapper(mapper='@'),
         text_dos=Mapper(mapper='@'),
         text_gw=Mapper(mapper='@'),
-        md_workflow=Mapper(mapper='@'),
+        single_point=Mapper(mapper='@'),
         geo_opt_workflow=Mapper(mapper='@'),
+        md_workflow=Mapper(mapper='@'),
     )
 )
 
