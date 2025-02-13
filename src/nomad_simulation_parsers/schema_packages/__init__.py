@@ -19,3 +19,9 @@ exciting_schema_package_entry_point = EntryPoint(
     description='Schema package for exciting.',
     module='nomad_simulation_parsers.schema_packages.exciting',
 )
+
+vasp_schema_package_entry_point = EntryPoint(
+    name='VASPSchemaPackage',
+    description='Schema package for VASP.',
+    module='nomad_simulation_parsers.schema_packages.vasp',
+)
