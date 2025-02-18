@@ -1,6 +1,7 @@
 import os
 from importlib import reload
 from typing import Any
+from importlib import reload
 
 import numpy as np
 from nomad.datamodel.datamodel import (
@@ -19,6 +20,7 @@ from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import (
     BoundLogger,
 )
+from nomad_simulation_parsers.schema_packages import exciting
 
 from nomad_simulation_parsers.parsers.utils.general import (
     remove_mapping_annotations,

@@ -466,12 +466,6 @@ class OutcarParser(MappingTextParser):
 
 class OutcarArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-<<<<<<< HEAD
-=======
-        # import schema to load annotations
-        from nomad_simulation_parsers.schema_packages import vasp
-
->>>>>>> 5c4e91d (Refactor)
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
@@ -496,7 +490,3 @@ class OutcarArchiveWriter(ArchiveWriter):
         # close file handles
         archive_data_parser.close()
         source_parser.close()
-
-        # remove annotations
-        # TODO cache? put in close context
-        remove_mapping_annotations(vasp.general.Simulation.m_def)
