@@ -18,9 +18,11 @@ from nomad.parsing.file_parser.mapping_parser import (
     XMLParser,
 )
 from nomad.units import ureg
+from nomad_simulation_parsers.parsers.utils.general import (
+    remove_mapping_annotations,
+    search_files,
+)
 from nomad_simulations.schema_packages.general import Simulation
-
-from nomad_simulation_parsers.parsers.utils.general import search_files, remove_mapping_annotations
 
 from .eigval_reader import EigvalReader
 from .info_reader import InfoReader

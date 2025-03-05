@@ -1,5 +1,4 @@
 from nomad.datamodel import EntryArchive
-
 from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 
 

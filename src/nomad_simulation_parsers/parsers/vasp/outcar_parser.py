@@ -17,7 +17,6 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Simulation
 
-
 RE_N = r'[\n\r]'
 
 
