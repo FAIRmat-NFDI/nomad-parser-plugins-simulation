@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     )
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+
 from .outcar_parser import VASPOutcarParser
 from .xml_parser import VASPXMLParser
 

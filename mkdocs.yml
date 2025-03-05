@@ -7,12 +7,23 @@ edit_uri: ""
 
 nav:
   - Home: index.md
-  - Tutorial: tutorial/tutorial.md
+  # - Tutorial: tutorial/tutorial.md
   - How-to guides:
       - Install this Plugin: how_to/install_this_plugin.md
       - Use this Plugin: how_to/use_this_plugin.md
       - Contribute to this plugin: how_to/contribute_to_this_plugin.md
       - Contribute to the documentation: how_to/contribute_to_the_documentation.md
+  - Parsers:
+      - FHI-aims:
+          - About: parsers/fhi-aims/fhi-aims_about.md
+      - H5MD:
+          - About: parsers/h5md/h5md_about.md
+          - How-to store data: parsers/h5md/h5md_howto.md
+          - The H5MD Schema: parsers/h5md/h5md_expl.md
+          - H5MD Reference: parsers/h5md/h5md_ref.md
+      - VASP:
+          - About: parsers/vasp/vasp_about.md
+
   - Explanation: explanation/explanation.md
   - Reference: reference/references.md
 plugins:
