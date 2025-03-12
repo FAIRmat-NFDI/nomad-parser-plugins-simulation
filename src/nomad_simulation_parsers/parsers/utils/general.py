@@ -13,11 +13,7 @@ from nomad.metainfo import Section, SubSection
 from nomad.utils import get_logger
 
 
-def search_files(
-    pattern: str,
-    basedir: str,
-    **kwargs
-) -> list[str]:
+def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
     """Search files following the `pattern` starting from `basedir`. The search is
     performed recursively in all sub-folders (deep=True) or parent folders (deep=False).
     A futher regex search with `re_pattern` is done to filter the matching files.
@@ -34,7 +30,7 @@ def search_files(
         list: list of matching files
     """
     deep = kwargs.get('deep', True)
-    max_dirs = kwargs.get('max_dirs', 10),
+    max_dirs = (kwargs.get('max_dirs', 10),)
     re_pattern = kwargs.get('re_pattern', '')
     include_all = kwargs.get('include_all', False)
 
