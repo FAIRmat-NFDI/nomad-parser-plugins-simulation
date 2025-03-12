@@ -16,9 +16,7 @@ from nomad.utils import get_logger
 def search_files(
     pattern: str,
     basedir: str,
-    deep: bool = True,
-    max_dirs: int = 10,
-    re_pattern: str = '',
+    **kwargs
 ) -> list[str]:
     """Search files following the `pattern` starting from `basedir`. The search is
     performed recursively in all sub-folders (deep=True) or parent folders (deep=False).
@@ -27,20 +25,27 @@ def search_files(
     Args:
         pattern (str): pattern to match the files in the folder
         basedir (str): directory to start the search
-        deep (bool, optional): folders search direction (True=down, False=up)
-        re_pattern (str, optional): additional regex pattern to filter matching files
+        **deep (bool, optional): folders search direction (True=down, False=up)
+        **re_pattern (str, optional): additional regex pattern to filter matching files
+        **include_all (bool, optional): if True will include all matched files in sub
+            directories to to max_dirs
 
     Returns:
         list: list of matching files
     """
+    deep = kwargs.get('deep', True)
+    max_dirs = kwargs.get('max_dirs', 10),
+    re_pattern = kwargs.get('re_pattern', '')
+    include_all = kwargs.get('include_all', False)
 
+    filenames = []
     for _ in range(max_dirs):
-        filenames = glob(f'{basedir}/{pattern}')
+        filenames.extend(glob(f'{basedir}/{pattern}'))
         pattern = os.path.join('**' if deep else '..', pattern)
-        if filenames:
+        if filenames and not include_all:
             break
 
-    if len(filenames) > 1:
+    if len(filenames) > 1 and re_pattern:
         # filter files that match
         matches = [f for f in filenames if re.search(re_pattern, f)]
         filenames = matches if matches else filenames
