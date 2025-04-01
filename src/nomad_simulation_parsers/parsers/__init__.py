@@ -34,6 +34,17 @@ class Wannier90ParserEntryPoint(EntryPoint):
         'equal.',
     )
 
+ams_parser_entry_point = EntryPoint(
+    name='parsers/ams',
+    aliases=['parsers/ams'],
+    description='NOMAD parser for AMS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'\* +\| +A M S +\| +\*',
+    parser_class_name='nomad_simulation_parsers.parsers.ams.parser.AMSParser',
+    code_name='AMS',
+    code_homepage='https://www.scm.com',
+)
+
 
 ams_parser_entry_point = EntryPoint(
     name='parsers/ams',
