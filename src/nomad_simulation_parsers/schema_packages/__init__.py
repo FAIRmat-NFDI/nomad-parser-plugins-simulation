@@ -14,6 +14,12 @@ class EntryPoint(SchemaPackageEntryPoint):
             return None
 
 
+ams_schema_package_entry_point = EntryPoint(
+    name='AMSSchemaPackage',
+    description='Schema package for AMS.',
+    module='nomad_simulation_parsers.schema_packages.ams',
+)
+
 exciting_schema_package_entry_point = EntryPoint(
     name='ExcitingSchemaPackage',
     description='Schema package for exciting.',
