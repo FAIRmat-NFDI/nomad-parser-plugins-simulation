@@ -21,6 +21,8 @@ from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
     Phonon,
     SinglePoint,
+    GeometryOptimization,
+    MolecularDynamics,
 )
 from nomad_simulations.schema_packages.workflow.general import (
     SimulationTaskReference,
@@ -440,7 +442,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.annotation_key = self.annotation_key
         self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
-        archive_handler.data_object = self.archive
+        archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
 
@@ -452,12 +454,15 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         # workflow
         if out_parser.data.get('geometry_optimization'):
             workflow_key = 'geo_opt_workflow'
+            self.archive.workflow2 = GeometryOptimization()
         elif out_parser.data.get('molecular_dynamics'):
             workflow_key = 'md_workflow'
+            self.archive.workflow2 = MolecularDynamics()
         else:
             workflow_key = None
             self.archive.workflow2 = SinglePoint()
         if workflow_key:
+            archive_handler.data_object = self.archive.workflow2
             archive_handler.annotation_key = workflow_key
             out_parser.convert(archive_handler)
 
