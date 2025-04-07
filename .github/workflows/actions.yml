@@ -15,7 +15,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        uv pip install '.[dev]'
+        uv pip install -e '.[dev]'
         uv pip install coverage coveralls
     - name: Test with pytest
       run: |
@@ -39,7 +39,6 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
     - name: Build the package
       run: |
-        pip install --upgrade pip
         uv pip install build
         python -m build --sdist
     - name: Install the package
