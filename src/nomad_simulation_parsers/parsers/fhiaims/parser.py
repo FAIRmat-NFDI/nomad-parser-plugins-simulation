@@ -19,10 +19,10 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
-    Phonon,
-    SinglePoint,
     GeometryOptimization,
     MolecularDynamics,
+    Phonon,
+    SinglePoint,
 )
 from nomad_simulations.schema_packages.workflow.general import (
     SimulationTaskReference,

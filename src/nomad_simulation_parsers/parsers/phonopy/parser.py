@@ -1,81 +1,92 @@
 import numpy as np
-from structlog.stdlib import BoundLogger
-from nomad.parsing import MatchingParser
-from nomad.utils import get_logger
-from nomad.units import ureg
 import phonopy
-
 from nomad.datamodel import EntryArchive
-from phonopy.structure.atoms import PhonopyAtoms
-from phonopy import Phonopy
-from nomad_simulations.schema_packages.general import Simulation, Program
-from nomad_simulations.schema_packages.model_system import ModelSystem, AtomicCell, AtomsState
+from nomad.parsing import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.model_system import (
+    AtomicCell,
+    AtomsState,
+    ModelSystem,
+)
 from nomad_simulations.schema_packages.outputs import Outputs
-
+from phonopy import Phonopy
 from phonopy.units import THzToEv
+from structlog.stdlib import BoundLogger
+
 from .calculator import PhononProperties
 
 
-def phonopy_obj_to_archive(phonopy_obj: Phonopy, archive: EntryArchive = None, logger: BoundLogger=None, **kwargs):
+def write_bandstructure(properties: PhononProperties):
+    freqs, bands, bands_labels = properties.get_bandstructure()
+    if freqs is None:
+        return
+
+    # convert THz to eV
+    freqs = freqs * THzToEv
+
+    # convert eV to J
+    freqs = (freqs * ureg.eV).to('joules').magnitude
+
+def write_dos(properties: PhononProperties):
+    f, dos = properties.get_dos()
+
+    # convert THz to eV to Joules
+    f = f * THzToEv
+    f = (f * ureg.eV).to('joules').magnitude
+
+def write_thermodynamical_properties(properties: PhononProperties):
+    T, fe, _, cv = properties.get_thermodynamical_properties()
+
+    n_atoms = len(properties.phonopy_obj.unitcell)
+    n_atoms_supercell = len(properties.phonopy_obj.supercell)
+
+    fe = fe / n_atoms
+
+    # The thermodynamic properties are reported by phonopy for the base
+    # system. Since the values in the metainfo are stored per the referenced
+    # system, we need to multiple by the size factor between the base system
+    # and the supersystem used in the calculations.
+    cv = cv * (n_atoms_supercell / n_atoms)
+
+    # convert to SI units
+    fe = (fe * ureg.eV).to('joules').magnitude
+
+    cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
+
+def create_system(
+    cell: np.ndarray,
+    symbols: list[str],
+    positions: np.ndarray,
+    supercell: np.ndarray = None,
+) -> ModelSystem:
+    sec_system = ModelSystem()
+    sec_cell = AtomicCell()
+    sec_system.cell.append(sec_cell)
+
+    sec_cell.periodic_boundary_conditions = [True, True, True]
+    for symbol in symbols:
+        sec_cell.atoms_state.append(AtomsState(chemical_symbol=symbol))
+
+    sec_cell.positions = positions * ureg.angstrom
+    sec_cell.lattice_vectors = cell * ureg.angstrom
+    sec_cell.supercell_matrix = supercell
+    return sec_system
+
+
+def phonopy_obj_to_archive(
+    phonopy_obj: Phonopy,
+    archive: EntryArchive = None,
+    logger: BoundLogger = None,
+    **kwargs,
+):
     """
     Run phonopy with an input phonopy object and write the results on a nomad archive.
     """
 
-    def write_bandstructure():
-        freqs, bands, bands_labels = properties.get_bandstructure()
-        if freqs is None:
-            return
-
-        # convert THz to eV
-        freqs = freqs * THzToEv
-
-        # convert eV to J
-        freqs = (freqs * ureg.eV).to('joules').magnitude
-
-    def write_dos():
-        f, dos = properties.get_dos()
-
-        # convert THz to eV to Joules
-        f = f * THzToEv
-        f = (f * ureg.eV).to('joules').magnitude
-
-    def write_thermodynamical_properties():
-        T, fe, _, cv = properties.get_thermodynamical_properties()
-
-        n_atoms = len(phonopy_obj.unitcell)
-        n_atoms_supercell = len(phonopy_obj.supercell)
-
-        fe = fe / n_atoms
-
-        # The thermodynamic properties are reported by phonopy for the base
-        # system. Since the values in the metainfo are stored per the referenced
-        # system, we need to multiple by the size factor between the base system
-        # and the supersystem used in the calculations.
-        cv = cv * (n_atoms_supercell / n_atoms)
-
-        # convert to SI units
-        fe = (fe * ureg.eV).to('joules').magnitude
-
-        cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
-
-    def create_system(cell: np.ndarray, symbols: list[str], positions: np.ndarray, supercell: np.ndarray=None) -> ModelSystem:
-        sec_system = ModelSystem()
-        sec_cell = AtomicCell()
-        sec_system.cell.append(sec_cell)
-
-        sec_cell.periodic_boundary_conditions = [True, True, True]
-        for symbol in symbols:
-            sec_cell.atoms_state.append(AtomsState(chemical_symbol=symbol))
-
-        sec_cell.positions = positions * ureg.angstrom
-        sec_cell.lattice_vectors = cell * ureg.angstrom
-        sec_cell.supercell_matrix = supercell
-        return sec_system
-
-
     logger = logger if logger is not None else get_logger(__name__)
     archive = archive if archive else EntryArchive()
-
 
     unit_cell = phonopy_obj.unitcell.get_cell()
     unit_pos = phonopy_obj.unitcell.get_positions()
@@ -92,7 +103,7 @@ def phonopy_obj_to_archive(phonopy_obj: Phonopy, archive: EntryArchive = None, l
         displacement = None
 
     supercell_matrix = phonopy_obj.supercell_matrix
-    sym_tol = phonopy_obj.symmetry.tolerance
+    # sym_tol = phonopy_obj.symmetry.tolerance
 
     data = Simulation()
     archive.data = data
@@ -121,13 +132,12 @@ def phonopy_obj_to_archive(phonopy_obj: Phonopy, archive: EntryArchive = None, l
     properties = PhononProperties(phonopy_obj, logger, **kwargs)
     properties.get_dos()
     # TODO write outputs
-    vol = np.dot(unit_cell[0], np.cross(unit_cell[1], unit_cell[2]))
-    n_imaginary = np.count_nonzero(properties.frequencies < 0)
+    # vol = np.dot(unit_cell[0], np.cross(unit_cell[1], unit_cell[2]))
+    # n_imaginary = np.count_nonzero(properties.frequencies < 0)
 
     return archive
 
 
 class PhonopyParser(MatchingParser):
-
-    def parse(self, mainfile:str, archive: EntryArchive, logger: BoundLogger):
+    def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger):
         pass

@@ -16,21 +16,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from itertools import combinations
-import numpy as np
 import re
-from typing import Any, Optional
 from fractions import Fraction
+from itertools import combinations
+from typing import Any, Optional
 
+import numpy as np
 from ase import lattice as aselattice
 from ase.cell import Cell
 from ase.dft.kpoints import (
-    special_paths,
-    parse_path_string,
     get_special_points,
+    parse_path_string,
     sc_special_points,
+    special_paths,
 )
-
 from phonopy.phonon.band_structure import BandStructure
 from phonopy.units import EvTokJmol, VaspToTHz
 
@@ -45,12 +44,13 @@ def generate_kpath_parameters(
             if p[index] == 'G':
                 p[index] = 'Γ'
     parameters: list[dict[str, Any]] = []
+    n_k = 2
     for h, seg in enumerate(k_points):
         for i, path in enumerate(seg):
             parameter: dict[str, Any] = {}
             parameter['npoints'] = npoints
             parameter['startname'] = paths[h][i]
-            if i == 0 and len(seg) > 2:
+            if i == 0 and len(seg) > n_k:
                 parameter['kstart'] = path
                 parameter['kend'] = seg[i + 1]
                 parameter['endname'] = paths[h][i + 1]
@@ -97,7 +97,8 @@ def read_kpath(filename: str) -> list[dict[str, Any]]:
 def test_non_canonical_hexagonal(cell: Cell, symprec: float) -> Optional[int]:
     """
     Tests if the cell is a non-canonical hexagonal cell
-    and returns the index of the ~ 60 degree angle (error range controlled by `symprec`).
+    and returns the index of the ~ 60 degree angle
+    (error range controlled by `symprec`).
     """
     try:
         target = 60
@@ -189,9 +190,9 @@ class PhononProperties:
         # as calculated by using the cell which is handed over during instantiation.
         # Fooling that object by handing over a "unit cell" diag(1,1,1) instead clashes
         # with calculation of non-analytical terms.
-        # Hence generate appropriate distances and special k-points list based on fractional
-        # coordinates in reciprocal space (to keep backwards compatibility with previous
-        # FHI-aims phonon implementation).
+        # Hence generate appropriate distances and special k-points list based on
+        # fractional coordinates in reciprocal space (to keep backwards compatibility
+        # with previous FHI-aims phonon implementation).
         bands = []
         bands_distances = []
         distance = 0.0
