@@ -416,7 +416,7 @@ class FHIAimsOutFileParser(TextParser):
             Quantity(
                 'self_consistency',
                 r'Begin self\-consistency iteration #\s*\d+([\s\S]+?'
-                'Total energy evaluation[s:\d\. ]+)',
+                r'Total energy evaluation[s:\d\. ]+)',
                 repeats=True,
                 sub_parser=TextParser(quantities=scf_quantities),
             ),
@@ -464,7 +464,7 @@ class FHIAimsOutFileParser(TextParser):
             Quantity(
                 'energy',
                 rf'{RE_N} *Energy and forces in a compact form:([\s\S]+?(?:{RE_N}{RE_N}'
-                '|Electronic free energy\s*:\s*[\d\.\-Ee]+ eV))',
+                rf'|Electronic free energy\s*:\s*[\d\.\-Ee]+ eV))',
                 str_operation=str_to_energy_components,
                 repeats=False,
                 convert=False,
@@ -549,7 +549,7 @@ class FHIAimsOutFileParser(TextParser):
                         Quantity(
                             'kind',
                             r'Evaluating non\-empirical van der Waals correction '
-                            '\(([\w /]+)\)',
+                            r'\(([\w /]+)\)',
                             repeats=False,
                             convert=False,
                             flatten=False,

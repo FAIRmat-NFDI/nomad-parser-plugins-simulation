@@ -143,4 +143,8 @@ outputs.ElectronicDensityOfStates.value.m_annotations[MAPPING_ANNOTATION_KEY] = 
 outputs.ElectronicDensityOfStates.projected_dos.m_annotations[
     MAPPING_ANNOTATION_KEY
 ] = dict(dos_xml=Mapper(mapper='dos.partialdos.diagram'))
-m_package.__init_metainfo__()
+
+try:
+    m_package.__init_metainfo__()
+except Exception:
+    pass
