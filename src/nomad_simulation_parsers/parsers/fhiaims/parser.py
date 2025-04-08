@@ -43,9 +43,18 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
+from nomad.utils import get_logger
+
+
+LOGGER = get_logger(__name__)
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     _gw_flag_map = {
         'gw': 'G0W0',
         'gw_expt': 'G0W0',
@@ -309,7 +318,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
                 if res:
                     result.append(res)
         return result
-
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'
