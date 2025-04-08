@@ -9,7 +9,6 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
-    variables,
 )
 
 m_package = SchemaPackage()
@@ -91,14 +90,8 @@ general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     bandstructure_xml=Mapper(mapper='.@'),
     dos_xml=Mapper(mapper='.@'),
 )
-### variables
-variables.Variables.n_points.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='.n_points'),
-    eigval=Mapper(mapper='n_k_points'),
-    bandstructure_xml=Mapper(mapper='.n_kpoints'),
-)
 ### total_energies
-outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.ElectronicStructureOutputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.@')
 )
 #### total_energies quantities
@@ -106,21 +99,15 @@ properties.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.final.energy_total || energy_total')
 )
 ### total_forces
-outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.ElectronicStructureOutputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper=('get_forces', ['.@']))
 )
 #### total_forces quantities
-properties.forces.TotalForce.variables.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='.@')
-)
-properties.forces.TotalForce.rank.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='.rank')
-)
 properties.forces.TotalForce.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.forces')
 )
 ### electronic_eigenvalues
-outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.ElectronicStructureOutputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
 )
 #### electronic_eigenvalues quantities
@@ -128,9 +115,6 @@ outputs.ElectronicEigenvalues.n_bands.m_annotations[MAPPING_ANNOTATION_KEY] = di
     eigval=Mapper(mapper='.n_states')
 )
 ##### we need to use setdefault when annot was defined previously
-outputs.ElectronicEigenvalues.variables.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(eigval=Mapper(mapper='@')))
 outputs.ElectronicEigenvalues.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     eigval=Mapper(mapper='.eigenvalues'),
 )
@@ -138,32 +122,19 @@ outputs.ElectronicEigenvalues.occupation.m_annotations[MAPPING_ANNOTATION_KEY] =
     eigval=Mapper(mapper='.occupancies')
 )
 ### electronic_band_structures
-outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.ElectronicStructureOutputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@']))
 )
 #### electronic_band_structures quantities
 outputs.ElectronicBandStructure.n_bands.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(bandstructure_xml=Mapper(mapper='.n_states')))
-outputs.ElectronicBandStructure.variables.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(bandstructure_xml=Mapper(mapper='.@')))
 outputs.ElectronicBandStructure.value.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(bandstructure_xml=Mapper(mapper='.energies')))
 ### electronic_dos
-outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.ElectronicStructureOutputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
-)
-#### electronic_dos quantities
-variables.Energy2.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(dos_xml=Mapper(mapper='.@'))
-)
-variables.Energy2.n_points.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(dos_xml=Mapper(mapper='length(.point)'))
-)
-variables.Energy2.points.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(dos_xml=Mapper(mapper=('to_float', [r'.point[*]."@e"']), unit='hartree'))
 )
 ###### TODO read unit from axis
 outputs.ElectronicDensityOfStates.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
