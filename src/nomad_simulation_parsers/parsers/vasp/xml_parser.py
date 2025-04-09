@@ -7,9 +7,19 @@ if TYPE_CHECKING:
 
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+
+LOGGER = get_logger(__name__)
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class VASPMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class VasprunParser(XMLParser):
@@ -53,7 +63,7 @@ class XMLArchiveWriter(ArchiveWriter):
         # import schema to load annotations
         from nomad_simulation_parsers.schema_packages import vasp
 
-        data_parser = MetainfoParser()
+        data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()
 
         xml_parser = VasprunParser(filepath=self.mainfile)
