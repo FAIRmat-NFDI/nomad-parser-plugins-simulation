@@ -47,6 +47,7 @@ from .common import ControlParser, GeometryParser
 
 LOGGER = get_logger(__name__)
 
+
 # TODO temporary fix for structlog unable to propagate logger
 class FHIAimsMetainfoParser(MetainfoParser):
     @property
@@ -323,6 +324,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
                 if res:
                     result.append(res)
         return result
+
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = 'text'

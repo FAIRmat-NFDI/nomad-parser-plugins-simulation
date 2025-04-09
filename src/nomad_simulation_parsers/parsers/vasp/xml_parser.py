@@ -7,12 +7,25 @@ if TYPE_CHECKING:
 
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+LOGGER = get_logger(__name__)
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class VASPMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class VasprunParser(XMLParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
@@ -50,10 +63,7 @@ class VasprunParser(XMLParser):
 
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-        # import schema to load annotations
-        from nomad_simulation_parsers.schema_packages import vasp
-
-        data_parser = MetainfoParser()
+        data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()
 
         xml_parser = VasprunParser(filepath=self.mainfile)
@@ -69,7 +79,3 @@ class XMLArchiveWriter(ArchiveWriter):
         # close file objects
         data_parser.close()
         xml_parser.close()
-
-        # remove annotations
-        # TODO cache? put in close context
-        remove_mapping_annotations(vasp.general.Simulation.m_def)

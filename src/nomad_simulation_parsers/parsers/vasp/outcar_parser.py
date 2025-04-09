@@ -9,11 +9,11 @@ import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
-
 RE_N = r'[\n\r]'
+LOGGER = get_logger(__name__)
 
 
 def get_key_values(val_in):
@@ -47,6 +47,13 @@ def get_key_values(val_in):
                     vi = False
             data[resi[0]] = convert(vi)
     return data
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class VASPMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class OutcarTextParser(TextParser):
@@ -355,6 +362,11 @@ class OutcarParser(MappingTextParser):
             'RA': ['LDA_C_PW_RPA'],  # TODO check if this is ever used
         }
 
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_version(self, source: dict[str, Any]) -> str:
         return ' '.join(
             [
@@ -454,11 +466,8 @@ class OutcarParser(MappingTextParser):
 
 class OutcarArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-        # import schema to load annotations
-        from nomad_simulation_parsers.schema_packages import vasp
-
         # set up archive parser
-        archive_data_parser = MetainfoParser()
+        archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
         archive_data_parser.data_object = archive_data
         archive_data_parser.annotation_key = 'outcar'
@@ -481,7 +490,3 @@ class OutcarArchiveWriter(ArchiveWriter):
         # close file handles
         archive_data_parser.close()
         source_parser.close()
-
-        # remove annotations
-        # TODO cache? put in close context
-        remove_mapping_annotations(vasp.general.Simulation.m_def)

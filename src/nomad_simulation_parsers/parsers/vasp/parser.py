@@ -8,7 +8,12 @@ if TYPE_CHECKING:
         BoundLogger,
     )
 
+from importlib import reload
+
 from nomad.parsing import MatchingParser
+
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+from nomad_simulation_parsers.schema_packages import vasp
 
 from .outcar_parser import OutcarArchiveWriter
 from .xml_parser import XMLArchiveWriter
@@ -22,8 +27,15 @@ class VASPParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] = None,
     ) -> None:
+        # reload schema to load vasp annotations
+        reload(vasp)
+
         if 'outcar' in mainfile.lower():
             archive_writer = OutcarArchiveWriter()
         else:
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # remove annotations
+        # TODO cache? put in close context
+        remove_mapping_annotations(vasp.general.Simulation.m_def)
