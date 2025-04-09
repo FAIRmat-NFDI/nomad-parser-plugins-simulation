@@ -187,7 +187,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         info_parser = InfoParser(text_parser=InfoFileParser())
         info_parser.filepath = self.mainfile
 
-        data_parser = MetainfoParser(data_object=Simulation())
+        data_parser = ExcitingMetainfoParser(data_object=Simulation())
         data_parser.annotation_key = 'info'
 
         info_parser.convert(data_parser)
