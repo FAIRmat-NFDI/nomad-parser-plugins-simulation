@@ -33,6 +33,12 @@ from .info_parser import InfoFileParser
 LOGGER = get_logger(__name__)
 
 
+class ExcitingMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
+
+
 class InfoParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -97,11 +103,21 @@ class InfoParser(TextParser):
 
 
 class InputXMLParser(XMLParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
 
 
 class BandstructureXMLParser(XMLParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     n_spin = 1
 
     def get_bandstructures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -123,6 +139,11 @@ class BandstructureXMLParser(XMLParser):
 
 
 class DosXMLParser(XMLParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def to_float(self, source: list[str]) -> np.ndarray:
         return np.array(source, dtype=float)
 
@@ -134,6 +155,11 @@ class DosXMLParser(XMLParser):
 
 
 class EigvalParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_eigenvalues(self, source: dict[str, Any]):
         eigs_occs = source.get('eigenvalues_occupancies')
         eigs = np.array([v.get('eigenvalues') for v in eigs_occs])

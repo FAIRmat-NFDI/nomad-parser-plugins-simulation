@@ -40,13 +40,18 @@ from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archi
 from nomad_simulation_parsers.parsers.utils.general import (
     remove_mapping_annotations,
     search_files,
-    with_logger,
 )
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
 
 LOGGER = get_logger(__name__)
+
+# TODO temporary fix for structlog unable to propagate logger
+class FHIAimsMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
