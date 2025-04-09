@@ -21,6 +21,11 @@ class VASPMetainfoParser(MetainfoParser):
 
 
 class VasprunParser(XMLParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
