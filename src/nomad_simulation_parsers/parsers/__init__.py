@@ -1,5 +1,10 @@
+import importlib
+
 from nomad.config.models.plugins import ParserEntryPoint
+from nomad.utils import get_logger
 from pydantic import Field
+
+LOGGER = get_logger(__name__)
 
 
 class EntryPoint(ParserEntryPoint):
@@ -11,12 +16,15 @@ class EntryPoint(ParserEntryPoint):
     )
 
     def load(self):
-        from nomad.parsing.parser import MatchingParserInterface
-
-        return MatchingParserInterface(
-            self.parser_class_name,
-            **self.dict(),
-        )
+        try:
+            module_path, cls_name = self.parser_class_name.rsplit('.', 1)
+            module = importlib.import_module(module_path)
+            cls = getattr(module, cls_name)
+            return cls(**self.model_dump(exclude={'parser_class_name'}))
+        except Exception as e:
+            LOGGER.error(
+                f'Could not load parser class {self.parser_class_name}', exc_info=e
+            )
 
 
 exciting_parser_entry_point = EntryPoint(
@@ -29,6 +37,15 @@ exciting_parser_entry_point = EntryPoint(
     mainfile_name_re=r'^.*.OUT(\.[^/]*)?$',
     code_name='exciting',
     code_homepage='http://exciting-code.org/',
+)
+
+fhiaims_parser_entry_point = EntryPoint(
+    name='parsers/fhiaims',
+    aliases=['parsers/fhi-aims', 'parsers/fhiaims'],
+    description='NOMAD parser for FHIAIMS.',
+    parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.FHIAimsParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
 vasp_parser_entry_point = EntryPoint(

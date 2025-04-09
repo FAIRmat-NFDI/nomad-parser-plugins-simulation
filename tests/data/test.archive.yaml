@@ -1,3 +1,4 @@
 data:
-  m_def: nomad_simulation_parsers.schema_packages.schema_package.NewSchemaPackage
-  name: Markus
+  m_def: nomad_simulation_parsers.schema_packages.fhiaims.Simulation
+  program:
+    name: FHI-aims

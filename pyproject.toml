@@ -17,7 +17,7 @@ name = "nomad-simulation-parsers"
 description = "A repository for housing NOMAD's collection of simulation parser plugins."
 dynamic = ["version"]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Esma B. Boydas", email = "esma.boydas@physik.hu-berlin.de" },
     { name = "Nathan Daelman", email = "ndaelman@physik.hu-berlin.de" },
@@ -32,9 +32,10 @@ maintainers = [
 ]
 license = { file = "LICENSE" }
 dependencies = [
-    "nomad-lab>=1.3.6.dev1",
-    "nomad-simulations>=0.3.1",
+    "nomad-lab>=1.3.16.dev100",
+    "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "python-magic-bin; sys_platform == 'win32'",
+    "phonopy>=2.35",
 ]
 
 [project.urls]
@@ -73,6 +74,9 @@ exclude = [
 line-length = 88
 indent-width = 4
 
+[tool.uv]
+index-url = "https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple"
+build-constraint-dependencies = ["wheel<0.46"]
 
 [tool.ruff.lint]
 select = [
@@ -122,6 +126,8 @@ where = ["src"]
 [project.entry-points.'nomad.plugin']
 exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
 exciting_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:exciting_schema_package_entry_point"
+fhiaims_parser_entry_point = "nomad_simulation_parsers.parsers:fhiaims_parser_entry_point"
+fhiaims_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:fhiaims_schema_package_entry_point"
 vasp_parser_entry_point = "nomad_simulation_parsers.parsers:vasp_parser_entry_point"
 vasp_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:vasp_schema_package_entry_point"
 
