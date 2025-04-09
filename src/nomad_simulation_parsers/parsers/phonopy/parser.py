@@ -29,12 +29,14 @@ def write_bandstructure(properties: PhononProperties):
     # convert eV to J
     freqs = (freqs * ureg.eV).to('joules').magnitude
 
+
 def write_dos(properties: PhononProperties):
     f, dos = properties.get_dos()
 
     # convert THz to eV to Joules
     f = f * THzToEv
     f = (f * ureg.eV).to('joules').magnitude
+
 
 def write_thermodynamical_properties(properties: PhononProperties):
     T, fe, _, cv = properties.get_thermodynamical_properties()
@@ -54,6 +56,7 @@ def write_thermodynamical_properties(properties: PhononProperties):
     fe = (fe * ureg.eV).to('joules').magnitude
 
     cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
+
 
 def create_system(
     cell: np.ndarray,

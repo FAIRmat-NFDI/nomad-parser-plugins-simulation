@@ -89,10 +89,7 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
     _remove(property)
 
 
-def with_logger(
-    cls=None,
-    logger: 'BoundLogger' = get_logger(__name__)
-):
+def with_logger(cls=None, logger: 'BoundLogger' = get_logger(__name__)):
     def add_logger(cls):
         def add(cls):
             setattr(cls, 'logger', property(lambda self: logger))
