@@ -12,8 +12,6 @@ from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
-
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 
@@ -468,9 +466,6 @@ class OutcarParser(MappingTextParser):
 
 class OutcarArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-        # import schema to load annotations
-        from nomad_simulation_parsers.schema_packages import vasp
-
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
@@ -495,7 +490,3 @@ class OutcarArchiveWriter(ArchiveWriter):
         # close file handles
         archive_data_parser.close()
         source_parser.close()
-
-        # remove annotations
-        # TODO cache? put in close context
-        remove_mapping_annotations(vasp.general.Simulation.m_def)

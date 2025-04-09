@@ -53,9 +53,7 @@ class Simulation(general.Simulation):
         dict(text_gw=Mapper(mapper='.@'))
     )
     # electronic structure outputs
-    outputs.Outputs.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
+    outputs.Outputs.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
         dict(
             text=Mapper(
                 mapper=(
@@ -288,7 +286,7 @@ class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResu
         dict(
             md_workflow=Mapper(
                 mapper='molecular_dynamics[*].md_calculation_info.'
-                    '"Temperature (nuclei)"'
+                '"Temperature (nuclei)"'
             )
         )
     )
