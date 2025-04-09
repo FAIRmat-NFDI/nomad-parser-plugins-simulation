@@ -19,7 +19,7 @@
 import re
 from fractions import Fraction
 from itertools import combinations
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from ase import lattice as aselattice
@@ -94,7 +94,7 @@ def read_kpath(filename: str) -> list[dict[str, Any]]:
     return generate_kpath_parameters(points, [labels], npoints)
 
 
-def test_non_canonical_hexagonal(cell: Cell, symprec: float) -> Optional[int]:
+def test_non_canonical_hexagonal(cell: Cell, symprec: float) -> int | None:
     """
     Tests if the cell is a non-canonical hexagonal cell
     and returns the index of the ~ 60 degree angle

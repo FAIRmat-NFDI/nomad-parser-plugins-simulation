@@ -29,7 +29,6 @@ from nomad_simulation_parsers.schema_packages import exciting
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser
 
-
 LOGGER = get_logger(__name__)
 
 
