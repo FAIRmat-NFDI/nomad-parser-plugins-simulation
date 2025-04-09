@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pint
@@ -14,7 +14,7 @@ class EigenvalueParser(TextParser):
     def init_quantities(self) -> None:
         def str_to_eigenvalues(
             val_in: str,
-        ) -> Optional[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
             val = [v.split() for v in val_in.strip().split('\n')]
             kpoint = np.array(
                 [0.0, 0.0, 0.0]

@@ -11,12 +11,12 @@ from .file_parser import XSpectraFileParser
 
 LOGGER = get_logger(__name__)
 
+
 class XspectraMainfileParser(MainfileParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
         return LOGGER
-
 
 
 class XSpectraArchiveWriter(QuantumEspressoArchiveWriter):
