@@ -26,6 +26,12 @@ fhiaims_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.fhiaims',
 )
 
+octopus_schema_package_entry_point = EntryPoint(
+    name='OctopusSchemaPackage',
+    description='Schema package for Octopus.',
+    module='nomad_simulation_parsers.schema_packages.octopus',
+)
+
 phonopy_schema_package_entry_point = EntryPoint(
     name='PhonopySchemaPackage',
     description='Schema package for Phonopy.',

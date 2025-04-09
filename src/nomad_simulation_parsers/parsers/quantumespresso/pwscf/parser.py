@@ -13,7 +13,7 @@ LOGGER = get_logger(__name__)
 
 
 class PWSCFMainfileParser(MainfileParser):
-   # TODO temporary fix for structlog unable to propagate logger
+    # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
         return LOGGER

@@ -11,6 +11,7 @@ from .file_parser import EPWFileParser
 
 LOGGER = get_logger(__name__)
 
+
 class EPWMainfileParser(MainfileParser):
     @property
     def logger(self):

@@ -58,6 +58,17 @@ fhiaims_parser_entry_point = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
+octopus_parser_entry_point = EntryPoint(
+    name='parsers/octopus',
+    aliases=['parsers/octopus'],
+    description='NOMAD parser for OCTOPUS.',
+    parser_class_name='nomad_simulation_parsers.parsers.octopus.parser.OctopusParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'\|0\) ~ \(0\) \|',
+    code_name='Octopus',
+    code_homepage='https://octopus-code.org/',
+)
+
 phonopy_parser_entry_point = EntryPoint(
     name='parsers/phonopy',
     aliases=['parsers/phonopy'],
