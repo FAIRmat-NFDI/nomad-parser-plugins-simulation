@@ -27,6 +27,14 @@ class EntryPoint(ParserEntryPoint):
             )
 
 
+class Wannier90ParserEntryPoint(EntryPoint):
+    equal_cell_positions_tolerance: float = Field(
+        1e-2,
+        description='Tolerance (in angstroms) for the cell positions to be considered'
+        'equal.',
+    )
+
+
 exciting_parser_entry_point = EntryPoint(
     name='parsers/exciting',
     aliases=['parsers/exciting'],
@@ -45,7 +53,20 @@ fhiaims_parser_entry_point = EntryPoint(
     description='NOMAD parser for FHIAIMS.',
     parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.FHIAimsParser',
     python_package='nomad_simulation_parsers',
+    code_name='phonopy',
+    code_homepage='https://aimsclub.fhi-berlin.mpg.de/',
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
+)
+
+phonopy_parser_entry_point = EntryPoint(
+    name='parsers/phonopy',
+    aliases=['parsers/phonopy'],
+    description='NOMAD parser for PHONOPY.',
+    mainfile_name_re='.*/phon[^/]+yaml',
+    parser_class_name='nomad_simulation_parsers.parsers.phonopy.parser.PhonopyParser',
+    code_name='phonopy',
+    python_package='nomad_simulation_parsers',
+    code_homepage='https://phonopy.github.io/phonopy/',
 )
 
 vasp_parser_entry_point = EntryPoint(
@@ -63,4 +84,16 @@ vasp_parser_entry_point = EntryPoint(
     mainfile_name_re='.*[^/]*xml[^/]*',
     mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
+)
+
+wannier90_parser_entry_point = Wannier90ParserEntryPoint(
+    name='parsers/wannier90',
+    aliases=['parsers/wannier90'],
+    description='NOMAD parser for WANNIER90.',
+    parser_class_name='nomad_simulation_parsers.parsers.wannier90.parser.Wannier90Parser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'\|\s*WANNIER90\s*\|',
+    code_name='Wannier90',
+    code_homepage='http://www.wannier.org/',
+    code_category='Atomistic code',
 )

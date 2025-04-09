@@ -26,8 +26,20 @@ fhiaims_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.fhiaims',
 )
 
+phonopy_schema_package_entry_point = EntryPoint(
+    name='PhonopySchemaPackage',
+    description='Schema package for Phonopy.',
+    module='nomad_simulation_parsers.schema_packages.phonopy',
+)
+
 vasp_schema_package_entry_point = EntryPoint(
     name='VASPSchemaPackage',
     description='Schema package for VASP.',
     module='nomad_simulation_parsers.schema_packages.vasp',
+)
+
+wannier90_schema_package_entry_point = EntryPoint(
+    name='Wannier90SchemaPackage',
+    description='Schema package for Wannier90.',
+    module='nomad_simulation_parsers.schema_packages.wannier90',
 )
