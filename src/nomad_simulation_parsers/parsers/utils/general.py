@@ -30,7 +30,7 @@ def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
         list: list of matching files
     """
     deep = kwargs.get('deep', True)
-    max_dirs = (kwargs.get('max_dirs', 10),)
+    max_dirs = kwargs.get('max_dirs', 10)
     re_pattern = kwargs.get('re_pattern', '')
     include_all = kwargs.get('include_all', False)
 
