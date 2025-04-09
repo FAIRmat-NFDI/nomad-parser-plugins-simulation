@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
@@ -18,16 +17,6 @@ from nomad_simulations.schema_packages import (
 
 m_package = SchemaPackage()
 
-EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        text=Mapper(mapper='@'),
-        text_dos=Mapper(mapper='@'),
-        text_gw=Mapper(mapper='@'),
-        single_point=Mapper(mapper='@'),
-        geo_opt_workflow=Mapper(mapper='@'),
-        md_workflow=Mapper(mapper='@'),
-    )
-)
 
 general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
