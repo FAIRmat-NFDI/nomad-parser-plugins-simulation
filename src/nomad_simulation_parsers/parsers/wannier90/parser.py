@@ -12,6 +12,7 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.beyond_dft import DFTTBWorkflow
@@ -25,9 +26,23 @@ from .file_parsers import HrParser, WInParser, WOutParser
 configuration = config.get_plugin_entry_point(
     'nomad_simulation_parsers.parsers:wannier90_parser_entry_point'
 )
+LOGGER = get_logger(__name__)
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class Wannier90MetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
+
 
 
 class WHrTextParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_hoppings(self, source: dict[str, Any], **kwargs) -> dict[str, Any]:
         degeneracy_factors = source.get('degeneracy_factors')[2:]
         full_hoppings = source.get('hoppings', [])
@@ -63,17 +78,32 @@ class WHrTextParser(TextParser):
 
 
 class WDosTextParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_dos(self, source: np.ndarray) -> dict[str, Any]:
         data = np.transpose(source)
         return dict(energies=data[0], value=data[1])
 
 
 class WBandTextParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_data(self, data: np.ndarray) -> np.ndarray:
         return np.transpose(data)[1:].transpose()
 
 
 class WOutTextParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_lattice_vectors(self, vectors: list[Any]) -> np.ndarray:
         return np.vstack(vectors[-3:])
 
@@ -141,6 +171,11 @@ class WInTextParser(TextParser):
         'fx(x2-3y2)',
         'fy(3x2-y2)',
     ]
+
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
 
     def get_projections(self, source: list[Any]) -> list[dict[str, Any]]:
         return [dict(projection=val) for val in source]
@@ -325,7 +360,7 @@ class WannierArchiveWriter(ArchiveWriter):
 
         # construct metainfo parser
         data = Simulation()
-        self.data_parser = MetainfoParser()
+        self.data_parser = Wannier90MetainfoParser()
         self.data_parser.annotation_key = 'wout'
         self.data_parser.data_object = data
         self.archive.data = data
