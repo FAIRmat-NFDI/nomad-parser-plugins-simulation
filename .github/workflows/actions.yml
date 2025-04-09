@@ -26,8 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        uv pip install wheel
-        uv pip install -e '.[dev]' --no-build-isolation
+        uv pip install -e '.[dev]'
         uv pip install coverage coveralls
     - name: Test with pytest
       run: |
@@ -55,8 +54,7 @@ jobs:
         python -m build --sdist
     - name: Install the package
       run: |
-        uv pip install wheel
-        uv pip install dist/*.tar.gz --no-build-isolation
+        uv pip install dist/*.tar.gz
   ruff-linting:
     runs-on: ubuntu-latest
     steps:
