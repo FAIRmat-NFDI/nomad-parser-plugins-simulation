@@ -2,7 +2,7 @@ import os
 import re
 from collections.abc import Iterable
 from importlib import reload
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -16,6 +16,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.file_parser.mapping_parser import (
     TextParser as TextMappingParser,
 )
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -43,17 +44,13 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
-from nomad.utils import get_logger
-
 
 LOGGER = get_logger(__name__)
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
     # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    logger = LOGGER
 
     _gw_flag_map = {
         'gw': 'G0W0',
@@ -561,7 +558,7 @@ class FHIAimsParser(MatchingParser):
         buffer: bytes,
         decoded_buffer: str,
         compression: str = None,
-    ) -> Union[bool, Iterable[str]]:
+    ) -> bool | Iterable[str]:
         is_mainfile = super().is_mainfile(
             filename=filename,
             mime=mime,
