@@ -14,6 +14,7 @@ from nomad.parsing.file_parser.mapping_parser import (
     XMLParser,
 )
 from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import (
     BoundLogger,
@@ -29,7 +30,15 @@ from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser
 
 
+LOGGER = get_logger(__name__)
+
+
 class InfoParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_xc_functionals(self, xc_type: int) -> list[dict[str, Any]]:
         xc_functional_map = {
             2: ['LDA_C_PZ', 'LDA_X_PZ'],

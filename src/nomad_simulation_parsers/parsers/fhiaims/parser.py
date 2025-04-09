@@ -49,9 +49,11 @@ from .common import ControlParser, GeometryParser
 LOGGER = get_logger(__name__)
 
 
-# TODO temporary fix for structlog unable to propagate logger
-@with_logger(logger=LOGGER)
 class FHIAimsOutMappingParser(TextMappingParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
 
     _gw_flag_map = {
         'gw': 'G0W0',
