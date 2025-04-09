@@ -11,6 +11,7 @@ from .file_parser import PhononFileParser
 
 LOGGER = get_logger(__name__)
 
+
 class PhononMainfileParser(MainfileParser):
     @property
     def logger(self):
