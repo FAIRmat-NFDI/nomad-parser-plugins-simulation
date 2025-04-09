@@ -561,9 +561,7 @@ class KFHistory:
         if name in self.blocked:
             return numpy.concatenate(
                 [
-                    numpy.atleast_1d(
-                        self.kf.read(self.section, f'{name}({i})')
-                    )
+                    numpy.atleast_1d(self.kf.read(self.section, f'{name}({i})'))
                     for i in range(1, self.nblocks + 1)
                 ]
             )

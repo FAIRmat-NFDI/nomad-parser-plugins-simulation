@@ -34,6 +34,7 @@ class Wannier90ParserEntryPoint(EntryPoint):
         'equal.',
     )
 
+
 ams_parser_entry_point = EntryPoint(
     name='parsers/ams',
     aliases=['parsers/ams'],
@@ -44,15 +45,6 @@ ams_parser_entry_point = EntryPoint(
     code_name='AMS',
     code_homepage='https://www.scm.com',
 )
-
-
-class Wannier90ParserEntryPoint(EntryPoint):
-    equal_cell_positions_tolerance: float = Field(
-        1e-2,
-        description='Tolerance (in angstroms) for the cell positions to be considered'
-        'equal.',
-    )
-
 
 exciting_parser_entry_point = EntryPoint(
     name='parsers/exciting',

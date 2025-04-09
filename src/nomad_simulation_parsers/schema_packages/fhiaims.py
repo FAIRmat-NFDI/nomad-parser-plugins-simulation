@@ -302,6 +302,7 @@ class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResu
         )
     )
 
+
 try:
     m_package.__init_metainfo__()
 except Exception:

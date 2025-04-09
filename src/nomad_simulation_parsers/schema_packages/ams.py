@@ -1,8 +1,7 @@
-from nomad.metainfo import SchemaPackage
-from nomad_simulations.schema_packages import general
 from nomad.datamodel.metainfo.annotations import Mapper
-
+from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad_simulations.schema_packages import general
 
 m_package = SchemaPackage()
 
@@ -14,15 +13,13 @@ class Program(general.Program):
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(out=Mapper(mapper='.@'))
-    )
+    general.Simulation.program.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.@')))
 
 
 Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        out=Mapper(mapper='@')
-    )
+    dict(out=Mapper(mapper='@'))
 )
 
 
