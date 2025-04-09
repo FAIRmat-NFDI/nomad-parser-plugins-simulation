@@ -11,6 +11,7 @@ from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
@@ -24,8 +25,22 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
 from .file_parser import QuantumEspressoFileParser
 
+LOGGER = get_logger(__name__)
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class QuantumEspressoMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
+
 
 class MainfileParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     def get_version(self, name_version: list[str]):
         return ' '.join(name_version[1:]).lstrip('v.')
 
@@ -36,7 +51,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     """
 
     schema: ModuleType = common
-    simulation_parser = MetainfoParser()
+    simulation_parser = QuantumEspressoMetainfoParser()
     mainfile_parser = MainfileParser(text_parser=QuantumEspressoFileParser())
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
