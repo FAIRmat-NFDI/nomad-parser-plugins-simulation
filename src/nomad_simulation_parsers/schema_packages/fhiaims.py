@@ -53,7 +53,7 @@ class Simulation(general.Simulation):
         dict(text_gw=Mapper(mapper='.@'))
     )
     # electronic structure outputs
-    outputs.ElectronicStructureOutputs.m_def.m_annotations.setdefault(
+    outputs.Outputs.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -135,14 +135,14 @@ class AtomsState(model_system.AtomsState):
     ).update(dict(text=Mapper(mapper='.@')))
 
 
-class ElectronicStructureOutputs(outputs.ElectronicStructureOutputs):
-    outputs.ElectronicStructureOutputs.total_energies.m_annotations.setdefault(
+class Outputs(outputs.Outputs):
+    outputs.Outputs.total_energies.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
-    outputs.ElectronicStructureOutputs.total_forces.m_annotations.setdefault(
+    outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
-    outputs.ElectronicStructureOutputs.electronic_eigenvalues.m_annotations.setdefault(
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -151,7 +151,7 @@ class ElectronicStructureOutputs(outputs.ElectronicStructureOutputs):
             )
         )
     )
-    outputs.ElectronicStructureOutputs.electronic_dos.m_annotations.setdefault(
+    outputs.Outputs.electronic_dos.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(

@@ -91,7 +91,7 @@ general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     dos_xml=Mapper(mapper='.@'),
 )
 ### total_energies
-outputs.ElectronicStructureOutputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.@')
 )
 #### total_energies quantities
@@ -99,7 +99,7 @@ properties.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.final.energy_total || energy_total')
 )
 ### total_forces
-outputs.ElectronicStructureOutputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper=('get_forces', ['.@']))
 )
 #### total_forces quantities
@@ -107,7 +107,7 @@ properties.forces.TotalForce.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='.forces')
 )
 ### electronic_eigenvalues
-outputs.ElectronicStructureOutputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
 )
 #### electronic_eigenvalues quantities
@@ -122,7 +122,7 @@ outputs.ElectronicEigenvalues.occupation.m_annotations[MAPPING_ANNOTATION_KEY] =
     eigval=Mapper(mapper='.occupancies')
 )
 ### electronic_band_structures
-outputs.ElectronicStructureOutputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@']))
 )
 #### electronic_band_structures quantities
@@ -133,7 +133,7 @@ outputs.ElectronicBandStructure.value.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(bandstructure_xml=Mapper(mapper='.energies')))
 ### electronic_dos
-outputs.ElectronicStructureOutputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
 )
 ###### TODO read unit from axis
