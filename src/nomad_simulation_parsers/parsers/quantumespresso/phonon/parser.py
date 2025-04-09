@@ -1,0 +1,26 @@
+from nomad.datamodel import EntryArchive
+from nomad.utils import get_logger
+
+from nomad_simulation_parsers.parsers.quantumespresso.parser import (
+    QuantumEspressoArchiveWriter,
+)
+from nomad_simulation_parsers.schema_packages.quantumespresso import phonon
+
+from ..parser import MainfileParser
+from .file_parser import PhononFileParser
+
+LOGGER = get_logger(__name__)
+
+class PhononMainfileParser(MainfileParser):
+    @property
+    def logger(self):
+        return LOGGER
+
+
+class PhononArchiveWriter(QuantumEspressoArchiveWriter):
+    schema = phonon
+    mainfile_parser = PhononMainfileParser(text_parser=PhononFileParser())
+
+    def parse_program(self, archive: EntryArchive, index: int) -> None:
+        self.simulation_parser.annotation_key = 'out'
+        super().parse_program(archive, index)

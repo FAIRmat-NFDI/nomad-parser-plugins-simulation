@@ -69,6 +69,21 @@ phonopy_parser_entry_point = EntryPoint(
     code_homepage='https://phonopy.github.io/phonopy/',
 )
 
+quantumespresso_parser_entry_point = EntryPoint(
+    name='parsers/quantumespresso',
+    aliases=['parsers/quantumespresso'],
+    description='NOMAD parser for QUANTUMESPRESSO.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=(
+        r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)'
+    ),
+    supported_compressions=['gz', 'bz2', 'xz'],
+    parser_class_name='nomad_simulation_parsers.parsers.quantumespresso.parser.QuantumEspressoParser',
+    code_name='QuantumESPRESSO',
+    code_homepage='http://www.quantum-espresso.org/',
+    code_category='Atomistic code',
+)
+
 vasp_parser_entry_point = EntryPoint(
     name='parsers/vasp',
     description='Parser for VASP XML and OUTCAR outputs',

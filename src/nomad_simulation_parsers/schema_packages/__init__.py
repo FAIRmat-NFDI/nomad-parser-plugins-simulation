@@ -32,6 +32,12 @@ phonopy_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.phonopy',
 )
 
+quantumespresso_schema_package_entry_point = EntryPoint(
+    name='QuantumEspressoSchemaPackage',
+    description='Schema package for Quantum Espresso.',
+    module='nomad_simulation_parsers.schema_packages.quantumespresso.common',
+)
+
 vasp_schema_package_entry_point = EntryPoint(
     name='VASPSchemaPackage',
     description='Schema package for VASP.',
