@@ -36,7 +36,6 @@ class Wannier90MetainfoParser(MetainfoParser):
         return LOGGER
 
 
-
 class WHrTextParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property

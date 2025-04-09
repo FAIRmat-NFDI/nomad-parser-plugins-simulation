@@ -23,6 +23,7 @@ general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     dos_xml=Mapper(mapper='@'),
 )
 
+
 class Simulation(general.Simulation):
     general.Simulation.program.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         info=Mapper(mapper='.@')
@@ -74,6 +75,7 @@ class KLinePath(numerical_settings.KLinePath):
         )
     )
 
+
 class DFT(model_method.DFT):
     model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         info=Mapper(mapper=('get_xc_functionals', ['.type'])),
@@ -118,8 +120,8 @@ class Outputs(outputs.Outputs):
     outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
     )
-    outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@']))
+    outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
+        dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
     )
     outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
@@ -146,9 +148,10 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     outputs.ElectronicEigenvalues.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         eigval=Mapper(mapper='.eigenvalues'),
     )
-    outputs.ElectronicEigenvalues.occupation.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        eigval=Mapper(mapper='.occupancies')
+    outputs.ElectronicEigenvalues.occupation.m_annotations[MAPPING_ANNOTATION_KEY] = (
+        dict(eigval=Mapper(mapper='.occupancies'))
     )
+
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     outputs.ElectronicBandStructure.n_bands.m_annotations.setdefault(
@@ -161,8 +164,10 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     ###### TODO read unit from axis
-    outputs.ElectronicDensityOfStates.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        dos_xml=Mapper(mapper=('to_float', [r'.point[*]."@dos"']), unit='1/hartree')
+    outputs.ElectronicDensityOfStates.value.m_annotations[MAPPING_ANNOTATION_KEY] = (
+        dict(
+            dos_xml=Mapper(mapper=('to_float', [r'.point[*]."@dos"']), unit='1/hartree')
+        )
     )
     outputs.ElectronicDensityOfStates.projected_dos.m_annotations[
         MAPPING_ANNOTATION_KEY
