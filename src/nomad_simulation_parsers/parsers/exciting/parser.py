@@ -193,7 +193,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         # read xc functionals from input.xml
         input_xml_files = (
-            search_files('input.xml', maindir, mainbase)
+            search_files('input.xml', maindir, re_pattern=mainbase)
             if not self.archive.m_xpath('data.model_method[0].xc_functionals')
             else []
         )
@@ -204,7 +204,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             input_xml_parser.close()
 
         # eigenvalues from eigval.out
-        eigval_files = search_files('EIGVAL.OUT', maindir, mainbase)
+        eigval_files = search_files('EIGVAL.OUT', maindir, re_pattern=mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
                 filepath=eigval_files[0], text_parser=EigvalFileParser()
@@ -214,7 +214,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
             eigval_parser.close()
 
         # bandstructure from bandstructure.xml
-        bandstructure_files = search_files('bandstructure.xml', maindir, mainbase)
+        bandstructure_files = search_files(
+            'bandstructure.xml', maindir, re_pattern=mainbase
+        )
         if bandstructure_files:
             bandstructure_parser = BandstructureXMLParser(
                 filepath=bandstructure_files[0]
@@ -225,7 +227,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             bandstructure_parser.close()
 
         # dos from dos.xml
-        dos_files = search_files('dos.xml', maindir, mainbase)
+        dos_files = search_files('dos.xml', maindir, re_pattern=mainbase)
         if dos_files:
             dos_parser = DosXMLParser(filepath=dos_files[0])
             data_parser.annotation_key = 'dos_xml'

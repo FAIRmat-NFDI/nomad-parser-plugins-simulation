@@ -36,7 +36,6 @@ class Wannier90MetainfoParser(MetainfoParser):
         return LOGGER
 
 
-
 class WHrTextParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -389,7 +388,6 @@ class WannierArchiveWriter(ArchiveWriter):
 
 class Wannier90Parser(MatchingParser):
     archive_writer = WannierArchiveWriter()
-    parser_level = 1
 
     def is_mainfile(
         self,
@@ -416,6 +414,7 @@ class Wannier90Parser(MatchingParser):
                     re_pattern=basename,
                 )
                 if files:
+                    self.level = 1
                     self.creates_children = True
                     # return only the first match, this is the key to the
                     # workflow archive
