@@ -22,7 +22,6 @@ from nomad_simulation_parsers.schema_packages import wannier90
 
 from .file_parsers import HrParser, WInParser, WOutParser
 
-
 configuration = config.get_plugin_entry_point(
     'nomad_simulation_parsers.parsers:wannier90_parser_entry_point'
 )
@@ -368,7 +367,9 @@ class Wannier90Parser(MatchingParser):
         """
         Returns DFT file if present.
         """
-        is_mainfile = super().is_mainfile(filename, mime, buffer, decoded_buffer, compression)
+        is_mainfile = super().is_mainfile(
+            filename, mime, buffer, decoded_buffer, compression
+        )
         if is_mainfile:
             basedir = os.path.dirname(filename)
             basename = os.path.basename(filename)

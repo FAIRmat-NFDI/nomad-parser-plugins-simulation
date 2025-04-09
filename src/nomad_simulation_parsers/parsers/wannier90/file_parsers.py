@@ -2,7 +2,6 @@ import re
 
 from nomad.parsing.file_parser.text_parser import Quantity, TextParser
 
-
 RE_N = r'[\n\r]'
 
 
@@ -87,9 +86,7 @@ class WOutParser(TextParser):
 
         self._quantities = [
             # Program quantities
-            Quantity(
-                'version', r'\s*\|\s*Release\:\s*([\d\.]+)\s*', repeats=False
-            ),
+            Quantity('version', r'\s*\|\s*Release\:\s*([\d\.]+)\s*', repeats=False),
             # System quantities
             Quantity('lattice_vectors', r'\s*a_\d\s*([\d\-\s\.]+)', repeats=True),
             Quantity(
@@ -97,7 +94,8 @@ class WOutParser(TextParser):
             ),
             Quantity(
                 'structure',
-                rf'(\s*Fractional Coordinate[\s\S]+?)(?:{RE_N}\s*(PROJECTIONS|K-POINT GRID))',
+                rf'(\s*Fractional Coordinate[\s\S]+?)(?:{RE_N}\s*'
+                rf'(PROJECTIONS|K-POINT GRID))',
                 repeats=False,
                 sub_parser=TextParser(quantities=structure_quantities),
             ),
@@ -134,7 +132,8 @@ class WOutParser(TextParser):
             ),
             Quantity(
                 'energy_windows',
-                r'(\|\s*Energy\s*Windows\s*\|[\s\S]+?)(?:Number of target bands to extract:)',
+                r'(\|\s*Energy\s*Windows\s*\|[\s\S]+?)'
+                r'(?:Number of target bands to extract:)',
                 repeats=False,
                 sub_parser=TextParser(quantities=disentangle_quantities),
             ),
@@ -155,4 +154,3 @@ class WOutParser(TextParser):
                 repeats=True,
             ),
         ]
-

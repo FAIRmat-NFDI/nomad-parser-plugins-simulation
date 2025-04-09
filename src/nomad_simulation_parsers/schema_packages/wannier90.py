@@ -1,5 +1,6 @@
-from nomad.metainfo import SchemaPackage
 from nomad.datamodel.metainfo.annotations import Mapper
+from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -10,8 +11,6 @@ from nomad_simulations.schema_packages import (
     properties,
     variables,
 )
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
-
 
 m_package = SchemaPackage()
 
@@ -45,10 +44,7 @@ class AtomsState(model_system.AtomsState):
 class AtomicCell(model_system.AtomicCell):
     model_system.AtomicCell.atoms_state.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(
-        wout=Mapper(mapper='.labels'),
-        win=Mapper(mapper='.@')
-    ))
+    ).update(dict(wout=Mapper(mapper='.labels'), win=Mapper(mapper='.@')))
 
     model_system.AtomicCell.positions.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
@@ -217,11 +213,13 @@ class HoppingMatrix(properties.HoppingMatrix):
     ).update(dict(whr=Mapper(mapper='.degeneracy_factors')))
 
     # TODO shape mismatch
-    # properties.HoppingMatrix.value.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(dict(whr=Mapper(mapper='.hoppings', unit='eV')))
+    # properties.HoppingMatrix.value.m_annotations.setdefault(
+    # MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(whr=Mapper(mapper='.hoppings', unit='eV')))
 
-    variables.WignerSeitz.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(whr=Mapper(mapper='.@'))
-    )
+    variables.WignerSeitz.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(whr=Mapper(mapper='.@')))
 
 
 class CrystalFieldSplitting(properties.CrystalFieldSplitting):
@@ -235,9 +233,9 @@ class CrystalFieldSplitting(properties.CrystalFieldSplitting):
 
 
 class Energy2(variables.Energy2):
-    variables.Energy2.points.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(dos=Mapper(mapper='.energies', unit='eV'))
-    )
+    variables.Energy2.points.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(dos=Mapper(mapper='.energies', unit='eV')))
 
 
 class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
@@ -253,10 +251,7 @@ class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
 class Outputs(outputs.Outputs):
     outputs.Outputs.electronic_band_structures.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(
-        wout=Mapper(mapper='.@'),
-        band=Mapper(mapper='.@')
-    ))
+    ).update(dict(wout=Mapper(mapper='.@'), band=Mapper(mapper='.@')))
 
     outputs.Outputs.hopping_matrices.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
@@ -272,9 +267,9 @@ class Outputs(outputs.Outputs):
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(wout=Mapper(mapper='.@'))
-    )
+    general.Simulation.program.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(wout=Mapper(mapper='.@')))
 
     # general.Simulation.model_system.m_annotations.setdefault(
     #     MAPPING_ANNOTATION_KEY, {}
@@ -283,16 +278,18 @@ class Simulation(general.Simulation):
     #     wout=Mapper(mapper='.structure')
     # ))
 
-    model_method.Wannier.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(wout=Mapper(mapper='.@'))
-    )
+    model_method.Wannier.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(wout=Mapper(mapper='.@')))
 
-    general.Simulation.outputs.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+    general.Simulation.outputs.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
         dict(
             wout=Mapper(mapper='.@'),
             band=Mapper(mapper='.@'),
             whr=Mapper(mapper='.@'),
-            dos=Mapper(mapper='.@')
+            dos=Mapper(mapper='.@'),
         )
     )
 
@@ -303,7 +300,7 @@ general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).up
         wout=Mapper(mapper='@'),
         band=Mapper(mapper='@'),
         whr=Mapper(mapper='@'),
-        dos=Mapper(mapper='@')
+        dos=Mapper(mapper='@'),
     )
 )
 

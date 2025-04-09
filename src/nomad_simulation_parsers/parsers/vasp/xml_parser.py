@@ -10,9 +10,6 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
-from nomad_simulation_parsers.schema_packages import vasp
-
 LOGGER = get_logger(__name__)
 
 
