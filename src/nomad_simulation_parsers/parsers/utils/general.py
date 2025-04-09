@@ -1,8 +1,9 @@
 import functools
 import os
 import re
+from collections.abc import Callable
 from glob import glob
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from structlog.stdlib import (
@@ -59,7 +60,7 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
             using the same section as parent.
     """
 
-    def _remove(property: Union[Section, SubSection], depth: int = 0):
+    def _remove(property: Section | SubSection, depth: int = 0):
         if depth > max_depth:
             return
 
@@ -86,6 +87,20 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
                         _remove(inheriting_section, depth)
 
     _remove(property)
+
+
+def with_logger(
+    cls=None,
+    logger: 'BoundLogger' = get_logger(__name__)
+):
+    def add_logger(cls):
+        def add(cls):
+            setattr(cls, 'logger', property(lambda self: logger))
+            return cls
+
+        return add(cls)
+
+    return add_logger(cls) if cls else add_logger
 
 
 def log(

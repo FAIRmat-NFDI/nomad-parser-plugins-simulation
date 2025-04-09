@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import pint
@@ -19,7 +19,7 @@ units_mapping = {'Ha': ureg.hartree, 'eV': ureg.eV}
 
 
 # TODO move this to general utils
-def str_to_unit(val_in: str) -> Optional[pint.Unit]:
+def str_to_unit(val_in: str) -> pint.Unit | None:
     """
     Convert string to pint.Unit
     """
@@ -33,7 +33,7 @@ def str_to_unit(val_in: str) -> Optional[pint.Unit]:
 
 
 # TODO merge with str_to_scf_convergence
-def str_to_energy_components(val_in: str) -> dict[str, Union[float, pint.Quantity]]:
+def str_to_energy_components(val_in: str) -> dict[str, float | pint.Quantity]:
     """
     Parse key, value pairs of energy components from string
     """
@@ -52,7 +52,7 @@ def str_to_energy_components(val_in: str) -> dict[str, Union[float, pint.Quantit
     return res
 
 
-def str_to_scf_convergence(val_in: str) -> dict[str, Union[float, pint.Quantity]]:
+def str_to_scf_convergence(val_in: str) -> dict[str, float | pint.Quantity]:
     """
     Parse key, value pairs of scf convergence parameters.
     """
@@ -225,7 +225,7 @@ def str_to_gw_eigs(val_in: str) -> dict[str, np.ndarray]:
     return res
 
 
-def str_to_gw_scf(val_in: str) -> dict[str, Union[float, pint.Quantity]]:
+def str_to_gw_scf(val_in: str) -> dict[str, float | pint.Quantity]:
     """
     Parse GW results
     """
@@ -240,7 +240,7 @@ def str_to_gw_scf(val_in: str) -> dict[str, Union[float, pint.Quantity]]:
     return data
 
 
-def str_to_md_calculation_info(val_in: str) -> dict[str, Union[float, pint.Quantity]]:
+def str_to_md_calculation_info(val_in: str) -> dict[str, float | pint.Quantity]:
     """
     Parse molecular dynamics parameters
     """
@@ -264,7 +264,7 @@ def str_to_md_calculation_info(val_in: str) -> dict[str, Union[float, pint.Quant
     return res
 
 
-def str_to_quantity(val_in: str) -> Union[float, pint.Quantity, None]:
+def str_to_quantity(val_in: str) -> float | pint.Quantity | None:
     val = val_in.split()
     n = 2
     if len(val) == 1:
