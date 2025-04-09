@@ -4,6 +4,7 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
@@ -11,14 +12,25 @@ from nomad_simulation_parsers.schema_packages import ams
 
 from .file_parser import OutParser
 
+LOGGER = get_logger(__name__)
 
 class MainfileParser(TextParser):
-    pass
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class AMSMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class AMSArchiveWriter(ArchiveWriter):
     mainfile_parser = MainfileParser(text_parser=OutParser())
-    metainfo_parser = MetainfoParser()
+    metainfo_parser = AMSMetainfoParser()
 
     def write_to_archive(self):
         # reload schema package to use correct annotations
