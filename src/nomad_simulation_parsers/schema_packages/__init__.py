@@ -14,6 +14,13 @@ class EntryPoint(SchemaPackageEntryPoint):
             return None
 
 
+abinit_schema_package_entry_point = EntryPoint(
+    name='AbinitSchemaPackage',
+    description='Schema package for abinit.',
+    module='nomad_simulation_parsers.schema_packages.abinit',
+)
+
+
 ams_schema_package_entry_point = EntryPoint(
     name='AMSSchemaPackage',
     description='Schema package for AMS.',

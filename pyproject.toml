@@ -124,6 +124,8 @@ where = ["src"]
 [tool.setuptools_scm]
 
 [project.entry-points.'nomad.plugin']
+abinit_parser_entry_point = "nomad_simulation_parsers.parsers:abinit_parser_entry_point"
+abinit_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:abinit_schema_package_entry_point"
 ams_parser_entry_point = "nomad_simulation_parsers.parsers:ams_parser_entry_point"
 ams_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:ams_schema_package_entry_point"
 exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
