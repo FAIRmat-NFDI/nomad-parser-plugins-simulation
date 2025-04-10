@@ -30,10 +30,21 @@ class EntryPoint(ParserEntryPoint):
 class Wannier90ParserEntryPoint(EntryPoint):
     equal_cell_positions_tolerance: float = Field(
         1e-2,
-        description='Tolerance (in angstroms) for the cell positions to be considered'
+        description='Tolerance (in angstroms) for the cell positions to be considered '
         'equal.',
     )
 
+
+ams_parser_entry_point = EntryPoint(
+    name='parsers/ams',
+    aliases=['parsers/ams'],
+    description='NOMAD parser for AMS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'\* +\| +A M S +\| +\*',
+    parser_class_name='nomad_simulation_parsers.parsers.ams.parser.AMSParser',
+    code_name='AMS',
+    code_homepage='https://www.scm.com',
+)
 
 exciting_parser_entry_point = EntryPoint(
     name='parsers/exciting',
@@ -53,7 +64,7 @@ fhiaims_parser_entry_point = EntryPoint(
     description='NOMAD parser for FHIAIMS.',
     parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.FHIAimsParser',
     python_package='nomad_simulation_parsers',
-    code_name='phonopy',
+    code_name='fhiaims',
     code_homepage='https://aimsclub.fhi-berlin.mpg.de/',
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
