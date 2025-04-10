@@ -6,6 +6,7 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -22,8 +23,22 @@ from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
 
+LOGGER = get_logger(__name__)
+
+
+# TODO temporary fix for structlog unable to propagate logger
+class AbinitMetainfoParser(MetainfoParser):
+    @property
+    def logger(self):
+        return LOGGER
+
 
 class MainfileParser(TextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
     text_parser = AbinitOutParser()
 
     def get_workflow_method(self) -> str:
