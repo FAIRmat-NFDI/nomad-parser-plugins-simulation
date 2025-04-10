@@ -34,15 +34,15 @@ class Wannier90ParserEntryPoint(EntryPoint):
         'equal.',
     )
 
-ams_parser_entry_point = EntryPoint(
-    name='parsers/ams',
-    aliases=['parsers/ams'],
-    description='NOMAD parser for AMS.',
+abinit_parser_entry_point = EntryPoint(
+    name='parsers/abinit',
+    aliases=['parsers/abinit'],
+    description='NOMAD parser for ABINIT.',
+    mainfile_contents_re=r'^\n*\.Version\s*[0-9.]*\s*of ABINIT\s*',
     python_package='nomad_simulation_parsers',
-    mainfile_contents_re=r'\* +\| +A M S +\| +\*',
-    parser_class_name='nomad_simulation_parsers.parsers.ams.parser.AMSParser',
-    code_name='AMS',
-    code_homepage='https://www.scm.com',
+    parser_class_name='nomad_simulation_parsers.parsers.abinit.parser.AbinitParser',
+    code_name='ABINIT',
+    code_homepage='https://www.abinit.org/',
 )
 
 

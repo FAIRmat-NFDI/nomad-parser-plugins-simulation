@@ -19,11 +19,7 @@
 import re
 from fractions import Fraction
 from itertools import combinations
-<<<<<<< HEAD
 from typing import Any
-=======
-from typing import Any, Optional
->>>>>>> ee4a78c (Linting fix)
 
 import numpy as np
 from ase import lattice as aselattice
@@ -48,21 +44,13 @@ def generate_kpath_parameters(
             if p[index] == 'G':
                 p[index] = 'Γ'
     parameters: list[dict[str, Any]] = []
-<<<<<<< HEAD
     n_k = 2
-=======
-    min_seg = 2
->>>>>>> ee4a78c (Linting fix)
     for h, seg in enumerate(k_points):
         for i, path in enumerate(seg):
             parameter: dict[str, Any] = {}
             parameter['npoints'] = npoints
             parameter['startname'] = paths[h][i]
-<<<<<<< HEAD
             if i == 0 and len(seg) > n_k:
-=======
-            if i == 0 and len(seg) > min_seg:
->>>>>>> ee4a78c (Linting fix)
                 parameter['kstart'] = path
                 parameter['kend'] = seg[i + 1]
                 parameter['endname'] = paths[h][i + 1]
@@ -108,14 +96,9 @@ def read_kpath(filename: str) -> list[dict[str, Any]]:
 
 def test_non_canonical_hexagonal(cell: Cell, symprec: float) -> int | None:
     """
-<<<<<<< HEAD
     Tests if the cell is a non-canonical hexagonal cell
     and returns the index of the ~ 60 degree angle
     (error range controlled by `symprec`).
-=======
-    Tests if the cell is a non-canonical hexagonal cell and returns the index of the
-    ~ 60 degree angle (error range controlled by `symprec`).
->>>>>>> ee4a78c (Linting fix)
     """
     try:
         target = 60
@@ -209,11 +192,7 @@ class PhononProperties:
         # with calculation of non-analytical terms.
         # Hence generate appropriate distances and special k-points list based on
         # fractional coordinates in reciprocal space (to keep backwards compatibility
-<<<<<<< HEAD
         # with previous FHI-aims phonon implementation).
-=======
-        #  with previous FHI-aims phonon implementation).
->>>>>>> ee4a78c (Linting fix)
         bands = []
         bands_distances = []
         distance = 0.0

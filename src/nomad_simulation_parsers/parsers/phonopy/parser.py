@@ -18,48 +18,27 @@ from structlog.stdlib import BoundLogger
 from .calculator import PhononProperties
 
 
-<<<<<<< HEAD
 def write_bandstructure(properties: PhononProperties):
     freqs, bands, bands_labels = properties.get_bandstructure()
     if freqs is None:
         return
-=======
-def get_bandstructure(properties: PhononProperties):
-    freqs, bands, bands_labels = properties.get_bandstructure()
-    if freqs is None:
-        return None, None, None
->>>>>>> ee4a78c (Linting fix)
 
     # convert THz to eV
     freqs = freqs * THzToEv
 
     # convert eV to J
     freqs = (freqs * ureg.eV).to('joules').magnitude
-<<<<<<< HEAD
 
 
 def write_dos(properties: PhononProperties):
-=======
-    return freqs, bands, bands_labels
-
-
-def get_dos(properties: PhononProperties):
->>>>>>> ee4a78c (Linting fix)
     f, dos = properties.get_dos()
 
     # convert THz to eV to Joules
     f = f * THzToEv
     f = (f * ureg.eV).to('joules').magnitude
 
-<<<<<<< HEAD
 
 def write_thermodynamical_properties(properties: PhononProperties):
-=======
-    return f, dos
-
-
-def get_thermodynamical_properties(properties: PhononProperties):
->>>>>>> ee4a78c (Linting fix)
     T, fe, _, cv = properties.get_thermodynamical_properties()
 
     n_atoms = len(properties.phonopy_obj.unitcell)
@@ -79,7 +58,6 @@ def get_thermodynamical_properties(properties: PhononProperties):
     cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
 
 
-<<<<<<< HEAD
 def create_system(
     cell: np.ndarray,
     symbols: list[str],
@@ -99,8 +77,6 @@ def create_system(
     sec_cell.supercell_matrix = supercell
     return sec_system
 
-=======
->>>>>>> ee4a78c (Linting fix)
 
 def phonopy_obj_to_archive(
     phonopy_obj: Phonopy,
@@ -112,28 +88,6 @@ def phonopy_obj_to_archive(
     Run phonopy with an input phonopy object and write the results on a nomad archive.
     """
 
-<<<<<<< HEAD
-=======
-    def create_system(
-        cell: np.ndarray,
-        symbols: list[str],
-        positions: np.ndarray,
-        supercell: np.ndarray = None,
-    ) -> ModelSystem:
-        sec_system = ModelSystem()
-        sec_cell = AtomicCell()
-        sec_system.cell.append(sec_cell)
-
-        sec_cell.periodic_boundary_conditions = [True, True, True]
-        for symbol in symbols:
-            sec_cell.atoms_state.append(AtomsState(chemical_symbol=symbol))
-
-        sec_cell.positions = positions * ureg.angstrom
-        sec_cell.lattice_vectors = cell * ureg.angstrom
-        sec_cell.supercell_matrix = supercell
-        return sec_system
-
->>>>>>> ee4a78c (Linting fix)
     logger = logger if logger is not None else get_logger(__name__)
     archive = archive if archive else EntryArchive()
 
