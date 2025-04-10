@@ -63,7 +63,7 @@ class MainfileParser(TextParser):
 
 class AbinitArchiveWriter(ArchiveWriter):
     mainfile_parser = MainfileParser()
-    metainfo_parser = MetainfoParser()
+    metainfo_parser = AbinitMetainfoParser()
     code_name = 'ABINIT'
     annotation_key = 'out'
 
