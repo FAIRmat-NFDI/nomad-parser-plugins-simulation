@@ -34,6 +34,7 @@ class Wannier90ParserEntryPoint(EntryPoint):
         'equal.',
     )
 
+
 abinit_parser_entry_point = EntryPoint(
     name='parsers/abinit',
     aliases=['parsers/abinit'],
@@ -45,7 +46,6 @@ abinit_parser_entry_point = EntryPoint(
     code_homepage='https://www.abinit.org/',
 )
 
-
 ams_parser_entry_point = EntryPoint(
     name='parsers/ams',
     aliases=['parsers/ams'],
@@ -55,6 +55,19 @@ ams_parser_entry_point = EntryPoint(
     parser_class_name='nomad_simulation_parsers.parsers.ams.parser.AMSParser',
     code_name='AMS',
     code_homepage='https://www.scm.com',
+)
+
+crystal_parser_entry_point = EntryPoint(
+    name='parsers/crystal',
+    aliases=['parsers/crystal'],
+    description='NOMAD parser for CRYSTAL.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'(\r?\n \*\s+CRYSTAL[\d]+\s+\*\r?\n \*\s*[a-zA-Z]+ :'
+        ' \d+[\.\d+]*)',
+    parser_class_name='nomad_simulation_parsers.parsers.crystal.parser.CrystalParser',
+    code_name='CRYSTAL',
+    code_homepage='https://www.crystal.unito.it/',
+    code_category='Atomistic code',
 )
 
 exciting_parser_entry_point = EntryPoint(
