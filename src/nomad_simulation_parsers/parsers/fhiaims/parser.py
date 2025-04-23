@@ -734,3 +734,9 @@ class FHIAimsParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = None,
     ) -> None:
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.fhiaims.parser import FHIAimsParser
+
+        FHIAimsParser().parse(mainfile, archive, logger)
