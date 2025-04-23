@@ -377,3 +377,9 @@ class CrystalParser(MatchingParser):
         child_arhives: dict[str, EntryArchive] = {},
     ):
         self.archive_writer.write(mainfile, archive, logger, child_arhives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.crystal.parser import CrystalParser
+
+        CrystalParser().parse(mainfile, archive, logger)

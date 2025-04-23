@@ -850,3 +850,9 @@ class AbinitParser(MatchingParser):
     ):
         archive_writer = AbinitArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+     
+        # run the old parser
+        # TODO remove
+        from electronicparsers.abinit.parser import AbinitParser
+
+        AbinitParser().parse(mainfile, archive, logger)
