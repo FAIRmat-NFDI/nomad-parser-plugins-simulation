@@ -25,3 +25,9 @@ class VASPParser(MatchingParser):
         else:
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.vasp.parser import VASPParser
+
+        VASPParser().parse(mainfile, archive, logger)
