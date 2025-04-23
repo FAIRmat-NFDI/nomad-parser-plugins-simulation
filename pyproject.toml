@@ -115,6 +115,9 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ['PLR2004']
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 
@@ -128,6 +131,8 @@ abinit_parser_entry_point = "nomad_simulation_parsers.parsers:abinit_parser_entr
 abinit_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:abinit_schema_package_entry_point"
 ams_parser_entry_point = "nomad_simulation_parsers.parsers:ams_parser_entry_point"
 ams_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:ams_schema_package_entry_point"
+crystal_parser_entry_point = "nomad_simulation_parsers.parsers:crystal_parser_entry_point"
+crystal_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:crystal_schema_package_entry_point"
 exciting_parser_entry_point = "nomad_simulation_parsers.parsers:exciting_parser_entry_point"
 exciting_schema_package_entry_point = "nomad_simulation_parsers.schema_packages:exciting_schema_package_entry_point"
 fhiaims_parser_entry_point = "nomad_simulation_parsers.parsers:fhiaims_parser_entry_point"

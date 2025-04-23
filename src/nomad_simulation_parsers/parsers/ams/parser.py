@@ -14,6 +14,7 @@ from .file_parser import OutParser
 
 LOGGER = get_logger(__name__)
 
+
 class MainfileParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property

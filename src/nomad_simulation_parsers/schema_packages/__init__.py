@@ -27,6 +27,12 @@ ams_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.ams',
 )
 
+crystal_schema_package_entry_point = EntryPoint(
+    name='CrystalSchemaPackage',
+    description='Schema package for Crystal.',
+    module='nomad_simulation_parsers.schema_packages.crystal',
+)
+
 exciting_schema_package_entry_point = EntryPoint(
     name='ExcitingSchemaPackage',
     description='Schema package for exciting.',
