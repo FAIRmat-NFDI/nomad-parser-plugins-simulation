@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import pint
+from ase.data import chemical_symbols
 from nomad import atomutils
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
@@ -104,10 +105,13 @@ class CrystalOutputParser(TextParser):
 
         def normalize_label(label: str) -> str:
             norm = re.match(r'([a-z][a-z]?).*', label.lower())
-            if norm:
-                return norm.group(1).capitalize()
             # unknown specie
-            return 'X'
+            # TODO not possible to define ghost atom
+            unknown = None
+            if norm:
+                label = norm.group(1).capitalize()
+                return label if label in chemical_symbols[1:] else unknown
+            return unknown
 
         return [
             dict(label=normalize_label(label), number=numbers[n])
