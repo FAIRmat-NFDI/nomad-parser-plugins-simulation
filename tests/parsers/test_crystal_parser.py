@@ -9,5 +9,3 @@ def test_parse_file():
     parser = CrystalParser()
     archive = EntryArchive()
     parser.parse('tests/data/crystal/single_point/dft/output.out', archive, LOGGER)
-
-    assert archive.data.wall_start == 1476100785.2

@@ -275,12 +275,7 @@ class OutputParser(TextParser):
                 rf'\s+{INTEGER}{BR}'
                 rf'\s+ATOM\s+X(?:/A|\(ANGSTROM\))\s+Y(?:/B|\(ANGSTROM\))\s+'
                 rf'Z(?:/C|\(ANGSTROM\))\s*{BR}'
-                rf'{
-                    re.escape(
-                        " ************************************************************"
-                        "*******************"
-                    )
-                }'
+                rf' \*+?'
                 rf'((?:\s+{INTEGER}\s+(?:T|F)\s+{INTEGER}\s+[\s\S]*?\s+{FLT}\s+{FLT}\s+'
                 rf'{FLT}{BR})+)',
                 shape=(-1, 7),
@@ -316,12 +311,7 @@ class OutputParser(TextParser):
                             'labels_positions',
                             rf'\s+ATOM\s+X(?:/A|\(ANGSTROM\))\s+Y(?:/B|\(ANGSTROM\))\s+'
                             rf'Z(?:/C|\(ANGSTROM\))\s*{BR}'
-                            rf'{
-                                re.escape(
-                                    " ************************************************"
-                                    "*******************************"
-                                )
-                            }'
+                            rf' \*+?'
                             rf'((?:\s+{INTEGER}\s+(?:T|F)\s+{INTEGER}\s+[\s\S]*?\s+'
                             rf'{FLT}\s+{FLT}\s+{FLT}{BR})+)',
                             shape=(-1, 7),
@@ -332,12 +322,7 @@ class OutputParser(TextParser):
                             'labels_positions_nanotube',
                             rf'\s+ATOM\s+X/A\s+Y\(ANGSTROM\)\s+Z\(ANGSTROM\)\s+'
                             rf'R\(ANGS\)\s*{BR}'
-                            rf'{
-                                re.escape(
-                                    " ************************************************"
-                                    "*******************************"
-                                )
-                            }'
+                            rf' \*+?'
                             rf'((?:\s+{INTEGER}\s+(?:T|F)\s+{INTEGER}\s+[\s\S]*?\s+'
                             rf'{FLT}\s+{FLT}\s+{FLT}\s+{FLT}{BR})+)',
                             shape=(-1, 8),
@@ -362,12 +347,7 @@ class OutputParser(TextParser):
                 'labels_positions_restart',
                 rf'   ATOM N\.AT\.  SHELL    X\(A\)      Y\(A\)      Z\(A\)      EXAD  '
                 rf'     N\.ELECT\.{BR}'
-                rf'{
-                    re.escape(
-                        " ************************************************************"
-                        "*******************"
-                    )
-                }'
+                rf' \*+?'
                 rf'((?:\s+{INTEGER}\s+{INTEGER}\s+{WORD}\s+{INTEGER}\s+{FLT}\s+{FLT}'
                 rf'\s+{FLT}\s+{FLT}\s+{FLT}{BR})+)',
                 shape=(-1, 9),
@@ -382,19 +362,9 @@ class OutputParser(TextParser):
             # Method
             Quantity(
                 'basis_set',
-                rf'{
-                    re.escape(
-                        " ***********************************************************"
-                        "********************"
-                    )
-                }'
+                rf' \*+?'
                 rf'{BR} LOCAL ATOMIC FUNCTIONS BASIS SET{BR}'
-                rf'{
-                    re.escape(
-                        " **********************************************************"
-                        "*********************"
-                    )
-                }'
+                rf' \*+?'
                 rf'{BR}   ATOM   X\(AU\)   Y\(AU\)   Z\(AU\)  N. TYPE  EXPONENT'
                 rf'  S COEF   P COEF   D/F/G COEF{BR}'
                 rf'([\s\S]*?){BR} INFORMATION',
@@ -730,12 +700,7 @@ class OutputParser(TextParser):
                 rf'( (?:COORDINATE AND CELL OPTIMIZATION|COORDINATE OPTIMIZATION) - '
                 rf'POINT\s+1{BR}'
                 rf'[\s\S]*?'
-                rf'{
-                    re.escape(
-                        r" ***********************************************************"
-                        r"*******"
-                    )
-                }'
+                rf' \*+?'
                 rf'{BR}'
                 rf'\s*\* OPT END - CONVERGED \* E\(AU\)\:\s+{FLT}\s+POINTS\s+{INTEGER})'
                 rf'\s+\*{BR}',
@@ -767,13 +732,7 @@ class OutputParser(TextParser):
                                         rf'\s+ATOM\s+X(?:/A|\(ANGSTROM\))\s+'
                                         rf'Y(?:/B|\(ANGSTROM\))\s+Z(?:/C|\(ANGSTROM\))'
                                         rf'\s*{BR}'
-                                        rf'{
-                                            re.escape(
-                                                " ************************************"
-                                                "*************************************"
-                                                "******"
-                                            )
-                                        }'
+                                        rf' \*+?'
                                         rf'((?:\s+{INTEGER}\s+(?:T|F)\s+{INTEGER}\s+'
                                         rf'[\s\S]*?\s+{FLT}\s+{FLT}\s+{FLT}{BR})+)',
                                         shape=(-1, 7),
@@ -784,13 +743,7 @@ class OutputParser(TextParser):
                                         'labels_positions_nanotube',
                                         rf'\s+ATOM\s+X/A\s+Y\(ANGSTROM\)\s+Z'
                                         rf'\(ANGSTROM\)\s+R\(ANGS\)\s*{BR}'
-                                        rf'{
-                                            re.escape(
-                                                " ************************************"
-                                                "*************************************"
-                                                "******"
-                                            )
-                                        }'
+                                        rf' \*+?'
                                         rf'((?:\s+{INTEGER}\s+(?:T|F)\s+{INTEGER}\s+'
                                         rf'[\s\S]*?\s+{FLT}\s+{FLT}\s+{FLT}\s+{FLT}'
                                         rf'{BR})+)',
@@ -826,12 +779,7 @@ class OutputParser(TextParser):
             # Band structure
             Quantity(
                 'band_structure',
-                rf'{
-                    re.escape(
-                        r" ***********************************************************"
-                        r"********************"
-                    )
-                }'
+                rf' \*+?'
                 rf'{BR}'
                 rf' \*                                                                 '
                 rf'            \*{BR}'
@@ -842,12 +790,7 @@ class OutputParser(TextParser):
                 rf' \*  TOTAL OF\s+{INTEGER} K-POINTS ALONG THE PATH\s+\*{BR}'
                 rf' \*                                                                 '
                 rf'            \*{BR}'
-                rf'{
-                    re.escape(
-                        r" ***********************************************************"
-                        r"********************"
-                    )
-                }'
+                rf' \*+?'
                 rf'{BR}'
                 rf'([\s\S]*?'
                 rf' ENERGY RANGE \(A\.U\.\)\s*{FLT} - \s*{FLT} EFERMI\s*{FLT_C}{BR})',
