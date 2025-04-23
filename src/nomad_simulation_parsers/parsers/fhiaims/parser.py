@@ -602,7 +602,8 @@ class FHIAimsParser(MatchingParser):
                     children = ['phonon', 'phonon_workflow']
 
         if children:
-            self.level = 1
+            # TODO not possible at the moment to redefine level
+            # self.level = 1
             self.creates_children = True
 
         return children or is_mainfile

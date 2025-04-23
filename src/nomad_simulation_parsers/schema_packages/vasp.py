@@ -166,13 +166,29 @@ class KMesh(numerical_settings.KMesh):
     numerical_settings.KMesh.points.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
-        dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'kpointlist\'].v | [0]'))
+        dict(
+            xml=MapperAnnotation(
+                mapper=(
+                    'reshape_array',
+                    ['.varray[?"@name"==\'kpointlist\'].v | [0]'],
+                    dict(shape_rest=(3)),
+                )
+            )
+        )
     )
 
     numerical_settings.KMesh.weights.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
-        dict(xml=MapperAnnotation(mapper='.varray[?"@name"==\'weights\'].v | [0]'))
+        dict(
+            xml=MapperAnnotation(
+                mapper=(
+                    'reshape_array',
+                    ['.varray[?"@name"==\'weights\'].v | [0]'],
+                    dict(shape_rest=()),
+                )
+            )
+        )
     )
 
 
@@ -193,7 +209,10 @@ class AtomicCell(model_system.AtomicCell):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper='.varray.v', unit='angstrom'),
+            xml=MapperAnnotation(
+                mapper=('reshape_array', ['.varray.v'], dict(shape_rest=(3))),
+                unit='angstrom',
+            ),
             outcar=MapperAnnotation(
                 mapper='.positions_forces', unit='angstrom', search='@ | [0]'
             ),

@@ -25,7 +25,7 @@ class VASPParser(MatchingParser):
         mainfile: str,
         archive: 'EntryArchive',
         logger: 'BoundLogger',
-        child_archives: dict[str, 'EntryArchive'] = None,
+        child_archives: dict[str, 'EntryArchive'] = {},
     ) -> None:
         # reload schema to load vasp annotations
         reload(vasp)

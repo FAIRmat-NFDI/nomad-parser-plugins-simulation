@@ -216,6 +216,16 @@ class QuantumEspressoParser(MatchingParser):
     """
 
     archive_writer = QuantumEspressoArchiveWriter()
+    _levels = {}
+    _mainfile = None
+
+    @property
+    def level(self):
+        return self._levels.pop(self._mainfile, self._level)
+
+    @level.setter
+    def level(self, value: int):
+        self._level = value
 
     def is_mainfile(
         self,
@@ -239,7 +249,10 @@ class QuantumEspressoParser(MatchingParser):
                         continue
                     programs.append(f'{len(programs)} {match.group(1)}')
             if 'pwscf' in programs[0].lower():
-                self.level = 2
+                # TODO not possible at the moment to redefine level
+                self._levels[filename] = 2
+                self._mainfile = filename
+                # self.level = 2
                 # search all qe mainfiles in the directory and sub directories
                 qe_files = search_files(
                     '*.out', os.path.dirname(filename), include_all=True
@@ -266,5 +279,4 @@ class QuantumEspressoParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        print('PPPP')
         self.archive_writer.write(mainfile, archive, logger, child_archives)

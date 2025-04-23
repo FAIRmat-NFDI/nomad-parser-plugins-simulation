@@ -63,7 +63,7 @@ crystal_parser_entry_point = EntryPoint(
     description='NOMAD parser for CRYSTAL.',
     python_package='nomad_simulation_parsers',
     mainfile_contents_re=r'(\r?\n \*\s+CRYSTAL[\d]+\s+\*\r?\n \*\s*[a-zA-Z]+ :'
-        ' \d+[\.\d+]*)',
+    r' \d+[\.\d+]*)',
     parser_class_name='nomad_simulation_parsers.parsers.crystal.parser.CrystalParser',
     code_name='CRYSTAL',
     code_homepage='https://www.crystal.unito.it/',
