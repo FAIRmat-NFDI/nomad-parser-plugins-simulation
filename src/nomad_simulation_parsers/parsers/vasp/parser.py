@@ -39,3 +39,9 @@ class VASPParser(MatchingParser):
         # remove annotations
         # TODO cache? put in close context
         remove_mapping_annotations(vasp.general.Simulation.m_def)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.vasp.parser import VASPParser
+
+        VASPParser().parse(mainfile, archive, logger)

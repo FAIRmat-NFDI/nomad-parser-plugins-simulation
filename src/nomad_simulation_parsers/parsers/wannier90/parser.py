@@ -429,3 +429,9 @@ class Wannier90Parser(MatchingParser):
         child_archives: dict[str, 'EntryArchive'] = {},
     ) -> None:
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.wannier90.parser import Wannier90Parser
+
+        Wannier90Parser().parse(mainfile, archive, logger)

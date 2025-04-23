@@ -113,3 +113,9 @@ class AMSParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ):
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.ams.parser import AMSParser
+
+        AMSParser().parse(mainfile, archive, logger)
