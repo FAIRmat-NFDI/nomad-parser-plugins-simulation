@@ -39,7 +39,7 @@ class GeometryParser(TextParser):
         ]
 
     def get_atoms(self) -> Atoms:
-        return Atoms(
+        atoms = Atoms(
             cell=self.lattice_vector,
             pbc=self.lattice_vector is not None,
             positions=[
@@ -51,7 +51,15 @@ class GeometryParser(TextParser):
             symbols=[atom.label for atom in self.atom],
             magmoms=self.magmom,
         )
-
+        # TODO compatibility with PhonopyAtoms
+        add_attribs = dict(
+            masses=atoms.get_masses(),
+            magnetic_moments=None,
+            scaled_positions=atoms.get_scaled_positions(),
+        )
+        for key, val in add_attribs.items():
+            setattr(atoms, key, val)
+        return atoms
 
 class ControlParser(TextParser):
     def __init__(self):

@@ -36,7 +36,7 @@ class VasprunParser(XMLParser):
         return dict(eigenvalues=transposed[0], occupations=transposed[1])
 
     def get_energy_contributions(
-        self, source: dict[str, Any], **kwargs
+        self, source: list[dict[str, Any]], **kwargs
     ) -> list[dict[str, Any]]:
         return [
             c
@@ -59,6 +59,13 @@ class VasprunParser(XMLParser):
         if value is None:
             return {}
         return dict(forces=value, npoints=len(value), rank=[3])
+
+    def reshape_array(self, source: np.ndarray, shape_rest: tuple = (3,)) -> np.ndarray:
+        if source is None:
+            return
+        return np.reshape(
+            source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
+        )
 
 
 class XMLArchiveWriter(ArchiveWriter):
