@@ -192,7 +192,9 @@ class CrystalF25Parser(TextParser):
 
 
 class CrystalMetainfoParser(MetainfoParser):
-    pass
+    @property
+    def logger(self):
+        pass
 
 
 class CrystalArchiveWriter(ArchiveWriter):
