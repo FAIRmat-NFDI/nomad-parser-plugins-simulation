@@ -704,3 +704,9 @@ class AbinitParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ):
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.abinit.parser import AbinitParser
+
+        AbinitParser().parse(mainfile, archive, logger)
