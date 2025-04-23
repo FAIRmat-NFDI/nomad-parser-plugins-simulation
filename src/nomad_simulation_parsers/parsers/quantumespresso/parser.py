@@ -534,3 +534,31 @@ class QuantumEspressoParser(MatchingParser):
         # TODO add this in the archive writer
         if archive.data and archive.data.outputs:
             link_outputs_to_model_systems(archive.data)
+        # run the old parser
+        # TODO remove
+        from electronicparsers.quantumespresso.parser import QuantumEspressoParser
+        from workflowparsers.quantum_espresso_epw.parser import QuantumEspressoEPWParser
+        from workflowparsers.quantum_espresso_phonon.parser import (
+            QuantumEspressoPhononParser,
+        )
+        from workflowparsers.quantum_espresso_xspectra.parser import (
+            QuantumEspressoXSpectraParser,
+        )
+
+        program_re = re.compile(r'Program +(\w+)')
+        program_name = ''
+        with open(mainfile) as f:
+            for line in f:
+                match = program_re.search(line)
+                if match:
+                    program_name = match.group(1)
+                    break
+
+        parser = {
+            'pwscf': QuantumEspressoParser,
+            'epw': QuantumEspressoEPWParser,
+            'phonon': QuantumEspressoPhononParser,
+            'xspectra': QuantumEspressoXSpectraParser,
+        }.get(program_name.lower())
+        if parser is not None:
+            parser().parse(mainfile, archive, logger)

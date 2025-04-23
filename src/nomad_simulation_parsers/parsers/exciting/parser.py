@@ -619,3 +619,9 @@ class ExcitingParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = None,
     ):
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.exciting.parser import ExcitingParser
+
+        ExcitingParser().parse(mainfile, archive, logger)
