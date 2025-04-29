@@ -61,6 +61,7 @@ class GeometryParser(TextParser):
             setattr(atoms, key, val)
         return atoms
 
+
 class ControlParser(TextParser):
     def __init__(self):
         super().__init__()
