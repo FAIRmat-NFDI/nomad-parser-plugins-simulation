@@ -91,16 +91,19 @@ class XCFunctional(model_method.XCFunctional):
 
 class ModelSystem(model_system.ModelSystem):
     model_system.AtomicCell.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_atoms', ['.atomic_positions']))
+        info=Mapper(mapper='.@')
+    )
+    model_system.ModelSystem.positions.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        info=Mapper(mapper='.positions')
+    )
+    model_system.AtomsState.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        info=Mapper(mapper='.atoms')
     )
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.positions.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.positions')
-    )
-    model_system.AtomicCell.atoms_state.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.atoms')
+    model_system.AtomicCell.lattice_vectors.m_annotations[MAPPING_ANNOTATION_KEY] = (
+        dict(info=Mapper(mapper='.lattice_vectors'))
     )
 
 

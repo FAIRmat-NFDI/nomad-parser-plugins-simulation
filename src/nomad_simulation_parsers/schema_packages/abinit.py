@@ -73,18 +73,18 @@ class AtomicCell(model_system.AtomicCell):
     model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='dataset[0].x_abinit_vprim', unit='bohr')))
-    model_system.AtomicCell.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.cartesian_coordinates', unit='bohr')))
-    model_system.AtomicCell.atoms_state.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_atoms', []), cache=True)))
 
 
 class ModelSystem(model_system.ModelSystem):
     model_system.AtomicCell.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@')))
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_atoms', []), cache=True)))
+    model_system.ModelSystem.positions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.cartesian_coordinates', unit='bohr')))
 
 
 class XCFunctional(model_method.XCFunctional):

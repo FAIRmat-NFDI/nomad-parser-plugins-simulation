@@ -42,14 +42,6 @@ class AtomsState(model_system.AtomsState):
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.atoms_state.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.labels'), win=Mapper(mapper='.@')))
-
-    model_system.AtomicCell.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.positions', unit='angstrom')))
-
     model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
@@ -74,7 +66,7 @@ class ModelSystem(model_system.ModelSystem):
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(win=Mapper(mapper='.@')))
 
-    model_system.ModelSystem.model_system.m_annotations.setdefault(
+    model_system.ModelSystem.sub_systems.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(win=Mapper(mapper=('get_projections', ['.projections']))))
 
@@ -98,7 +90,7 @@ class ModelSystem(model_system.ModelSystem):
         )
     )
 
-    model_system.ModelSystem.atom_indices.m_annotations.setdefault(
+    model_system.ModelSystem.particle_indices.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -117,6 +109,13 @@ class ModelSystem(model_system.ModelSystem):
             )
         )
     )
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(wout=Mapper(mapper='.labels'), win=Mapper(mapper='.@')))
+
+    model_system.ModelSystem.positions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(wout=Mapper(mapper='.positions', unit='angstrom')))
 
 
 class KMesh(numerical_settings.KMesh):
@@ -271,12 +270,9 @@ class Simulation(general.Simulation):
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(wout=Mapper(mapper='.@')))
 
-    # general.Simulation.model_system.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(
-    #     win=Mapper(mapper='.@'),
-    #     wout=Mapper(mapper='.structure')
-    # ))
+    general.Simulation.model_system.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(win=Mapper(mapper='.@'), wout=Mapper(mapper='.structure')))
 
     model_method.Wannier.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
