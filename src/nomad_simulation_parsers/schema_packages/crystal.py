@@ -33,17 +33,17 @@ class AtomicCell(model_system.AtomicCell):
             out=Mapper(mapper='.lattice_vectors')
         )
     )
-    model_system.AtomicCell.positions.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.positions')
-    )
-    model_system.AtomicCell.atoms_state.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.atoms')
-    )
 
 
 class ModelSystem(model_system.ModelSystem):
     model_system.AtomicCell.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         out=Mapper(mapper='.@')
+    )
+    model_system.ModelSystem.positions.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        out=Mapper(mapper='.positions')
+    )
+    model_system.AtomsState.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        out=Mapper(mapper='.atoms')
     )
 
 

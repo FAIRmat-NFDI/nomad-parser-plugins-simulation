@@ -76,7 +76,11 @@ class InfoParser(TextParser):
         if optimization:
             configurations.extend(optimization.get('optimization_step', []))
             configurations.append(optimization)
-        return configurations
+        return [
+            self.get_atoms(config['atomic_positions'])
+            for config in configurations
+            if config.get('atomic_positions')
+        ]
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
@@ -98,7 +102,11 @@ class InfoParser(TextParser):
             atoms.extend([atom] * len(species.get('positions', [])))
         if not atoms:
             atoms = [dict(symbol=s) for s in source.get('symbols')]
-        return dict(positions=np.array(positions, dtype=float), atoms=atoms)
+        return dict(
+            positions=np.array(positions, dtype=float),
+            atoms=atoms,
+            lattice_vectors=lattice_vectors,
+        )
 
 
 class InputXMLParser(XMLParser):

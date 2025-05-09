@@ -202,15 +202,16 @@ class ModelSystem(model_system.ModelSystem):
             outcar=MapperAnnotation(mapper='.@'),
         )
     )
-
-
-class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.positions.m_annotations.setdefault(
+    model_system.ModelSystem.positions.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
             xml=MapperAnnotation(
-                mapper=('reshape_array', ['.varray.v'], dict(shape_rest=(3))),
+                mapper=(
+                    'reshape_array',
+                    ['.structure.varray.v'],
+                    dict(shape_rest=(3,)),
+                ),
                 unit='angstrom',
             ),
             outcar=MapperAnnotation(
@@ -218,6 +219,9 @@ class AtomicCell(model_system.AtomicCell):
             ),
         )
     )
+
+
+class AtomicCell(model_system.AtomicCell):
     model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
