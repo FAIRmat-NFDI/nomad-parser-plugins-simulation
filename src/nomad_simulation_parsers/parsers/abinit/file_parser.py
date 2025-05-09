@@ -1,7 +1,6 @@
 import re
 
 import numpy as np
-from ase.data import chemical_symbols
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
 
@@ -13,7 +12,7 @@ class AbinitOutParser(TextParser):
     def __init__(self):
         self.energy_components = {
             'energy_kinetic_electronic': 'Kinetic energy',
-            'energy_electronstatic': 'Hartree energy',
+            'energy_electrostatic': 'Hartree energy',
             'energy_XC': 'XC energy',
             'ewald': 'Ewald energy',
             'psp_core': 'PspCore energy',
@@ -707,16 +706,3 @@ class AbinitOutParser(TextParser):
                 else:
                     self._input_vars[key] = [val] * self.n_datasets
         return self._input_vars
-
-    def get_input_var(self, key, n_dataset, default=None):
-        val = self.input_vars.get(key)
-        if val is None or val[n_dataset - 1] is None:
-            val = [default] * n_dataset
-        return val[n_dataset - 1]
-
-    def get_atom_labels(self):
-        znucl = self.get_input_var('znucl', 1)
-        typat = self.get_input_var('typat', 1)
-        if znucl is None or typat is None:
-            return
-        return [chemical_symbols[int(znucl[n_at - 1])] for n_at in typat]

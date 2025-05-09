@@ -124,18 +124,18 @@ class ModelSystem(model_system.ModelSystem):
     model_system.AtomicCell.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper='.@')))
+    model_system.ModelSystem.positions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper='.structure.positions', unit='angstrom')))
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper='.structure.labels')))
 
 
 class AtomicCell(model_system.AtomicCell):
     model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper='.lattice_vectors')))
-    model_system.AtomicCell.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.structure.positions', unit='angstrom')))
-    model_system.AtomicCell.atoms_state.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.structure.labels')))
 
 
 class AtomsState(model_system.AtomsState):
