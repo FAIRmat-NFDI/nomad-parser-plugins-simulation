@@ -5,7 +5,7 @@ from nomad.parsing.file_parser.text_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
-
+TOL = 0.01
 
 def str_to_profiling(
     val_in: str,
@@ -484,13 +484,13 @@ general_quantities = [
     ),
     Quantity(
         'labels_positions',
-        r'(Cartesian axes\s*site n\.\s*atom\s*positions[\s\S]+?)\n\s*\n',
+        r'(Cartesian axes\s*site n\.\s*atom.+?positions[\s\S]+?)\n\s*\n',
         repeatas=False,
         sub_parser=TextParser(
             quantities=[
                 Quantity('axes', r'(\w+)\s*axes'),
-                Quantity('units', r'site n\.\s*atom\s*positions\s*\(\s*(\S+)'),
-                Quantity('labels', r'(\w+)\s*tau', repeats=True),
+                Quantity('units', r'site n\.\s*atom.+?positions\s*\(\s*(\S+)'),
+                Quantity('labels', r' ([A-Z][a-z]?)\S* ', repeats=True),
                 Quantity(
                     'positions',
                     rf'=\s*\(\s*({RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT})\s*\)',
@@ -679,4 +679,1623 @@ tail_quantities = [
         flatten=False,
     ),
     Quantity('job_done', r'(JOB DONE)'),
+]
+
+
+# origin: espresso-5.4.0/Modules/funct.f90
+# update:
+# . New exchange-correlation functionals exist in
+# .     espresso-6.5.0/Modules/funct.f90
+#   short comments mark the corresponding new metainfo
+_exchange_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'sla',
+            'x_qe_xc_iexch_comment': 'Slater (alpha=2/3)',
+            'x_qe_xc_iexch': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'XC_functional_parameters': {'alpha': 1.0},
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'sl1',
+            'x_qe_xc_iexch_comment': 'Slater (alpha=1.0)',
+            'x_qe_xc_iexch': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'x_qe_LDA_X_RELATIVISTIC',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'rxc',
+            'x_qe_xc_iexch_comment': 'Relativistic Slater',
+            'x_qe_xc_iexch': 3,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'OEP_EXX',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'oep',
+            'x_qe_xc_iexch_comment': 'Optimized Effective Potential',
+            'x_qe_xc_iexch': 4,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HF_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'hf',
+            'x_qe_xc_iexch_comment': 'Hartree-Fock',
+            'x_qe_xc_iexch': 5,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.25,
+            },
+            {
+                'XC_functional_name': 'LDA_X',
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'XC_functional_weight': 0.75,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'pb0x',
+            'x_qe_xc_iexch_comment': 'PBE0 (Slater*0.75+HF*0.25)',
+            'x_qe_xc_iexch': 6,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.20,
+            },
+            {
+                'XC_functional_name': 'LDA_X',
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'XC_functional_weight': 0.8,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'b3lp',
+            'x_qe_xc_iexch_comment': 'B3LYP(Slater*0.80+HF*0.20)',
+            'x_qe_xc_iexch': 7,
+        },
+    },
+    # LDA_X_KZK is not part of libXC. Look up it at
+    # 'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-meta-info/wikis/metainfo/XC-functional'
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_X_KZK',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'kzk',
+            'x_qe_xc_iexch_comment': 'Finite-size corrections',
+            'x_qe_xc_iexch': 8,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.218,
+            },
+            {
+                'XC_functional_name': 'LDA_X',
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'XC_functional_weight': 0.782,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'x3lp',
+            'x_qe_xc_iexch_comment': 'X3LYP(Slater*0.782+HF*0.218)',
+            'x_qe_xc_iexch': 9,
+        },
+    },
+    # update for espresso-6.5.0: KLI
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_X_KLI',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_iexch_name': 'kli',
+            'x_qe_xc_iexch_comment': 'KLI aproximation for exx',
+            'x_qe_xc_iexch': 10,
+        },
+    },
+]
+
+# Correlation functionals UNchanged between espresso v5.4 & v6.5
+_correlation_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_PZ',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'pz',
+            'x_qe_xc_icorr_comment': 'Perdew-Zunger',
+            'x_qe_xc_icorr': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_VWN',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'vwn',
+            'x_qe_xc_icorr_comment': 'Vosko-Wilk-Nusair',
+            'x_qe_xc_icorr': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'lyp',
+            'x_qe_xc_icorr_comment': 'Lee-Yang-Parr',
+            'x_qe_xc_icorr': 3,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'pw',
+            'x_qe_xc_icorr_comment': 'Perdew-Wang',
+            'x_qe_xc_icorr': 4,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_WIGNER',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'wig',
+            'x_qe_xc_icorr_comment': 'Wigner',
+            'x_qe_xc_icorr': 5,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_HL',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'hl',
+            'x_qe_xc_icorr_comment': 'Hedin-Lunqvist',
+            'x_qe_xc_icorr': 6,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_OB_PZ',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'obz',
+            'x_qe_xc_icorr_comment': 'Ortiz-Ballone form for PZ',
+            'x_qe_xc_icorr': 7,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_OB_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'obw',
+            'x_qe_xc_icorr_comment': 'Ortiz-Ballone form for PW',
+            'x_qe_xc_icorr': 8,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_GL',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'gl',
+            'x_qe_xc_icorr_comment': 'Gunnarson-Lunqvist',
+            'x_qe_xc_icorr': 9,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_KZK',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'kzk',
+            'x_qe_xc_icorr_comment': 'Finite-size corrections',
+            'x_qe_xc_icorr': 10,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_VWN_RPA',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'vwn-rpa',
+            'x_qe_xc_icorr_comment': 'Vosko-Wilk-Nusair, alt param',
+            'x_qe_xc_icorr': 11,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_VWN',
+                'XC_functional_weight': 0.19,
+            },
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+                'XC_functional_weight': 0.81,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'b3lp',
+            'x_qe_xc_icorr_comment': 'B3LYP (0.19*vwn+0.81*lyp)',
+            'x_qe_xc_icorr': 12,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_VWN_RPA',
+                'XC_functional_weight': 0.19,
+            },
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+                'XC_functional_weight': 0.81,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'b3lpv1r',
+            'x_qe_xc_icorr_comment': 'B3LYP-VWN-1-RPA (0.19*vwn_rpa+0.81*lyp)',
+            'x_qe_xc_icorr': 13,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'LDA_C_VWN_RPA',
+                'XC_functional_weight': 0.129,
+            },
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+                'XC_functional_weight': 0.871,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_icorr_name': 'x3lp',
+            'x_qe_xc_icorr_comment': 'X3LYP (0.129*vwn_rpa+0.871*lyp)',
+            'x_qe_xc_icorr': 14,
+        },
+    },
+]
+
+# New 'exchange_gradient_correction' functionals for q-espresso (qe) v6.5
+#    igcx=[1..28] unchanged between qe-v5.4 & v6.5
+# New additions: igcx=[29..42]
+
+_exchange_gradient_correction_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B88',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b88',
+            'x_qe_xc_igcx_comment': 'Becke88 (beta=0.0042)',
+            'x_qe_xc_igcx': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PW91',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ggx',
+            'x_qe_xc_igcx_comment': 'Perdew-Wang 91',
+            'x_qe_xc_igcx': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PBE',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'pbx',
+            'x_qe_xc_igcx_comment': 'Perdew-Burke-Ernzenhof exch',
+            'x_qe_xc_igcx': 3,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PBE_R',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'rpb',
+            'x_qe_xc_igcx_comment': 'revised PBE by Zhang-Yang',
+            'x_qe_xc_igcx': 4,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_XC_HCTH_120',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'hcth',
+            'x_qe_xc_igcx_comment': 'Cambridge exch, Handy et al, HCTH/120',
+            'x_qe_xc_igcx': 5,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_OPTX',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'optx',
+            'x_qe_xc_igcx_comment': "Handy's exchange functional",
+            'x_qe_xc_igcx': 6,
+        },
+    },
+    {
+        # igcx=7 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_TPSS',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'tpss',
+            'x_qe_xc_igcx_comment': 'TPSS Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcx': 7,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PBE',
+                'XC_functional_weight': 0.75,
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'XC_functional_weight': 0.75,
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'pb0x',
+            'x_qe_xc_igcx_comment': 'PBE0 (PBE exchange*0.75)',
+            'x_qe_xc_igcx': 8,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B88',
+                'XC_functional_weight': 0.72,
+                'exx_compute_weight': lambda exx: 0.72 if abs(exx) > TOL else 1.0,
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'XC_functional_weight': 0.8,
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b3lp',
+            'x_qe_xc_igcx_comment': 'B3LYP (Becke88*0.72)',
+            'x_qe_xc_igcx': 9,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PBE_SOL',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'psx',
+            'x_qe_xc_igcx_comment': 'PBEsol exchange',
+            'x_qe_xc_igcx': 10,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_WC',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'wcx',
+            'x_qe_xc_igcx_comment': 'Wu-Cohen',
+            'x_qe_xc_igcx': 11,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HYB_GGA_XC_HSE06',
+                'exx_compute_weight': lambda exx: 1.0 if (abs(exx) > TOL) else 0.0,
+            },
+            {
+                'XC_functional_name': 'GGA_X_PBE',
+                'exx_compute_weight': lambda exx: 0.0 if (abs(exx) > TOL) else 1.0,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'GGA_C_PBE',
+                'exx_compute_weight': lambda exx: 1.0 if (abs(exx) > TOL) else 0.0,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'hse',
+            'x_qe_xc_igcx_comment': 'HSE screened exchange',
+            'x_qe_xc_igcx': 12,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RPW86',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'rw86',
+            'x_qe_xc_igcx_comment': 'revised PW86',
+            'x_qe_xc_igcx': 13,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PBE',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'pbe',
+            'x_qe_xc_igcx_comment': 'same as PBX, back-comp.',
+            'x_qe_xc_igcx': 14,
+        },
+    },
+    {
+        # igcx=15 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_TB09',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'tb09',
+            'x_qe_xc_igcx_comment': 'TB09 Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcx': 15,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_C09X',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'c09x',
+            'x_qe_xc_igcx_comment': 'Cooper 09',
+            'x_qe_xc_igcx': 16,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_SOGGA',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'sox',
+            'x_qe_xc_igcx_comment': 'sogga',
+            'x_qe_xc_igcx': 17,
+        },
+    },
+    {
+        # igcx=18 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_M06_L',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'm6lx',
+            'x_qe_xc_igcx_comment': 'M06L Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcx': 18,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_Q2D',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'q2dx',
+            'x_qe_xc_igcx_comment': 'Q2D exchange grad corr',
+            'x_qe_xc_igcx': 19,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HYB_GGA_XC_GAU_PBE',
+                'exx_compute_weight': lambda exx: 1.0 if (abs(exx) > TOL) else 0.0,
+            },
+            {
+                'XC_functional_name': 'GGA_X_PBE',
+                'exx_compute_weight': lambda exx: 0.0 if (abs(exx) > TOL) else 1.0,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'GGA_C_PBE',
+                'exx_compute_weight': lambda exx: 1.0 if (abs(exx) > TOL) else 0.0,
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'gaup',
+            'x_qe_xc_igcx_comment': 'Gau-PBE hybrid exchange',
+            'x_qe_xc_igcx': 20,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_PW86',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'pw86',
+            'x_qe_xc_igcx_comment': 'Perdew-Wang (1986) exchange',
+            'x_qe_xc_igcx': 21,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B86_MGC',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b86b',
+            'x_qe_xc_igcx_comment': 'Becke (1986) exchange',
+            'x_qe_xc_igcx': 22,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_OPTB88_VDW',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'obk8',
+            'x_qe_xc_igcx_comment': 'optB88 exchange',
+            'x_qe_xc_igcx': 23,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_OPTB86B_VDW',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ob86',
+            'x_qe_xc_igcx_comment': 'optB86b exchange',
+            'x_qe_xc_igcx': 24,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_EV93',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'evx',
+            'x_qe_xc_igcx_comment': 'Engel-Vosko exchange',
+            'x_qe_xc_igcx': 25,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B86_R',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b86r',
+            'x_qe_xc_igcx_comment': 'revised Becke (b86b)',
+            'x_qe_xc_igcx': 26,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_LV_RPW86',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx13',
+            'x_qe_xc_igcx_comment': 'consistent exchange',
+            'x_qe_xc_igcx': 27,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B88',
+                'XC_functional_weight': 0.542,
+                'exx_compute_weight': lambda exx: 0.542 if (abs(exx) > TOL) else 1.0,
+            },
+            {
+                'XC_functional_name': 'GGA_X_PW91',
+                'XC_functional_weight': 0.167,
+                'exx_compute_weight': lambda exx: 0.167 if (abs(exx) > TOL) else 0.0,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'exx_compute_weight': lambda exx: 0.709 if (abs(exx) > TOL) else 1.0,
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'x3lp',
+            'x_qe_xc_igcx_comment': 'X3LYP (Becke88*0.542  + Perdew-Wang91*0.167)',
+            'x_qe_xc_igcx': 28,
+        },
+    },
+    # New additions for qe-v6.5.0: igcx=[29..42]
+    # - - - - - -
+    # igcx: 29. The ingredient 'vdW-DF-cx' is documented in the nomad-meta-info, where
+    # it has the name 'vdw_c_df_cx'
+    # 'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-meta-info/-/wikis/metainfo/XC-functional':
+    # 'vdW-DF-cx' implies igcx=27 => 'cx13', hence LDA_X is implicit. Full weight.
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'vdw_c_df_cx',
+            },
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.25,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx0',
+            'x_qe_xc_igcx_comment': 'vdW-DF-cx+HF/4 (cx13-0)',
+            'x_qe_xc_igcx': 29,
+        },
+    },
+    # - - - - - -
+    # igcx:30. Needs full LDA_X removal, due to 'GGA_X_RPW86' (see igcx:27)
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RPW86',
+            },
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.25,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'r860',
+            'x_qe_xc_igcx_comment': 'rPW86+HF/4 (rw86-0); (for DF0)',
+            'x_qe_xc_igcx': 30,
+        },
+    },
+    # - - - - - -
+    # igcx:31. Similar comments as in 'igcx:29'
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'vdw_c_df_cx',
+            },
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.20,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx0p',
+            'x_qe_xc_igcx_comment': 'vdW-DF-cx+HF/5 (cx13-0p)',
+            'x_qe_xc_igcx': 31,
+        },
+    },
+    # - - - - - -
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ahcx',
+            'x_qe_xc_igcx_comment': 'vdW-DF-cx based; not yet in use (reserved PH)',
+            'x_qe_xc_igcx': 32,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ahf2',
+            'x_qe_xc_igcx_comment': 'vdW-DF2 based; not yet in use (reserved PH)',
+            'x_qe_xc_igcx': 33,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ahpb',
+            'x_qe_xc_igcx_comment': 'PBE based; not yet in use (reserved PH)',
+            'x_qe_xc_igcx': 34,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'ahps',
+            'x_qe_xc_igcx_comment': 'PBE-sol based; not in use (reserved PH)',
+            'x_qe_xc_igcx': 35,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx14',
+            'x_qe_xc_igcx_comment': 'Exporations (typo?: explorations), (reserved PH)',
+            'x_qe_xc_igcx': 36,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx15',
+            'x_qe_xc_igcx_comment': 'Exporations (typo? explorations?)(reserved PH)',
+            'x_qe_xc_igcx': 37,
+        },
+    },
+    #
+    # igcx': 38. Ingredients:
+    #   'b86r' -> 'igcx:26' -> 'GGA_X_B86_R'
+    #   'vdW-DF2' -> 'vdw_c_df2' . See nomad's gitlab:
+    #   'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-meta-info/-/wikis/metainfo/XC-functional':
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'vdw_c_df2',
+            },
+            {
+                'XC_functional_name': 'GGA_X_B86_R',
+            },
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.25,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'br0',
+            'x_qe_xc_igcx_comment': 'vdW-DF2-b86r+HF/4 (b86r-0)',
+            'x_qe_xc_igcx': 38,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_RESERVED',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'cx16',
+            'x_qe_xc_igcx_comment': 'Exporations (typo?, explorations?)(reserved PH)',
+            'x_qe_xc_igcx': 39,
+        },
+    },
+    # - - - -
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'vdw_c_df1',
+            },
+            {
+                'XC_functional_name': 'GGA_X_C09X',
+            },
+            {
+                'XC_functional_name': 'HF_X',
+                'exx_compute_weight': lambda exx: exx,
+                'XC_functional_weight': 0.25,
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'c090',
+            'x_qe_xc_igcx_comment': 'vdW-DF-c09+HF/4 (c09-0)',
+            'x_qe_xc_igcx': 40,
+        },
+    },
+    # - - - - - - -
+    # 'igcx:41' Note: 'B86b' is defined in 'igcx:22'
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B86_MGC',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'XC_functional_weight': 0.75,
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b86x',
+            'x_qe_xc_igcx_comment': 'B86b exchange * 0.75',
+            'x_qe_xc_igcx': 41,
+        },
+    },
+    # - - - - - - -
+    # 'B88' is defined in 'igcx:1'
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_X_B88',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+                'XC_functional_weight': 0.50,
+                'exx_compute_weight': lambda exx: (1.0 - exx),
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcx_name': 'b88x',
+            'x_qe_xc_igcx_comment': 'B88 exchange * 0.50',
+            'x_qe_xc_igcx': 42,
+        },
+    },
+]
+
+# UNchanged between espresso v5.4 & v6.5
+_correlation_gradient_correction_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_P86',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'p86',
+            'x_qe_xc_igcc_comment': 'Perdew86',
+            'x_qe_xc_igcc': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_PW91',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'ggc',
+            'x_qe_xc_igcc_comment': 'Perdew-Wang 91 corr.',
+            'x_qe_xc_igcc': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_LYP',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'blyp',
+            'x_qe_xc_igcc_comment': 'Lee-Yang-Parr',
+            'x_qe_xc_igcc': 3,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_PBE',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'pbc',
+            'x_qe_xc_igcc_comment': 'Perdew-Burke-Ernzenhof corr',
+            'x_qe_xc_igcc': 4,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_XC_HCTH_120',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'hcth',
+            'x_qe_xc_igcc_comment': 'Cambridge exch, Handy et al, HCTH/120',
+            'x_qe_xc_igcc': 5,
+        },
+    },
+    {
+        # igcc=6 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_C_TPSS',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'tpss',
+            'x_qe_xc_igcc_comment': 'TPSS Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcc': 6,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_LYP',
+                'XC_functional_weight': 0.81,
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+                'XC_functional_weight': 0.81,
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'b3lp',
+            'x_qe_xc_igcc_comment': 'B3LYP (Lee-Yang-Parr*0.81)',
+            'x_qe_xc_igcc': 7,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_PBE_SOL',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'psc',
+            'x_qe_xc_igcc_comment': 'PBEsol corr',
+            'x_qe_xc_igcc': 8,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_PBE',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'pbe',
+            'x_qe_xc_igcc_comment': 'same as PBX, back-comp.',
+            'x_qe_xc_igcc': 9,
+        },
+    },
+    {
+        # igcc=10 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        #        functionals.f90 tells that correlation is taken from tpss
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_C_TPSS',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'tb09',
+            'x_qe_xc_igcc_comment': 'TB09 Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcc': 10,
+        },
+    },
+    {
+        # igcc=11 is not defined in 5.4's funct.f90
+        #        definition taken from 5.0, which did not have separate imeta
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_C_M06_L',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'm6lc',
+            'x_qe_xc_igcc_comment': 'M06L Meta-GGA (Espresso-version < 5.1)',
+            'x_qe_xc_igcc': 11,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_Q2D',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'q2dc',
+            'x_qe_xc_igcc_comment': 'Q2D correlation grad corr',
+            'x_qe_xc_igcc': 12,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_LYP',
+                'XC_functional_weight': 0.871,
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_LYP',
+                'XC_functional_weight': 0.871,
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'x3lp',
+            'x_qe_xc_igcc_comment': 'X3LYP (Lee-Yang-Parr*0.871)',
+            'x_qe_xc_igcc': 13,
+        },
+    },
+    {
+        #  igcc=14 is not defined in NEITHER of v5.1, v6.1, v6.4's Modules/funct.f90
+        # 'BEEF-vdW, a GGA with vdW-DF2 type nonlocal correlation'
+        'xc_terms': [
+            {
+                'XC_functional_name': 'GGA_C_BEEF-vdW',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_igcc_name': 'BEEF-vdW',
+            'x_qe_xc_igcc_comment': 'libbeef V0.1.1 library',
+            'x_qe_xc_igcc': 14,
+        },
+    },
+]
+
+# New additions for espresso-6.5.0: imeta=[4, 5, 6]
+_meta_gga_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_TPSS',
+            },
+            {
+                'XC_functional_name': 'MGGA_C_TPSS',
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': 'tpss',
+            'x_qe_xc_imeta_comment': 'TPSS Meta-GGA',
+            'x_qe_xc_imeta': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_M06_L',
+            },
+            {
+                'XC_functional_name': 'MGGA_C_M06_L',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': 'm6lx',
+            'x_qe_xc_imeta_comment': 'M06L Meta-GGA',
+            'x_qe_xc_imeta': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_TB09',
+            },
+            {
+                # confirmed by looking into functionals.f90
+                'XC_functional_name': 'MGGA_C_TPSS',
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': 'tb09',
+            'x_qe_xc_imeta_comment': 'TB09 Meta-GGA',
+            'x_qe_xc_imeta': 3,
+        },
+    },
+    # imeta = [4,5,6] are new espresso-6.5.0/Modules/funct.f90
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_TPSS',
+            },
+            {
+                'XC_functional_name': 'MGGA_C_TPSS',
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': '+meta',
+            'x_qe_xc_imeta_comment': 'activate MGGA even without MGGA-XC',
+            'x_qe_xc_imeta': 4,
+        },
+    },
+    # - - - - - - - -
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'MGGA_X_SCAN',
+            },
+            {
+                'XC_functional_name': 'MGGA_C_SCAN',
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': 'scan',
+            'x_qe_xc_imeta_comment': 'SCAN Meta-GGA ',
+            'x_qe_xc_imeta': 5,
+        },
+    },
+    # - - - - - - - -
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HYB_MGGA_X_SCAN0',
+            },
+            {
+                'XC_functional_name': 'MGGA_C_SCAN',
+            },
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_imeta_name': 'sca0',
+            'x_qe_xc_imeta_comment': 'SCAN0  Meta-GGA',
+            'x_qe_xc_imeta': 6,
+        },
+    },
+]
+
+_van_der_waals_map = [
+    None,
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_XC_DF1',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vdw1',
+            'x_qe_xc_inlc_comment': 'vdW-DF1',
+            'x_qe_xc_inlc': 1,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_XC_DF2',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'LDA_X',
+            },
+            {
+                'XC_functional_name': 'LDA_C_PW',
+            },
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vdw2',
+            'x_qe_xc_inlc_comment': 'vdW-DF2',
+            'x_qe_xc_inlc': 2,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_C_RVV10',
+            }
+        ],
+        'xc_terms_remove': [
+            {
+                'XC_functional_name': 'GGA_C_PBE',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vv10',
+            'x_qe_xc_inlc_comment': 'rVV10',
+            'x_qe_xc_inlc': 3,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_DFX_x_qe',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vdwx',
+            'x_qe_xc_inlc_comment': 'vdW-DF-x (reserved Thonhauser, not implemented)',
+            'x_qe_xc_inlc': 4,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_DFY_x_qe',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vdwy',
+            'x_qe_xc_inlc_comment': 'vdW-DF-y (reserved Thonhauser, not implemented)',
+            'x_qe_xc_inlc': 5,
+        },
+    },
+    {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'VDW_DFZ_x_qe',
+            }
+        ],
+        'xc_section_method': {
+            'x_qe_xc_inlc_name': 'vdwz',
+            'x_qe_xc_inlc_comment': 'vdW-DF-z (reserved Thonhauser, not implemented)',
+            'x_qe_xc_inlc': 6,
+        },
+    },
+]
+
+libxc_shortcut = {
+    '0.810*GGA_C_LYP+0.720*GGA_X_B88+0.200*HF_X+0.190*LDA_C_VWN': {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HYB_GGA_XC_B3LYP',
+            }
+        ]
+    },
+    'GGA_C_PBE+0.750*GGA_X_PBE+0.250*HF_X': {
+        'xc_terms': [
+            {
+                'XC_functional_name': 'HYB_GGA_XC_PBEH',
+            }
+        ]
+    },
+}
+
+xc_functional_map = [
+    _exchange_map,
+    _correlation_map,
+    _exchange_gradient_correction_map,
+    _correlation_gradient_correction_map,
+    _van_der_waals_map,
+    _meta_gga_map,
 ]
