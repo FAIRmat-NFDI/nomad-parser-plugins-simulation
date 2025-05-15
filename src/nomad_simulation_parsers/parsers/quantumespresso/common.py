@@ -7,6 +7,7 @@ RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
 TOL = 0.01
 
+
 def str_to_profiling(
     val_in: str,
 ) -> tuple[list[str], list[str], list[str], list[float], list[float], list[int]]:
