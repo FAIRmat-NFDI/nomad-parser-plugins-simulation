@@ -1,7 +1,12 @@
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
-from nomad_simulations.schema_packages import general, model_method, model_system
+from nomad_simulations.schema_packages import (
+    general,
+    model_method,
+    model_system,
+    outputs,
+)
 
 m_package = SchemaPackage()
 
@@ -69,6 +74,21 @@ class ModelSystem(model_system.ModelSystem):
     )
 
 
+class TotalEmergy(outputs.TotalEnergy):
+    outputs.TotalEnergy.value.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.value || .energy_total', unit='rydberg')))
+    outputs.TotalEnergy.contributions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_energy_contributions', ['.@']))))
+
+
+class Outputs(outputs.Outputs):
+    outputs.Outputs.total_energies.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.energies')))
+
+
 class Simulation(general.Simulation):
     general.Simulation.program.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
@@ -77,6 +97,9 @@ class Simulation(general.Simulation):
         dict(out=Mapper(mapper='.header'))
     )
     general.Simulation.model_system.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.@', cache=True)))
+    general.Simulation.outputs.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@', cache=True)))
 

@@ -83,7 +83,23 @@ class MainfileParser(TextParser):
         return datetime.strptime(date_time.replace(' ', ''), '%d%b%Y%H:%M:%S')
 
     def get_header(self, key: str, default: Any = None) -> Any:
-        return self.data.get(key, default)
+        return self.data.get(key, self.data.get('header', {}).get(key, default))
+
+    def get_n_spin_channels(self):
+        magnetic = self.get_header('starting_magnetization')
+        if magnetic is None:
+            calculation = self.data.get('self_consistent', {})
+            magnetic = calculation.get(
+                'magnetization_total', calculation.get('spin_pol')
+            )
+        return 1 if magnetic is None else 2
+
+    def get_energy_contributions(self, source: dict[str, Any]):
+        return [
+            dict(value=val.magnitude, name=key.split('energy_total_', 1)[-1])
+            for key, val in source.items()
+            if key != 'energy_total' and val is not None
+        ]
 
     def get_xc_functionals(self, source: str) -> list[dict[str, Any]]:
         numbers = source.split('(')[1].split(')')[0]
@@ -169,7 +185,7 @@ class MainfileParser(TextParser):
         value = parent if len(key_split) == 1 else parent.get(key_split[1])
 
         if value is None or not units:
-            return value
+            return list(value) if isinstance(value, np.ndarray) else value
 
         units = (source if len(key_split) == 1 else parent).get(units, units).lower()
         alat = source.get('alat', header.get('alat', 1.0))
@@ -185,15 +201,10 @@ class MainfileParser(TextParser):
         elif units == 'crystal':
             cell = self.get_value(source, 'simulation_cell', '')
             if cell is not None:
-                value = (
-                    np.dot(
-                        value.magnitude if hasattr(value, 'magnitude') else value,
-                        cell.magnitude if hasattr(cell, 'magnitude') else cell,
-                    )
-                    * cell.units
-                    if hasattr(cell, 'units')
-                    else 1.0
-                )
+                value = np.dot(
+                    value.magnitude if hasattr(value, 'magnitude') else value,
+                    cell.magnitude if hasattr(cell, 'magnitude') else cell,
+                ) * getattr(cell, 'units', 1.0)
         return value
 
 
