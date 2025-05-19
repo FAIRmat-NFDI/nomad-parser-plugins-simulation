@@ -184,18 +184,10 @@ class ControlParser(TextParser):
             )
         ]
 
-    @property
-    def mainfile(self):
-        return super().mainfile
-
-    @mainfile.setter
-    def mainfile(self, val):
-        # TODO pylint complains when inheriting property
-        # self._results = None
-        # self._file_handler = None
-        # self._mainfile = os.path.abspath(val) if val is not None else val
-        super().mainfile = val
-        super().__init__()
+    def reset(self):
+        super().reset()
+        self._info = None
+        self._keys_mapping = dict()
 
     def evaluate_value(self, value: Any) -> Any:
         """
@@ -357,10 +349,10 @@ class LogParser(ControlParser):
         val = self.info.get('Coordinates', self.info.get('ReducedCoordinates', [[]]))[0]
 
         for v in val:
-            if isinstance(v, str):
-                symbols.append(v.strip())
-            else:
+            if v[0].isdecimal() or not isinstance(v, str):
                 coordinates.append(v)
+            else:
+                symbols.append(v.strip())
 
         coordinates = np.array(coordinates, dtype=float)
         coordinates.shape = (len(symbols), 3)
