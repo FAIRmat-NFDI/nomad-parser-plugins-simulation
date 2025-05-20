@@ -24,7 +24,10 @@ class OutParser(TextParser):
             unit = val.pop(0)[0].lower()
             unit = ureg.bohr if unit.startswith('bohr') else ureg.angstrom
             val = np.transpose(val)
-            return val[1], np.array(val[2:5].T, dtype=np.dtype(np.float64)) * unit
+            return [
+                list(val[1]),
+                np.array(val[2:5].T, dtype=np.dtype(np.float64)) * unit,
+            ]
 
         def str_to_lattice_vectors(val_in):
             val = [v.split()[-3:] for v in val_in.strip().splitlines()]
@@ -697,8 +700,8 @@ class OutParser(TextParser):
                 Quantity(
                     'forces_total',
                     rf'Gradients \(hartree/bohr\)\s+'
-                    rf'Index.+\s+((?:\d+ +[A-Z][a-z]*'
-                    rf' +{RE_FLOAT} +{RE_FLOAT} +{RE_FLOAT}\s+)+)',
+                    rf'Index.+\s+'
+                    rf'((?:\d+ +[A-Z][a-z]* +{RE_FLOAT} +{RE_FLOAT} +{RE_FLOAT}\s+)+)',
                     str_operation=str_to_forces,
                 ),
                 Quantity(
@@ -1253,8 +1256,7 @@ class RKFParser(FileParser):
                 )
 
     def parse_properties(self) -> None:
-        if properties := self.data.get('Properties'):
-            return
+        properties = self.data.get('Properties', {})
 
         nspin = self.data.get('General', {}).get('nspin', 1)
 
@@ -1342,7 +1344,9 @@ class RKFParser(FileParser):
         )
         bottom_conduction_band = band_structure.get('BottomConductionBand')
         band_gap['energy_lowest_unoccupied'] = (
-            (bottom_conduction_band * ureg.hartree) if not None else None
+            (bottom_conduction_band * ureg.hartree)
+            if bottom_conduction_band is not None
+            else None
         )
         self._results['band_gap'] = band_gap
 
