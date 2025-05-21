@@ -4,6 +4,7 @@ from nomad.parsing.file_parser.text_parser import Quantity, TextParser
 from ..common import (
     RE_FLOAT,
     RE_N,
+    general_quantities,
     header_quantities,
     tail_quantities,
 )
@@ -61,6 +62,7 @@ class XSpectraFileParser(TextParser):
                 r'(Program XSpectra[\s\S]+?)Starting',
                 sub_parser=TextParser(
                     quantities=header_quantities
+                    + general_quantities
                     + [
                         Quantity(
                             'xspectra_calculation',

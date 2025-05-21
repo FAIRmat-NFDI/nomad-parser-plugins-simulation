@@ -1,7 +1,9 @@
-# m_package = SchemaPackage()
+from nomad.metainfo import SchemaPackage
+
+m_package = SchemaPackage()
 
 
-# try:
-#     m_package.__init_metainfo__()
-# except Exception:
-#     pass
+try:
+    m_package.__init_metainfo__()
+except Exception:
+    pass

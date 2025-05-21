@@ -4,13 +4,16 @@ from collections.abc import Iterable
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
+from typing import Any
 
+import numpy as np
 from nomad.config import config
 from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
+from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, TextParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
@@ -23,6 +26,7 @@ from structlog.stdlib import BoundLogger
 from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
+from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
 
 LOGGER = get_logger(__name__)
@@ -35,14 +39,173 @@ class QuantumEspressoMetainfoParser(MetainfoParser):
         return LOGGER
 
 
+class XCFunctionalParser:
+    @staticmethod
+    def gen_string(data: dict[str, Any], separator='+') -> str:
+        string = ''
+        for key in sorted(data.keys()):
+            val = data[key]
+            weight = val.get('XC_functional_weight', 1.0)
+            if string and weight > 0:
+                string += separator
+            if weight is not None:
+                string += f'{weight:.3f}'
+            string += val.get('XC_functional_name', '')
+        return string
+
+    @staticmethod
+    def filter_data(data: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        out = dict()
+        tol = 0.01
+        for key, val in data.items():
+            val_copy = val.copy()
+            weight = val_copy.get('XC_functional_weight')
+            if weight is None or abs(weight) < tol:
+                continue
+            else:
+                if abs(weight - 1.0) < tol:
+                    del val_copy['XC_functional_weight']
+                val_copy.pop('exx_compute_weight', None)
+            out[key] = val_copy
+        return out
+
+
 class MainfileParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
         return LOGGER
 
-    def get_version(self, name_version: list[str]):
+    def get_version(self, name_version: list[str]) -> str:
         return ' '.join(name_version[1:]).lstrip('v.')
+
+    def get_datetime(self, date_time: str) -> datetime:
+        return datetime.strptime(date_time.replace(' ', ''), '%d%b%Y%H:%M:%S')
+
+    def get_header(self, key: str, default: Any = None) -> Any:
+        return self.data.get(key, self.data.get('header', {}).get(key, default))
+
+    def get_n_spin_channels(self):
+        magnetic = self.get_header('starting_magnetization')
+        if magnetic is None:
+            calculation = self.data.get('self_consistent', {})
+            magnetic = calculation.get(
+                'magnetization_total', calculation.get('spin_pol')
+            )
+        return 1 if magnetic is None else 2
+
+    def get_energy_contributions(self, source: dict[str, Any]):
+        return [
+            dict(value=val.magnitude, name=key.split('energy_total_', 1)[-1])
+            for key, val in source.items()
+            if key != 'energy_total' and val is not None
+        ]
+
+    def get_xc_functionals(self, source: str) -> list[dict[str, Any]]:
+        numbers = source.split('(')[1].split(')')[0]
+        nval = (4, 10)
+        # handle different formatting
+        if len(numbers) == nval[0]:
+            # 4-digit format without spaces
+            numbers_split = re.findall(r'(\d)', numbers)
+        elif len(numbers) == nval[1]:
+            # 5-digit format with/without spaces
+            numbers_split = re.findall(r'[ \d]\d', numbers)
+        else:
+            # 6-digit with spaces
+            numbers_split = numbers.split()
+
+        if not numbers_split:
+            self.logger.warning(
+                'Unknown XC functional format', data=dict(value=numbers)
+            )
+            return []
+
+        numbers_split = [int(n) for n in numbers_split]
+        # numbers should have six digits
+        numbers_split.extend([0] * (6 - len(numbers_split)))
+
+        # map numbers to values
+        xc_section_method = dict()
+        xc_terms = dict()
+        xc_terms_remove = dict()
+
+        def get_data(source: list[dict[str, Any]]) -> dict[str, Any]:
+            data = dict()
+            exx_fraction = self.get_header('x_qe_exact_exchange_fraction', 0.0)
+            for term in source:
+                term_copy = term.copy()
+                weight = term_copy.get('exx_compute_weight', 1.0)
+                term_copy['XC_functional_weight'] = (
+                    weight(exx_fraction) if not isinstance(weight, float) else weight
+                )
+                data.setdefault(term_copy.get('XC_functional_name', ''), term_copy)
+            return data
+
+        for i in range(6):
+            xc_component = xc_functional_map[i]
+            xc_number = numbers_split[i]
+            if xc_number >= len(xc_component) or xc_component[xc_number] is None:
+                continue
+            xc_section_method.update(
+                xc_component[xc_number].get('xc_section_method', {})
+            )
+            xc_terms.update(get_data(xc_component[xc_number].get('xc_terms', [])))
+            xc_terms_remove.update(
+                get_data(xc_component[xc_number].get('xc_terms_remove', []))
+            )
+
+        # remove terms
+        for key, val in xc_terms_remove.items():
+            weight = val.get('XC_functional_weight')
+            xc_terms.setdefault(key, val)
+            xc_terms[key]['XC_functional_weight'] *= -(weight or -1.0)
+
+        # filter data
+        xc_terms = XCFunctionalParser.filter_data(xc_terms)
+
+        xc_functional_str = XCFunctionalParser.gen_string(xc_terms)
+        if xc_functional_str in libxc_shortcut:
+            # override for libXC compliance
+            xc_terms = get_data(libxc_shortcut[xc_functional_str]['xc_terms'])
+            xc_terms = XCFunctionalParser.filter_data(xc_terms)
+            xc_functional_str = XCFunctionalParser.gen_string(xc_terms)
+        # TODO make use of this
+        xc_section_method['XC_functional'] = xc_functional_str
+
+        return [xc_terms[key] for key in sorted(xc_terms.keys())]
+
+    def get_value(self, source: dict[str, Any], key: str = '', units: str = 'units'):
+        key_split = key.rsplit('.', 1)
+        parent = Path(path=key_split[0]).get_data(source)
+        header = self.data.get('header', {})
+        if parent is None:
+            source = header
+            parent = self.get_value(header, key_split[0], '')
+        value = parent if len(key_split) == 1 else parent.get(key_split[1])
+
+        if value is None or not units:
+            return list(value) if isinstance(value, np.ndarray) else value
+
+        units = (source if len(key_split) == 1 else parent).get(units, units).lower()
+        alat = source.get('alat', header.get('alat', 1.0))
+        value = np.array(value, dtype=float)
+
+        if units in ['alat', 'a_0']:
+            value *= alat
+        elif units in ['bohr', 'angstrom']:
+            units_mapping = dict(bohr=ureg.bohr, angstrom=ureg.angstrom)
+            value = value * units_mapping.get(units)
+        elif units == '2 pi/alat':
+            value *= 2 * np.pi / alat
+        elif units == 'crystal':
+            cell = self.get_value(source, 'simulation_cell', '')
+            if cell is not None:
+                value = np.dot(
+                    value.magnitude if hasattr(value, 'magnitude') else value,
+                    cell.magnitude if hasattr(cell, 'magnitude') else cell,
+                ) * getattr(cell, 'units', 1.0)
+        return value
 
 
 class QuantumEspressoArchiveWriter(ArchiveWriter):
@@ -130,24 +293,21 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                         )
 
     def write_to_archive(self) -> None:
+        from .epw.parser import EPWArchiveWriter
+        from .phonon.parser import PhononArchiveWriter
+        from .pwscf.parser import PWSCFArchiveWriter
+        from .xspectra.parser import XSpectraArchiveWriter
+
+        writers = {
+            'pwscf': PWSCFArchiveWriter(),
+            'epw': EPWArchiveWriter(),
+            'phonon': PhononArchiveWriter(),
+            'xspectra': XSpectraArchiveWriter(),
+        }
+
         def load_writer(header: str) -> QuantumEspressoArchiveWriter:
-            if 'pwscf' in header:
-                from .pwscf.parser import PWSCFArchiveWriter
-
-                return PWSCFArchiveWriter()
-            if 'epw' in header:
-                from .epw.parser import EPWArchiveWriter
-
-                return EPWArchiveWriter()
-            if 'phonon' in header:
-                from .phonon.parser import PhononArchiveWriter
-
-                return PhononArchiveWriter()
-            if 'xspectra' in header:
-                from .xspectra.parser import XSpectraArchiveWriter
-
-                return XSpectraArchiveWriter()
-            return None
+            match = re.match(r'Program +(\w+)', header)
+            return writers.get(match.group(1).lower()) if match else None
 
         # set up mainfile parser
         self.mainfile_parser.filepath = self.mainfile
@@ -158,7 +318,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         for n, program in enumerate(
             self.mainfile_parser.data_object.get('program', [])
         ):
-            writer = load_writer(program[:50].lower())
+            writer = load_writer(program[:30])
             if writer is None:
                 self.logger.error('Parser not found for program.')
                 continue
