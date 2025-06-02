@@ -120,8 +120,7 @@ class Simulation(general.Simulation):
     ).update(
         dict(
             out=Mapper(
-                mapper=
-                '.geometry_optimization.step '
+                mapper='.geometry_optimization.step'
                 '|| molecular_dynamics.step '
                 '|| .single_point'
             )
@@ -132,8 +131,7 @@ class Simulation(general.Simulation):
     ).update(
         dict(
             out=Mapper(
-                mapper=
-                '.geometry_optimization.step '
+                mapper='.geometry_optimization.step'
                 '|| molecular_dynamics.step '
                 '|| .single_point'
             )

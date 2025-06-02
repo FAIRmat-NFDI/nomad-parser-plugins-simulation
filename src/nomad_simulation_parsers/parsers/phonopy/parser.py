@@ -1,7 +1,11 @@
+import os
+from typing import Any
+
 import numpy as np
 import phonopy
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
+from nomad.parsing.file_parser import ArchiveWriter
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -11,51 +15,64 @@ from nomad_simulations.schema_packages.model_system import (
     ModelSystem,
 )
 from nomad_simulations.schema_packages.outputs import Outputs
-from phonopy import Phonopy
 from phonopy.units import THzToEv
 from structlog.stdlib import BoundLogger
 
 from .calculator import PhononProperties
 
 
-def write_bandstructure(properties: PhononProperties):
+def get_bandstructures(properties: PhononProperties) -> list[dict[str, Any]]:
     freqs, bands, bands_labels = properties.get_bandstructure()
     if freqs is None:
-        return
+        return []
 
     # convert THz to eV
     freqs = freqs * THzToEv
 
     # convert eV to J
     freqs = (freqs * ureg.eV).to('joules').magnitude
+    return [
+        dict(frequencies=freq, kpoints=bands[n], labels=bands_labels[n])
+        for n, freq in enumerate(freqs)
+    ]
 
 
-def write_dos(properties: PhononProperties):
-    f, dos = properties.get_dos()
+def get_dos(properties: PhononProperties) -> list[dict[str, Any]]:
+    freq, dos = properties.get_dos()
 
     # convert THz to eV to Joules
-    f = f * THzToEv
-    f = (f * ureg.eV).to('joules').magnitude
+    freq = freq * THzToEv
+    freq = (freq * ureg.eV).to('joules').magnitude
+    return [dict(frequencies=freq, dos=dos)]
 
 
-def write_thermodynamical_properties(properties: PhononProperties):
-    T, fe, _, cv = properties.get_thermodynamical_properties()
-
+def get_thermodynamic_properties(properties: PhononProperties) -> list[dict[str, Any]]:
+    temperatures, free_energies, _, heat_capacties = (
+        properties.get_thermodynamical_properties()
+    )
     n_atoms = len(properties.phonopy_obj.unitcell)
     n_atoms_supercell = len(properties.phonopy_obj.supercell)
 
-    fe = fe / n_atoms
+    free_energies = free_energies / n_atoms
 
     # The thermodynamic properties are reported by phonopy for the base
     # system. Since the values in the metainfo are stored per the referenced
     # system, we need to multiple by the size factor between the base system
     # and the supersystem used in the calculations.
-    cv = cv * (n_atoms_supercell / n_atoms)
+    heat_capacties = heat_capacties * (n_atoms_supercell / n_atoms)
 
     # convert to SI units
-    fe = (fe * ureg.eV).to('joules').magnitude
+    free_energies = (free_energies * ureg.eV).to('joules').magnitude
 
-    cv = (cv * ureg.eV / ureg.K).to('joules/K').magnitude
+    heat_capacties = (heat_capacties * ureg.eV / ureg.K).to('joules/K').magnitude
+    return [
+        dict(
+            temperature=temperature,
+            free_energy=free_energies[n],
+            heat_capacity=heat_capacties[n],
+        )
+        for n, temperature in enumerate(temperatures)
+    ]
 
 
 def create_system(
@@ -70,16 +87,16 @@ def create_system(
 
     sec_cell.periodic_boundary_conditions = [True, True, True]
     for symbol in symbols:
-        sec_cell.atoms_state.append(AtomsState(chemical_symbol=symbol))
+        sec_system.particle_states.append(AtomsState(chemical_symbol=symbol))
 
-    sec_cell.positions = positions * ureg.angstrom
+    sec_system.positions = positions * ureg.angstrom
     sec_cell.lattice_vectors = cell * ureg.angstrom
     sec_cell.supercell_matrix = supercell
     return sec_system
 
 
 def phonopy_obj_to_archive(
-    phonopy_obj: Phonopy,
+    phonopy_obj: phonopy.Phonopy,
     archive: EntryArchive = None,
     logger: BoundLogger = None,
     **kwargs,
@@ -89,7 +106,7 @@ def phonopy_obj_to_archive(
     """
 
     logger = logger if logger is not None else get_logger(__name__)
-    archive = archive if archive else EntryArchive()
+    archive = archive if archive is not None else EntryArchive()
 
     unit_cell = phonopy_obj.unitcell.get_cell()
     unit_pos = phonopy_obj.unitcell.get_positions()
@@ -132,15 +149,64 @@ def phonopy_obj_to_archive(
     sec_outputs.model_system_ref = sec_system
 
     # run Phonopy
-    properties = PhononProperties(phonopy_obj, logger, **kwargs)
-    properties.get_dos()
+    # properties = PhononProperties(phonopy_obj, logger, **kwargs)
     # TODO write outputs
-    # vol = np.dot(unit_cell[0], np.cross(unit_cell[1], unit_cell[2]))
-    # n_imaginary = np.count_nonzero(properties.frequencies < 0)
 
     return archive
 
 
+def phonopy_obj_to_dict(
+    phonopy_obj: phonopy.Phonopy, logger: BoundLogger = None, **kwargs
+) -> dict[str, Any]:
+    logger = logger if logger is not None else get_logger(__name__)
+
+    results = dict(program=dict(name='Phonopy', version=phonopy.__version__))
+
+    system = results.setdefault('model_system', [])
+    for atoms in [phonopy_obj.unitcell, phonopy_obj.supercell]:
+        system.append(
+            dict(
+                positions=atoms.get_positions() * ureg.angstrom,
+                cell=atoms.get_cell() * ureg.angstrom,
+                particle_states=[
+                    dict(chemical_symbol=sym) for sym in atoms.get_chemical_symbols()
+                ],
+            )
+        )
+    if system:
+        system[-1]['supercell_matrix'] = phonopy_obj.supercell_matrix
+
+    # run Phonopy
+    properties = PhononProperties(phonopy_obj, logger, **kwargs)
+    results['outputs'] = dict(
+        dos=get_dos(properties),
+        bandstructures=get_bandstructures(properties),
+        thermodynamics=get_thermodynamic_properties(properties),
+    )
+
+    return results
+
+
+class PhonopyArchiveWriter(ArchiveWriter):
+    def write_to_archive(self):
+        maindir = os.path.dirname(self.mainfile)
+        os.chdir(maindir)
+        try:
+            phonopy_obj = phonopy.load(self.mainfile)
+        except Exception:
+            self.logger.error('Error loading phonopy file.')
+            phonopy_obj = None
+        finally:
+            os.chdir(maindir)
+
+        if phonopy_obj is None:
+            return
+
+        phonopy_obj_to_archive(phonopy_obj, self.archive, self.logger)
+
+
 class PhonopyParser(MatchingParser):
+    archive_writer = PhonopyArchiveWriter()
+
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger):
-        pass
+        self.archive_writer.write(mainfile, archive, logger)

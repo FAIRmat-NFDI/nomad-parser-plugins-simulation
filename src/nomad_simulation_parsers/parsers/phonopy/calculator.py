@@ -30,6 +30,7 @@ from ase.dft.kpoints import (
     sc_special_points,
     special_paths,
 )
+from phonopy import Phonopy
 from phonopy.phonon.band_structure import BandStructure
 from phonopy.units import EvTokJmol, VaspToTHz
 
@@ -153,9 +154,9 @@ def generate_kpath_ase(cell: Cell, symprec: float, logger=None) -> list[dict[str
 
 
 class PhononProperties:
-    def __init__(self, phonopy_obj, logger, **kwargs):
+    def __init__(self, phonopy_obj, logger, **kwargs) -> None:
         self.logger = logger
-        self.phonopy_obj = phonopy_obj
+        self.phonopy_obj: Phonopy = phonopy_obj
         self.t_max = kwargs.get('t_max', 1000)
         self.t_min = kwargs.get('t_min', 0)
         self.t_step = kwargs.get('t_step', 100)
@@ -170,7 +171,7 @@ class PhononProperties:
 
         self.n_atoms_supercell = len(phonopy_obj.supercell)
 
-    def get_bandstructure(self):
+    def get_bandstructure(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         phonopy_obj = self.phonopy_obj
 
         frequency_unit_factor = VaspToTHz
@@ -226,7 +227,7 @@ class PhononProperties:
 
         return np.array(freqs), np.array(bands), np.array(bands_labels)
 
-    def get_dos(self):
+    def get_dos(self) -> tuple[np.ndarray, np.ndarray]:
         phonopy_obj = self.phonopy_obj
         mesh = self.mesh
 
@@ -246,7 +247,9 @@ class PhononProperties:
 
         return f, dos
 
-    def get_thermodynamical_properties(self):
+    def get_thermodynamical_properties(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         phonopy_obj = self.phonopy_obj
 
         phonopy_obj.set_mesh(self.mesh, is_gamma_center=True)
