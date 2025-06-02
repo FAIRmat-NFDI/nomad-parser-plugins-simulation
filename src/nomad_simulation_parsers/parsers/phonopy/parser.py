@@ -189,15 +189,15 @@ def phonopy_obj_to_dict(
 
 class PhonopyArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
-        maindir = os.path.dirname(self.mainfile)
-        os.chdir(maindir)
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(self.mainfile))
         try:
             phonopy_obj = phonopy.load(self.mainfile)
         except Exception:
             self.logger.error('Error loading phonopy file.')
             phonopy_obj = None
         finally:
-            os.chdir(maindir)
+            os.chdir(cwd)
 
         if phonopy_obj is None:
             return
