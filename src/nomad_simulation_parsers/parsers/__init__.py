@@ -93,6 +93,19 @@ fhiaims_parser_entry_point = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
+gpaw_parser_entry_point = EntryPoint(
+    name='parsers/gpaw',
+    aliases=['parsers/gpaw'],
+    description='NOMAD parser for GPAW.',
+    python_package='nomad_simulation_parsers',
+    mainfile_mime_re='application/(x-tar|octet-stream)',
+    mainfile_name_re=r'^.*\.(gpw2|gpw)$',
+    parser_class_name='nomad_simulation_parsers.parsers.fhiaims.parser.GPAWParser',
+    code_name='GPAW',
+    code_homepage='https://wiki.fysik.dtu.dk/gpaw/',
+    code_category='Atomistic code',
+)
+
 octopus_parser_entry_point = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],
