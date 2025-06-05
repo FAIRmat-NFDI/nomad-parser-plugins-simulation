@@ -391,7 +391,7 @@ class LammpsArchiveWriter(MDParser):
 
         # TODO: Handling of file_type = 'atom' is a LB edit, test
         def _create_custom_parser(
-            traj_file: str, index: int, file_type: str, data_file: str
+            traj_file: str, index: int, data_file: str, file_type: str
         ) -> TrajParser | MDAnalysisParser:
             """Create parser for custom or atom LAMMPS dump formats."""
             custom_options = None
