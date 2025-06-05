@@ -93,6 +93,19 @@ fhiaims_parser_entry_point = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
+lammps_parser_entry_point = EntryPoint(
+    name='parsers/lammps',
+    aliases=['parsers/lammps'],
+    description='NOMAD parser for LAMMPS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
+    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
+    code_name='LAMMPS',
+    code_homepage='https://lammps.sandia.gov/',
+    code_category='Atomistic code',
+)
+
+
 octopus_parser_entry_point = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],
