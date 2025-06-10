@@ -1,11 +1,11 @@
-import numpy as np
 from typing import Any
-from nomad.units import ureg
-import pint
 
-from nomad.parsing.file_parser import FileParser, TarParser, DataTextParser, XMLParser
-from ase.io.ulm import Reader
 import ase
+import numpy as np
+import pint
+from ase.io.ulm import Reader
+from nomad.parsing.file_parser import DataTextParser, FileParser, TarParser, XMLParser
+from nomad.units import ureg
 
 
 class GPWTarParser(TarParser):
@@ -196,54 +196,62 @@ class GPW2FileParser(FileParser):
             }
             if self.ulm is not None:
                 self._info['parameter'].update(self.ulm.parameters.asdict())
+
+        self._info.update(
+            {
+                'planewavecutoff': self._info['parameter']
+                .get('mode', {})
+                .get('ecut', None),
+                'basisset': self._info['parameter'].get('basis'),
+                'energyerror': self._info['parameter']
+                .get('convergence', {})
+                .get('energy', None),
+                'xcfunctional': self._info['parameter'].get('xc'),
+            }
+        )
+
+        for key, f in {
+            'energy_total': lambda: self.ulm.hamiltonian.e_total_extrapolated,
+            'energy_free': lambda: self.ulm.hamiltonian.e_total_free,
+            'energy_XC': lambda: self.ulm.hamiltonian.e_xc,
+            'electronic_kinetic_energy': lambda: self.ulm.hamiltonian.e_kinetic,
+            'energy_correction_entropy': lambda: self.ulm.hamiltonian.e_entropy,
+            'fermilevel': lambda: self.ulm.occupations.fermilevel,
+            'split': lambda: self.ulm.occupations.split,
+            'converged': lambda: self.ulm.scf.converged,
+        }.items():
+            try:
+                self._info[key] = f()
+            except Exception:
+                pass
+
         return self._info
 
     def get_parameter(self, key: str) -> Any:
-        values = {
-            'planewavecutoff': self.get_parameter('mode').get('ecut', None),
-            'basisset':self.get_parameter('basis'),
-            'energyerror': self.get_parameter('convergence').get('energy', None),
-            'xcfunctional': self.get_parameter('xc'),
-            'energy_total': self.ulm.hamiltonian.e_total_extrapolated,
-            'energy_free': self.ulm.hamiltonian.e_total_free,
-            'energy_XC': self.ulm.hamiltonian.e_xc,
-            'electronic_kinetic_energy': self.ulm.hamiltonian.e_kinetic,
-            'energy_correction_entropy': self.ulm.hamiltonian.e_entropy,
-            'fermilevel': self.ulm.occupations.fermilevel,
-            'split': self.ulm.occupations.split,
-            'converged': self.ulm.scf.converged,
-        }
-        try:
-            if key in values:
-                val = values.get(key)
-            else:
-                val = self.info['parameter'].get(key.lower(), None)
-        except Exception:
-            val = None
-        return val
+        return self.info.get(key, self.info['parameter'].get(key))
 
     def get_array(self, key: str) -> np.ndarray:
         if self.ulm is None:
             return
         values = {
-            'unitcell': self.ulm.atoms.cell,
-            'atomicnumbers': self.ulm.atoms.numbers,
-            'atom_positions': self.ulm.atoms.positions,
-            'boundaryconditions': self.ulm.atoms.pbc,
-            'momenta': self.ulm.atoms.momenta,
-            'atom_forces_free_raw': self.ulm.results.forces,
-            'magneticmoments': self.ulm.results.magmoms,
-            'eigenvalues': self.ulm.wave_functions.eigenvalues,
-            'occupation': self.ulm.wave_functions.occupations,
+            'unitcell': lambda: self.ulm.atoms.cell,
+            'atomicnumbers': lambda: self.ulm.atoms.numbers,
+            'atom_positions': lambda: self.ulm.atoms.positions,
+            'boundaryconditions': lambda: self.ulm.atoms.pbc,
+            'momenta': lambda: self.ulm.atoms.momenta,
+            'atom_forces_free_raw': lambda: self.ulm.results.forces,
+            'magneticmoments': lambda: self.ulm.results.magmoms,
+            'eigenvalues': lambda: self.ulm.wave_functions.eigenvalues,
+            'occupation': lambda: self.ulm.wave_functions.occupations,
             # TODO no koints data in ulm?
-            'kpoints': self.ulm.IBZKPoints,
-            'density': self.ulm.density.density,
-            'potential_effective': self.ulm.hamiltonian.potential,
-            'band_paths': self.ulm.wave_functions.band_paths.asdict(),
+            'kpoints': lambda: self.ulm.IBZKPoints,
+            'density': lambda: self.ulm.density.density,
+            'potential_effective': lambda: self.ulm.hamiltonian.potential,
+            'band_paths': lambda: self.ulm.wave_functions.band_paths.asdict(),
         }
         try:
             if key in values:
-                val = values.get(key)
+                val = values.get(key)()
             else:
                 val = self.ulm.asdict().get(key, None)
         except Exception:
@@ -278,6 +286,23 @@ class GPWFileParser(FileParser):
         'bohr': ureg.bohr,
         'femtosecond': ureg.fs,
     }
+    _xc_map = {
+        'LDA': ['LDA_X', 'LDA_C_PW'],
+        'PW91': ['GGA_X_PW91', 'GGA_C_PW91'],
+        'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
+        'PBEsol': ['GGA_X_PBE_SOL', 'GGA_C_PBE_SOL'],
+        'revPBE': ['GGA_X_PBE_R', 'GGA_C_PBE'],
+        'RPBE': ['GGA_X_RPBE', 'GGA_C_PBE'],
+        'BLYP': ['GGA_X_B88', 'GGA_C_LYP'],
+        'HCTH407': ['GGA_XC_HCTH_407'],
+        'WC': ['GGA_X_WC', 'GGA_C_PBE'],
+        'AM05': ['GGA_X_AM05', 'GGA_C_AM05'],
+        'M06-L': ['MGGA_X_M06_L', 'MGGA_C_M06_L'],
+        'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
+        'revTPSS': ['MGGA_X_REVTPSS', 'MGGA_C_REVTPSS'],
+        'mBEEF': ['MGGA_X_MBEEF', 'GGA_C_PBE_SOL'],
+    }
+    parser = GPWTarParser()
 
     def apply_unit(self, val: np.ndarray | float, unit: str) -> pint.Quantity:
         if val is None:
@@ -287,6 +312,12 @@ class GPWFileParser(FileParser):
         unit = self._units_map.get(p_unit, p_unit) if p_unit else unit
         return val * unit
 
+    def get_mode(self) -> str:
+        mode = self.parser.get_parameter('mode')
+        if isinstance(mode, dict):
+            mode = mode.get('name')
+        return mode
+
     def parse(self, key: str = None):
         self.parser = GPWTarParser()
         self.parser.mainfile = self.mainfile
@@ -294,10 +325,24 @@ class GPWFileParser(FileParser):
             self.parser = GPW2FileParser()
             self.parser.mainfile = self.mainfile
 
-        self._results = {}
-        self._results['unitcell'] = self.apply_unit(self.parser.get_array('unitcell'))
+        self._results = {'program_version': self.parser.get_program_version()}
+        self._results['unitcell'] = self.apply_unit(
+            self.parser.get_array('unitcell'), 'lengthunit'
+        )
+        self._results['atom_positions'] = self.apply_unit(
+            self.parser.get_array('atom_positions'), 'lengthunit'
+        )
         self._results['labels'] = [
             ase.data.chemical_symbols[z] for z in self.parser.get_array('atomicnumbers')
         ]
 
-
+        pbc = np.ones(3, bool) if self.get_mode() == 'pw' else np.zeros(3, bool)
+        if self.parser.get_array('boundary_conditions') is not None:
+            bc = np.array(self.parser.get_array('boundary_conditions'), bool)
+            bc.shape = [bc.size]
+            pbc[: bc.size] = bc
+        self._results['boundary_conditions'] = pbc
+        xc_functional = self.parser.get_parameter('xcfunctional')
+        self._results['xcfunctional'] = [
+            xc for xc in self._xc_map.get(xc_functional, [xc_functional])
+        ]

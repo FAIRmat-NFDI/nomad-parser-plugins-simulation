@@ -45,6 +45,12 @@ fhiaims_schema_package_entry_point = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.fhiaims',
 )
 
+gpaw_schema_package_entry_point = EntryPoint(
+    name='GPAWSchemaPackage',
+    description='Schema package for GPAW.',
+    module='nomad_simulation_parsers.schema_packages.gpaw',
+)
+
 octopus_schema_package_entry_point = EntryPoint(
     name='OctopusSchemaPackage',
     description='Schema package for Octopus.',
