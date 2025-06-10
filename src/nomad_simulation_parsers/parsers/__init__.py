@@ -35,7 +35,7 @@ class Wannier90ParserEntryPoint(EntryPoint):
     )
 
 
-abinit_parser_entry_point = EntryPoint(
+abinit_parser = EntryPoint(
     name='parsers/abinit',
     aliases=['parsers/abinit'],
     description='NOMAD parser for ABINIT.',
@@ -46,7 +46,7 @@ abinit_parser_entry_point = EntryPoint(
     code_homepage='https://www.abinit.org/',
 )
 
-ams_parser_entry_point = EntryPoint(
+ams_parser = EntryPoint(
     name='parsers/ams',
     aliases=['parsers/ams'],
     description='NOMAD parser for AMS.',
@@ -57,7 +57,7 @@ ams_parser_entry_point = EntryPoint(
     code_homepage='https://www.scm.com',
 )
 
-crystal_parser_entry_point = EntryPoint(
+crystal_parser = EntryPoint(
     name='parsers/crystal',
     aliases=['parsers/crystal'],
     description='NOMAD parser for CRYSTAL.',
@@ -70,7 +70,7 @@ crystal_parser_entry_point = EntryPoint(
     code_category='Atomistic code',
 )
 
-exciting_parser_entry_point = EntryPoint(
+exciting_parser = EntryPoint(
     name='parsers/exciting',
     aliases=['parsers/exciting'],
     description='NOMAD parser for EXCITING.',
@@ -82,7 +82,7 @@ exciting_parser_entry_point = EntryPoint(
     code_homepage='http://exciting-code.org/',
 )
 
-fhiaims_parser_entry_point = EntryPoint(
+fhiaims_parser = EntryPoint(
     name='parsers/fhiaims',
     aliases=['parsers/fhi-aims', 'parsers/fhiaims'],
     description='NOMAD parser for FHIAIMS.',
@@ -93,7 +93,7 @@ fhiaims_parser_entry_point = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
-gpaw_parser_entry_point = EntryPoint(
+gpaw_parser = EntryPoint(
     name='parsers/gpaw',
     aliases=['parsers/gpaw'],
     description='NOMAD parser for GPAW.',
@@ -106,7 +106,7 @@ gpaw_parser_entry_point = EntryPoint(
     code_category='Atomistic code',
 )
 
-octopus_parser_entry_point = EntryPoint(
+octopus_parser = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],
     description='NOMAD parser for OCTOPUS.',
@@ -117,7 +117,7 @@ octopus_parser_entry_point = EntryPoint(
     code_homepage='https://octopus-code.org/',
 )
 
-phonopy_parser_entry_point = EntryPoint(
+phonopy_parser = EntryPoint(
     name='parsers/phonopy',
     aliases=['parsers/phonopy'],
     description='NOMAD parser for PHONOPY.',
@@ -128,7 +128,7 @@ phonopy_parser_entry_point = EntryPoint(
     code_homepage='https://phonopy.github.io/phonopy/',
 )
 
-quantumespresso_parser_entry_point = EntryPoint(
+quantumespresso_parser = EntryPoint(
     name='parsers/quantumespresso',
     aliases=['parsers/quantumespresso'],
     description='NOMAD parser for QUANTUMESPRESSO.',
@@ -143,7 +143,7 @@ quantumespresso_parser_entry_point = EntryPoint(
     code_category='Atomistic code',
 )
 
-vasp_parser_entry_point = EntryPoint(
+vasp_parser = EntryPoint(
     name='parsers/vasp',
     description='Parser for VASP XML and OUTCAR outputs',
     parser_class_name='nomad_simulation_parsers.parsers.vasp.parser.VASPParser',
@@ -160,7 +160,7 @@ vasp_parser_entry_point = EntryPoint(
     supported_compressions=['gz', 'bz2', 'xz'],
 )
 
-wannier90_parser_entry_point = Wannier90ParserEntryPoint(
+wannier90_parser = Wannier90ParserEntryPoint(
     name='parsers/wannier90',
     aliases=['parsers/wannier90'],
     description='NOMAD parser for WANNIER90.',
