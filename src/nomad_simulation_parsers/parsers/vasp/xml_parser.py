@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 
@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
@@ -29,7 +30,7 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, array: list) -> dict[str, Any]:
+    def get_eigenvalues(self, array: Optional[list]) -> dict[str, Any]:
         if array is None:
             return {}
         transposed = np.transpose(array)
@@ -58,13 +59,22 @@ class VasprunParser(XMLParser):
         value = self.get_data(source, path='.varray.v')
         if value is None:
             return {}
-        return dict(forces=value, npoints=len(value), rank=[3])
+        return dict(forces=value, npoints=len(value))  # ! remove npoints
 
     def reshape_array(self, source: np.ndarray, shape_rest: tuple = (3,)) -> np.ndarray:
         if source is None:
             return
         return np.reshape(
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
+        )
+    
+    def get_dos(self, source: Optional[list[list[float]]]) -> dict[str, Any]:
+        if source is None:
+            return {}
+        source = np.transpose(source)
+        return dict(
+            energies=source[0] * ureg.eV,
+            value=source[1] / ureg.eV,
         )
 
 

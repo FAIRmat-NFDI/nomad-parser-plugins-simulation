@@ -264,6 +264,13 @@ class Outputs(outputs.Outputs):
             ),
         )
     )
+    outputs.Outputs.electronic_dos.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            xml=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set.set.r'])),
+        )
+    )
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
