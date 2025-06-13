@@ -33,8 +33,12 @@ maintainers = [
 license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
+<<<<<<< HEAD
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "nomad-schema-plugin-simulation-workflow>=1.0.10",
+=======
+    "nomad-simulations",  # @git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+>>>>>>> 798b0b0 (removed git dependency from pyproject.toml)
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
 ]
