@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
-from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
@@ -67,15 +66,12 @@ class VasprunParser(XMLParser):
         return np.reshape(
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
-    
+
     def get_dos(self, source: list[list[float]] | None) -> dict[str, Any]:
         if source is None:
             return {}
         source = np.transpose(source)
-        return dict(
-            energies=source[0] * ureg.eV,
-            value=source[1] / ureg.eV,
-        )
+        return dict(energies=source[0], value=source[1])
 
 
 class XMLArchiveWriter(ArchiveWriter):

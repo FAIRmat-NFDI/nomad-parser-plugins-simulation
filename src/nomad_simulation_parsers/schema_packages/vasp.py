@@ -367,6 +367,21 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     )
 
 
+outputs.ElectronicDensityOfStates.value.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(
+    dict(
+        xml=MapperAnnotation(mapper='.value', unit='1/eV'),
+    )
+)
+outputs.ElectronicDensityOfStates.energies.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(
+    dict(
+        xml=MapperAnnotation(mapper='.energies', unit='eV'),
+    )
+)
+
 try:
     m_package.__init_metainfo__()
 except Exception:
