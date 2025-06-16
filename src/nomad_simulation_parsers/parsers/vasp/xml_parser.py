@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -30,7 +30,7 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, array: Optional[list]) -> dict[str, Any]:
+    def get_eigenvalues(self, array: list | None) -> dict[str, Any]:
         if array is None:
             return {}
         transposed = np.transpose(array)
@@ -68,7 +68,7 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
     
-    def get_dos(self, source: Optional[list[list[float]]]) -> dict[str, Any]:
+    def get_dos(self, source: list[list[float]] | None) -> dict[str, Any]:
         if source is None:
             return {}
         source = np.transpose(source)
