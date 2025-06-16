@@ -132,13 +132,22 @@ class XCFunctional(model_method.XCFunctional):
 
 
 class ModelMethod(model_method.ModelMethod):
-    # kspace numerical settings
     numerical_settings.KSpace.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(xml=MapperAnnotation(mapper='modeling.kpoints')))
 
 
 class KSpace(numerical_settings.KSpace):
+    numerical_settings.KSpace.reciprocal_lattice_vectors.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            xml=MapperAnnotation(
+                mapper='.generation.v[?starts_with("@name", \'genvec\')].__value',
+                unit='angstrom^-1',
+            ),
+        )
+    )
     numerical_settings.KSpace.k_mesh.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(xml=MapperAnnotation(mapper='.@')))
