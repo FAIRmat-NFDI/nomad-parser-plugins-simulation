@@ -124,8 +124,7 @@ header_quantities = [
     Quantity('nthreads', r', running on\s*(\d+)\s*processor cores', dtype=int),
     Quantity(
         'nproc',
-        r'(?:Number of processors in use:|, running on)'
-        r'\s*(\d+)\s*(?:processors)*',
+        r'(?:Number of processors in use:|, running on)' r'\s*(\d+)\s*(?:processors)*',
         dtype=int,
     ),
     Quantity('npool', r'npool[\w/]*\s*=\s*(\d+)', dtype=int),
@@ -237,8 +236,7 @@ calculation_quantities = [
     ),
     Quantity(
         'magnetization_absolute',
-        rf'absolute magnetization\s*=\s*({RE_FLOAT})'
-        rf'\s*Bohr mag/cell',
+        rf'absolute magnetization\s*=\s*({RE_FLOAT})' rf'\s*Bohr mag/cell',
         dtype=float,
         unit='bohr_magneton',
     ),
