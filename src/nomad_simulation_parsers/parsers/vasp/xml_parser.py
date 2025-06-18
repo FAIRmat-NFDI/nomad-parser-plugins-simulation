@@ -29,11 +29,29 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, array: list | None) -> dict[str, Any]:
-        if array is None:
-            return {}
-        transposed = np.transpose(array)
-        return dict(eigenvalues=transposed[0], occupations=transposed[1])
+    def get_eigenvalues(self, package: dict) -> dict[str, Any]:
+        """
+        Extracts eigenvalues and occupations from the VASP XML <eigenvalues.array> branch.
+        """
+        k_dict = next(
+            filter(
+                lambda x: x.get('__value', '') == 'kpoint',
+                package.get('dimension', []),
+            ),
+            {},
+        )
+        k_level = int(k_dict.get('@dim', '0'))
+
+        layer = package.get('set', {})
+        for level in range(0, 3):
+            if k_level == level:
+                break
+            else:
+                layer = layer.get('set', {})
+
+        # TODO: handle more lower layers
+        data = np.transpose([lyr.get('r', []) for lyr in layer])
+        return dict(eigenvalues=data[0], occupations=data[1])
 
     def get_energy_contributions(
         self, source: list[dict[str, Any]], **kwargs

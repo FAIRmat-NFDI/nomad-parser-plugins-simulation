@@ -266,8 +266,8 @@ class Outputs(outputs.Outputs):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
-            xml2=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
+            xml=MapperAnnotation(mapper=('get_eigenvalues', ['.eigenvalues.array'])),
+            xml2=MapperAnnotation(mapper=('get_eigenvalues', ['.eigenvalues.array'])),
             outcar=MapperAnnotation(
                 mapper=('get_eigenvalues', ['.eigenvalues', 'parameters'])
             ),
@@ -347,7 +347,7 @@ class TotalForce(properties.forces.TotalForce):
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
+    """outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -355,23 +355,25 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
             xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
             outcar=MapperAnnotation(mapper='.n_bands'),
         )
-    )
+    )"""
 
     # TODO This only works for non-spin pol
     outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            outcar=MapperAnnotation(mapper='.occupations'),
+            xml=MapperAnnotation(mapper='.occupations'),
             xml2=MapperAnnotation(mapper='.occupations'),
+            outcar=MapperAnnotation(mapper='.occupations'),
         )
     )
     outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            outcar=MapperAnnotation(mapper='.eigenvalues'),
+            xml=MapperAnnotation(mapper='.eigenvalues'),
             xml2=MapperAnnotation(mapper='.eigenvalues'),
+            outcar=MapperAnnotation(mapper='.eigenvalues'),
         )
     )
 
