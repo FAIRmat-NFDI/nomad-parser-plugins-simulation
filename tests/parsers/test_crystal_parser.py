@@ -1,6 +1,5 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-
 from nomad_simulation_parsers.parsers.crystal.parser import CrystalParser
 
 LOGGER = get_logger(__name__)

@@ -17,6 +17,16 @@ from nomad.parsing.file_parser.mapping_parser import (
     TextParser as TextMappingParser,
 )
 from nomad.utils import get_logger
+from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
+    RE_GW_FLAG,
+    FHIAimsOutFileParser,
+)
+from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
+from nomad_simulation_parsers.parsers.utils.general import (
+    remove_mapping_annotations,
+    search_files,
+)
+from nomad_simulation_parsers.schema_packages import fhiaims
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -31,17 +41,6 @@ from nomad_simulations.schema_packages.workflow.general import (
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from structlog.stdlib import BoundLogger
-
-from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
-    RE_GW_FLAG,
-    FHIAimsOutFileParser,
-)
-from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
-from nomad_simulation_parsers.parsers.utils.general import (
-    remove_mapping_annotations,
-    search_files,
-)
-from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
 

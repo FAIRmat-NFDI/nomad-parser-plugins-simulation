@@ -8,11 +8,10 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Program, Simulation
-from structlog.stdlib import BoundLogger
-
 from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import ams
+from nomad_simulations.schema_packages.general import Program, Simulation
+from structlog.stdlib import BoundLogger
 
 from .file_parser import OutParser
 from .file_parser import RKFParser as RKFTextParser

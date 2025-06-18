@@ -13,13 +13,12 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
+from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.schema_packages import wannier90
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.beyond_dft import DFTTBWorkflow
 from structlog.stdlib import BoundLogger
-
-from nomad_simulation_parsers.parsers.utils.general import search_files
-from nomad_simulation_parsers.schema_packages import wannier90
 
 from .file_parsers import HrParser, WInParser, WOutParser
 

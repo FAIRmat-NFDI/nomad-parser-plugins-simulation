@@ -11,6 +11,7 @@ from nomad.parsing.file_parser import ArchiveWriter, DataTextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
+from nomad_simulation_parsers.schema_packages import abinit
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -22,8 +23,6 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimizationModel,
 )
 from structlog.stdlib import BoundLogger
-
-from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
 
