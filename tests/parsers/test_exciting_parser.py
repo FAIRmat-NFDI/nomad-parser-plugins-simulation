@@ -1,6 +1,5 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-
 from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 
 LOGGER = get_logger(__name__)

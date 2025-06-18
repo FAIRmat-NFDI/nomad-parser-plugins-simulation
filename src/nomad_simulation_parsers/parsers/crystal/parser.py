@@ -13,10 +13,9 @@ from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
+from nomad_simulation_parsers.schema_packages import crystal
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
-
-from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
 
@@ -180,7 +179,7 @@ class CrystalF25Parser(TextParser):
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         first_row = source['first_row']
-        cols, rows = [int(first_row[n]) for n in range(2)]
+        cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
         # fermi_energy = first_row[4]
         second_row = source['second_row']

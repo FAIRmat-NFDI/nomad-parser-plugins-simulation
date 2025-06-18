@@ -15,16 +15,15 @@ from nomad.parsing.file_parser.mapping_parser import (
 )
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
-from structlog.stdlib import (
-    BoundLogger,
-)
-
 from nomad_simulation_parsers.parsers.utils.general import (
     remove_mapping_annotations,
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import exciting
+from nomad_simulations.schema_packages.general import Simulation
+from structlog.stdlib import (
+    BoundLogger,
+)
 
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser

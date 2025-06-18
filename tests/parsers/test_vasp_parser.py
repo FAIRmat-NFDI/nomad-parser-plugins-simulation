@@ -1,6 +1,5 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
