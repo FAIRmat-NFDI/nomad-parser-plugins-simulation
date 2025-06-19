@@ -6,10 +6,9 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MappingParser, MetainfoParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
+from nomad_simulation_parsers.schema_packages import gpaw
 from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import BoundLogger
-
-from nomad_simulation_parsers.schema_packages import gpaw
 
 from .gpw_parser import GPWFileParser
 
