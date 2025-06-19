@@ -1,5 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+
 from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 
 LOGGER = get_logger(__name__)

@@ -5,6 +5,7 @@ import numpy as np
 from ase.data import chemical_symbols
 from nomad.parsing.file_parser import FileParser, Quantity, TextParser
 from nomad.units import ureg
+
 from nomad_simulation_parsers.parsers.utils.general import search_files
 
 from .rkf import rkf_to_dict

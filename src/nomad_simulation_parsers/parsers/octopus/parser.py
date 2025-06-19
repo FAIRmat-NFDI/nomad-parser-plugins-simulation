@@ -10,9 +10,10 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulation_parsers.schema_packages import octopus
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.schema_packages import octopus
 
 from .file_parser import EigenvalueParser, InfoParser, InpParser, LogParser, OutParser
 

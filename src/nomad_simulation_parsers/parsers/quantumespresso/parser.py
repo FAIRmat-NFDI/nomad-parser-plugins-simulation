@@ -15,8 +15,6 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, TextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulation_parsers.parsers.utils.general import search_files
-from nomad_simulation_parsers.schema_packages.quantumespresso import common
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
@@ -24,6 +22,9 @@ from nomad_simulations.schema_packages.workflow import (
     SinglePoint,
 )
 from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
 from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser

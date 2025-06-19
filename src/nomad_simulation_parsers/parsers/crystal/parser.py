@@ -13,9 +13,10 @@ from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
-from nomad_simulation_parsers.schema_packages import crystal
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
 
