@@ -13,134 +13,105 @@ m_package = SchemaPackage()
 
 class Program(general.Program):
     general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(out=Mapper(mapper='.program_version'))
+        dict(gpw=Mapper(mapper='.program_version'))
     )
-
-
-class AtomsState(model_system.AtomsState):
-    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
 
 
 class AtomicCell(model_system.AtomicCell):
     model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    ).update(dict(gpw=Mapper(mapper='.unitcell')))
+    model_system.AtomicCell.periodic_boundary_conditions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper='.boundary_conditions')))
+
+
+class AtomsState(model_system.AtomsState):
+    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper='.@')))
 
 
 class ModelSystem(model_system.ModelSystem):
     model_system.ModelSystem.positions.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.labels_positions[1]')))
-    model_system.AtomsState.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.labels_positions[0]')))
+    ).update(dict(gpw=Mapper(mapper='.atom_positions')))
     model_system.AtomicCell.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.lattice_vectors')))
+    ).update(dict(gpw=Mapper(mapper='.@')))
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper='.labels')))
 
 
 class XCFunctional(model_method.XCFunctional):
     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    ).update(dict(gpw=Mapper(mapper='.@')))
 
 
 class DFT(model_method.DFT):
     model_method.DFT.xc_functionals.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper=('get_xc_functionals', ['.model_parameters.dft_potential'])
-            )
-        )
-    )
+    ).update(dict(gpw=Mapper(mapper='.xcfunctional')))
 
 
 class TotalEnergy(outputs.TotalEnergy):
     outputs.TotalEnergy.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .energy_total')))
+    ).update(dict(gpw=Mapper(mapper='.total || .value')))
+    outputs.TotalEnergy.name.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper='.name')))
     outputs.TotalEnergy.contributions.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
+    ).update(dict(gpw=Mapper(mapper='.contributions')))
 
 
 class TotalForce(outputs.TotalForce):
     outputs.TotalForce.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .forces_total')))
-    outputs.TotalForce.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_contributions', ['.forces']))))
+    ).update(dict(gpw=Mapper(mapper='.total || .value')))
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.eigenvalues')))
+    ).update(dict(gpw=Mapper(mapper='.eigenvalues')))
     outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.occupations')))
+    ).update(dict(gpw=Mapper(mapper='.occupations')))
 
 
 class Outputs(outputs.Outputs):
     outputs.Outputs.total_energies.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    ).update(dict(gpw=Mapper(mapper=('get_energies', []))))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    ).update(dict(gpw=Mapper(mapper=('get_forces', []))))
     outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper=('get_eigenvalues', ['.eigenvalues || .band_energy_ranges'])
-            )
-        )
-    )
+    ).update(dict(gpw=Mapper(mapper=('get_eigenvalues', []))))
 
 
 class Simulation(general.Simulation):
     general.Simulation.program.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
-    model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(
-            out=Mapper(
-                mapper='.geometry_optimization || molecular_dynamics || .single_point'
-            )
-        )
-    )
+    ).update(dict(gpw=Mapper(mapper='.@')))
     general.Simulation.model_system.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper='.geometry_optimization.step'
-                '|| molecular_dynamics.step '
-                '|| .single_point'
-            )
-        )
+    ).update(dict(gpw=Mapper(mapper='.@')))
+    model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+        dict(gpw=Mapper(mapper='.@'))
     )
     general.Simulation.outputs.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper='.geometry_optimization.step'
-                '|| molecular_dynamics.step '
-                '|| .single_point'
-            )
-        )
-    )
+    ).update(dict(gpw=Mapper(mapper='.@')))
 
 
 general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper='@'))
+    dict(gpw=Mapper(mapper='@'))
 )
 
 

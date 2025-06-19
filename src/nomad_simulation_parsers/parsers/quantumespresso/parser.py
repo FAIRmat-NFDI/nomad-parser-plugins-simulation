@@ -245,8 +245,8 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         # mainfiles in the same upload
         generic_workflow_archive = self.child_archives.get('workflow_generic')
         if generic_workflow_archive is not None:
-            from nomad.app.v1.models import MetadataRequired
-            from nomad.search import search
+            from nomad.app.v1.models import MetadataRequired  # noqa
+            from nomad.search import search  # noqa
 
             parent_archive = multirun_workflow_archive or self.archive
             # add current archive workflow to generic workflow tasks
@@ -293,10 +293,10 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                         )
 
     def write_to_archive(self) -> None:
-        from .epw.parser import EPWArchiveWriter
-        from .phonon.parser import PhononArchiveWriter
-        from .pwscf.parser import PWSCFArchiveWriter
-        from .xspectra.parser import XSpectraArchiveWriter
+        from .epw.parser import EPWArchiveWriter  # noqa
+        from .phonon.parser import PhononArchiveWriter  # noqa
+        from .pwscf.parser import PWSCFArchiveWriter  # noqa
+        from .xspectra.parser import XSpectraArchiveWriter  # noqa
 
         writers = {
             'pwscf': PWSCFArchiveWriter(),

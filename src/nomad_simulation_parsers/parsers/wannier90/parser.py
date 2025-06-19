@@ -24,7 +24,7 @@ from nomad_simulation_parsers.schema_packages import wannier90
 from .file_parsers import HrParser, WInParser, WOutParser
 
 configuration = config.get_plugin_entry_point(
-    'nomad_simulation_parsers.parsers:wannier90_parser_entry_point'
+    'nomad_simulation_parsers.parsers:wannier90_parser'
 )
 LOGGER = get_logger(__name__)
 
