@@ -29,29 +29,31 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, package: dict) -> dict[str, Any]:
+    def get_bands(self, package: dict) -> dict[str, Any]:
         """
-        Extracts eigenvalues and occupations from the VASP XML <eigenvalues.array> branch.
+        Extracts eigenvalues and occupations
+        from the VASP XML <eigenvalues.array> branch.
         """
-        k_dict = next(
-            filter(
-                lambda x: x.get('__value', '') == 'kpoint',
-                package.get('dimension', []),
-            ),
-            {},
-        )
-        k_level = int(k_dict.get('@dim', '0'))
 
-        layer = package.get('set', {})
-        for level in range(0, 3):
-            if k_level == level:
-                break
-            else:
-                layer = layer.get('set', {})
+        def extract_layer(layers: list[dict | list], keys: list[str]) -> list:
+            """
+            Extracts the specified keys from each layer in the layers list.
+            """
+            if isinstance(layers, dict):
+                layers = [layers]
 
-        # TODO: handle more lower layers
-        data = np.transpose([lyr.get('r', []) for lyr in layer])
-        return dict(eigenvalues=data[0], occupations=data[1])
+            data = []
+            for lyr in layers:
+                if isinstance(lyr, dict):
+                    for key in keys:
+                        if key in lyr:
+                            data.append(extract_layer(lyr[key], keys))
+                elif isinstance(lyr, list):
+                    data.append(lyr)
+            return data
+
+        data = np.array(extract_layer(package.get('set', []), keys=['set', 'r'])[0])
+        return dict(eigenvalues=data[:, :, :, 0], occupations=data[:, :, :, 1])
 
     def get_energy_contributions(
         self, source: list[dict[str, Any]], **kwargs

@@ -262,14 +262,14 @@ class Outputs(outputs.Outputs):
             outcar=MapperAnnotation(mapper=('get_forces', ['.@'])),
         )
     )
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+    outputs.Outputs.electronic_band_structures.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper=('get_eigenvalues', ['.eigenvalues.array'])),
-            xml2=MapperAnnotation(mapper=('get_eigenvalues', ['.eigenvalues.array'])),
+            xml=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
+            xml2=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
             outcar=MapperAnnotation(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'parameters'])
+                mapper=('get_bands', ['.eigenvalues', 'parameters'])
             ),
         )
     )
@@ -346,19 +346,8 @@ class TotalForce(properties.forces.TotalForce):
     )
 
 
-class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    """outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            outcar=MapperAnnotation(mapper='.n_bands'),
-        )
-    )"""
-
-    # TODO This only works for non-spin pol
-    outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    outputs.ElectronicBandStructure.occupation.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -367,13 +356,13 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
             outcar=MapperAnnotation(mapper='.occupations'),
         )
     )
-    outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
+    outputs.ElectronicBandStructure.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper='.eigenvalues'),
-            xml2=MapperAnnotation(mapper='.eigenvalues'),
-            outcar=MapperAnnotation(mapper='.eigenvalues'),
+            xml=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
+            xml2=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
+            outcar=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
         )
     )
 

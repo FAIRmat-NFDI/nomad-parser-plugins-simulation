@@ -46,7 +46,7 @@ class VASPParser(MatchingParser):
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 
-        ref_reciprocal_lattice(archive, logger)
+        # ref_reciprocal_lattice(archive, logger)
 
         # remove annotations
         # TODO cache? put in close context
