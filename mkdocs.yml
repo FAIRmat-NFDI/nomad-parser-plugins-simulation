@@ -16,11 +16,15 @@ nav:
   - Parsers:
       - FHI-aims:
           - About: parsers/fhi-aims/fhi-aims_about.md
+      - Gromacs:
+          - About: parsers/gromacs/gromacs_about.md
       - H5MD:
           - About: parsers/h5md/h5md_about.md
           - How-to store data: parsers/h5md/h5md_howto.md
           - The H5MD Schema: parsers/h5md/h5md_expl.md
           - H5MD Reference: parsers/h5md/h5md_ref.md
+      # - LAMMPS:
+      #     - About: parsers/lammps/lammps_about.md
       - VASP:
           - About: parsers/vasp/vasp_about.md
 
