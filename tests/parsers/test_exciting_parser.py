@@ -5,6 +5,7 @@ from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 
 LOGGER = get_logger(__name__)
 
+
 def test_parse_file():
     parser = ExcitingParser()
     archive = EntryArchive()
