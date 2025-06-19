@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from importlib import reload
 
 from nomad.parsing import MatchingParser
+
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.schema_packages import vasp
 

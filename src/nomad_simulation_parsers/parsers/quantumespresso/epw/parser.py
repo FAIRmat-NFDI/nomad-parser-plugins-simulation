@@ -1,5 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoArchiveWriter,
 )

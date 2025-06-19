@@ -1,5 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+
 from nomad_simulation_parsers.parsers.wannier90.parser import Wannier90Parser
 
 LOGGER = get_logger(__name__)
