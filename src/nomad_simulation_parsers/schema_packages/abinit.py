@@ -174,12 +174,12 @@ class Simulation(general.Simulation):
     ).update(dict(out=Mapper(mapper=('get_outputs', [])), dos=Mapper(mapper='.@')))
 
 
-Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(out=Mapper(mapper='@'), dos=Mapper(mapper='.@'))
 )
 
 
 try:
-    m_package.__init_metaino__()
+    m_package.__init_metainfo__()
 except Exception:
     pass

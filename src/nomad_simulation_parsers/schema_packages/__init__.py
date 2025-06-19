@@ -14,62 +14,68 @@ class EntryPoint(SchemaPackageEntryPoint):
             return None
 
 
-abinit_schema_package_entry_point = EntryPoint(
+abinit_schema_package = EntryPoint(
     name='AbinitSchemaPackage',
     description='Schema package for abinit.',
     module='nomad_simulation_parsers.schema_packages.abinit',
 )
 
 
-ams_schema_package_entry_point = EntryPoint(
+ams_schema_package = EntryPoint(
     name='AMSSchemaPackage',
     description='Schema package for AMS.',
     module='nomad_simulation_parsers.schema_packages.ams',
 )
 
-crystal_schema_package_entry_point = EntryPoint(
+crystal_schema_package = EntryPoint(
     name='CrystalSchemaPackage',
     description='Schema package for Crystal.',
     module='nomad_simulation_parsers.schema_packages.crystal',
 )
 
-exciting_schema_package_entry_point = EntryPoint(
+exciting_schema_package = EntryPoint(
     name='ExcitingSchemaPackage',
     description='Schema package for exciting.',
     module='nomad_simulation_parsers.schema_packages.exciting',
 )
 
-fhiaims_schema_package_entry_point = EntryPoint(
+fhiaims_schema_package = EntryPoint(
     name='FHIAimsSchemaPackage',
     description='Schema package for FHIAims.',
     module='nomad_simulation_parsers.schema_packages.fhiaims',
 )
 
-octopus_schema_package_entry_point = EntryPoint(
+gpaw_schema_package = EntryPoint(
+    name='GPAWSchemaPackage',
+    description='Schema package for GPAW.',
+    module='nomad_simulation_parsers.schema_packages.gpaw',
+)
+
+octopus_schema_package = EntryPoint(
     name='OctopusSchemaPackage',
     description='Schema package for Octopus.',
     module='nomad_simulation_parsers.schema_packages.octopus',
 )
 
-phonopy_schema_package_entry_point = EntryPoint(
+phonopy_schema_package = EntryPoint(
     name='PhonopySchemaPackage',
     description='Schema package for Phonopy.',
     module='nomad_simulation_parsers.schema_packages.phonopy',
 )
 
-quantumespresso_schema_package_entry_point = EntryPoint(
+quantumespresso_schema_package = EntryPoint(
     name='QuantumEspressoSchemaPackage',
     description='Schema package for Quantum Espresso.',
     module='nomad_simulation_parsers.schema_packages.quantumespresso.common',
 )
 
-vasp_schema_package_entry_point = EntryPoint(
+vasp_schema_package = EntryPoint(
     name='VASPSchemaPackage',
     description='Schema package for VASP.',
     module='nomad_simulation_parsers.schema_packages.vasp',
 )
 
-wannier90_schema_package_entry_point = EntryPoint(
+wannier90_schema_package = EntryPoint(
     name='Wannier90SchemaPackage',
     description='Schema package for Wannier90.',
     module='nomad_simulation_parsers.schema_packages.wannier90',

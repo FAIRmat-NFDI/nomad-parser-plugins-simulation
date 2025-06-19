@@ -5,6 +5,7 @@ from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyParser
 
 LOGGER = get_logger(__name__)
 
+
 def test_parse_file():
     parser = PhonopyParser()
     archive = EntryArchive()
