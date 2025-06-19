@@ -180,7 +180,7 @@ class CrystalF25Parser(TextParser):
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         first_row = source['first_row']
-        cols, rows = [int(first_row[n]) for n in range(2)]
+        cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
         # fermi_energy = first_row[4]
         second_row = source['second_row']
