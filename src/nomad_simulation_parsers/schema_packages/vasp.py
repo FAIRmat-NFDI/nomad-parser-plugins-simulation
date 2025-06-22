@@ -21,6 +21,8 @@ m_package = SchemaPackage()
 general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
         xml=MapperAnnotation(mapper='modeling'),
+        xml_bands=MapperAnnotation(mapper='modeling'),
+        xml_dos=MapperAnnotation(mapper='modeling'),
         xml2=MapperAnnotation(mapper='modeling'),
         outcar=MapperAnnotation(mapper='@'),
     )
@@ -58,6 +60,8 @@ class Simulation(general.Simulation):
     ).update(
         dict(
             xml=MapperAnnotation(mapper='.calculation'),
+            xml_bands=MapperAnnotation(mapper='.calculation'),
+            xml_dos=MapperAnnotation(mapper='.calculation'),
             xml2=MapperAnnotation(mapper='.calculation'),
             outcar=MapperAnnotation(mapper='.calculation'),
         )
@@ -266,8 +270,7 @@ class Outputs(outputs.Outputs):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
-            xml2=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
+            xml_bands=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
             outcar=MapperAnnotation(
                 mapper=('get_bands', ['.eigenvalues', 'parameters'])
             ),
@@ -277,7 +280,7 @@ class Outputs(outputs.Outputs):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set.set.r'])),
+            xml_dos=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set.set.r'])),
         )
     )
 
@@ -351,8 +354,7 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper='.occupations'),
-            xml2=MapperAnnotation(mapper='.occupations'),
+            xml_bands=MapperAnnotation(mapper='.occupations'),
             outcar=MapperAnnotation(mapper='.occupations'),
         )
     )
@@ -360,8 +362,7 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
-            xml2=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
+            xml_bands=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
             outcar=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
         )
     )
@@ -371,14 +372,14 @@ outputs.ElectronicDensityOfStates.value.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(
     dict(
-        xml=MapperAnnotation(mapper='.value', unit='1/eV'),
+        xml_dos=MapperAnnotation(mapper='.value', unit='1/eV'),
     )
 )
 outputs.ElectronicDensityOfStates.energies.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(
     dict(
-        xml=MapperAnnotation(mapper='.energies', unit='eV'),
+        xml_dos=MapperAnnotation(mapper='.energies', unit='eV'),
     )
 )
 

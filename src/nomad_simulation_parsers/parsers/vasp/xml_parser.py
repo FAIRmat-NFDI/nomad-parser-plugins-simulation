@@ -101,9 +101,19 @@ class XMLArchiveWriter(ArchiveWriter):
 
         xml_parser = VasprunParser(filepath=self.mainfile)
 
+        # Process basic XML mappings first
         data_parser.annotation_key = 'xml'
         xml_parser.convert(data_parser)
 
+        # Process band structure mappings - append to create separate output
+        data_parser.annotation_key = 'xml_bands'
+        xml_parser.convert(data_parser, update_mode='append')
+
+        # Process DOS mappings - append to create another separate output  
+        data_parser.annotation_key = 'xml_dos'
+        xml_parser.convert(data_parser, update_mode='append')
+
+        # Process remaining xml2 mappings
         data_parser.annotation_key = 'xml2'
         xml_parser.convert(data_parser)
 
