@@ -280,7 +280,7 @@ class Outputs(outputs.Outputs):
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml_dos=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set.set.r'])),
+            xml_dos=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set'])),
         )
     )
 

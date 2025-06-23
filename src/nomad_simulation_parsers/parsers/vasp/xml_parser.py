@@ -90,8 +90,9 @@ class VasprunParser(XMLParser):
     def get_dos(self, source: list[list[float]] | None) -> dict[str, Any]:
         if source is None:
             return {}
-        source = np.transpose(source)
-        return dict(energies=source[0], value=source[1])
+
+        source = np.array([v.get('r') for k, v in source.items() if k == 'set'])
+        return dict(energies=source[0, :, 0], value=source[:, :, 1])
 
 
 class XMLArchiveWriter(ArchiveWriter):
