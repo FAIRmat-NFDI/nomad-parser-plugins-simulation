@@ -10,7 +10,7 @@ from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
 
 # ? Do we want to migrate the MDAnalysisParser to nomad-parser-plugins-simulation, or is there a better solution?
-# from atomisticparsers.utils import MDAnalysisParser, MDParser
+from atomisticparsers.utils import MDAnalysisParser, MDParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
@@ -783,6 +783,7 @@ class LogParser(TextParser):
 
     def get_data_files(self):
         def check_file_header(file_path, regex_pattern):
+            print('regex_pattern:', regex_pattern)
             header_size = 1024
             file_path = f'{self.maindir}/{file_path}'
             try:
@@ -932,14 +933,23 @@ class LammpsArchiveWriter(ArchiveWriter):
         self._traj_parser = TrajParser()
         self._traj_parser.logger = self.logger
         self._traj_parser._chemical_symbols = None
-        # self._xyztraj_parser = XYZTrajParser()
-        # self._mdanalysistraj_parser = MDAnalysisParser(
-        #     topology_format='DATA', format='LAMMPSDUMP'
-        # )
-        # self._mdanalysistraj_parser.logger = self.logger
-        # self._xyztraj_parser.logger = self.logger
+        self._xyztraj_parser = XYZTrajParser()
+        self._xyztraj_parser.logger = self.logger
+        self._mdanalysistraj_parser = MDAnalysisParser(
+            topology_format='DATA', format='LAMMPSDUMP'
+        )
+        self._mdanalysistraj_parser.logger = self.logger
         self.data_parser = DataParser()
         self.data_parser.logger = self.logger
+
+        # parse data file associated with calculation
+        data_files = self.log_parser.get_data_files()
+        print(data_files)
+        if len(data_files) > 1:
+            self.logger.warning('Multiple data files are specified')
+        if data_files:
+            self.data_parser.mainfile = data_files[0]
+
         sys.exit()
 
         # TODO extend
