@@ -10,9 +10,11 @@ from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
 
 # ? Do we want to migrate the MDAnalysisParser to nomad-parser-plugins-simulation, or is there a better solution?
-from atomisticparsers.utils import MDAnalysisParser, MDParser
+from atomisticparsers.utils import MDAnalysisParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.model_system import ModelSystem
+
 from structlog.stdlib import BoundLogger
 
 re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
@@ -758,18 +760,29 @@ class LogParser(TextParser):
         return data
 
     def get_traj_files(self):
-        dump = self.get('dump')
+        dump = self.get('dump', None)
         if dump is None:
             self.logger.warning('Trajectory not specified in directory, will scan.')
-            # TODO improve matching of traj file
-            traj_files = os.listdir(self.maindir)
-            traj_files = [
-                f for f in traj_files if f.endswith('trj') or f.endswith('xyz')
-            ]
-            # further eliminate
-            if len(traj_files) > 1:
-                prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
-                traj_files = [f for f in traj_files if prefix in f]
+            dump = self.get('write_dump', None)
+            if dump is None:
+                # TODO: extend matching of traj file
+                traj_files = os.listdir(self.maindir)
+                traj_files = [
+                    f
+                    for f in traj_files
+                    if f.endswith('trj')
+                    or f.endswith('xyz')
+                    or f.endswith('dcd')
+                    or f.endswith('h5')
+                    or f.endswith('nc')
+                ]
+                # further eliminate
+                if len(traj_files) > 1:
+                    # ! This again wrongfully expects common file naming conventions!
+                    prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
+                    traj_files = [f for f in traj_files if prefix in f]
+            else:
+                traj_files = [d[2] for d in dump]
         else:
             traj_files = []
             if type(dump[0]) in [str, int]:
@@ -783,7 +796,6 @@ class LogParser(TextParser):
 
     def get_data_files(self):
         def check_file_header(file_path, regex_pattern):
-            print('regex_pattern:', regex_pattern)
             header_size = 1024
             file_path = f'{self.maindir}/{file_path}'
             try:
@@ -803,16 +815,21 @@ class LogParser(TextParser):
                 f for f in data_files if f.endswith('data') or f.startswith('data')
             ]
             if not data_files:
+                # Search any file for the LAMMPS data file header.
+                # Fallback to the LAMMPS input structure, if no run data file is found.
                 data_files = os.listdir(self.maindir)
+                patterns = ['LAMMPS data file', 'LAMMPS Description']
+                for pattern in patterns:
+                    data_files = [
+                        f for f in data_files if check_file_header(f, pattern)
+                    ]
+                    if data_files:
+                        break
+            if len(data_files) > 1:
+                # Search data files for the LAMMPS data file header.
                 data_files = [
                     f for f in data_files if check_file_header(f, 'LAMMPS data file')
-                ]  # TODO: Should this be the default?
-            if len(data_files) > 1:
-                prefix = os.path.basename(self.mainfile).rsplit('.', 1)
-                prefix = (
-                    prefix[1] if len(prefix) > 1 and prefix[1] != 'log' else prefix[0]
-                )
-                data_files = [f for f in data_files if prefix in f]
+                ]
         else:
             data_files = read_data
 
@@ -909,6 +926,109 @@ class LammpsArchiveWriter(ArchiveWriter):
     TODO: Docstring
     """
 
+    # def parse_method(self):
+    #     sec_run = self.archive.run[-1]
+
+    #     if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
+    #         return
+
+    #     if self.traj_parsers.eval('n_frames') is None:
+    #         return
+
+    #     sec_method = Method()
+    #     sec_run.method.append(sec_method)
+    #     sec_force_field = ForceField()
+    #     sec_method.force_field = sec_force_field
+    #     sec_model = Model()
+    #     sec_force_field.model.append(sec_model)
+
+    #     # Old parsing of method with text parser
+    #     masses = self.data_parser.get('Masses', None)
+    #     self.traj_parsers[0].masses = masses
+    #     # @Landinesa: we should be able to set the atom masses with the TrajParser, but I don't quite understand how to use this.
+    #     # Can you add the implementation here, and then we can make the MDA implementation below as a backup?
+    #     # Can you also get the charges somehow?
+
+    #     # parse method with MDAnalysis (should be a backup for the charges and masses...but the interactions are most easily read from the MDA universe right now)
+    #     n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
+    #     if n_atoms is not None:
+    #         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
+    #         for n in range(n_atoms):
+    #             sec_atom = AtomParameters()
+    #             sec_method.atom_parameters.append(sec_atom)
+    #             sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
+    #             sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
+
+    #     # TODO address case types are numbered instead of giving atom labels (fix tests accordingly)
+    #     interactions = self._mdanalysistraj_parser.get_interactions()
+    #     # for interaction in interactions:
+    #     #     for key, val in interaction.items():
+    #     #         quantity_def = Interaction.m_def.all_quantities.get(key)
+    #     #         if quantity_def and quantity_def.shape:
+    #     #             # TODO reshape properly
+    #     #             interaction[key] = [val]
+    #     self.parse_interactions(interactions, sec_model)
+
+    #     # Force Calculation Parameters
+    #     sec_force_calculations = ForceCalculations()
+    #     sec_force_field.force_calculations = sec_force_calculations
+    #     for pairstyle in self.log_parser.get('pair_style', []):
+    #         pairstyle_args = pairstyle[1:]
+    #         pairstyle = pairstyle[0].lower()
+    #         if (
+    #             'lj' in pairstyle and 'coul' not in pairstyle
+    #         ):  # only cover the simplest case
+    #             sec_force_calculations.vdw_cutoff = (
+    #                 float(pairstyle_args[-1]) * ureg.nanometer
+    #             )
+    #         if 'coul' in pairstyle:
+    #             if 'streitz' in pairstyle:
+    #                 cutoff = float(pairstyle_args[0])
+    #             else:
+    #                 cutoff = float(pairstyle_args[-1])
+    #             sec_force_calculations.coulomb_cutoff = cutoff * ureg.nanometer
+    #         val = self.log_parser.get('kspace_style', None)
+    #         if val is not None:
+    #             kspacestyle = val[0][0].lower()
+    #             if 'ewald' in kspacestyle:
+    #                 sec_force_calculations.coulomb_type = 'ewald'
+    #             elif 'pppm' in kspacestyle:
+    #                 sec_force_calculations.coulomb_type = (
+    #                     'particle_particle_particle_mesh'
+    #                 )
+    #             elif 'msm' in kspacestyle:
+    #                 sec_force_calculations.coulomb_type = 'multilevel_summation'
+
+    #     sec_neighbor_searching = NeighborSearching()
+    #     sec_force_calculations.neighbor_searching = sec_neighbor_searching
+    #     val = self.log_parser.get('neighbor', None)
+    #     if val is not None:
+    #         neighbor = val[0][0]  # just use the first instance for now
+    #         vdw_cutoff = sec_force_calculations.vdw_cutoff
+    #         if vdw_cutoff is not None:
+    #             sec_neighbor_searching.neighbor_update_cutoff = (
+    #                 float(neighbor) * ureg.nanometer
+    #             )
+    #             sec_neighbor_searching.neighbor_update_cutoff += vdw_cutoff
+    #     val = self.log_parser.get('neigh_modify', None)
+    #     if val is not None:
+    #         neighmodify = val[0]  # just use the first instace for now
+    #         neighmodify = np.array([str(i).lower() for i in neighmodify])
+    #         if 'every' in neighmodify:
+    #             index = np.where(neighmodify == 'every')[0]
+    #             sec_neighbor_searching.neighbor_update_frequency = int(
+    #                 neighmodify[index + 1]
+    #             )
+    
+    def parse_system(self):
+        system = ModelSystem()
+
+        n_traj = self.traj_parsers.eval('n_frames')
+        if n_traj is None:
+            return
+        
+        
+
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
         # LAMMPS mainfile is the main log file
@@ -944,15 +1064,104 @@ class LammpsArchiveWriter(ArchiveWriter):
 
         # parse data file associated with calculation
         data_files = self.log_parser.get_data_files()
-        print(data_files)
         if len(data_files) > 1:
             self.logger.warning('Multiple data files are specified')
         if data_files:
             self.data_parser.mainfile = data_files[0]
 
+        # parse trajectorty file associated with calculation
+        traj_files = self.log_parser.get_traj_files()
+        if len(traj_files) > 1:
+            self.logger.warning('Multiple traj files are specified')
+
+        parsers = []
+        for n, traj_file in enumerate(traj_files):
+            print('Parsing trajectory file:', traj_file)
+            # parser initialization for each traj file cannot be avoided as there are
+            # cases where traj files can share the same parser
+            file_type = self.log_parser.get(
+                'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
+            )[n][2]
+            print('file_type:', file_type)
+            if file_type == 'dcd' and data_files:
+                traj_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
+                traj_parser.mainfile = data_files[0]
+                traj_parser.auxilliary_files = [traj_file]
+                self._mdanalysistraj_parser = traj_parser
+            elif file_type == 'xyz' and data_files:
+                traj_parser = MDAnalysisParser(topology_format='DATA', format='XYZ')
+                traj_parser.mainfile = data_files[0]
+                traj_parser.auxilliary_files = [traj_file]
+                self._mdanalysistraj_parser = traj_parser
+            elif file_type == 'custom' and data_files:
+                custom_options = self.log_parser.get('dump')[n][5:]
+                custom_options = [
+                    option.replace('xu', 'x') for option in custom_options
+                ]
+                custom_options = [
+                    option.replace('yu', 'y') for option in custom_options
+                ]
+                custom_options = [
+                    option.replace('zu', 'z') for option in custom_options
+                ]
+                custom_options = ' '.join(custom_options)
+                traj_parser = MDAnalysisParser(
+                    topology_format='DATA',
+                    format='LAMMPSDUMP',
+                    atom_style=custom_options,
+                )
+                if data_files:
+                    traj_parser.mainfile = data_files[0]
+                traj_parser.auxilliary_files = [traj_file]
+                # try to check if MDAnalysis can construct the universe or at least parse
+                # the atoms, otherwise will fall back to TrajParser
+                if traj_parser.universe is None or 'X' in traj_parser.get(
+                    'atoms_info', {}
+                ).get('names', []):
+                    # mda necessary to calculate rdf and atomsgroup
+                    if n == 0:
+                        self._mdanalysistraj_parser = traj_parser
+                    traj_parser = TrajParser()
+                    traj_parser.mainfile = traj_file
+            else:
+                traj_parser = TrajParser()
+                traj_parser.mainfile = traj_file
+                # TODO provide support for other file types
+            parsers.append(traj_parser)
+
+        self.traj_parsers = TrajParsers(parsers)
+        print('Traj parsers:', self.traj_parsers)
+        if self.traj_parsers[0] is None:
+            return
+
+        # parse data from auxiliary log file
+        if self.log_parser.get('log') is not None:
+            self.aux_log_parser.mainfile = os.path.join(
+                self.log_parser.maindir, self.log_parser.get('log')[0]
+            )
+            # we assign units here which is read from log parser
+            self.aux_log_parser._units = self.log_parser.units
+
+        print('Parsing auxiliary log file:', self.aux_log_parser.mainfile)
+
+        # ? Do I need ModelMethod here?
+        # ? Are there implementation examples beyond vasp and wannier90?
+        # self.parse_method()
+
+        self.parse_system()
         sys.exit()
 
-        # TODO extend
+        # include input controls from log file
+        self.parse_input()
+
+        # parse thermodynamic data from log file
+        self.parse_thermodynamic_data()
+
+        self.parse_workflow()
+
+        self._mdanalysistraj_parser.close()
+        for parser in parsers:
+            parser.close()
 
 
 class LammpsParser(MatchingParser):
