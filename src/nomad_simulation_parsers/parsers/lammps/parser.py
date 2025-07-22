@@ -9,12 +9,20 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
 
-# ? Do we want to migrate the MDAnalysisParser to nomad-parser-plugins-simulation, or is there a better solution?
-from atomisticparsers.utils import MDAnalysisParser
+from .utils import MDParser, MDAnalysisParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.model_system import ModelSystem
 
+# from nomad_simulations.schema_packages.model_system import ModelSystem
+
+from simulationworkflowschema import (
+    GeometryOptimization,
+    GeometryOptimizationMethod,
+    GeometryOptimizationResults,
+)
+from simulationworkflowschema.molecular_dynamics import (
+    get_bond_list_from_model_contributions,
+)
 from structlog.stdlib import BoundLogger
 
 re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
@@ -770,11 +778,12 @@ class LogParser(TextParser):
                 traj_files = [
                     f
                     for f in traj_files
-                    if f.endswith('trj')
-                    or f.endswith('xyz')
-                    or f.endswith('dcd')
-                    or f.endswith('h5')
-                    or f.endswith('nc')
+                    if f.endswith('trj') or f.endswith('xyz')
+                    # TODO: add parsers for supported trajectory formats
+                    # or f.endswith('lammpstrj')
+                    # or f.endswith('dcd')
+                    # or f.endswith('h5')
+                    # or f.endswith('nc')
                 ]
                 # further eliminate
                 if len(traj_files) > 1:
@@ -927,7 +936,8 @@ class LammpsArchiveWriter(ArchiveWriter):
     """
 
     # def parse_method(self):
-    #     sec_run = self.archive.run[-1]
+    #     # TODO: replace with counterparts from nomad_simulations!
+    #     # sec_run = self.archive.run[-1]
 
     #     if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
     #         return
@@ -1018,16 +1028,183 @@ class LammpsArchiveWriter(ArchiveWriter):
     #             index = np.where(neighmodify == 'every')[0]
     #             sec_neighbor_searching.neighbor_update_frequency = int(
     #                 neighmodify[index + 1]
-    #             )
-    
+    #            )
+
     def parse_system(self):
-        system = ModelSystem()
+        # sec_run = self.archive.run[-1]
 
         n_traj = self.traj_parsers.eval('n_frames')
         if n_traj is None:
             return
-        
-        
+
+        self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
+        self.trajectory_steps = [
+            step
+            for n in range(n_traj)
+            if (step := self.traj_parsers.eval('get_step', n)) is not None
+        ]
+
+        units = self.log_parser.units
+
+        def apply_unit(value, unit):
+            if not hasattr(value, 'units'):
+                value = value * units.get(unit, 1)
+            return value
+
+        def get_composition(children_names):
+            children_count_tup = np.unique(children_names, return_counts=True)
+            formula = ''.join(
+                [f'{name}({count})' for name, count in zip(*children_count_tup)]
+            )
+            return formula
+
+        for step in self.trajectory_steps:
+            traj_n = self._trajectory_steps.index(step)
+            lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
+            if lattice_vectors is not None:
+                lattice_vectors = apply_unit(lattice_vectors, 'distance')
+            velocities = self.traj_parsers.eval('get_velocities', traj_n)
+            if velocities is not None:
+                velocities = apply_unit(velocities, 'velocity')
+            bond_list = []
+            if traj_n == 0:  # TODO add references to the bond list for other steps
+                bond_list = get_bond_list_from_model_contributions(
+                    sec_run, method_index=-1, model_index=-1
+                )
+            self.parse_trajectory_step(
+                {
+                    'atoms': {
+                        'n_atoms': self.traj_parsers.eval('get_n_atoms', traj_n),
+                        'lattice_vectors': lattice_vectors,
+                        'periodic': self.traj_parsers.eval('get_pbc', traj_n),
+                        'positions': apply_unit(
+                            self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                        ),
+                        'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
+                        'velocities': velocities,
+                        'bond_list': bond_list if bond_list else None,
+                    }
+                }
+            )
+
+        if not sec_run.system:
+            return
+
+        sec_system = sec_run.system[-1]
+        # parse atomsgroup (moltypes --> molecules --> residues)
+        atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
+        if atoms_info is None:
+            atoms_info = self.traj_parsers.eval('atoms_info')
+            if isinstance(atoms_info, list):
+                atoms_info = (
+                    atoms_info[0] if atoms_info else None
+                )  # using info from the initial frame
+        if atoms_info is not None:
+            atoms_moltypes = np.array(atoms_info.get('moltypes', []))
+            atoms_molnums = np.array(atoms_info.get('molnums', []))
+            atoms_resids = np.array(atoms_info.get('resids', []))
+            atoms_elements = np.array(atoms_info.get('elements', ['X'] * self.n_atoms))
+            atoms_types = np.array(atoms_info.get('types', []))
+            atom_labels = sec_system.atoms.get('labels')
+            if 'X' in atoms_elements:
+                atoms_elements = (
+                    np.array(atom_labels)
+                    if atom_labels and 'X' not in atom_labels
+                    else atoms_types
+                )
+            atoms_resnames = np.array(atoms_info.get('resnames', []))
+            moltypes = np.unique(atoms_moltypes)
+            for i_moltype, moltype in enumerate(moltypes):
+                # Only add atomsgroup for initial system for now
+                sec_molecule_group = AtomsGroup()
+                sec_run.system[0].atoms_group.append(sec_molecule_group)
+                sec_molecule_group.label = f'group_{moltype}'
+                sec_molecule_group.type = 'molecule_group'
+                sec_molecule_group.index = i_moltype
+                sec_molecule_group.atom_indices = np.where(atoms_moltypes == moltype)[0]
+                sec_molecule_group.n_atoms = len(sec_molecule_group.atom_indices)
+                sec_molecule_group.is_molecule = False
+                # mol_nums is the molecule identifier for each atom
+                mol_nums = atoms_molnums[sec_molecule_group.atom_indices]
+                moltype_count = np.unique(mol_nums).shape[0]
+                sec_molecule_group.composition_formula = f'{moltype}({moltype_count})'
+
+                molecules = atoms_molnums
+                for i_molecule, molecule in enumerate(
+                    np.unique(molecules[sec_molecule_group.atom_indices])
+                ):
+                    sec_molecule = AtomsGroup()
+                    sec_molecule_group.atoms_group.append(sec_molecule)
+                    sec_molecule.index = i_molecule
+                    sec_molecule.atom_indices = np.where(molecules == molecule)[0]
+                    sec_molecule.n_atoms = len(sec_molecule.atom_indices)
+                    # use first particle to get the moltype
+                    # not sure why but this value is being cast to int, cast back to str
+                    sec_molecule.label = str(
+                        atoms_moltypes[sec_molecule.atom_indices[0]]
+                    )
+                    sec_molecule.type = 'molecule'
+                    sec_molecule.is_molecule = True
+
+                    mol_resids = np.unique(atoms_resids[sec_molecule.atom_indices])
+                    n_res = mol_resids.shape[0]
+                    if n_res == 1:
+                        elements = atoms_elements[sec_molecule.atom_indices]
+                        sec_molecule.composition_formula = get_composition(elements)
+                    else:
+                        mol_resnames = atoms_resnames[sec_molecule.atom_indices]
+                        restypes = np.unique(mol_resnames)
+                        for i_restype, restype in enumerate(restypes):
+                            sec_monomer_group = AtomsGroup()
+                            sec_molecule.atoms_group.append(sec_monomer_group)
+                            restype_indices = np.where(atoms_resnames == restype)[0]
+                            sec_monomer_group.label = f'group_{restype}'
+                            sec_monomer_group.type = 'monomer_group'
+                            sec_monomer_group.index = i_restype
+                            sec_monomer_group.atom_indices = np.intersect1d(
+                                restype_indices, sec_molecule.atom_indices
+                            )
+                            sec_monomer_group.n_atoms = len(
+                                sec_monomer_group.atom_indices
+                            )
+                            sec_monomer_group.is_molecule = False
+
+                            restype_resids = np.unique(
+                                atoms_resids[sec_monomer_group.atom_indices]
+                            )
+                            restype_count = restype_resids.shape[0]
+                            sec_monomer_group.composition_formula = (
+                                f'{restype}({restype_count})'
+                            )
+                            for i_res, res_id in enumerate(restype_resids):
+                                sec_residue = AtomsGroup()
+                                sec_monomer_group.atoms_group.append(sec_residue)
+                                sec_residue.index = i_res
+                                atom_indices = np.where(atoms_resids == res_id)[0]
+                                sec_residue.atom_indices = np.intersect1d(
+                                    atom_indices, sec_monomer_group.atom_indices
+                                )
+                                sec_residue.n_atoms = len(sec_residue.atom_indices)
+                                sec_residue.label = str(restype)
+                                sec_residue.type = 'monomer'
+                                sec_residue.is_molecule = False
+                                elements = atoms_elements[sec_residue.atom_indices]
+                                sec_residue.composition_formula = get_composition(
+                                    elements
+                                )
+
+                        names = atoms_resnames[sec_molecule.atom_indices]
+                        ids = atoms_resids[sec_molecule.atom_indices]
+                        # filter for the first instance of each residue, as to not overcount
+                        __, ids_count = np.unique(ids, return_counts=True)
+                        # get the index of the first atom of each residue
+                        ids_firstatom = np.cumsum(ids_count)[:-1]
+                        # add the 0th index manually
+                        ids_firstatom = np.insert(ids_firstatom, 0, 0)
+                        names_firstatom = names[ids_firstatom]
+                        sec_molecule.composition_formula = get_composition(
+                            names_firstatom
+                        )
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
@@ -1149,15 +1326,14 @@ class LammpsArchiveWriter(ArchiveWriter):
         # self.parse_method()
 
         self.parse_system()
-        sys.exit()
 
-        # include input controls from log file
-        self.parse_input()
+        # # include input controls from log file
+        # self.parse_input()
 
-        # parse thermodynamic data from log file
-        self.parse_thermodynamic_data()
+        # # parse thermodynamic data from log file
+        # self.parse_thermodynamic_data()
 
-        self.parse_workflow()
+        # self.parse_workflow()
 
         self._mdanalysistraj_parser.close()
         for parser in parsers:
