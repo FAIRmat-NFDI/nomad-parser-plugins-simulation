@@ -17,9 +17,8 @@
 # limitations under the License.
 #
 
-import os
-
 import numpy as np
+import os
 
 try:
     import MDAnalysis
