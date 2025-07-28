@@ -117,6 +117,21 @@ octopus_parser = EntryPoint(
     code_homepage='https://octopus-code.org/',
 )
 
+orca_parser = EntryPoint(
+    name='parsers/orca',
+    aliases=['parsers/orca'],
+    description='NOMAD parser for ORCA.',
+    parser_class_name='nomad_simulation_parsers.parsers.orca.parser.OrcaParser',
+    python_package='nomad_simulation_parsers',
+    # mainfile_contents_re=(
+    #     r'\s+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\**\s*\s+\* O   R   C   A '
+    #     r'\*\s*\s+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\**\s*\s*'
+    # ),
+    mainfile_contents_re=r'\*+ *O +R +C +A *\*+',
+    code_name='Orca',
+    code_homepage='https://www.faccts.de/orca/',
+)
+
 phonopy_parser = EntryPoint(
     name='parsers/phonopy',
     aliases=['parsers/phonopy'],

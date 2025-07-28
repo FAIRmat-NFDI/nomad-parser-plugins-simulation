@@ -177,19 +177,19 @@ class KMesh(numerical_settings.KMesh):
         )
     )
 
-    numerical_settings.KMesh.weights.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'reshape_array',
-                    ['.varray[?"@name"==\'weights\'].v | [0]'],
-                    dict(shape_rest=()),
-                )
-            )
-        )
-    )
+    # numerical_settings.KMesh.weights.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(
+    #     dict(
+    #         xml=MapperAnnotation(
+    #             mapper=(
+    #                 'reshape_array',
+    #                 ['.varray[?"@name"==\'weights\'].v | [0]'],
+    #                 dict(shape_rest=()),
+    #             )
+    #         )
+    #     )
+    # )
 
 
 class ModelSystem(model_system.ModelSystem):
