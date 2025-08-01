@@ -116,6 +116,6 @@ class AMSParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.ams.parser import AMSParser
+        from electronicparsers.ams.parser import AMSParser  # noqa
 
         AMSParser().parse(mainfile, archive, logger)

@@ -247,6 +247,6 @@ class CrystalParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.crystal.parser import CrystalParser
+        from electronicparsers.crystal.parser import CrystalParser  # noqa
 
         CrystalParser().parse(mainfile, archive, logger)
