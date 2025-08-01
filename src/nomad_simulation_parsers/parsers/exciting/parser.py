@@ -622,6 +622,6 @@ class ExcitingParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.exciting.parser import ExcitingParser
+        from electronicparsers.exciting.parser import ExcitingParser  # noqa
 
         ExcitingParser().parse(mainfile, archive, logger)
