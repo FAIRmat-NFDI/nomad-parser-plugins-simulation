@@ -839,6 +839,6 @@ class AbinitParser(MatchingParser):
      
         # run the old parser
         # TODO remove
-        from electronicparsers.abinit.parser import AbinitParser
+        from electronicparsers.abinit.parser import AbinitParser  # noqa
 
         AbinitParser().parse(mainfile, archive, logger)
