@@ -443,12 +443,12 @@ class QuantumEspressoParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.quantumespresso.parser import QuantumEspressoParser
-        from workflowparsers.quantum_espresso_epw.parser import QuantumEspressoEPWParser
-        from workflowparsers.quantum_espresso_phonon.parser import (
+        from electronicparsers.quantumespresso.parser import QuantumEspressoParser  # noqa
+        from workflowparsers.quantum_espresso_epw.parser import QuantumEspressoEPWParser  # noqa
+        from workflowparsers.quantum_espresso_phonon.parser import (  # noqa
             QuantumEspressoPhononParser,
         )
-        from workflowparsers.quantum_espresso_xspectra.parser import (
+        from workflowparsers.quantum_espresso_xspectra.parser import (  # noqa
             QuantumEspressoXSpectraParser,
         )
 

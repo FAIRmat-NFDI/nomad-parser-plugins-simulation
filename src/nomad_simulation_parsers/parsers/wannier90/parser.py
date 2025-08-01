@@ -574,6 +574,6 @@ class Wannier90Parser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.wannier90.parser import Wannier90Parser
+        from electronicparsers.wannier90.parser import Wannier90Parser  # noqa
 
         Wannier90Parser().parse(mainfile, archive, logger)

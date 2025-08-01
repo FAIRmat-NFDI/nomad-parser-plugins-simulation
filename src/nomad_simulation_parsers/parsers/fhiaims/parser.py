@@ -619,6 +619,6 @@ class FHIAimsParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.fhiaims.parser import FHIAimsParser
+        from electronicparsers.fhiaims.parser import FHIAimsParser  # noqa
 
         FHIAimsParser().parse(mainfile, archive, logger)
