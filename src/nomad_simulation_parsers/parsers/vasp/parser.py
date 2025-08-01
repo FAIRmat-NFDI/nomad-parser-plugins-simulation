@@ -28,6 +28,6 @@ class VASPParser(MatchingParser):
 
         # run the old parser
         # TODO remove
-        from electronicparsers.vasp.parser import VASPParser
+        from electronicparsers.vasp.parser import VASPParser  # noqa
 
         VASPParser().parse(mainfile, archive, logger)
