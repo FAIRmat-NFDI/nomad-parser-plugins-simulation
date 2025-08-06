@@ -363,7 +363,10 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'n_max_iterations',
-                            rf'Maximum # iterations\s*MaxIter\s*\.+\s*({re_float})',
+                            #rf'Maximum # iterations\s*MaxIter\s*\.+\s*({re_float})',
+                            #rf'Maximum \s* \# \s* iterations \s* MaxIter \s* \.+ \s* ({re_float})',
+                            #rf"Maximum\s+\#\s+iterations\s+MaxIter\s*\.+\s*({re_float})",
+                            rf"MaxIter\s+\.*\s*({re_float})",
                             dtype=float,
                         ),
                         Quantity(
@@ -459,7 +462,8 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'energy_change_tolerance',
-                            rf'Energy Change\s*TolE\s*\.+\s*({re_float})',
+                            #rf'Energy Change\s*TolE\s*\.+\s*({re_float})',
+                            rf"Energy\s+Change\s+TolE\s+\.*\s*({re_float})\s*(?:Eh)?",
                             dtype=float,
                             unit=ureg.hartree,
                         ),
