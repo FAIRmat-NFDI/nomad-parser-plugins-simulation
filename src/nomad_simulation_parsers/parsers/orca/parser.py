@@ -66,16 +66,56 @@ class OutParser(MappingTextParser):
         syms, pos = str_to_cartesian_coordinates(coords)
         atoms = [{'chemical_symbol': s} for s in syms]
         return [{'positions': pos, 'particle_states': atoms}]
+    
+
+    def get_dft_data(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Collect DFT settings (XC functionals, HF-exchange fraction, etc.)
+        """
+        scf_settings = (
+            source
+            .get("single_point", {})
+            .get("self_consistent", {})
+            .get("scf_settings", {})
+        )
+
+        # (functional_key, role_name, weight_key)
+        _xc_map = [
+            ("exchange_functional",    "exchange",    "scaling_exchange"),
+            ("correlation_functional", "correlation", "scaling_correlation"),
+        ]
+        xc_functionals = [
+            {
+                "libxc_name": scf_settings[k],
+                "name": role,
+                "weight": scf_settings.get(w),
+            }
+            for k, role, w in _xc_map
+            if scf_settings.get(k)
+        ]
+
+        return {
+            "jacobs_ladder": "metaGGA",                       # TODO: detect rung
+            "xc_functionals": xc_functionals,                
+            "exact_exchange_mixing_factor": scf_settings.get("fraction_hf_exchange"),
+        }
+
+        
+    def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_convergence = source.get('single_point', {}) \
+                                .get('self_consistent', {}) \
+                                .get('scf_settings', {})
+
+        return {
+                "n_max_iterations": scf_convergence.get("n_max_iterations", 2575),
+                "threshold_change": scf_convergence.get("energy_change_tolerance", 1e-8)
+        }
+    
+
+  
 
 
 class OrcaParser(MatchingParser):
-    """
-    Minimal NOMAD parser for ORCA.
-    • regex in OrcaTextParser
-    • helper methods in OutParser
-    • no extra writer or logger subclass
-    """
-
     def parse(
         self,
         mainfile: str,
@@ -83,20 +123,19 @@ class OrcaParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] | None = None,
     ) -> None:
-        # 1) reload schema so mapping annotations are fresh
         reload(orca)
 
-        # 2) build reader & run it
         reader = OutParser()
         reader.filepath = mainfile
 
         meta = MetainfoParser(data_object=Simulation())
-        meta.annotation_key = 'out'  # match your YAML
+        meta.annotation_key = 'out' 
+        meta.max_nested_level = 1
+
 
         reader.convert(meta)
         archive.data = meta.data_object
 
-        # 3) clean‑up
         remove_mapping_annotations(orca.general.Simulation.m_def)
         meta.close()
         reader.close()
