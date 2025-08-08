@@ -1,13 +1,13 @@
 from typing import Any
-import pint
 
+import pint
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad_simulation_parsers.schema_packages.schema import Simulation
-from simulationworkflowschema.molecular_dynamics import MolecularDynamics
-from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad.units import ureg
+from simulationworkflowschema.molecular_dynamics import MolecularDynamics
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad_simulation_parsers.schema_packages.h5md import Simulation
 
 
 class H5MDH5Parser(HDF5Parser):
@@ -82,6 +82,7 @@ class H5MDH5Parser(HDF5Parser):
         # TODO add len assertion for other system traj properties
         # TODO or generalize to store properly
 
+        print('in get_traj_data')
         traj_data = [
             {
                 'step': step,
