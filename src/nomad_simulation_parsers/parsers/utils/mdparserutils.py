@@ -17,47 +17,44 @@
 # limitations under the License.
 #
 
-from typing import Any, Dict, List, Union
-import numpy as np
 from collections.abc import Iterable
+from typing import Any
 
-from nomad.utils import get_logger
-from nomad.metainfo import MSection, SubSection, Quantity
+import numpy as np
+
+# from nomad.metainfo import MSection
 from nomad.parsing.file_parser import Parser
-from runschema.run import Run
-from runschema.system import System
-from runschema.calculation import Calculation
-from runschema.method import Interaction, Model
-from simulationworkflowschema import MolecularDynamics
+from nomad.utils import get_logger
+from nomad_simulations.schema_packages.atoms_state import AtomsState
+from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
 
 # nomad-simulations
 from nomad_simulations.schema_packages.outputs import (
     TotalEnergy,
     TotalForce,
+    TrajectoryOutputs,
 )
 from nomad_simulations.schema_packages.properties.energies import EnergyContribution
 from nomad_simulations.schema_packages.properties.forces import ForceContribution
-from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.atoms_state import AtomsState
-from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
 
-# h5md schema
-from nomad_parser_h5md.schema_packages.schema import TrajectoryOutputs
+# from runschema.method import Interaction, Model
+from simulationworkflowschema import MolecularDynamics
 
 
 class MDParser(Parser):
     def __init__(self, **kwargs) -> None:
-        self.info: Dict[str, Any] = {}
+        self.info: dict[str, Any] = {}
         self.cum_max_atoms: int = 2500000
         self.logger = get_logger(__name__)
-        self._trajectory_steps: List[int] = []
-        self._thermodynamics_steps: List[int] = []
-        self._trajectory_steps_sampled: List[int] = []
-        self._steps: List[int] = []
+        self._trajectory_steps: list[int] = []
+        self._thermodynamics_steps: list[int] = []
+        self._trajectory_steps_sampled: list[int] = []
+        self._steps: list[int] = []
         super().__init__(**kwargs)
 
     @property
-    def steps(self) -> List[int]:
+    def steps(self) -> list[int]:
         """
         Returns the set of trajectory and thermodynamics steps.
         """
@@ -67,7 +64,7 @@ class MDParser(Parser):
         return self._steps
 
     @property
-    def trajectory_steps(self) -> List[int]:
+    def trajectory_steps(self) -> list[int]:
         """
         Returns the sampled trajectory steps.
         """
@@ -80,14 +77,14 @@ class MDParser(Parser):
         return self._trajectory_steps_sampled
 
     @trajectory_steps.setter
-    def trajectory_steps(self, value: List[int]):
+    def trajectory_steps(self, value: list[int]):
         self._trajectory_steps = list(set(value))
         self._trajectory_steps.sort()
         self.info['n_frames'] = len(self._trajectory_steps)
         self._trajectory_steps_sampled = []
 
     @property
-    def thermodynamics_steps(self) -> List[int]:
+    def thermodynamics_steps(self) -> list[int]:
         """
         Returns the thermodynamics steps.
         """
@@ -95,7 +92,7 @@ class MDParser(Parser):
         return self._thermodynamics_steps
 
     @thermodynamics_steps.setter
-    def thermodynamics_steps(self, value: List[int]):
+    def thermodynamics_steps(self, value: list[int]):
         self._thermodynamics_steps = list(set(value))
         self._thermodynamics_steps.sort()
 
@@ -104,7 +101,7 @@ class MDParser(Parser):
         return np.amax(self.info.get('n_atoms', [0]))
 
     @n_atoms.setter
-    def n_atoms(self, value: Union[Iterable, int]):
+    def n_atoms(self, value: Iterable | int):
         self.info['n_atoms'] = [value] if not isinstance(value, Iterable) else value
 
     @property
@@ -136,7 +133,7 @@ class MDParser(Parser):
 
     def parse_trajectory_step(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
         atomic_cell: AtomicCell = None,
@@ -168,7 +165,7 @@ class MDParser(Parser):
 
     def parse_output_step(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         simulation: Simulation,
         output: TrajectoryOutputs = None,
     ) -> bool:
@@ -214,7 +211,7 @@ class MDParser(Parser):
 
         return True
 
-    def parse_md_workflow(self, data: Dict[str, Any]) -> None:
+    def parse_md_workflow(self, data: dict[str, Any]) -> None:
         """
         Create an md workflow section and write the provided data.
         """
@@ -226,49 +223,49 @@ class MDParser(Parser):
         self.archive.workflow2 = sec_workflow
 
     # TODO Adapt these interaction functions for the new schema
-    def parse_interactions(self, interactions: List[Dict], sec_model: MSection) -> None:
-        if not interactions:
-            return
+    # def parse_interactions(self, interactions: List[Dict], sec_model: MSection) -> None:
+    #     if not interactions:
+    #         return
 
-        def write_interaction_values(values):
-            sec_interaction = Interaction()
-            sec_model.contributions.append(sec_interaction)
-            sec_interaction.type = current_type
-            sec_interaction.n_atoms = max(
-                [len(v) for v in values.get('atom_indices', [[0]])]
-            )
-            for key, val in values.items():
-                quantity_def = sec_interaction.m_def.all_quantities.get(key)
-                if quantity_def:
-                    try:
-                        sec_interaction.m_set(quantity_def, val)
-                    except Exception:
-                        self.logger.error('Error setting metadata.', data={'key': key})
+    #     def write_interaction_values(values):
+    #         sec_interaction = Interaction()
+    #         sec_model.contributions.append(sec_interaction)
+    #         sec_interaction.type = current_type
+    #         sec_interaction.n_atoms = max(
+    #             [len(v) for v in values.get('atom_indices', [[0]])]
+    #         )
+    #         for key, val in values.items():
+    #             quantity_def = sec_interaction.m_def.all_quantities.get(key)
+    #             if quantity_def:
+    #                 try:
+    #                     sec_interaction.m_set(quantity_def, val)
+    #                 except Exception:
+    #                     self.logger.error('Error setting metadata.', data={'key': key})
 
-        interactions.sort(key=lambda x: x.get('type'))
-        current_type = interactions[0].get('type')
-        interaction_values: Dict[str, Any] = {}
-        for interaction in interactions:
-            interaction_type = interaction.get('type')
-            if current_type and current_type != interaction_type:
-                write_interaction_values(interaction_values)
-                current_type = interaction_type
-                interaction_values = {}
-            interaction_values.setdefault('n_interactions', 0)
-            interaction_values['n_interactions'] += 1
-            for key, val in interaction.items():
-                if key == 'type':
-                    continue
-                interaction_values.setdefault(key, [])
-                interaction_values[key].append(val)
-        if interaction_values:
-            write_interaction_values(interaction_values)
+    #     interactions.sort(key=lambda x: x.get('type'))
+    #     current_type = interactions[0].get('type')
+    #     interaction_values: Dict[str, Any] = {}
+    #     for interaction in interactions:
+    #         interaction_type = interaction.get('type')
+    #         if current_type and current_type != interaction_type:
+    #             write_interaction_values(interaction_values)
+    #             current_type = interaction_type
+    #             interaction_values = {}
+    #         interaction_values.setdefault('n_interactions', 0)
+    #         interaction_values['n_interactions'] += 1
+    #         for key, val in interaction.items():
+    #             if key == 'type':
+    #                 continue
+    #             interaction_values.setdefault(key, [])
+    #             interaction_values[key].append(val)
+    #     if interaction_values:
+    #         write_interaction_values(interaction_values)
 
-    def parse_interactions_by_type(
-        self, interactions_by_type: List[Dict], sec_model: Model
-    ) -> None:
-        for interaction_type_dict in interactions_by_type:
-            sec_interaction = Interaction()
-            sec_model.contributions.append(sec_interaction)
-            self.parse_section(interaction_type_dict, sec_interaction)
-        # TODO Shift Gromacs and Lammps parsers to use this function as well if possible
+    # def parse_interactions_by_type(
+    #     self, interactions_by_type: List[Dict], sec_model: Model
+    # ) -> None:
+    #     for interaction_type_dict in interactions_by_type:
+    #         sec_interaction = Interaction()
+    #         sec_model.contributions.append(sec_interaction)
+    #         self.parse_section(interaction_type_dict, sec_interaction)
+    #     # TODO Shift Gromacs and Lammps parsers to use this function as well if possible

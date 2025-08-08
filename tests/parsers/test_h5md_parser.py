@@ -16,12 +16,11 @@
 # limitations under the License.
 #
 
-import logging
 
 import numpy as np
 import pytest
 from nomad.datamodel import EntryArchive
-from nomad_parser_h5md.parsers.h5md_parser import H5MDParser
+from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
 
 
 def approx(value, abs=0, rel=1e-6):
@@ -38,7 +37,7 @@ def parser():
 
 def test_md(parser):
     archive = EntryArchive()
-    parser.parse('tests/data/test_traj_openmm_5frames_08-08-25.h5', archive, None)
+    parser.parse('tests/data/h5md/test_traj_openmm_5frames_08-08-25.h5', archive, None)
 
     #######################
     # Test the NEW SCHEMA #

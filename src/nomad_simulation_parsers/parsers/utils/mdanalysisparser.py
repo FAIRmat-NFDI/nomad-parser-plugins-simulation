@@ -17,8 +17,9 @@
 # limitations under the License.
 #
 
-import numpy as np
 import os
+
+import numpy as np
 
 try:
     import MDAnalysis
@@ -26,14 +27,14 @@ try:
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
-from typing import Any
-from collections import namedtuple
 from array import array
+from collections import namedtuple
+from typing import Any
+
+from nomad.parsing.file_parser import FileParser
+from nomad.units import ureg
 from scipy import sparse
 from scipy.stats import linregress
-
-from nomad.units import ureg
-from nomad.parsing.file_parser import FileParser
 from simulationworkflowschema.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
@@ -283,7 +284,7 @@ class MDAnalysisParser(FileParser):
                 interval_indices = [[i] for i in range(n_traj_split)]
 
         bead_groups = self.bead_groups
-        if bead_groups is {}:
+        if bead_groups == {}:
             return bead_groups
         moltypes = [moltype for moltype in bead_groups.keys()]
         del_list = []
@@ -535,7 +536,7 @@ class MDAnalysisParser(FileParser):
         times = np.arange(n_frames) * dt
 
         bead_groups = self.bead_groups
-        if bead_groups is {}:
+        if bead_groups == {}:
             return bead_groups
 
         moltypes = [moltype for moltype in bead_groups.keys()]
