@@ -1,0 +1,318 @@
+from typing import Any
+import pint
+
+from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
+from nomad_simulation_parsers.schema_packages.schema import Simulation
+from simulationworkflowschema.molecular_dynamics import MolecularDynamics
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad.units import ureg
+
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+
+
+class H5MDH5Parser(HDF5Parser):
+    trajectory_steps: list[int] = []
+    output_steps: list[int] = []
+    observables: dict[str, Any] = {}
+
+    def get_value(self, name: str, dct: dict[str, Any]) -> Any:
+        value = dct.get(name, {})
+        if not isinstance(value, dict):
+            return value
+        value = value.get(self.value_key)
+        if value is None:
+            return
+        unit = dct.get(name, {}).get(f'{self.attribute_prefix}unit')
+        if unit:
+            value = value * ureg(unit)
+        factor = dct.get(name, {}).get(f'{self.attribute_prefix}unit_factor')
+        if factor:
+            value = value * factor
+        return value
+
+    def get_source(self, parent: dict[str, Any], path: str) -> Any:
+        if path is None:
+            return {}
+
+        path_segments = path.split('.', 1)
+        source = parent.get(path_segments[0], {})
+
+        if len(path_segments) == 1:
+            return source
+        return self.get_source(source, path_segments[1])
+
+    def map_value(self, source: dict[str, Any], **kwargs) -> Any:
+        if kwargs.get('key') is None:
+            return None
+
+        value = self.get_value(kwargs.get('key'), source)
+
+        enum_spec = kwargs.get('enum_spec', None)
+        if enum_spec == 'upper':
+            return value.upper() if isinstance(value, str) else value
+        elif enum_spec == 'lower':
+            return value.lower() if isinstance(value, str) else value
+
+        return value
+
+    def get_sub_systems(self, source: dict[str, Any], **kwargs) -> list[dict[str, Any]]:
+        step = source.get('step', None)
+        if step is not None:
+            if step != 0:  # TODO extend to time-dependent bond lists and topologies
+                return []
+            source = self.get_source(self.data, kwargs['path'])
+
+        particles_group = source.get('particles_group', {})
+
+        source = list(group for group in particles_group.values())
+
+        return source
+
+    def get_traj_data(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        positions = self.get_source(source, 'position')
+        steps = self.get_value('step', positions)
+        times = self.get_value('time', positions)
+        positions = self.get_value('value', positions)
+        velocities = self.get_source(source, 'velocity')
+        velocities = self.get_value('value', velocities)
+
+        assert len(steps) == len(times) == len(positions)
+        if velocities is not None:
+            assert len(positions) == len(velocities)
+        # TODO add len assertion for other system traj properties
+        # TODO or generalize to store properly
+
+        traj_data = [
+            {
+                'step': step,
+                'time': times[n],
+                'n_particles': len(positions[n]) if len(positions) != 0 else [],
+                'positions': positions[n] if len(positions) != 0 else [],
+                'velocities': velocities[n] if len(velocities) != 0 else [],
+            }
+            for n, step in enumerate(steps)
+            if step in self.trajectory_steps
+        ]
+
+        return traj_data
+
+    def get_step_data(self, data: dict[str, Any], step: int) -> dict[str, Any]:
+        step_data = {}
+        value = self.get_value('value', data)
+        steps = self.get_value('step', data)
+        if value is None or steps is None:
+            return step_data
+        index = steps.index(step)
+        step_data['value'] = value[index]
+        times = self.get_value('time', data)
+        step_data['time'] = times[index]
+        return step_data
+
+    def get_cell_data(self, source: dict[str, Any]) -> dict[str, Any]:
+        if not source.get('step'):
+            return {}
+        particles = self.data.get('particles', {}).get('all')
+        if particles is None:
+            return {}
+
+        source_paths = [
+            ('lattice_vectors', 'box.edges'),
+        ]
+        system_data = {}
+        for name, path in source_paths:
+            data = self.get_source(particles, path)
+            if not data:
+                continue
+            step_data = self.get_step_data(data, source.get('step'))
+            if not step_data:
+                continue
+            system_data.setdefault('time', step_data['time'])
+            if step_data['time'] == system_data['time']:
+                system_data[name] = step_data['value']
+        box = particles.get('box', {})
+        system_data['boundary'] = box.get(f'{self.attribute_prefix}boundary')
+
+        return system_data
+
+    def to_species_labels(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        print('in to_species_labels')
+        print(type(source))
+        if source.get('step') is None:
+            return []
+
+        source_data = self.get_source(self.data, kwargs['path'])
+
+        return [{'chemical_symbol': s, 'label': s} for s in source_data]
+
+    def get_top_system_quantity(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        if source.get('step') is None:
+            return []
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        if kwargs.get('func'):
+            try:
+                source_data = kwargs.get('func')(source_data)
+            except Exception:
+                self.logger.warning(
+                    'Error applying function to get top level system quantity, '
+                    'will not be populated.'
+                )
+                return []
+
+        return self.get_source(self.data, kwargs['path'])
+
+    def get_output_steps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        output_steps = {}
+
+        def get_steps(dct: dict[str, Any]) -> dict[str, Any]:
+            steps = self.get_value('step', dct)
+            if steps is None:
+                return {}
+            times = self.get_value('time', dct)
+            if len(steps) != len(times):
+                self.logger.error(
+                    'Inconsistent step-time combinations in observable data.'
+                )
+
+            return {step: times[n] for n, step in enumerate(steps)}
+
+        def get_observable_steps(
+            source: dict[str, Any], output_steps: dict[str, Any]
+        ) -> None:
+            for __, val in source.items():
+                observable_type = val.get('@type')
+                if not observable_type:
+                    get_observable_steps(val, output_steps)
+                elif observable_type == 'configurational':
+                    steps = get_steps(val)
+                    if not all(
+                        [
+                            time == output_steps[step]
+                            for step, time in steps.items()
+                            if step in output_steps.keys()
+                        ]
+                    ):
+                        self.logger.error(
+                            'Inconsistent step-time combinations in observable data.'
+                        )
+                    output_steps.update(steps)
+
+        get_observable_steps(source, output_steps)
+        output_steps = [
+            {'step': step, 'time': time} for step, time in output_steps.items()
+        ]
+        return output_steps
+
+    def get_contributions(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        if source.get('step') is None:
+            return []
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        include = kwargs.get('include')
+        exclude = kwargs.get('exclude')
+        contributions = []
+        for key, val in source_data.items():
+            if include and key not in include or exclude and key in exclude:
+                continue
+            step_data = self.get_step_data(val, source['step'])
+            contributions.append({'name': key, **step_data})
+        return contributions
+
+    def get_output_data(self, source: dict[str, Any], **kwargs) -> pint.Quantity | None:
+        if source.get('value') is not None:
+            return source['value']
+        if source.get('step') is None:
+            return
+        observable_type = kwargs.get('observable_type')
+        if observable_type is None or observable_type not in [
+            'configurational',
+            'ensemble_average',
+            'correlation_function',
+        ]:
+            self.logger.warning(
+                'Invalid or no obervable type defined in the schema annotation, '
+                'skipping this observable.'
+            )
+            return
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        if source_data.get('@type') != observable_type:
+            return
+
+        data = self.get_step_data(source_data, source['step']).get('value')
+
+        return data
+
+    def get_custom_outputs(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        if source.get('step') is None:
+            return []
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        include = kwargs.get('include')
+        exclude = kwargs.get('exclude')
+        observable_type = kwargs.get('observable_type')
+        custom_outputs = []
+        for key, val in source_data.items():
+            if include and key not in include or exclude and key in exclude:
+                continue
+            if observable_type is not None:
+                source_type = val.get('@type')
+                if source_type != observable_type:
+                    continue
+            step_data = self.get_step_data(val, source['step'])
+            if step_data.get('value') is not None:
+                if isinstance(step_data['value'], pint.Quantity):
+                    step_data['unit'] = str(step_data['value'].units)
+                    step_data['value'] = step_data['value'].magnitude
+            custom_outputs.append({'name': key, **step_data})
+        return custom_outputs
+
+
+class H5MDParser(MDParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.h5_parser = H5MDH5Parser()
+        self.simulation_parser = MetainfoParser()
+        self.simulation_parser.max_nested_level = 10
+        self.workflow_parser = MetainfoParser()
+
+    def write_to_archive(self) -> None:
+        # create h5 parser
+        self.h5_parser.filepath = self.mainfile
+
+        self.trajectory_steps = Path(path='particles.all.position.step').get_data(
+            self.h5_parser.data, default=[]
+        )
+        self.h5_parser.trajectory_steps = self.trajectory_steps
+
+        # TODO consider using a single parser for the whole archive
+        # create metainfo parsers
+        self.simulation_parser.annotation_key = 'hdf5'
+        simulation_data = Simulation()
+        self.simulation_parser.data_object = simulation_data
+        self.workflow_parser.annotation_key = 'hdf5'
+        workflow_data = MolecularDynamics()
+        self.workflow_parser.data_object = workflow_data
+
+        # map from h5 source to metainfo target
+        self.h5_parser.convert(self.simulation_parser)
+        self.h5_parser.convert(self.workflow_parser)
+
+        # assign simulation to archive data
+        self.archive.data = self.simulation_parser.data_object
+        self.archive.workflow2 = self.workflow_parser.data_object
+
+        # close parsers
+        self.h5_parser.close()
+        self.simulation_parser.close()
+
+        # remove mapping annotations
+        remove_mapping_annotations(self.archive.data.m_def)
