@@ -203,63 +203,25 @@ class MDAnalysisParser(FileParser):
                 ctr_fragtype += 1
         return atoms_fragtypes
 
-    def calc_molecular_rdf(
-        self,
-        n_traj_split=10,
-        n_prune=1,
-        interval_indices=None,
-        n_bins=200,
-        n_smooth=2,
-        max_mols=5000,
-    ):
+    from typing import NamedTuple, Optional, List
+
+    class RDFParams(NamedTuple):
+        n_traj_split: int = 10
+        n_prune: int = 1
+        interval_indices: Optional[List[List[int]]] = None
+        n_bins: int = 200
+        n_smooth: int = 2
+        max_mols: int = 5000
+
+    def calc_molecular_rdf(self, params: Optional['RDFParams'] = None):
         """
         Calculates the radial distribution functions between for each unique pair of
         molecule types as a function of their center of mass distance.
 
-        interval_indices: 2D array specifying the groups of the n_traj_split intervals
-          to be averaged
-        max_mols: the maximum number of molecules per bead group for calculating
-          the rdf, for efficiency purposes. 5k was set after > 50k was giving problems.
-          Should do further testing to see where the appropriate limit should be set.
+        Args:
+            params (RDFParams, optional): Parameters for RDF calculation.
         """
-
-        def get_rdf_avg(rdf_results_tmp, rdf_results, interval_indices, n_frames_split):
-            split_weights = n_frames_split[np.array(interval_indices)] / np.sum(
-                n_frames_split[np.array(interval_indices)]
-            )
-            assert abs(np.sum(split_weights) - 1.0) < 1e-6
-            rdf_values_avg = (
-                split_weights[0] * rdf_results_tmp['value'][interval_indices[0]]
-            )
-            for i_interval, interval in enumerate(interval_indices[1:]):
-                assert (
-                    rdf_results_tmp['types'][interval]
-                    == rdf_results_tmp['types'][interval - 1]
-                )
-                assert (
-                    rdf_results_tmp['variables_name'][interval]
-                    == rdf_results_tmp['variables_name'][interval - 1]
-                )
-                assert (
-                    rdf_results_tmp['bins'][interval]
-                    == rdf_results_tmp['bins'][interval - 1]
-                ).all()
-                rdf_values_avg += (
-                    split_weights[i_interval + 1] * rdf_results_tmp['value'][interval]
-                )
-            rdf_results['types'].append(rdf_results_tmp['types'][interval_indices[0]])
-            rdf_results['variables_name'].append(
-                rdf_results_tmp['variables_name'][interval_indices[0]]
-            )
-            rdf_results['bins'].append(rdf_results_tmp['bins'][interval_indices[0]])
-            rdf_results['value'].append(rdf_values_avg)
-            rdf_results['frame_start'].append(
-                int(rdf_results_tmp['frame_start'][interval_indices[0]])
-            )
-            rdf_results['frame_end'].append(
-                int(rdf_results_tmp['frame_end'][interval_indices[-1]])
-            )
-
+        params = params or RDFParams()
         if self.universe is None:
             return
         trajectory = self.universe.trajectory[0] if self.universe.trajectory else None
@@ -268,6 +230,48 @@ class MDAnalysisParser(FileParser):
             return
 
         n_frames = self.universe.trajectory.n_frames
+        frames_start, frames_end, n_frames_split, interval_indices = (
+            self._get_rdf_intervals(
+                n_frames, params.n_traj_split, params.interval_indices
+            )
+        )
+
+        bead_groups = self.bead_groups
+        if not bead_groups:
+            return bead_groups
+        moltypes = [moltype for moltype in bead_groups.keys()]
+        moltypes = self._prune_large_rdf_bead_groups(
+            moltypes, bead_groups, params.max_mols
+        )
+
+        min_box_dimension = np.min(self.universe.trajectory[0].dimensions[:3])
+        max_rdf_dist = min_box_dimension / 2
+
+        rdf_results = self._initialize_rdf_results(params.n_smooth)
+        for i, moltype_i in enumerate(moltypes):
+            for j, moltype_j in enumerate(moltypes):
+                if not self._should_calculate_rdf(i, j, bead_groups, moltype_i):
+                    continue
+                exclusion_block = (1, 1) if i == j else None
+                pair_type = f'{moltype_i}-{moltype_j}'
+                rdf_results_tmp = self._calculate_rdf_for_pair(
+                    bead_groups,
+                    moltype_i,
+                    moltype_j,
+                    pair_type,
+                    params,
+                    frames_start,
+                    frames_end,
+                    max_rdf_dist,
+                    exclusion_block,
+                )
+                for interval_group in interval_indices:
+                    self._get_rdf_avg(
+                        rdf_results_tmp, rdf_results, interval_group, n_frames_split
+                    )
+        return rdf_results
+
+    def _get_rdf_intervals(self, n_frames, n_traj_split, interval_indices):
         if n_frames < n_traj_split:
             n_traj_split = 1
             frames_start = np.array([0])
@@ -280,87 +284,125 @@ class MDAnalysisParser(FileParser):
             frames_end = frames_start + run_len
             frames_end[-1] = n_frames
             n_frames_split = frames_end - frames_start
-            assert np.sum(n_frames_split) == n_frames
             if not interval_indices:
                 interval_indices = [[i] for i in range(n_traj_split)]
+        return frames_start, frames_end, n_frames_split, interval_indices
 
-        bead_groups = self.bead_groups
-        if bead_groups == {}:
-            return bead_groups
-        moltypes = [moltype for moltype in bead_groups.keys()]
+    def _prune_large_rdf_bead_groups(self, moltypes, bead_groups, max_mols):
         del_list = []
         for i_moltype, moltype in enumerate(moltypes):
             if bead_groups[moltype]._nbeads > max_mols:
                 del_list.append(i_moltype)
                 self.logger.warning(
-                    'The number of molecules of exceeds the maximum of for calculating '
+                    'The number of molecules exceeds the maximum for calculating '
                     'the rdf. Skipping this molecule type.'
                 )
-        moltypes = np.delete(moltypes, del_list)
+        return np.delete(moltypes, del_list)
 
-        min_box_dimension = np.min(self.universe.trajectory[0].dimensions[:3])
-        max_rdf_dist = min_box_dimension / 2
+    def _initialize_rdf_results(self, n_smooth):
+        return {
+            'n_smooth': n_smooth,
+            'types': [],
+            'variables_name': [],
+            'bins': [],
+            'value': [],
+            'frame_start': [],
+            'frame_end': [],
+        }
 
-        rdf_results = {}
-        rdf_results['n_smooth'] = n_smooth
-        rdf_results['types'] = []
-        rdf_results['variables_name'] = []
-        rdf_results['bins'] = []
-        rdf_results['value'] = []
-        rdf_results['frame_start'] = []
-        rdf_results['frame_end'] = []
-        for i, moltype_i in enumerate(moltypes):
-            for j, moltype_j in enumerate(moltypes):
-                if j > i:
-                    continue
-                elif (
-                    i == j and bead_groups[moltype_i].positions.shape[0] == 1
-                ):  # skip if only 1 mol in group
-                    continue
+    def _should_calculate_rdf(self, i, j, bead_groups, moltype_i):
+        if j > i:
+            return False
+        if i == j and bead_groups[moltype_i].positions.shape[0] == 1:
+            return False
+        return True
 
-                if i == j:
-                    exclusion_block = (1, 1)  # remove self-distance
-                else:
-                    exclusion_block = None
-                pair_type = moltype_i + '-' + moltype_j
-                rdf_results_tmp = {}
-                rdf_results_tmp['types'] = []
-                rdf_results_tmp['variables_name'] = []
-                rdf_results_tmp['bins'] = []
-                rdf_results_tmp['value'] = []
-                rdf_results_tmp['frame_start'] = []
-                rdf_results_tmp['frame_end'] = []
-                for i_interval in range(n_traj_split):
-                    rdf_results_tmp['types'].append(pair_type)
-                    rdf_results_tmp['variables_name'].append(['distance'])
-                    rdf = MDA_RDF.InterRDF(
-                        bead_groups[moltype_i],
-                        bead_groups[moltype_j],
-                        range=(0, max_rdf_dist),
-                        exclusion_block=exclusion_block,
-                        nbins=n_bins,
-                    ).run(frames_start[i_interval], frames_end[i_interval], n_prune)
-                    rdf_results_tmp['frame_start'].append(frames_start[i_interval])
-                    rdf_results_tmp['frame_end'].append(frames_end[i_interval])
+    def _calculate_rdf_for_pair(
+        self,
+        bead_groups,
+        moltype_i,
+        moltype_j,
+        pair_type,
+        params,
+        frames_start,
+        frames_end,
+        max_rdf_dist,
+        exclusion_block,
+    ):
+        import MDAnalysis.analysis.rdf as MDA_RDF
 
-                    rdf_results_tmp['bins'].append(
-                        rdf.results.bins[int(n_smooth / 2) : -int(n_smooth / 2)]
-                        * ureg.angstrom
-                    )
-                    rdf_results_tmp['value'].append(
-                        np.convolve(
-                            rdf.results.rdf,
-                            np.ones((n_smooth,)) / n_smooth,
-                            mode='same',
-                        )[int(n_smooth / 2) : -int(n_smooth / 2)]
-                    )
+        rdf_results_tmp = {
+            'types': [],
+            'variables_name': [],
+            'bins': [],
+            'value': [],
+            'frame_start': [],
+            'frame_end': [],
+        }
+        for i_interval in range(params.n_traj_split):
+            rdf_results_tmp['types'].append(pair_type)
+            rdf_results_tmp['variables_name'].append(['distance'])
+            rdf = MDA_RDF.InterRDF(
+                bead_groups[moltype_i],
+                bead_groups[moltype_j],
+                range=(0, max_rdf_dist),
+                exclusion_block=exclusion_block,
+                nbins=params.n_bins,
+            ).run(frames_start[i_interval], frames_end[i_interval], params.n_prune)
+            rdf_results_tmp['frame_start'].append(frames_start[i_interval])
+            rdf_results_tmp['frame_end'].append(frames_end[i_interval])
+            n_smooth = params.n_smooth
+            rdf_results_tmp['bins'].append(
+                rdf.results.bins[int(n_smooth / 2) : -int(n_smooth / 2)] * ureg.angstrom
+            )
+            rdf_results_tmp['value'].append(
+                np.convolve(
+                    rdf.results.rdf,
+                    np.ones((n_smooth,)) / n_smooth,
+                    mode='same',
+                )[int(n_smooth / 2) : -int(n_smooth / 2)]
+            )
+        return rdf_results_tmp
 
-                for interval_group in interval_indices:
-                    get_rdf_avg(
-                        rdf_results_tmp, rdf_results, interval_group, n_frames_split
-                    )
-
-        return rdf_results
+    def _get_rdf_avg(
+        self, rdf_results_tmp, rdf_results, interval_indices, n_frames_split
+    ):
+        RDF_SPLIT_WEIGHT_TOL = 1e-6
+        split_weights = n_frames_split[np.array(interval_indices)] / np.sum(
+            n_frames_split[np.array(interval_indices)]
+        )
+        assert abs(np.sum(split_weights) - 1.0) < RDF_SPLIT_WEIGHT_TOL
+        rdf_values_avg = (
+            split_weights[0] * rdf_results_tmp['value'][interval_indices[0]]
+        )
+        for i_interval, interval in enumerate(interval_indices[1:]):
+            assert (
+                rdf_results_tmp['types'][interval]
+                == rdf_results_tmp['types'][interval - 1]
+            )
+            assert (
+                rdf_results_tmp['variables_name'][interval]
+                == rdf_results_tmp['variables_name'][interval - 1]
+            )
+            assert (
+                rdf_results_tmp['bins'][interval]
+                == rdf_results_tmp['bins'][interval - 1]
+            ).all()
+            rdf_values_avg += (
+                split_weights[i_interval + 1] * rdf_results_tmp['value'][interval]
+            )
+        rdf_results['types'].append(rdf_results_tmp['types'][interval_indices[0]])
+        rdf_results['variables_name'].append(
+            rdf_results_tmp['variables_name'][interval_indices[0]]
+        )
+        rdf_results['bins'].append(rdf_results_tmp['bins'][interval_indices[0]])
+        rdf_results['value'].append(rdf_values_avg)
+        rdf_results['frame_start'].append(
+            int(rdf_results_tmp['frame_start'][interval_indices[0]])
+        )
+        rdf_results['frame_end'].append(
+            int(rdf_results_tmp['frame_end'][interval_indices[-1]])
+        )
 
     @property
     def with_trajectory(self):
