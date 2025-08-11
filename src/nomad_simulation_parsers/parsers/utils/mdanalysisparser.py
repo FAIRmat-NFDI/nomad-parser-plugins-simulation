@@ -505,6 +505,8 @@ class MDAnalysisParser(FileParser):
         error = linear_model.rvalue
         return slope * 1 / (2 * dim), error
 
+    MIN_FRAMES_FOR_MSD = 50
+
     def calc_molecular_mean_squared_displacements(self, max_mols=5000):
         """
         Calculates the mean squared displacement for the center of mass of each
@@ -514,15 +516,6 @@ class MDAnalysisParser(FileParser):
           the msd, for efficiency purposes. 1M is arbitrary, 50k was tested and is
           very fast and does not seem to have any memory issues.
         """
-
-        def mean_squared_displacement(start: np.ndarray, current: np.ndarray):
-            """
-            Calculates mean square displacement between current and initial (start)
-            coordinates.
-            """
-            vec = start - current
-            return (vec**2).sum(axis=1).mean()
-
         if self.universe is None:
             return
         trajectory = self.universe.trajectory[0] if self.universe.trajectory else None
@@ -531,9 +524,9 @@ class MDAnalysisParser(FileParser):
             return
 
         n_frames = self.universe.trajectory.n_frames
-        if n_frames < 50:
+        if n_frames < self.MIN_FRAMES_FOR_MSD:
             self.logger.warning(
-                'At least 50 frames required to calculate molecular'  # noqa: PLE1205
+                'Not enough frames to calculate molecular'
                 ' mean squared displacements, skipping.',
             )
             return
@@ -548,11 +541,18 @@ class MDAnalysisParser(FileParser):
             return bead_groups
 
         moltypes = [moltype for moltype in bead_groups.keys()]
+        moltypes, bead_groups = self._prune_large_bead_groups(
+            moltypes, bead_groups, max_mols
+        )
+
+        msd_results = self._calculate_msd_for_moltypes(moltypes, bead_groups, times)
+        return msd_results
+
+    def _prune_large_bead_groups(self, moltypes, bead_groups, max_mols):
         del_list = []
         for i_moltype, moltype in enumerate(moltypes):
             if bead_groups[moltype]._nbeads > max_mols:
                 try:
-                    # select max_mols nr. of rnd molecules from this moltype
                     moltype_indices = np.array(
                         [atom._ix for atom in bead_groups[moltype]._atoms]
                     )
@@ -587,7 +587,17 @@ class MDAnalysisParser(FileParser):
                     )
                 del_list.append(i_moltype)
         moltypes = np.delete(moltypes, del_list)
+        return moltypes, bead_groups
 
+    def _mean_squared_displacement(self, start: np.ndarray, current: np.ndarray):
+        """
+        Calculates mean square displacement between current and initial (start)
+        coordinates.
+        """
+        vec = start - current
+        return (vec**2).sum(axis=1).mean()
+
+    def _calculate_msd_for_moltypes(self, moltypes, bead_groups, times):
         msd_results = {}
         msd_results['value'] = []
         msd_results['times'] = []
@@ -596,7 +606,7 @@ class MDAnalysisParser(FileParser):
         for moltype in moltypes:
             positions = self.get_nojump_positions(bead_groups[moltype])
             results = shifted_correlation_average(
-                mean_squared_displacement, times, positions
+                self._mean_squared_displacement, times, positions
             )
             msd_results['value'].append(results[1])
             msd_results['times'].append(results[0])
@@ -615,7 +625,6 @@ class MDAnalysisParser(FileParser):
         msd_results['error_diffusion_constant'] = np.array(
             msd_results['error_diffusion_constant']
         )
-
         return msd_results
 
     def parse_jumps(self, selection):
