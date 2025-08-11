@@ -14,6 +14,27 @@ class EntryPoint(SchemaPackageEntryPoint):
             return None
 
 
+# in schema_packages/__init__.py
+# from nomad.utils import get_logger
+
+# LOGGER = get_logger(__name__)
+
+
+# class EntryPoint(SchemaPackageEntryPoint):
+#     module: str = Field(description='Module from which schema is loaded')
+
+#     def load(self):
+#         try:
+#             mod = importlib.import_module(self.module)
+#             mp = getattr(mod, 'm_package', None)
+#             if mp is None:
+#                 raise AttributeError(f'{self.module} has no m_package')
+#             return mp
+#         except Exception as e:
+#             LOGGER.error(f'Could not load schema package {self.module}', exc_info=e)
+#             return None
+
+
 abinit_schema_package = EntryPoint(
     name='AbinitSchemaPackage',
     description='Schema package for abinit.',

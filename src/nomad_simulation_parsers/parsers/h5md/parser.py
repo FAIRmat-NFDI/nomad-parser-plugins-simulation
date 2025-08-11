@@ -1,7 +1,10 @@
 from typing import Any
-
+from importlib import reload
 import pint
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
+from nomad.parsing.file_parser import ArchiveWriter
+from nomad.datamodel import EntryArchive
+from structlog.stdlib import BoundLogger
 from nomad.units import ureg
 from nomad.utils import get_logger
 from simulationworkflowschema.molecular_dynamics import MolecularDynamics
@@ -9,6 +12,7 @@ from simulationworkflowschema.molecular_dynamics import MolecularDynamics
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages.h5md import Simulation
+from nomad_simulation_parsers.schema_packages import h5md
 
 LOGGER = get_logger(__name__)
 # Make base class non-abstract by providing the property globally
@@ -295,21 +299,17 @@ class H5MDH5Parser(HDF5Parser):
         return custom_outputs
 
 
-class H5MDParser(MDParser):
-    def __init__(self) -> None:
-        super().__init__()
+class H5MDArchiveWriter(ArchiveWriter):
+    def __init__(self):
         self.h5_parser = H5MDH5Parser()
         self.simulation_parser = H5MDMetainfoParser()
         self.simulation_parser.max_nested_level = 10
         self.workflow_parser = H5MDMetainfoParser()
-        self.logger = get_logger(__name__)
-
-    # # TODO temporary fix for structlog unable to propagate logger
-    # @property
-    # def logger(self):
-    #     return LOGGER
 
     def write_to_archive(self) -> None:
+        # reload schema annotations
+        reload(h5md)  # ? what exactly does this do?
+
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 
@@ -342,3 +342,19 @@ class H5MDParser(MDParser):
 
         # remove mapping annotations
         remove_mapping_annotations(self.archive.data.m_def)
+
+
+class H5MDParser(MDParser):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+        self.archive_writer = H5MDArchiveWriter()
+        self.logger = get_logger(__name__)
+
+    def parse(
+        self,
+        mainfile: str,
+        archive: EntryArchive,
+        logger: BoundLogger | None = None,
+        child_archives: dict[str, EntryArchive] | None = None,
+    ) -> None:
+        self.archive_writer.write(mainfile, archive, logger, child_archives or {})

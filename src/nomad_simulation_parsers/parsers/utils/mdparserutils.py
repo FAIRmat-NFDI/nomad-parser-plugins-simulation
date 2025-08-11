@@ -23,7 +23,7 @@ from typing import Any
 import numpy as np
 
 # from nomad.metainfo import MSection
-from nomad.parsing.file_parser import Parser
+from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.atoms_state import AtomsState
 from nomad_simulations.schema_packages.general import Simulation
@@ -42,7 +42,7 @@ from nomad_simulations.schema_packages.properties.forces import ForceContributio
 from simulationworkflowschema import MolecularDynamics
 
 
-class MDParser(Parser):
+class MDParser(MatchingParser):
     def __init__(self, **kwargs) -> None:
         self.info: dict[str, Any] = {}
         self.cum_max_atoms: int = 2500000
