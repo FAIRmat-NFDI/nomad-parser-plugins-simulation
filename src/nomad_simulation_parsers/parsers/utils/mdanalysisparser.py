@@ -94,9 +94,8 @@ class MDAnalysisParser(FileParser):
                 )
                 selection = f'index {selection}'
                 ags_by_moltype = self.universe.select_atoms(selection)
-            ags_by_moltype = ags_by_moltype[
-                ags_by_moltype.masses > abs(1e-2)
-            ]  # remove any virtual/massless sites (needed for, e.g., 4-bead water models)
+            ags_by_moltype = ags_by_moltype[ags_by_moltype.masses > abs(1e-2)]
+            # remove any virtual/massless sites (needed for, e.g., 4-bead water models)
             bead_groups[moltype] = BeadGroup(ags_by_moltype, compound=compound)
 
         return bead_groups
@@ -217,9 +216,11 @@ class MDAnalysisParser(FileParser):
         Calculates the radial distribution functions between for each unique pair of
         molecule types as a function of their center of mass distance.
 
-        interval_indices: 2D array specifying the groups of the n_traj_split intervals to be averaged
-        max_mols: the maximum number of molecules per bead group for calculating the rdf, for efficiency purposes.
-        5k was set after > 50k was giving problems. Should do further testing to see where the appropriate limit should be set.
+        interval_indices: 2D array specifying the groups of the n_traj_split intervals
+          to be averaged
+        max_mols: the maximum number of molecules per bead group for calculating
+          the rdf, for efficiency purposes. 5k was set after > 50k was giving problems.
+          Should do further testing to see where the appropriate limit should be set.
         """
 
         def get_rdf_avg(rdf_results_tmp, rdf_results, interval_indices, n_frames_split):
@@ -292,7 +293,8 @@ class MDAnalysisParser(FileParser):
             if bead_groups[moltype]._nbeads > max_mols:
                 del_list.append(i_moltype)
                 self.logger.warning(
-                    'The number of molecules of exceeds the maximum of for calculating the rdf. Skipping this molecule type.'
+                    'The number of molecules of exceeds the maximum of for calculating '
+                    'the rdf. Skipping this molecule type.'
                 )
         moltypes = np.delete(moltypes, del_list)
 
@@ -397,7 +399,8 @@ class MDAnalysisParser(FileParser):
 
     def get_time(self, frame_index):
         """
-        Returns the elapsed simulated physical time since the start of the simulation for index frame_index.
+        Returns the elapsed simulated physical time since the start of the simulation
+        for index frame_index.
         """
         frame = self.get_frame(frame_index)
         return frame.time * ureg.picosecond if frame is not None else None
@@ -476,8 +479,11 @@ class MDAnalysisParser(FileParser):
                 interactions.append(
                     dict(
                         atom_labels=atom_labels,
-                        # parameters=float(inter.value()),  ## This is not the parameter but rather the value of the interaction order parameter for a single frame
-                        # TODO implement functions to get parameters for individual parsers
+                        # parameters=float(inter.value()),
+                        ## This is not the parameter but rather the value of the
+                        ## interaction order parameter for a single frame
+                        # TODO implement functions to get parameters for
+                        # TODO individual parsers
                         atom_indices=inter.indices,
                         type=inter.btype,
                     )
@@ -504,13 +510,15 @@ class MDAnalysisParser(FileParser):
         Calculates the mean squared displacement for the center of mass of each
         molecule type.
 
-        max_mols: the maximum number of molecules per bead group for calculating the msd, for efficiency purposes.
-        1M is arbitrary, 50k was tested and is very fast and does not seem to have any memory issues.
+        max_mols: the maximum number of molecules per bead group for calculating
+          the msd, for efficiency purposes. 1M is arbitrary, 50k was tested and is
+          very fast and does not seem to have any memory issues.
         """
 
         def mean_squared_displacement(start: np.ndarray, current: np.ndarray):
             """
-            Calculates mean square displacement between current and initial (start) coordinates.
+            Calculates mean square displacement between current and initial (start)
+            coordinates.
             """
             vec = start - current
             return (vec**2).sum(axis=1).mean()
@@ -568,12 +576,14 @@ class MDAnalysisParser(FileParser):
                         ags_moltype_rnd, compound='fragments'
                     )
                     self.logger.warning(
-                        'Maximum number of molecules for calculating the msd has been reached.'
-                        ' Will make a random selection for calculation.'
+                        'Maximum number of molecules for calculating the msd has been '
+                        'reached. Will make a random selection for calculation.'
                     )
                 except Exception:
                     self.logger.warning(
-                        'Tried to select random molecules for large group when calculating msd, but something went wrong. Skipping this molecule type.'
+                        'Tried to select random molecules for large group when '
+                        'calculating msd, but something went wrong. '
+                        'Skipping this molecule type.'
                     )
                 del_list.append(i_moltype)
         moltypes = np.delete(moltypes, del_list)

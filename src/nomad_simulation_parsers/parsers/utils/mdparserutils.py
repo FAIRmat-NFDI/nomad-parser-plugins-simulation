@@ -223,7 +223,8 @@ class MDParser(Parser):
         self.archive.workflow2 = sec_workflow
 
     # TODO Adapt these interaction functions for the new schema
-    # def parse_interactions(self, interactions: List[Dict], sec_model: MSection) -> None:
+    # def parse_interactions(self, interactions: List[Dict], sec_model: MSection)
+    # -> None:
     #     if not interactions:
     #         return
 
@@ -240,7 +241,8 @@ class MDParser(Parser):
     #                 try:
     #                     sec_interaction.m_set(quantity_def, val)
     #                 except Exception:
-    #                     self.logger.error('Error setting metadata.', data={'key': key})
+    #                     self.logger.error('Error setting metadata.',
+    #  data={'key': key})
 
     #     interactions.sort(key=lambda x: x.get('type'))
     #     current_type = interactions[0].get('type')
@@ -268,4 +270,4 @@ class MDParser(Parser):
     #         sec_interaction = Interaction()
     #         sec_model.contributions.append(sec_interaction)
     #         self.parse_section(interaction_type_dict, sec_interaction)
-    #     # TODO Shift Gromacs and Lammps parsers to use this function as well if possible
+    #  # TODO Shift Gromacs and Lammps parsers to use this function as well if possible
