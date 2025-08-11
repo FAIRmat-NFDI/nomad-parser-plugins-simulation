@@ -41,8 +41,7 @@ from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.atoms_state import AtomsState
 from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
 
-# h5md schema
-from nomad_parser_h5md.schema_packages.schema import TrajectoryOutputs
+from nomad_simulations.schema_packages.outputs import TrajectoryOutputs
 
 
 class MDParser(Parser):
