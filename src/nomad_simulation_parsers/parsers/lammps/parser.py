@@ -9,9 +9,13 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
 
-from .utils import MDParser, MDAnalysisParser
+from ..utils.mdanalysisparser import MDAnalysisParser
+from ..utils.mdparserutils import MDParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.atoms_state import AtomsState
+from nomad_simulations.schema_packages.model_method import ModelMethod
+from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
 
 # from nomad_simulations.schema_packages.model_system import ModelSystem
 
@@ -771,25 +775,23 @@ class LogParser(TextParser):
         dump = self.get('dump', None)
         if dump is None:
             self.logger.warning('Trajectory not specified in directory, will scan.')
-            dump = self.get('write_dump', None)
-            if dump is None:
-                # TODO: extend matching of traj file
-                traj_files = os.listdir(self.maindir)
-                traj_files = [
-                    f
-                    for f in traj_files
-                    if f.endswith('trj') or f.endswith('xyz')
-                    # TODO: add parsers for supported trajectory formats
-                    # or f.endswith('lammpstrj')
-                    # or f.endswith('dcd')
-                    # or f.endswith('h5')
-                    # or f.endswith('nc')
-                ]
-                # further eliminate
-                if len(traj_files) > 1:
-                    # ! This again wrongfully expects common file naming conventions!
-                    prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
-                    traj_files = [f for f in traj_files if prefix in f]
+            # TODO: extend matching of traj file
+            traj_files = os.listdir(self.maindir)
+            traj_files = [
+                f
+                for f in traj_files
+                if f.endswith('trj') or f.endswith('xyz')
+                # TODO: add parsers for supported trajectory formats
+                # or f.endswith('lammpstrj')
+                # or f.endswith('dcd')
+                # or f.endswith('h5')
+                # or f.endswith('nc')
+            ]
+            # further eliminate
+            if len(traj_files) > 1:
+                # ! This again wrongfully expects common file naming conventions!
+                prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
+                traj_files = [f for f in traj_files if prefix in f]
             else:
                 traj_files = [d[2] for d in dump]
         else:
@@ -935,26 +937,26 @@ class LammpsArchiveWriter(ArchiveWriter):
     TODO: Docstring
     """
 
-    # def parse_method(self):
-    #     # TODO: replace with counterparts from nomad_simulations!
-    #     # sec_run = self.archive.run[-1]
+    def parse_method(self, simulation):
+        # TODO: replace with counterparts from nomad_simulations!
+        # sec_run = self.archive.run[-1]
 
-    #     if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
-    #         return
+        if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
+            return
 
-    #     if self.traj_parsers.eval('n_frames') is None:
-    #         return
+        if self.traj_parsers.eval('n_frames') is None:
+            return
 
-    #     sec_method = Method()
-    #     sec_run.method.append(sec_method)
-    #     sec_force_field = ForceField()
-    #     sec_method.force_field = sec_force_field
-    #     sec_model = Model()
-    #     sec_force_field.model.append(sec_model)
+        sec_method = ModelMethod()
+        # sec_force_field = ForceField()
+        # sec_method.force_field = sec_force_field
+        # sec_model = Model()
+        # sec_force_field.model.append(sec_model)
 
-    #     # Old parsing of method with text parser
-    #     masses = self.data_parser.get('Masses', None)
-    #     self.traj_parsers[0].masses = masses
+        # Old parsing of method with text parser
+        masses = self.data_parser.get('Masses', None)
+        self.traj_parsers[0].masses = masses
+
     #     # @Landinesa: we should be able to set the atom masses with the TrajParser, but I don't quite understand how to use this.
     #     # Can you add the implementation here, and then we can make the MDA implementation below as a backup?
     #     # Can you also get the charges somehow?
@@ -1030,13 +1032,11 @@ class LammpsArchiveWriter(ArchiveWriter):
     #                 neighmodify[index + 1]
     #            )
 
-    def parse_system(self):
+    def parse_system(self, simulation):
         # sec_run = self.archive.run[-1]
-
         n_traj = self.traj_parsers.eval('n_frames')
         if n_traj is None:
             return
-
         self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
         self.trajectory_steps = [
             step
@@ -1059,38 +1059,49 @@ class LammpsArchiveWriter(ArchiveWriter):
             return formula
 
         for step in self.trajectory_steps:
-            traj_n = self._trajectory_steps.index(step)
+            print(step)
+            sec_system = ModelSystem()
+            sec_system.type = 'atom'
+            sec_system.time_step = step
+            sec_cell = AtomicCell()
+            traj_n = self.trajectory_steps.index(step)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
             if lattice_vectors is not None:
                 lattice_vectors = apply_unit(lattice_vectors, 'distance')
+                sec_cell.lattice_vectors = lattice_vectors
             velocities = self.traj_parsers.eval('get_velocities', traj_n)
             if velocities is not None:
                 velocities = apply_unit(velocities, 'velocity')
+                sec_cell.velocities = velocities
             bond_list = []
             if traj_n == 0:  # TODO add references to the bond list for other steps
-                bond_list = get_bond_list_from_model_contributions(
-                    sec_run, method_index=-1, model_index=-1
-                )
-            self.parse_trajectory_step(
-                {
-                    'atoms': {
-                        'n_atoms': self.traj_parsers.eval('get_n_atoms', traj_n),
-                        'lattice_vectors': lattice_vectors,
-                        'periodic': self.traj_parsers.eval('get_pbc', traj_n),
-                        'positions': apply_unit(
-                            self.traj_parsers.eval('get_positions', traj_n), 'distance'
-                        ),
-                        'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
-                        'velocities': velocities,
-                        'bond_list': bond_list if bond_list else None,
-                    }
-                }
-            )
+                # bond_list = get_bond_list_from_model_contributions(
+                #     sec_run, method_index=-1, model_index=-1
+                # )
+                bond_list = self.data_parser.get('Bonds', None)
+                if bond_list is not None:
+                    sec_system.bond_list = bond_list[0][1][:, 2:4].astype(int)
 
-        if not sec_run.system:
+            sec_cell.n_atoms = self.traj_parsers.eval('get_n_atoms', traj_n)
+            sec_cell.periodic_boundary_conditions = self.traj_parsers.eval(
+                'get_pbc', traj_n
+            )
+            sec_cell.positions = self.traj_parsers.eval('get_positions', traj_n)
+            sec_system.cell.append(sec_cell)
+
+        atom_labels = self.traj_parsers.eval('get_atom_labels', traj_n)
+        # print(atom_labels)
+        # if atom_labels is not None:
+        #     for label in atom_labels:
+        #         atoms_state = AtomsState(chemical_symbol=label)
+        #         sec_cell.atoms_state.append(atoms_state)
+        if not sec_system:
             return
 
-        sec_system = sec_run.system[-1]
+        print('sec_system', sec_system)
+        sys.exit()
+        # sec_system = sec_run.system[-1]
+
         # parse atomsgroup (moltypes --> molecules --> residues)
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -1116,8 +1127,10 @@ class LammpsArchiveWriter(ArchiveWriter):
             moltypes = np.unique(atoms_moltypes)
             for i_moltype, moltype in enumerate(moltypes):
                 # Only add atomsgroup for initial system for now
-                sec_molecule_group = AtomsGroup()
-                sec_run.system[0].atoms_group.append(sec_molecule_group)
+                # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
+                # sec_molecule_group = AtomsGroup()
+                # sec_run.system[0].atoms_group.append(sec_molecule_group)
+                molecule_group = ModelSystem()
                 sec_molecule_group.label = f'group_{moltype}'
                 sec_molecule_group.type = 'molecule_group'
                 sec_molecule_group.index = i_moltype
@@ -1236,6 +1249,8 @@ class LammpsArchiveWriter(ArchiveWriter):
             topology_format='DATA', format='LAMMPSDUMP'
         )
         self._mdanalysistraj_parser.logger = self.logger
+        # self._mdparser = MDParser()
+        # self._mdparser.logger = self.logger
         self.data_parser = DataParser()
         self.data_parser.logger = self.logger
 
@@ -1321,11 +1336,9 @@ class LammpsArchiveWriter(ArchiveWriter):
 
         print('Parsing auxiliary log file:', self.aux_log_parser.mainfile)
 
-        # ? Do I need ModelMethod here?
-        # ? Are there implementation examples beyond vasp and wannier90?
-        # self.parse_method()
+        self.parse_method(self.archive.data)
 
-        self.parse_system()
+        self.parse_system(self.archive.data)
 
         # # include input controls from log file
         # self.parse_input()
