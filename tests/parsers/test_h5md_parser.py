@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+# tests/parsers/test_h5md_parser.py
 
 import numpy as np
 import pytest
@@ -33,18 +34,7 @@ def parser():
     return H5MDParser()
 
 
-# TODO convert towards unit testing
-
-
-def test_md(parser):
-    archive = EntryArchive()
-    parser.parse('tests/data/h5md/test_traj_openmm_5frames_08-08-25.h5', archive, None)
-
-    #######################
-    # Test the NEW SCHEMA #
-    #######################
-
-    ## H5MD
+def assert_h5md_header(archive: EntryArchive) -> None:
     sec_simulation = archive.data
     assert sec_simulation.program.name == 'OpenMM'
     assert sec_simulation.program.version == '-1.-1.-1'
@@ -55,8 +45,9 @@ def test_md(parser):
     assert sec_simulation.x_h5md_creator.name == 'h5py'
     assert sec_simulation.x_h5md_creator.version == '3.6.0'
 
-    ## SYSTEM
-    sec_systems = sec_simulation.model_system
+
+def assert_systems(archive: EntryArchive) -> None:
+    sec_systems = archive.data.model_system
     assert len(sec_systems) == 5
     assert np.shape(sec_systems[0].positions) == (31583, 3)
     assert np.shape(sec_systems[0].velocities) == (31583, 3)
@@ -78,8 +69,9 @@ def test_md(parser):
     assert sec_systems[0].dimensionality == 3
     assert sec_systems[0].is_molecule() is False
 
-    ## SYSTEM HIERARCHY
-    sec_atoms_group = sec_systems[0].sub_systems
+
+def assert_system_hierarchy(archive: EntryArchive) -> None:
+    sec_atoms_group = archive.data.model_system[0].sub_systems
     assert len(sec_atoms_group) == 4
     assert sec_atoms_group[0].particle_states == []
     assert sec_atoms_group[0].cell == []
@@ -88,6 +80,7 @@ def test_md(parser):
     assert sec_atoms_group[0].composition_formula == '1ZNF(1)'
     assert sec_atoms_group[0].particle_indices[159] == 159
     assert sec_atoms_group[0].is_molecule() is True
+
     sec_proteins = sec_atoms_group[0].sub_systems
     assert len(sec_proteins) == 1
     assert sec_proteins[0].name == '1ZNF'
@@ -99,15 +92,15 @@ def test_md(parser):
     )
     assert sec_proteins[0].particle_indices[400] == 400
     assert sec_proteins[0].is_molecule() is True
+
     sec_res_group = sec_proteins[0].sub_systems
     assert len(sec_res_group) == 16
     assert sec_res_group[13].name == 'group_ARG'
     assert sec_res_group[14].branch_label == 'monomer_group'
     assert sec_res_group[13].composition_formula == 'ARG(3)'
-    assert (
-        sec_res_group[14].particle_indices[2] == 136
-    )  # TODO need to explicitly check this
+    assert sec_res_group[14].particle_indices[2] == 136  # TODO: check explicitly
     assert sec_res_group[14].is_molecule() is False
+
     sec_res = sec_res_group[13].sub_systems
     assert len(sec_res) == 3
     assert sec_res[0].name == 'ARG'
@@ -117,20 +110,23 @@ def test_md(parser):
         == 'C(1)CA(1)CB(1)CD(1)CG(1)CZ(1)H(1)HA(1)HB2(1)HB3(1)HD2(1)HD3(1)HE(1)HG2(1)'
         'HG3(1)HH11(1)HH12(1)HH21(1)HH22(1)N(1)NE(1)NH1(1)NH2(1)O(1)'
     )
-    assert sec_res[0].particle_indices[10] == 120  # TODO need to explicitly check this
+    assert sec_res[0].particle_indices[10] == 120  # TODO: check explicitly
     assert sec_res[0].is_molecule() is False
-    # TODO come back to this
+    # TODO later:
     # assert sec_res[0].custom_system_attributes[0].name == 'hydrophobicity'
     # assert sec_res[0].custom_system_attributes[0].value == '0.13'
     # assert sec_res[0].custom_system_attributes[0].unit is None
 
-    ## OUTPUTS
-    sec_outputs = sec_simulation.outputs
+
+def assert_outputs(archive: EntryArchive) -> None:
+    sec_outputs = archive.data.outputs
     assert len(sec_outputs) == 5
     assert sec_outputs[3].step == 3
     assert sec_outputs[2].time.to('ps').magnitude == approx(2.0)
+
     # Temperature
     assert sec_outputs[2].temperatures[0].value.to('kelvin').magnitude == approx(300.0)
+
     # Energies
     assert sec_outputs[2].total_energies[0].value.to('kilojoule').magnitude == approx(
         6.0
@@ -147,6 +143,7 @@ def test_md(parser):
     assert sec_outputs[2].total_energies[0].contributions[2].value.to(
         'kilojoule'
     ).magnitude == approx(1.0)
+
     # Forces
     assert np.shape(sec_outputs[1].total_forces[0].value) == (31583, 3)
     assert sec_outputs[1].total_forces[0].value[2100][2].to(
@@ -159,15 +156,18 @@ def test_md(parser):
     assert sec_outputs[2].total_forces[0].contributions[0].value[21].to(
         'newton'
     ).magnitude == approx(4.0)
-    # Custom Outputs
+
+    # Custom outputs
     assert sec_outputs[2].custom_outputs[0].m_def.name == 'CustomProperty'
     assert len(sec_outputs[1].custom_outputs) == 1
     assert sec_outputs[1].custom_outputs[0].name == 'custom_thermodynamic_properties'
     assert sec_outputs[1].custom_outputs[0].value == approx(100.0)
     assert sec_outputs[1].custom_outputs[0].unit == 'newton / angstrom ** 2'
 
-    ## WORKFLOW
+
+def assert_workflow(archive: EntryArchive) -> None:
     sec_workflow = archive.workflow2
+
     # MD method
     assert sec_workflow.method.integrator_type == 'langevin_leap_frog'
     assert sec_workflow.method.thermodynamic_ensemble == 'NPT'
@@ -176,24 +176,17 @@ def test_md(parser):
     ).magnitude == approx(2e-15)
     assert sec_workflow.method.n_steps == 20000000
     assert sec_workflow.method.coordinate_save_frequency == 10000
-    # assert sec_workflow.method.velocity_save_frequency == None
-    # assert sec_workflow.method.force_save_frequency == None
-    # assert sec_workflow.method.thermodynamics_save_frequency == None
-    # MD thermostat
+    # assert sec_workflow.method.velocity_save_frequency is None
+    # assert sec_workflow.method.force_save_frequency is None
+    # assert sec_workflow.method.thermodynamics_save_frequency is None
+
+    # Thermostat
     sec_thermostat = sec_workflow.method.thermostat_parameters
     assert sec_thermostat[0].thermostat_type == 'langevin_leap_frog'
     assert sec_thermostat[0].reference_temperature.magnitude == approx(300.0)
     assert sec_thermostat[0].coupling_constant.to('picosecond').magnitude == approx(1.0)
-    # assert sec_thermostat[0].effective_mass == None
-    # assert sec_thermostat[0].temperature_profile == None
-    # assert sec_thermostat[0].reference_temperature_start == None
-    # assert sec_thermostat[0].reference_temperature_end == None
-    # assert sec_thermostat[0].temperature_update_frequency == None
-    # assert sec_thermostat[0].temperature_update_delta == None
-    # assert sec_thermostat[0].temperature_update_factor == None
-    # assert sec_thermostat[0].step_start == None
-    # assert sec_thermostat[0].step_end == None
-    # MD barostat
+
+    # Barostat
     sec_barostat = sec_workflow.method.barostat_parameters
     assert sec_barostat[0].barostat_type == 'berendsen'
     assert sec_barostat[0].coupling_type == 'isotropic'
@@ -209,38 +202,20 @@ def test_md(parser):
         sec_barostat[0].compressibility.to('1/bar').magnitude
         == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
-    # assert sec_barostat[0].pressure_profile == None
-    # assert sec_barostat[0].reference_pressure_start == None
-    # assert sec_barostat[0].reference_pressure_end == None
-    # assert sec_barostat[0].pressure_update_frequency == None
-    # assert sec_barostat[0].pressure_update_delta == None
-    # assert sec_barostat[0].pressure_update_factor == None
-    # assert sec_barostat[0].step_start == None
-    # assert sec_barostat[0].step_end == None
-    # MD Shear
+
+    # Shear
     sec_shear = sec_workflow.method.shear_parameters
     assert sec_shear[0].shear_type == 'lees_edwards'
     assert np.all(
         sec_shear[0].shear_rate.to('1 / picosecond').magnitude
         == [[0.0, 0.0, 0.01], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
     )
-    # assert sec_shear[0].shear_type == None
-    # assert sec_shear[0].shear_rate == None
-    # MD Free Energy Calculation Parameters
-    sec_free_energy = sec_workflow.method.free_energy_calculation_parameters
-    # sec_results = sec_workflow.results.free_energy_calculations[0]
 
+    # Free energy calc parameters
+    sec_free_energy = sec_workflow.method.free_energy_calculation_parameters
     assert sec_free_energy[0].type == 'alchemical'
-    # sec_lambdas = sec_method.lambdas
-    # assert len(sec_lambdas) == 7
-    # assert sec_lambdas[2].type == 'vdw'
-    # assert sec_lambdas[2].value[2] == 0.2
-    # assert sec_lambdas[-1].type == 'temperature'
-    # assert sec_lambdas[-1].value[2] == 0.0
     assert sec_free_energy[0].lambda_index == 7
-    assert sec_free_energy[0].atom_indices.shape == (
-        1,
-    )  # TODO change to particle_indices in the schema
+    assert sec_free_energy[0].atom_indices.shape == (1,)
     assert sec_free_energy[0].atom_indices[0] == 0
     assert sec_free_energy[0].initial_state_vdw is True
     assert sec_free_energy[0].final_state_vdw is False
@@ -249,9 +224,13 @@ def test_md(parser):
     assert sec_free_energy[0].initial_state_bonded is True
     assert sec_free_energy[0].final_state_bonded is True
 
-    # assert sec_results.n_frames == 5001
-    # assert sec_results.n_states == 11
-    # assert sec_results.lambda_index == 7
-    # assert len(sec_results.times) == 5001
-    # assert sec_results.times.to('ps')[10].magnitude == approx(2.0)
-    # assert sec_results.value_unit == 'kilojoule'
+
+def test_md(parser):
+    archive = EntryArchive()
+    parser.parse('tests/data/h5md/test_traj_openmm_5frames_08-08-25.h5', archive, None)
+
+    assert_h5md_header(archive)
+    assert_systems(archive)
+    assert_system_hierarchy(archive)
+    assert_outputs(archive)
+    assert_workflow(archive)
