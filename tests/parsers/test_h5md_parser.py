@@ -74,7 +74,7 @@ def assert_system_hierarchy(archive: EntryArchive) -> None:
     sec_atoms_group = archive.data.model_system[0].sub_systems
     assert len(sec_atoms_group) == 4
     assert sec_atoms_group[0].particle_states == []
-    # assert sec_atoms_group[0].cell == []
+    assert sec_atoms_group[0].cell == []
     assert sec_atoms_group[0].name == 'group_1ZNF'
     assert sec_atoms_group[0].branch_label == 'molecule_group'
     assert sec_atoms_group[0].composition_formula == '1ZNF(1)'
