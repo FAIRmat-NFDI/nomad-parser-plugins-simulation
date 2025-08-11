@@ -23,6 +23,7 @@ import numpy as np
 
 try:
     import MDAnalysis
+    import MDAnalysis.analysis.rdf as MDA_RDF
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
@@ -313,8 +314,6 @@ class MDAnalysisParser(FileParser):
     def _calculate_rdf_for_pair(
         self, rdf_pair_params: 'MDAnalysisParser.RDFPairParams'
     ):
-        import MDAnalysis.analysis.rdf as MDA_RDF
-
         bead_groups = rdf_pair_params.bead_groups
         moltype_i = rdf_pair_params.moltype_i
         moltype_j = rdf_pair_params.moltype_j
