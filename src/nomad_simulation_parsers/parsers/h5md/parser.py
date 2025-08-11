@@ -1,18 +1,19 @@
-from typing import Any
 from importlib import reload
+from typing import Any
+
 import pint
-from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad.parsing.file_parser import ArchiveWriter
 from nomad.datamodel import EntryArchive
-from structlog.stdlib import BoundLogger
+from nomad.parsing.file_parser import ArchiveWriter
+from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.units import ureg
 from nomad.utils import get_logger
 from simulationworkflowschema.molecular_dynamics import MolecularDynamics
+from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
-from nomad_simulation_parsers.schema_packages.h5md import Simulation
 from nomad_simulation_parsers.schema_packages import h5md
+from nomad_simulation_parsers.schema_packages.h5md import Simulation
 
 LOGGER = get_logger(__name__)
 # Make base class non-abstract by providing the property globally
