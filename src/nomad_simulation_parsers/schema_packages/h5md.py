@@ -309,7 +309,8 @@ class CustomProperty(ArchiveSection):
         type=m_float64(dtype=np.float64).no_shape_check(),
         shape=[],
         description="""
-        Value **magnitude** of the property. The unit is defined in the `unit` attribute.
+        Value **magnitude** of the property.
+        The unit is defined in the `unit` attribute.
         """,
     )
     value.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(

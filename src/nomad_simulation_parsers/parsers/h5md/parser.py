@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 import pint
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
@@ -225,7 +225,9 @@ class H5MDH5Parser(HDF5Parser):
             contributions.append({'name': key, **step_data})
         return contributions
 
-    def get_output_data(self, source: dict[str, Any], **kwargs) -> pint.Quantity | None:
+    def get_output_data(
+        self, source: dict[str, Any], **kwargs
+    ) -> Union[pint.Quantity, None]:
         if source.get('value') is not None:
             return source['value']
         if source.get('step') is None:
