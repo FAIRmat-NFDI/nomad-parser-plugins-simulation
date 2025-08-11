@@ -346,7 +346,7 @@ class H5MDArchiveWriter(ArchiveWriter):
 
 class H5MDParser(MDParser):
     def __init__(self, **kwargs) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.archive_writer = H5MDArchiveWriter()
         self.logger = get_logger(__name__)
 

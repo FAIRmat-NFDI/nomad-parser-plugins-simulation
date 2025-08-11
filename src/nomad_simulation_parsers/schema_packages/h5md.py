@@ -1190,7 +1190,10 @@ molecular_dynamics.MolecularDynamics.results.m_annotations.setdefault('mapping',
 # )
 
 
-m_package.__init_metainfo__()
+try:
+    m_package.__init_metainfo__()
+except Exception:
+    pass
 
 
 # TODO Check parameters for enums and add enum_spec
