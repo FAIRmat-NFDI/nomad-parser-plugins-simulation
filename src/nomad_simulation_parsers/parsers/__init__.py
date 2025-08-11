@@ -118,19 +118,19 @@ h5md_parser = EntryPoint(
     parser_class_name='nomad_simulation_parsers.parsers.h5md.parser.H5MDParser',
     code_name='H5MD',
     code_category='MD code',
-    metadata={
-        'codeCategory': 'MD code',
-        'codeLabel': 'H5MD',
-        'codeLabelStyle': 'All in capitals',
-        'codeName': 'h5md',
-        # 'parserDirName': 'dependencies/parsers/atomistic/atomisticparsers/h5md/',
-        'parserGitUrl': 'https://github.com/FAIRmat-NFDI/'
-        'nomad-parser-plugins-simulation.git',  # ? Is this useful?
-        # 'parserSpecific': '',
-        # 'preamble': '',
-        # 'status': 'production',
-        # 'tableOfFiles': '',
-    },
+    # metadata={
+    #     'codeCategory': 'MD code',
+    #     'codeLabel': 'H5MD',
+    #     'codeLabelStyle': 'All in capitals',
+    #     'codeName': 'h5md',
+    #     # 'parserDirName': 'dependencies/parsers/atomistic/atomisticparsers/h5md/',
+    #     'parserGitUrl': 'https://github.com/FAIRmat-NFDI/'
+    #     'nomad-parser-plugins-simulation.git',  # ? Is this useful?
+    #     # 'parserSpecific': '',
+    #     # 'preamble': '',
+    #     # 'status': 'production',
+    #     # 'tableOfFiles': '',
+    # },
 )
 
 octopus_parser = EntryPoint(

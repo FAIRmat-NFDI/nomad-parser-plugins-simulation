@@ -9,11 +9,20 @@ from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annota
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages.h5md import Simulation
 
+from nomad.utils import get_logger
+
+LOGGER = get_logger(__name__)
+
 
 class H5MDH5Parser(HDF5Parser):
     trajectory_steps: list[int] = []
     output_steps: list[int] = []
     observables: dict[str, Any] = {}
+
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
 
     def get_value(self, name: str, dct: dict[str, Any]) -> Any:
         value = dct.get(name, {})
