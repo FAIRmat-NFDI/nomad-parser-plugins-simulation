@@ -120,7 +120,7 @@ class TotalForce(outputs.TotalForce):
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     outputs.ElectronicDensityOfStates.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(dos=Mapper(mapper='.value', unit='hartree')))
+    ).update(dict(dos=Mapper(mapper='.value', unit='1 / hartree')))
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
