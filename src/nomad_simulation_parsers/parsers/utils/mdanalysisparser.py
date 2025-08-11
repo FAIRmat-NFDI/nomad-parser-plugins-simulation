@@ -126,51 +126,35 @@ class MDAnalysisParser(FileParser):
             try:
                 value = [getattr(atom, key) for atom in atoms]
             except Exception:
-                continue
+                value = None
             value = value * unit_map.get(key, 1) if value is not None else value
             self._results['atoms_info'][name_map.get(key, f'{key}s')] = value
 
-        # if atom name is not identified, set it to 'X'
-        if self._results['atoms_info'].get('names') is None:
-            self._results['atoms_info']['names'] = ['X'] * self.universe.atoms.n_atoms
+        # Fallbacks/substitutions for missing atom info
+        substitutions = [
+            ('names', lambda: ['X'] * self.universe.atoms.n_atoms),
+            (
+                'moltypes',
+                lambda: self.get_fragtypes()
+                if hasattr(self.universe.atoms, 'fragments')
+                else None,
+            ),
+            ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
+            ('resnames', lambda: self._results['atoms_info'].get('resids')),
+            ('names', lambda: self._results['atoms_info'].get('types')),
+            ('elements', lambda: self._results['atoms_info'].get('names')),
+        ]
+        for key, func in substitutions:
+            if self._results['atoms_info'].get(key) is None:
+                try:
+                    val = func()
+                    if val is not None:
+                        self._results['atoms_info'][key] = val
+                except Exception:
+                    continue
+
         self._results['n_atoms'] = self.universe.atoms.n_atoms
         self._results['n_frames'] = len(self.universe.trajectory)
-
-        # make substitutions based on available atom info
-        if self._results['atoms_info'].get('moltypes') is None:
-            if hasattr(self.universe.atoms, 'fragments'):
-                self._results['atoms_info']['moltypes'] = self.get_fragtypes()
-
-        if self._results['atoms_info'].get('molnums') is None:
-            try:
-                value = getattr(self.universe.atoms, 'fragindices')
-                self._results['atoms_info']['molnums'] = value
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('resnames') is None:
-            try:
-                self._results['atoms_info']['resnames'] = self._results['atoms_info'][
-                    'resids'
-                ]
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('names') is None:
-            try:
-                self._results['atoms_info']['names'] = self._results['atoms_info'][
-                    'types'
-                ]
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('elements') is None:
-            try:
-                self._results['atoms_info']['elements'] = self._results['atoms_info'][
-                    'names'
-                ]
-            except Exception:
-                pass
 
     def get_fragtypes(self):
         # TODO put description otherwise, make private or put under parse method
