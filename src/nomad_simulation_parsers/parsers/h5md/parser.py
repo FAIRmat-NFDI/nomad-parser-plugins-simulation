@@ -104,7 +104,6 @@ class H5MDH5Parser(HDF5Parser):
         # TODO add len assertion for other system traj properties
         # TODO or generalize to store properly
 
-        print('in get_traj_data')
         traj_data = [
             {
                 'step': step,
@@ -160,8 +159,6 @@ class H5MDH5Parser(HDF5Parser):
     def to_species_labels(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
-        print('in to_species_labels')
-        print(type(source))
         if source.get('step') is None:
             return []
 
@@ -308,7 +305,7 @@ class H5MDArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         # reload schema annotations
-        reload(h5md)  # ? what exactly does this do?
+        reload(h5md)
 
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
