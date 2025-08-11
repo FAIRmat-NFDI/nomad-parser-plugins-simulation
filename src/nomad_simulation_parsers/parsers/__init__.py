@@ -124,7 +124,8 @@ h5md_parser = EntryPoint(
         'codeLabelStyle': 'All in capitals',
         'codeName': 'h5md',
         # 'parserDirName': 'dependencies/parsers/atomistic/atomisticparsers/h5md/',
-        'parserGitUrl': 'https://github.com/FAIRmat-NFDI/nomad-parser-plugins-simulation.git',  # ? Is this useful?
+        'parserGitUrl': 'https://github.com/FAIRmat-NFDI/'
+        'nomad-parser-plugins-simulation.git',  # ? Is this useful?
         # 'parserSpecific': '',
         # 'preamble': '',
         # 'status': 'production',

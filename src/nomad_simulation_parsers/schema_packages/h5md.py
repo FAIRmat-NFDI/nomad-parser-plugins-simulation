@@ -124,7 +124,8 @@ general.Program.version.m_annotations.setdefault('mapping', {})['hdf5'] = (
 ## class ParticleState(atoms_state.ParticleState):
 
 
-# ParticleState.label.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
+# ParticleState.label.m_annotations.setdefault('mapping', {})['hdf5']
+# = MapperAnnotation(
 #     mapper='.label'
 # )
 
