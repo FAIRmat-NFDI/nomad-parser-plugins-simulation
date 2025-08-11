@@ -23,13 +23,12 @@ import numpy as np
 
 try:
     import MDAnalysis
-    import MDAnalysis.analysis.rdf as MDA_RDF
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
 from array import array
 from collections import namedtuple
-from typing import Any
+from typing import Any, NamedTuple, Optional
 
 from nomad.parsing.file_parser import FileParser
 from nomad.units import ureg
@@ -203,12 +202,10 @@ class MDAnalysisParser(FileParser):
                 ctr_fragtype += 1
         return atoms_fragtypes
 
-    from typing import NamedTuple, Optional, List
-
     class RDFParams(NamedTuple):
         n_traj_split: int = 10
         n_prune: int = 1
-        interval_indices: Optional[List[List[int]]] = None
+        interval_indices: list[list[int]] | None = None
         n_bins: int = 200
         n_smooth: int = 2
         max_mols: int = 5000
@@ -221,7 +218,7 @@ class MDAnalysisParser(FileParser):
         Args:
             params (RDFParams, optional): Parameters for RDF calculation.
         """
-        params = params or RDFParams()
+        params = params or self.RDFParams()
         if self.universe is None:
             return
         trajectory = self.universe.trajectory[0] if self.universe.trajectory else None
@@ -254,17 +251,18 @@ class MDAnalysisParser(FileParser):
                     continue
                 exclusion_block = (1, 1) if i == j else None
                 pair_type = f'{moltype_i}-{moltype_j}'
-                rdf_results_tmp = self._calculate_rdf_for_pair(
-                    bead_groups,
-                    moltype_i,
-                    moltype_j,
-                    pair_type,
-                    params,
-                    frames_start,
-                    frames_end,
-                    max_rdf_dist,
-                    exclusion_block,
+                rdf_pair_params = self.RDFPairParams(
+                    bead_groups=bead_groups,
+                    moltype_i=moltype_i,
+                    moltype_j=moltype_j,
+                    pair_type=pair_type,
+                    params=params,
+                    frames_start=frames_start,
+                    frames_end=frames_end,
+                    max_rdf_dist=max_rdf_dist,
+                    exclusion_block=exclusion_block,
                 )
+                rdf_results_tmp = self._calculate_rdf_for_pair(rdf_pair_params)
                 for interval_group in interval_indices:
                     self._get_rdf_avg(
                         rdf_results_tmp, rdf_results, interval_group, n_frames_split
@@ -317,19 +315,31 @@ class MDAnalysisParser(FileParser):
             return False
         return True
 
+    class RDFPairParams(NamedTuple):
+        bead_groups: dict
+        moltype_i: Any
+        moltype_j: Any
+        pair_type: str
+        params: Any
+        frames_start: np.ndarray
+        frames_end: np.ndarray
+        max_rdf_dist: float
+        exclusion_block: Any
+
     def _calculate_rdf_for_pair(
-        self,
-        bead_groups,
-        moltype_i,
-        moltype_j,
-        pair_type,
-        params,
-        frames_start,
-        frames_end,
-        max_rdf_dist,
-        exclusion_block,
+        self, rdf_pair_params: 'MDAnalysisParser.RDFPairParams'
     ):
         import MDAnalysis.analysis.rdf as MDA_RDF
+
+        bead_groups = rdf_pair_params.bead_groups
+        moltype_i = rdf_pair_params.moltype_i
+        moltype_j = rdf_pair_params.moltype_j
+        pair_type = rdf_pair_params.pair_type
+        params = rdf_pair_params.params
+        frames_start = rdf_pair_params.frames_start
+        frames_end = rdf_pair_params.frames_end
+        max_rdf_dist = rdf_pair_params.max_rdf_dist
+        exclusion_block = rdf_pair_params.exclusion_block
 
         rdf_results_tmp = {
             'types': [],
@@ -362,6 +372,7 @@ class MDAnalysisParser(FileParser):
                     mode='same',
                 )[int(n_smooth / 2) : -int(n_smooth / 2)]
             )
+        return rdf_results_tmp
         return rdf_results_tmp
 
     def _get_rdf_avg(
