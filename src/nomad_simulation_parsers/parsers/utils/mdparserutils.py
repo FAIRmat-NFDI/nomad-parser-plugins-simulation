@@ -52,6 +52,15 @@ class MDParser(Parser):
         self._trajectory_steps_sampled: list[int] = []
         self._steps: list[int] = []
         super().__init__(**kwargs)
+        self._logger = get_logger(__name__)
+
+    @property
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, value):
+        self._logger = value
 
     @property
     def steps(self) -> list[int]:

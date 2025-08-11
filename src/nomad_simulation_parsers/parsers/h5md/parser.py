@@ -1,7 +1,9 @@
 from typing import Any
 
 import pint
+
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
+
 from nomad.units import ureg
 from simulationworkflowschema.molecular_dynamics import MolecularDynamics
 
@@ -12,6 +14,16 @@ from nomad_simulation_parsers.schema_packages.h5md import Simulation
 from nomad.utils import get_logger
 
 LOGGER = get_logger(__name__)
+# Make base class non-abstract by providing the property globally
+if not hasattr(MetainfoParser, 'logger'):
+    MetainfoParser.logger = property(lambda self: LOGGER)
+
+
+class H5MDMetainfoParser(MetainfoParser):
+    # TODO: temporary fix until structlog propagation lands everywhere
+    @property
+    def logger(self):
+        return LOGGER
 
 
 class H5MDH5Parser(HDF5Parser):
@@ -290,9 +302,15 @@ class H5MDParser(MDParser):
     def __init__(self) -> None:
         super().__init__()
         self.h5_parser = H5MDH5Parser()
-        self.simulation_parser = MetainfoParser()
+        self.simulation_parser = H5MDMetainfoParser()
         self.simulation_parser.max_nested_level = 10
-        self.workflow_parser = MetainfoParser()
+        self.workflow_parser = H5MDMetainfoParser()
+        self.logger = get_logger(__name__)
+
+    # # TODO temporary fix for structlog unable to propagate logger
+    # @property
+    # def logger(self):
+    #     return LOGGER
 
     def write_to_archive(self) -> None:
         # create h5 parser
@@ -323,6 +341,7 @@ class H5MDParser(MDParser):
         # close parsers
         self.h5_parser.close()
         self.simulation_parser.close()
+        self.workflow_parser.close()
 
         # remove mapping annotations
         remove_mapping_annotations(self.archive.data.m_def)
