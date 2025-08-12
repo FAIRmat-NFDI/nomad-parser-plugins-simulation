@@ -203,7 +203,7 @@ class MDParser(ArchiveWriter):
                 output.total_energies.append(TotalEnergy())
 
         for energy_dict in energy_contributions:
-            energy = EnergyContribution()  # self.energy_classes[energy_label]()
+            energy = BaseEnergy()
             output.total_energies[-1].contributions.append(energy)
             self.parse_section(energy_dict, energy)
 
@@ -212,7 +212,7 @@ class MDParser(ArchiveWriter):
                 output.total_forces.append(TotalForce())
 
         for force_dict in force_contributions:
-            force = ForceContribution()  #  self.force_classes[force_label]()
+            force = BaseForce
             output.total_forces[-1].contributions.append(force)
             self.parse_section(force_dict, force)
 
