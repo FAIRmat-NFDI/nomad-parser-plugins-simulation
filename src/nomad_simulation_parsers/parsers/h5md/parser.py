@@ -16,9 +16,6 @@ from nomad_simulation_parsers.schema_packages import h5md
 from nomad_simulation_parsers.schema_packages.h5md import Simulation
 
 LOGGER = get_logger(__name__)
-# Make base class non-abstract by providing the property globally
-if not hasattr(MetainfoParser, 'logger'):
-    MetainfoParser.logger = property(lambda self: LOGGER)
 
 
 class H5MDMetainfoParser(MetainfoParser):
@@ -99,9 +96,13 @@ class H5MDH5Parser(HDF5Parser):
         velocities = self.get_source(source, 'velocity')
         velocities = self.get_value('value', velocities)
 
-        assert len(steps) == len(times) == len(positions)
-        if velocities is not None:
-            assert len(positions) == len(velocities)
+        if not (len(steps) == len(times) == len(positions)):
+            self.logger.error('Trajectory data length mismatch')
+            return []
+
+        if velocities is not None and len(positions) != len(velocities):
+            self.logger.error('Velocity length mismatch')
+            return []
         # TODO add len assertion for other system traj properties
         # TODO or generalize to store properly
 
@@ -203,7 +204,7 @@ class H5MDH5Parser(HDF5Parser):
 
         def get_observable_steps(
             source: dict[str, Any], output_steps: dict[str, Any]
-        ) -> None:
+        ) -> list[dict[str, Any]]:
             for __, val in source.items():
                 observable_type = val.get('@type')
                 if not observable_type:
@@ -222,11 +223,9 @@ class H5MDH5Parser(HDF5Parser):
                         )
                     output_steps.update(steps)
 
-        get_observable_steps(source, output_steps)
-        output_steps = [
-            {'step': step, 'time': time} for step, time in output_steps.items()
-        ]
-        return output_steps
+            return [{'step': step, 'time': time} for step, time in output_steps.items()]
+
+        return get_observable_steps(source, output_steps)
 
     def get_contributions(
         self, source: dict[str, Any], **kwargs
