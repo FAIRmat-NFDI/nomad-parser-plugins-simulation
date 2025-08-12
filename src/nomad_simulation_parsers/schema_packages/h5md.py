@@ -340,9 +340,9 @@ class CustomProperty(ArchiveSection):
     )
 
 
-## class EnergyContribution(properties.energies.EnergyContribution):
+## class BaseEnergy(properties.energies.BaseEnergy):
 
-
+# ? Does this note still apply?
 # value annotation defined in TotalEnergy.value since they refer to the same quantity
 # in this case, we make sure to return the corresponding value from
 # the get_contributions function in the TotalEnergy.contributions annotation
@@ -377,7 +377,7 @@ properties.TotalEnergy.contributions.m_annotations.setdefault('mapping', {})['hd
 )
 
 
-## class ForceContribution(properties.forces.ForceContribution):
+## class BaseForce(properties.forces.BaseForce):
 
 
 properties.forces.BaseForce.name.m_annotations.setdefault('mapping', {})['hdf5'] = (
