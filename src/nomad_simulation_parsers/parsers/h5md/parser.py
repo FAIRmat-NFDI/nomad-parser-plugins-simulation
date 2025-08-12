@@ -3,8 +3,8 @@ from typing import Any
 
 import pint
 from nomad.datamodel import EntryArchive
-from nomad.parsing.parser import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
+from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from simulationworkflowschema.molecular_dynamics import MolecularDynamics
