@@ -34,6 +34,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "nomad-schema-plugin-simulation-workflow>=1.0.10",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
 ]
@@ -139,6 +140,8 @@ fhiaims_parser = "nomad_simulation_parsers.parsers:fhiaims_parser"
 fhiaims_schema_package = "nomad_simulation_parsers.schema_packages:fhiaims_schema_package"
 gpaw_parser = "nomad_simulation_parsers.parsers:gpaw_parser"
 gpaw_schema_package = "nomad_simulation_parsers.schema_packages:gpaw_schema_package"
+h5md_parser = "nomad_simulation_parsers.parsers:h5md_parser"
+h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_package"
 octopus_parser = "nomad_simulation_parsers.parsers:octopus_parser"
 octopus_schema_package = "nomad_simulation_parsers.schema_packages:octopus_schema_package"
 phonopy_parser = "nomad_simulation_parsers.parsers:phonopy_parser"
