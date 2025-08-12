@@ -35,8 +35,8 @@ from nomad_simulations.schema_packages.outputs import (
     TotalForce,
     TrajectoryOutputs,
 )
-from nomad_simulations.schema_packages.properties.energies import EnergyContribution
-from nomad_simulations.schema_packages.properties.forces import ForceContribution
+from nomad_simulations.schema_packages.properties.energies import BaseEnergy
+from nomad_simulations.schema_packages.properties.forces import BaseForce
 
 # from runschema.method import Interaction, Model
 from simulationworkflowschema import MolecularDynamics
