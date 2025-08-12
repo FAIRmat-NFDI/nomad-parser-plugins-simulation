@@ -61,17 +61,18 @@ class H5MDH5Parser(HDF5Parser):
             return source
         return self.get_source(source, path_segments[1])
 
-    def map_value(self, source: dict[str, Any], **kwargs) -> Any:
-        if kwargs.get('key') is None:
+    def map_value(
+        self, source: dict[str, Any], key: str = None, enum_spec: str = None
+    ) -> Any:
+        if key is None:
             return None
 
-        value = self.get_value(kwargs.get('key'), source)
+        value = self.get_value(key, source)
 
-        enum_spec = kwargs.get('enum_spec', None)
-        if enum_spec == 'upper':
-            return value.upper() if isinstance(value, str) else value
-        elif enum_spec == 'lower':
-            return value.lower() if isinstance(value, str) else value
+        enum_map = {'upper': str.upper, 'lower': str.lower}
+
+        if enum_spec in enum_map and isinstance(value, str):
+            return enum_map[enum_spec](value)
 
         return value
 
