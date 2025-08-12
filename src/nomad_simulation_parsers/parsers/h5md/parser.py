@@ -3,7 +3,7 @@ from typing import Any
 
 import pint
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
+from nomad.parsing.parser import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.units import ureg
 from nomad.utils import get_logger
@@ -297,12 +297,13 @@ class H5MDH5Parser(HDF5Parser):
         return custom_outputs
 
 
-class H5MDArchiveWriter(ArchiveWriter):
-    def __init__(self):
+class H5MDArchiveWriter(MDParser):
+    def __init__(self, **kwargs):
         self.h5_parser = H5MDH5Parser()
         self.simulation_parser = H5MDMetainfoParser()
         self.simulation_parser.max_nested_level = 10
         self.workflow_parser = H5MDMetainfoParser()
+        super().__init__(**kwargs)
 
     def write_to_archive(self) -> None:
         # reload schema annotations
@@ -342,7 +343,7 @@ class H5MDArchiveWriter(ArchiveWriter):
         remove_mapping_annotations(self.archive.data.m_def)
 
 
-class H5MDParser(MDParser):
+class H5MDParser(MatchingParser):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.archive_writer = H5MDArchiveWriter()
