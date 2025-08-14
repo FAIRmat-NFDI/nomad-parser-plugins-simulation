@@ -333,9 +333,9 @@ class CustomProperty(ArchiveSection):
 # value annotation defined in TotalEnergy.value since they refer to the same quantity
 # in this case, we make sure to return the corresponding value from
 # the get_contributions function in the TotalEnergy.contributions annotation
-properties.energies.BaseEnergy.name.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.name')
-)
+properties.energies.BaseEnergy.contribution_type.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.name')
 
 
 ## class TotalEnergy(properties.TotalEnergy):
@@ -367,9 +367,9 @@ properties.TotalEnergy.contributions.m_annotations.setdefault('mapping', {})['hd
 ## class BaseForce(properties.forces.BaseForce):
 
 
-properties.forces.BaseForce.name.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.name')
-)
+properties.forces.BaseForce.contribution_type.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.name')
 
 
 ## class TotalForce(properties.TotalForce):
