@@ -957,6 +957,17 @@ class LammpsArchiveWriter(ArchiveWriter):
         masses = self.data_parser.get('Masses', None)
         self.traj_parsers[0].masses = masses
 
+        # ? Why should _bond_list be set here?
+        # ? If anything failed with the universe, would it have errored out already, or happen here?
+        # Exract bond list from MDAnalysis universe
+        self._bond_list = np.array(
+            [
+                interaction['atom_indices']
+                for interaction in self._mdanalysistraj_parser.get_interactions()
+                if interaction['type'] == 'bond'
+            ]
+        )
+
     #     # @Landinesa: we should be able to set the atom masses with the TrajParser, but I don't quite understand how to use this.
     #     # Can you add the implementation here, and then we can make the MDA implementation below as a backup?
     #     # Can you also get the charges somehow?
@@ -1059,49 +1070,67 @@ class LammpsArchiveWriter(ArchiveWriter):
             return formula
 
         for step in self.trajectory_steps:
-            print(step)
+            print('step', step)
             sec_system = ModelSystem()
             sec_system.type = 'atom'
             sec_system.time_step = step
             sec_cell = AtomicCell()
             traj_n = self.trajectory_steps.index(step)
+            print('traj_n', traj_n)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
             if lattice_vectors is not None:
                 lattice_vectors = apply_unit(lattice_vectors, 'distance')
-                sec_cell.lattice_vectors = lattice_vectors
+                # sec_cell.lattice_vectors = lattice_vectors
             velocities = self.traj_parsers.eval('get_velocities', traj_n)
             if velocities is not None:
                 velocities = apply_unit(velocities, 'velocity')
-                sec_cell.velocities = velocities
-            bond_list = []
+                # sec_cell.velocities = velocities
             if traj_n == 0:  # TODO add references to the bond list for other steps
+                # TODO: update get_bond_list_from_model_contributions, maybe move to MDParserUtils?
                 # bond_list = get_bond_list_from_model_contributions(
                 #     sec_run, method_index=-1, model_index=-1
                 # )
-                bond_list = self.data_parser.get('Bonds', None)
-                if bond_list is not None:
-                    sec_system.bond_list = bond_list[0][1][:, 2:4].astype(int)
+                if self._bond_list is None:
+                    # Convert bond list returned by data parser from
+                    # List[Tuple[None, np.ndarray]] to np.ndarray[[int, int]]
+                    self._bond_list = self.data_parser.get('Bonds', None)[0][1][
+                        :, 2:4
+                    ].astype(int)
 
-            sec_cell.n_atoms = self.traj_parsers.eval('get_n_atoms', traj_n)
-            sec_cell.periodic_boundary_conditions = self.traj_parsers.eval(
-                'get_pbc', traj_n
-            )
-            sec_cell.positions = self.traj_parsers.eval('get_positions', traj_n)
-            sec_system.cell.append(sec_cell)
+            atoms_dict = {
+                'atomic_cell': {
+                    'n_atoms': self.traj_parsers.eval('get_n_atoms', traj_n),
+                    'lattice_vectors': lattice_vectors,
+                    'periodic': self.traj_parsers.eval('get_pbc', traj_n),
+                    'positions': apply_unit(
+                        self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                    ),
+                    'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
+                    'velocities': velocities,
+                    'bond_list': self._bond_list
+                    if self._bond_list is not None
+                    else None,
+                }
+            }
+            self._md_parser.parse_trajectory_step(atoms_dict, simulation)
+            # sec_cell.n_atoms = self.traj_parsers.eval('get_n_atoms', traj_n)
+            # sec_cell.periodic_boundary_conditions = self.traj_parsers.eval(
+            #     'get_pbc', traj_n
+            # )
+            # sec_cell.positions = self.traj_parsers.eval('get_positions', traj_n)
+            # sec_system.cell.append(sec_cell)
 
-        atom_labels = self.traj_parsers.eval('get_atom_labels', traj_n)
-        # print(atom_labels)
-        # if atom_labels is not None:
-        #     for label in atom_labels:
-        #         atoms_state = AtomsState(chemical_symbol=label)
-        #         sec_cell.atoms_state.append(atoms_state)
+            # atom_labels = self.traj_parsers.eval('get_atom_labels', traj_n)
+            # if atom_labels is not None:
+            #     for label in atom_labels:
+            #         atoms_state = AtomsState(chemical_symbol=label)
+            #         sec_system.particle_states.append(atoms_state)
         if not sec_system:
             return
 
         print('sec_system', sec_system)
-        sys.exit()
         # sec_system = sec_run.system[-1]
-
+        sys.exit()
         # parse atomsgroup (moltypes --> molecules --> residues)
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -1114,15 +1143,28 @@ class LammpsArchiveWriter(ArchiveWriter):
             atoms_moltypes = np.array(atoms_info.get('moltypes', []))
             atoms_molnums = np.array(atoms_info.get('molnums', []))
             atoms_resids = np.array(atoms_info.get('resids', []))
-            atoms_elements = np.array(atoms_info.get('elements', ['X'] * self.n_atoms))
+            atoms_elements = np.array(
+                atoms_info.get('elements', ['X'] * self.n_atoms[traj_n])
+            )
             atoms_types = np.array(atoms_info.get('types', []))
+            print(sec_system.particle_states.atoms_state)
+            sys.exit()
             atom_labels = sec_system.atoms.get('labels')
+            sys.exit()
             if 'X' in atoms_elements:
                 atoms_elements = (
                     np.array(atom_labels)
                     if atom_labels and 'X' not in atom_labels
                     else atoms_types
                 )
+
+            print(atoms_moltypes)
+            print(atoms_molnums)
+            print(atoms_resids)
+            print(atoms_elements)
+            print(atoms_types)
+            print(atom_labels)
+            sys.exit()
             atoms_resnames = np.array(atoms_info.get('resnames', []))
             moltypes = np.unique(atoms_moltypes)
             for i_moltype, moltype in enumerate(moltypes):
@@ -1239,7 +1281,7 @@ class LammpsArchiveWriter(ArchiveWriter):
             # we assign units here which is read from log parser
             self.aux_log_parser._units = self.log_parser.units
             self.aux_log_parser.logger = self.logger
-
+        self._md_parser = MDParser()
         self._traj_parser = TrajParser()
         self._traj_parser.logger = self.logger
         self._traj_parser._chemical_symbols = None
