@@ -24,6 +24,11 @@ from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
 
+from nomad import utils
+from nomad.client import normalize_all
+
+logger = utils.get_logger(__name__)
+
 
 def approx(value, abs=0, rel=1e-6):
     return pytest.approx(value, abs=abs, rel=rel)
@@ -132,15 +137,25 @@ def assert_outputs(archive: EntryArchive) -> None:
     assert sec_outputs[2].total_energies[0].value.to('kilojoule').magnitude == approx(
         6.0
     )
-    assert sec_outputs[2].total_energies[0].contributions[0].name == 'custom'
+    assert sec_outputs[2].total_energies[0].contributions[0].name == 'BaseEnergy'
+    assert (
+        sec_outputs[2].total_energies[0].contributions[0].contribution_type == 'custom'
+    )
     assert sec_outputs[2].total_energies[0].contributions[0].value.to(
         'kilojoule'
     ).magnitude == approx(3.0)
-    assert sec_outputs[2].total_energies[0].contributions[1].name == 'kinetic'
+    assert sec_outputs[2].total_energies[0].contributions[1].name == 'BaseEnergy'
+    assert (
+        sec_outputs[2].total_energies[0].contributions[1].contribution_type == 'kinetic'
+    )
     assert sec_outputs[2].total_energies[0].contributions[1].value.to(
         'kilojoule'
     ).magnitude == approx(2.0)
-    assert sec_outputs[2].total_energies[0].contributions[2].name == 'potential'
+    assert sec_outputs[2].total_energies[0].contributions[2].name == 'BaseEnergy'
+    assert (
+        sec_outputs[2].total_energies[0].contributions[2].contribution_type
+        == 'potential'
+    )
     assert sec_outputs[2].total_energies[0].contributions[2].value.to(
         'kilojoule'
     ).magnitude == approx(1.0)
@@ -153,7 +168,8 @@ def assert_outputs(archive: EntryArchive) -> None:
     assert sec_outputs[2].total_forces[0].value[11].to('newton').magnitude == approx(
         500.0
     )
-    assert sec_outputs[2].total_forces[0].contributions[0].name == 'custom'
+    assert sec_outputs[2].total_forces[0].contributions[0].name == 'BaseForce'
+    assert sec_outputs[2].total_forces[0].contributions[0].contribution_type == 'custom'
     assert sec_outputs[2].total_forces[0].contributions[0].value[21].to(
         'newton'
     ).magnitude == approx(4.0)
@@ -229,6 +245,7 @@ def assert_workflow(archive: EntryArchive) -> None:
 def test_md(parser):
     archive = EntryArchive()
     parser.parse('tests/data/h5md/test_traj_openmm_5frames_08-08-25.h5', archive, None)
+    normalize_all(archive, logger=logger)
 
     assert_h5md_header(archive)
     assert_systems(archive)
