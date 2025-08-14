@@ -38,8 +38,8 @@ from nomad_simulations.schema_packages.outputs import (
 from nomad_simulations.schema_packages.properties.energies import EnergyContribution
 from nomad_simulations.schema_packages.properties.forces import ForceContribution
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.atoms_state import AtomsState
-from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
+from nomad_simulations.schema_packages.particles import ParticlesState
+from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
 
 from nomad_simulations.schema_packages.outputs import TrajectoryOutputs
 
@@ -151,15 +151,14 @@ class MDParser(Parser):
         if model_system is None:
             model_system = ModelSystem()
         if atomic_cell is None:
-            atomic_cell = AtomicCell()
+            atomic_cell = Cell()
         atomic_cell_dict = data.pop('atomic_cell')
-        atom_labels = atomic_cell_dict.pop('labels')
-        for label in atom_labels:
-            atoms_state = AtomsState(
+        particles_labels = atomic_cell_dict.pop('labels')
+        for label in particles_labels:
+            particles_state = ParticlesState(
                 chemical_symbol=label
             )  # ? how can I customize AtomsState within the parser?
-            print(atomic_cell.atoms_state)
-            atomic_cell.atoms_state.append(atoms_state)
+            model_system.particle_states.append(particles_state)
         self.parse_section(atomic_cell_dict, atomic_cell)
         model_system.cell.append(atomic_cell)
         self.parse_section(data, model_system)
