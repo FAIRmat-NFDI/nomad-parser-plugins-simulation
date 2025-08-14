@@ -143,8 +143,8 @@ class MDParser(Parser):
         """
         Create a system section and write the provided data.
         """
-        if self.archive is None:
-            return
+        # if self.archive is None:
+        #     return
 
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
@@ -152,13 +152,13 @@ class MDParser(Parser):
             model_system = ModelSystem()
         if atomic_cell is None:
             atomic_cell = AtomicCell()
-
         atomic_cell_dict = data.pop('atomic_cell')
         atom_labels = atomic_cell_dict.pop('labels')
         for label in atom_labels:
             atoms_state = AtomsState(
                 chemical_symbol=label
             )  # ? how can I customize AtomsState within the parser?
+            print(atomic_cell.atoms_state)
             atomic_cell.atoms_state.append(atoms_state)
         self.parse_section(atomic_cell_dict, atomic_cell)
         model_system.cell.append(atomic_cell)
