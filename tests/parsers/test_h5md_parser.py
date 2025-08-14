@@ -20,12 +20,11 @@
 
 import numpy as np
 import pytest
+from nomad import utils
+from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
-
-from nomad import utils
-from nomad.client import normalize_all
 
 logger = utils.get_logger(__name__)
 
