@@ -119,30 +119,17 @@ general.Program.version.m_annotations.setdefault('mapping', {})['hdf5'] = (
 
 # SIMULATION.MODEL_SYSTEM --> archive.data.model_system
 
-# TODO Extend to CGBeadState
-## class ParticleState(atoms_state.ParticleState):
+# ! Only use generic ParticleState
+# ! ModelSystem normalizer takes care of assigning to AtomState or CGBeadState
+### class ParticleState(atoms_state.ParticleState):
 
-
-# ParticleState.label.m_annotations.setdefault('mapping', {})['hdf5']
-# = MapperAnnotation(
-#     mapper='.label'
-# )
-
-
-### class AtomsState(atoms_state.AtomsState):
-
-atoms_state.AtomsState.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
+atoms_state.ParticleState.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
     MapperAnnotation(
         mapper=('to_species_labels', ['.@'], dict(path='particles.all.species_label'))
     )
 )
 
-
-atoms_state.AtomsState.chemical_symbol.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='.chemical_symbol')
-
-atoms_state.AtomsState.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
+atoms_state.ParticleState.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
     MapperAnnotation(mapper='.label')
 )
 
