@@ -1,5 +1,8 @@
 import numpy as np
 from nomad.datamodel import EntryArchive
+import pytest
+from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.files import StagingUploadFiles
 from nomad.utils import get_logger
 from pytest import approx
 
@@ -7,6 +10,9 @@ from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
 
+@pytest.fixture
+def test_upload_files():
+    return StagingUploadFiles(upload_id='test_upload', create=True)
 
 def _parse(mainfile: str) -> EntryArchive:
     parser = VASPParser()
@@ -81,3 +87,11 @@ def test_xml_geometry_optimization_convergence_and_scf_steps():
         assert len(scf_steps.energies_total) == n_scf
         assert len(scf_steps.delta_energies_total) == n_scf - 1
         assert len(scf_steps.durations) == n_scf
+
+
+def test_chgcar(parser, test_context, test_upload):
+    archive = EntryArchive(
+        m_context=test_context,
+        metadata=EntryMetadata(upload_id=test_upload.upload_id, entry_id='test_entry')
+    )
+    parser.parse('tests/data/vasp/with_chgcar/OUTCAR', archive, LOGGER)
