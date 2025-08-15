@@ -1071,20 +1071,14 @@ class LammpsArchiveWriter(ArchiveWriter):
 
         for step in self.trajectory_steps:
             print('step', step)
-            sec_system = ModelSystem()
-            sec_system.type = 'atom'
-            sec_system.time_step = step
-            sec_cell = AtomicCell()
             traj_n = self.trajectory_steps.index(step)
             print('traj_n', traj_n)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
             if lattice_vectors is not None:
                 lattice_vectors = apply_unit(lattice_vectors, 'distance')
-                # sec_cell.lattice_vectors = lattice_vectors
             velocities = self.traj_parsers.eval('get_velocities', traj_n)
             if velocities is not None:
                 velocities = apply_unit(velocities, 'velocity')
-                # sec_cell.velocities = velocities
             if traj_n == 0:  # TODO add references to the bond list for other steps
                 # TODO: update get_bond_list_from_model_contributions, maybe move to MDParserUtils?
                 # bond_list = get_bond_list_from_model_contributions(
@@ -1097,40 +1091,25 @@ class LammpsArchiveWriter(ArchiveWriter):
                         :, 2:4
                     ].astype(int)
 
-            atoms_dict = {
-                'atomic_cell': {
-                    'n_atoms': self.traj_parsers.eval('get_n_atoms', traj_n),
+            # Set the structure of the data dictionary according to ModelSystem
+            particles_dict = {
+                'cell': {
                     'lattice_vectors': lattice_vectors,
-                    'periodic': self.traj_parsers.eval('get_pbc', traj_n),
-                    'positions': apply_unit(
-                        self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                    'periodic_boundary_conditions': self.traj_parsers.eval(
+                        'get_pbc', traj_n
                     ),
-                    'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
-                    'velocities': velocities,
-                    'bond_list': self._bond_list
-                    if self._bond_list is not None
-                    else None,
-                }
+                },
+                'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
+                'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
+                'positions': apply_unit(
+                    self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                ),
+                'velocities': velocities,
+                'bond_list': self._bond_list if self._bond_list is not None else None,
             }
-            self._md_parser.parse_trajectory_step(atoms_dict, simulation)
-            # sec_cell.n_atoms = self.traj_parsers.eval('get_n_atoms', traj_n)
-            # sec_cell.periodic_boundary_conditions = self.traj_parsers.eval(
-            #     'get_pbc', traj_n
-            # )
-            # sec_cell.positions = self.traj_parsers.eval('get_positions', traj_n)
-            # sec_system.cell.append(sec_cell)
-
-            # atom_labels = self.traj_parsers.eval('get_atom_labels', traj_n)
-            # if atom_labels is not None:
-            #     for label in atom_labels:
-            #         atoms_state = AtomsState(chemical_symbol=label)
-            #         sec_system.particle_states.append(atoms_state)
-        if not sec_system:
-            return
-
-        print('sec_system', sec_system)
+            self._md_parser.parse_trajectory_step(particles_dict, simulation)
         # sec_system = sec_run.system[-1]
-        sys.exit()
+
         # parse atomsgroup (moltypes --> molecules --> residues)
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -1147,9 +1126,9 @@ class LammpsArchiveWriter(ArchiveWriter):
                 atoms_info.get('elements', ['X'] * self.n_atoms[traj_n])
             )
             atoms_types = np.array(atoms_info.get('types', []))
-            print(sec_system.particle_states.atoms_state)
-            sys.exit()
-            atom_labels = sec_system.atoms.get('labels')
+            print(simulation.model_system.cell.particle_states)
+            atom_labels = simulation.model_system.particle_states.labels
+            print(atom_labels)
             sys.exit()
             if 'X' in atoms_elements:
                 atoms_elements = (

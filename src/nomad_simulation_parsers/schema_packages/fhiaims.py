@@ -187,10 +187,10 @@ class TotalEnergy(properties.energies.TotalEnergy):
     ).update(dict(text=Mapper(mapper='.components')))
 
 
-class EnergyContribution(properties.energies.EnergyContribution):
-    properties.energies.EnergyContribution.name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.name')))
+# class EnergyContribution(properties.energies.EnergyContribution):
+#     properties.energies.EnergyContribution.name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper='.name')))
 
 
 class TotalForce(properties.forces.TotalForce):

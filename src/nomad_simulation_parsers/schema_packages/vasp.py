@@ -308,15 +308,15 @@ class TotalEnergy(properties.energies.TotalEnergy):
     )
 
 
-class EnergyContribution(properties.energies.EnergyContribution):
-    properties.energies.EnergyContribution.name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='."@name"'),
-            outcar=MapperAnnotation(mapper='.name'),
-        )
-    )
+# class EnergyContribution(properties.energies.EnergyContribution):
+#     properties.energies.EnergyContribution.name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             xml=MapperAnnotation(mapper='."@name"'),
+#             outcar=MapperAnnotation(mapper='.name'),
+#         )
+#     )
 
 
 class TotalForce(properties.forces.TotalForce):

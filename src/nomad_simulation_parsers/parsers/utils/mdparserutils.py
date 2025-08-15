@@ -35,10 +35,15 @@ from nomad_simulations.schema_packages.outputs import (
     TotalEnergy,
     TotalForce,
 )
-from nomad_simulations.schema_packages.properties.energies import EnergyContribution
-from nomad_simulations.schema_packages.properties.forces import ForceContribution
+
+# from nomad_simulations.schema_packages.properties.energies import (
+#     TotalEnergy,
+#     PotentialEnergy,
+#     KineticEnergy,
+# )
+# from nomad_simulations.schema_packages.properties.forces import ForceContribution
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.particles import ParticlesState
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
 
 from nomad_simulations.schema_packages.outputs import TrajectoryOutputs
@@ -135,14 +140,15 @@ class MDParser(Parser):
 
     def parse_trajectory_step(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
-        atomic_cell: AtomicCell = None,
+        cell: Cell = None,
     ) -> None:
         """
         Create a system section and write the provided data.
         """
+        # ? How to handle a missing archive now?
         # if self.archive is None:
         #     return
 
@@ -150,17 +156,15 @@ class MDParser(Parser):
             return
         if model_system is None:
             model_system = ModelSystem()
-        if atomic_cell is None:
-            atomic_cell = Cell()
-        atomic_cell_dict = data.pop('atomic_cell')
-        particles_labels = atomic_cell_dict.pop('labels')
-        for label in particles_labels:
-            particles_state = ParticlesState(
-                chemical_symbol=label
-            )  # ? how can I customize AtomsState within the parser?
-            model_system.particle_states.append(particles_state)
-        self.parse_section(atomic_cell_dict, atomic_cell)
-        model_system.cell.append(atomic_cell)
+        if cell is None:
+            cell = Cell()
+        cell_dict = data.pop('cell')
+        particle_labels = data.pop('labels')
+        for label in particle_labels:
+            particle_state = ParticleState(chemical_symbol=label)
+            model_system.particle_states.append(particle_state)
+        self.parse_section(cell_dict, cell)
+        model_system.cell.append(cell)
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 
@@ -194,19 +198,19 @@ class MDParser(Parser):
             if len(output.total_energies) == 0:
                 output.total_energies.append(TotalEnergy())
 
-        for energy_dict in energy_contributions:
-            energy = EnergyContribution()  # self.energy_classes[energy_label]()
-            output.total_energies[-1].contributions.append(energy)
-            self.parse_section(energy_dict, energy)
+        # for energy_dict in energy_contributions:
+        #     energy = EnergyContribution()  # self.energy_classes[energy_label]()
+        #     output.total_energies[-1].contributions.append(energy)
+        #     self.parse_section(energy_dict, energy)
 
         if force_contributions:
             if len(output.total_forces) == 0:
                 output.total_forces.append(TotalForce())
 
-        for force_dict in force_contributions:
-            force = ForceContribution()  #  self.force_classes[force_label]()
-            output.total_forces[-1].contributions.append(force)
-            self.parse_section(force_dict, force)
+        # for force_dict in force_contributions:
+        #     force = ForceContribution()  #  self.force_classes[force_label]()
+        #     output.total_forces[-1].contributions.append(force)
+        #     self.parse_section(force_dict, force)
 
         simulation.outputs.append(output)
 
