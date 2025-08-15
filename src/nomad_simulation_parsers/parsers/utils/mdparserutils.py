@@ -161,7 +161,9 @@ class MDParser(Parser):
         cell_dict = data.pop('cell')
         particle_labels = data.pop('labels')
         for label in particle_labels:
-            particle_state = ParticleState(chemical_symbol=label)
+            # ! ParticleState(chemical_symbol=label) silently fails,
+            # ! ParticleState does not define `chemical_symbol`!
+            particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
         self.parse_section(cell_dict, cell)
         model_system.cell.append(cell)
