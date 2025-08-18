@@ -973,14 +973,14 @@ class LammpsArchiveWriter(ArchiveWriter):
         # Can you also get the charges somehow?
 
         # parse method with MDAnalysis (should be a backup for the charges and masses...but the interactions are most easily read from the MDA universe right now)
-        n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
-        if n_atoms is not None:
-            atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
-            for n in range(n_atoms):
-                sec_atom = AtomParameters()
-                sec_method.atom_parameters.append(sec_atom)
-                sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
-                sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
+        # n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
+        # if n_atoms is not None:
+        #     atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
+        #     for n in range(n_atoms):
+        #         sec_atom = AtomParameters()
+        #         sec_method.atom_parameters.append(sec_atom)
+        #         sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
+        #         sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
 
     #     # TODO address case types are numbered instead of giving atom labels (fix tests accordingly)
     #     interactions = self._mdanalysistraj_parser.get_interactions()
