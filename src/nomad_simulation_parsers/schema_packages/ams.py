@@ -139,7 +139,7 @@ class Simulation(general.Simulation):
     )
 
 
-Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(out=Mapper(mapper='@'))
 )
 

@@ -5,6 +5,7 @@ from nomad_simulation_parsers.parsers.crystal.parser import CrystalParser
 
 LOGGER = get_logger(__name__)
 
+
 def test_parse_file():
     parser = CrystalParser()
     archive = EntryArchive()
