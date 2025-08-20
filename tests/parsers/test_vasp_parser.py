@@ -5,6 +5,7 @@ from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
 
+
 def test_vasprun():
     parser = VASPParser()
     archive = EntryArchive()

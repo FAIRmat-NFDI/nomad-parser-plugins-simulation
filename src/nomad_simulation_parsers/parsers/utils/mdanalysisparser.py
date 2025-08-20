@@ -26,15 +26,16 @@ try:
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
-from typing import Any, Dict
 from nptyping import NDArray
-from collections import namedtuple
+
 from array import array
+from collections import namedtuple
+from typing import Any, NamedTuple, Optional
+
+from nomad.parsing.file_parser import FileParser
+from nomad.units import ureg
 from scipy import sparse
 from scipy.stats import linregress
-
-from nomad.units import ureg
-from nomad.parsing.file_parser import FileParser
 from simulationworkflowschema.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
@@ -94,16 +95,15 @@ class MDAnalysisParser(FileParser):
                 )
                 selection = f'index {selection}'
                 ags_by_moltype = self.universe.select_atoms(selection)
-            ags_by_moltype = ags_by_moltype[
-                ags_by_moltype.masses > abs(1e-2)
-            ]  # remove any virtual/massless sites (needed for, e.g., 4-bead water models)
+            ags_by_moltype = ags_by_moltype[ags_by_moltype.masses > abs(1e-2)]
+            # remove any virtual/massless sites (needed for, e.g., 4-bead water models)
             bead_groups[moltype] = BeadGroup(ags_by_moltype, compound=compound)
 
         return bead_groups
 
     def parse(self, quantity_key: str = None, **kwargs):
         if self._results is None:
-            self._results: Dict[str, Any] = dict()
+            self._results: dict[str, Any] = dict()
 
         if not self.universe:
             return
@@ -128,51 +128,35 @@ class MDAnalysisParser(FileParser):
             try:
                 value = [getattr(atom, key) for atom in atoms]
             except Exception:
-                continue
+                value = None
             value = value * unit_map.get(key, 1) if value is not None else value
             self._results['atoms_info'][name_map.get(key, f'{key}s')] = value
 
-        # if atom name is not identified, set it to 'X'
-        if self._results['atoms_info'].get('names') is None:
-            self._results['atoms_info']['names'] = ['X'] * self.universe.atoms.n_atoms
+        # Fallbacks/substitutions for missing atom info
+        substitutions = [
+            ('names', lambda: ['X'] * self.universe.atoms.n_atoms),
+            (
+                'moltypes',
+                lambda: self.get_fragtypes()
+                if hasattr(self.universe.atoms, 'fragments')
+                else None,
+            ),
+            ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
+            ('resnames', lambda: self._results['atoms_info'].get('resids')),
+            ('names', lambda: self._results['atoms_info'].get('types')),
+            ('elements', lambda: self._results['atoms_info'].get('names')),
+        ]
+        for key, func in substitutions:
+            if self._results['atoms_info'].get(key) is None:
+                try:
+                    val = func()
+                    if val is not None:
+                        self._results['atoms_info'][key] = val
+                except Exception:
+                    continue
+
         self._results['n_atoms'] = self.universe.atoms.n_atoms
         self._results['n_frames'] = len(self.universe.trajectory)
-
-        # make substitutions based on available atom info
-        if self._results['atoms_info'].get('moltypes') is None:
-            if hasattr(self.universe.atoms, 'fragments'):
-                self._results['atoms_info']['moltypes'] = self.get_fragtypes()
-
-        if self._results['atoms_info'].get('molnums') is None:
-            try:
-                value = getattr(self.universe.atoms, 'fragindices')
-                self._results['atoms_info']['molnums'] = value
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('resnames') is None:
-            try:
-                self._results['atoms_info']['resnames'] = self._results['atoms_info'][
-                    'resids'
-                ]
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('names') is None:
-            try:
-                self._results['atoms_info']['names'] = self._results['atoms_info'][
-                    'types'
-                ]
-            except Exception:
-                pass
-
-        if self._results['atoms_info'].get('elements') is None:
-            try:
-                self._results['atoms_info']['elements'] = self._results['atoms_info'][
-                    'names'
-                ]
-            except Exception:
-                pass
 
     def get_fragtypes(self):
         # TODO put description otherwise, make private or put under parse method
@@ -204,61 +188,23 @@ class MDAnalysisParser(FileParser):
                 ctr_fragtype += 1
         return atoms_fragtypes
 
-    def calc_molecular_rdf(
-        self,
-        n_traj_split=10,
-        n_prune=1,
-        interval_indices=None,
-        n_bins=200,
-        n_smooth=2,
-        max_mols=5000,
-    ):
+    class RDFParams(NamedTuple):
+        n_traj_split: int = 10
+        n_prune: int = 1
+        interval_indices: list[list[int]] | None = None
+        n_bins: int = 200
+        n_smooth: int = 2
+        max_mols: int = 5000
+
+    def calc_molecular_rdf(self, params: Optional['RDFParams'] = None):
         """
         Calculates the radial distribution functions between for each unique pair of
         molecule types as a function of their center of mass distance.
 
-        interval_indices: 2D array specifying the groups of the n_traj_split intervals to be averaged
-        max_mols: the maximum number of molecules per bead group for calculating the rdf, for efficiency purposes.
-        5k was set after > 50k was giving problems. Should do further testing to see where the appropriate limit should be set.
+        Args:
+            params (RDFParams, optional): Parameters for RDF calculation.
         """
-
-        def get_rdf_avg(rdf_results_tmp, rdf_results, interval_indices, n_frames_split):
-            split_weights = n_frames_split[np.array(interval_indices)] / np.sum(
-                n_frames_split[np.array(interval_indices)]
-            )
-            assert abs(np.sum(split_weights) - 1.0) < 1e-6
-            rdf_values_avg = (
-                split_weights[0] * rdf_results_tmp['value'][interval_indices[0]]
-            )
-            for i_interval, interval in enumerate(interval_indices[1:]):
-                assert (
-                    rdf_results_tmp['types'][interval]
-                    == rdf_results_tmp['types'][interval - 1]
-                )
-                assert (
-                    rdf_results_tmp['variables_name'][interval]
-                    == rdf_results_tmp['variables_name'][interval - 1]
-                )
-                assert (
-                    rdf_results_tmp['bins'][interval]
-                    == rdf_results_tmp['bins'][interval - 1]
-                ).all()
-                rdf_values_avg += (
-                    split_weights[i_interval + 1] * rdf_results_tmp['value'][interval]
-                )
-            rdf_results['types'].append(rdf_results_tmp['types'][interval_indices[0]])
-            rdf_results['variables_name'].append(
-                rdf_results_tmp['variables_name'][interval_indices[0]]
-            )
-            rdf_results['bins'].append(rdf_results_tmp['bins'][interval_indices[0]])
-            rdf_results['value'].append(rdf_values_avg)
-            rdf_results['frame_start'].append(
-                int(rdf_results_tmp['frame_start'][interval_indices[0]])
-            )
-            rdf_results['frame_end'].append(
-                int(rdf_results_tmp['frame_end'][interval_indices[-1]])
-            )
-
+        params = params or self.RDFParams()
         if self.universe is None:
             return
         trajectory = self.universe.trajectory[0] if self.universe.trajectory else None
@@ -267,6 +213,49 @@ class MDAnalysisParser(FileParser):
             return
 
         n_frames = self.universe.trajectory.n_frames
+        frames_start, frames_end, n_frames_split, interval_indices = (
+            self._get_rdf_intervals(
+                n_frames, params.n_traj_split, params.interval_indices
+            )
+        )
+
+        bead_groups = self.bead_groups
+        if not bead_groups:
+            return bead_groups
+        moltypes = [moltype for moltype in bead_groups.keys()]
+        moltypes = self._prune_large_rdf_bead_groups(
+            moltypes, bead_groups, params.max_mols
+        )
+
+        min_box_dimension = np.min(self.universe.trajectory[0].dimensions[:3])
+        max_rdf_dist = min_box_dimension / 2
+
+        rdf_results = self._initialize_rdf_results(params.n_smooth)
+        for i, moltype_i in enumerate(moltypes):
+            for j, moltype_j in enumerate(moltypes):
+                if not self._should_calculate_rdf(i, j, bead_groups, moltype_i):
+                    continue
+                exclusion_block = (1, 1) if i == j else None
+                pair_type = f'{moltype_i}-{moltype_j}'
+                rdf_pair_params = self.RDFPairParams(
+                    bead_groups=bead_groups,
+                    moltype_i=moltype_i,
+                    moltype_j=moltype_j,
+                    pair_type=pair_type,
+                    params=params,
+                    frames_start=frames_start,
+                    frames_end=frames_end,
+                    max_rdf_dist=max_rdf_dist,
+                    exclusion_block=exclusion_block,
+                )
+                rdf_results_tmp = self._calculate_rdf_for_pair(rdf_pair_params)
+                for interval_group in interval_indices:
+                    self._get_rdf_avg(
+                        rdf_results_tmp, rdf_results, interval_group, n_frames_split
+                    )
+        return rdf_results
+
+    def _get_rdf_intervals(self, n_frames, n_traj_split, interval_indices):
         if n_frames < n_traj_split:
             n_traj_split = 1
             frames_start = np.array([0])
@@ -279,86 +268,136 @@ class MDAnalysisParser(FileParser):
             frames_end = frames_start + run_len
             frames_end[-1] = n_frames
             n_frames_split = frames_end - frames_start
-            assert np.sum(n_frames_split) == n_frames
             if not interval_indices:
                 interval_indices = [[i] for i in range(n_traj_split)]
+        return frames_start, frames_end, n_frames_split, interval_indices
 
-        bead_groups = self.bead_groups
-        if bead_groups is {}:
-            return bead_groups
-        moltypes = [moltype for moltype in bead_groups.keys()]
+    def _prune_large_rdf_bead_groups(self, moltypes, bead_groups, max_mols):
         del_list = []
         for i_moltype, moltype in enumerate(moltypes):
             if bead_groups[moltype]._nbeads > max_mols:
                 del_list.append(i_moltype)
                 self.logger.warning(
-                    'The number of molecules of exceeds the maximum of for calculating the rdf. Skipping this molecule type.'
+                    'The number of molecules exceeds the maximum for calculating '
+                    'the rdf. Skipping this molecule type.'
                 )
-        moltypes = np.delete(moltypes, del_list)
+        return np.delete(moltypes, del_list)
 
-        min_box_dimension = np.min(self.universe.trajectory[0].dimensions[:3])
-        max_rdf_dist = min_box_dimension / 2
+    def _initialize_rdf_results(self, n_smooth):
+        return {
+            'n_smooth': n_smooth,
+            'types': [],
+            'variables_name': [],
+            'bins': [],
+            'value': [],
+            'frame_start': [],
+            'frame_end': [],
+        }
 
-        rdf_results = {}
-        rdf_results['n_smooth'] = n_smooth
-        rdf_results['types'] = []
-        rdf_results['variables_name'] = []
-        rdf_results['bins'] = []
-        rdf_results['value'] = []
-        rdf_results['frame_start'] = []
-        rdf_results['frame_end'] = []
-        for i, moltype_i in enumerate(moltypes):
-            for j, moltype_j in enumerate(moltypes):
-                if j > i:
-                    continue
-                elif (
-                    i == j and bead_groups[moltype_i].positions.shape[0] == 1
-                ):  # skip if only 1 mol in group
-                    continue
+    def _should_calculate_rdf(self, i, j, bead_groups, moltype_i):
+        if j > i:
+            return False
+        if i == j and bead_groups[moltype_i].positions.shape[0] == 1:
+            return False
+        return True
 
-                if i == j:
-                    exclusion_block = (1, 1)  # remove self-distance
-                else:
-                    exclusion_block = None
-                pair_type = moltype_i + '-' + moltype_j
-                rdf_results_tmp = {}
-                rdf_results_tmp['types'] = []
-                rdf_results_tmp['variables_name'] = []
-                rdf_results_tmp['bins'] = []
-                rdf_results_tmp['value'] = []
-                rdf_results_tmp['frame_start'] = []
-                rdf_results_tmp['frame_end'] = []
-                for i_interval in range(n_traj_split):
-                    rdf_results_tmp['types'].append(pair_type)
-                    rdf_results_tmp['variables_name'].append(['distance'])
-                    rdf = MDA_RDF.InterRDF(
-                        bead_groups[moltype_i],
-                        bead_groups[moltype_j],
-                        range=(0, max_rdf_dist),
-                        exclusion_block=exclusion_block,
-                        nbins=n_bins,
-                    ).run(frames_start[i_interval], frames_end[i_interval], n_prune)
-                    rdf_results_tmp['frame_start'].append(frames_start[i_interval])
-                    rdf_results_tmp['frame_end'].append(frames_end[i_interval])
+    class RDFPairParams(NamedTuple):
+        bead_groups: dict
+        moltype_i: Any
+        moltype_j: Any
+        pair_type: str
+        params: Any
+        frames_start: np.ndarray
+        frames_end: np.ndarray
+        max_rdf_dist: float
+        exclusion_block: Any
 
-                    rdf_results_tmp['bins'].append(
-                        rdf.results.bins[int(n_smooth / 2) : -int(n_smooth / 2)]
-                        * ureg.angstrom
-                    )
-                    rdf_results_tmp['value'].append(
-                        np.convolve(
-                            rdf.results.rdf,
-                            np.ones((n_smooth,)) / n_smooth,
-                            mode='same',
-                        )[int(n_smooth / 2) : -int(n_smooth / 2)]
-                    )
+    def _calculate_rdf_for_pair(
+        self, rdf_pair_params: 'MDAnalysisParser.RDFPairParams'
+    ):
+        bead_groups = rdf_pair_params.bead_groups
+        moltype_i = rdf_pair_params.moltype_i
+        moltype_j = rdf_pair_params.moltype_j
+        pair_type = rdf_pair_params.pair_type
+        params = rdf_pair_params.params
+        frames_start = rdf_pair_params.frames_start
+        frames_end = rdf_pair_params.frames_end
+        max_rdf_dist = rdf_pair_params.max_rdf_dist
+        exclusion_block = rdf_pair_params.exclusion_block
 
-                for interval_group in interval_indices:
-                    get_rdf_avg(
-                        rdf_results_tmp, rdf_results, interval_group, n_frames_split
-                    )
+        rdf_results_tmp = {
+            'types': [],
+            'variables_name': [],
+            'bins': [],
+            'value': [],
+            'frame_start': [],
+            'frame_end': [],
+        }
+        for i_interval in range(params.n_traj_split):
+            rdf_results_tmp['types'].append(pair_type)
+            rdf_results_tmp['variables_name'].append(['distance'])
+            rdf = MDA_RDF.InterRDF(
+                bead_groups[moltype_i],
+                bead_groups[moltype_j],
+                range=(0, max_rdf_dist),
+                exclusion_block=exclusion_block,
+                nbins=params.n_bins,
+            ).run(frames_start[i_interval], frames_end[i_interval], params.n_prune)
+            rdf_results_tmp['frame_start'].append(frames_start[i_interval])
+            rdf_results_tmp['frame_end'].append(frames_end[i_interval])
+            n_smooth = params.n_smooth
+            rdf_results_tmp['bins'].append(
+                rdf.results.bins[int(n_smooth / 2) : -int(n_smooth / 2)] * ureg.angstrom
+            )
+            rdf_results_tmp['value'].append(
+                np.convolve(
+                    rdf.results.rdf,
+                    np.ones((n_smooth,)) / n_smooth,
+                    mode='same',
+                )[int(n_smooth / 2) : -int(n_smooth / 2)]
+            )
+        return rdf_results_tmp
+        return rdf_results_tmp
 
-        return rdf_results
+    def _get_rdf_avg(
+        self, rdf_results_tmp, rdf_results, interval_indices, n_frames_split
+    ):
+        RDF_SPLIT_WEIGHT_TOL = 1e-6
+        split_weights = n_frames_split[np.array(interval_indices)] / np.sum(
+            n_frames_split[np.array(interval_indices)]
+        )
+        assert abs(np.sum(split_weights) - 1.0) < RDF_SPLIT_WEIGHT_TOL
+        rdf_values_avg = (
+            split_weights[0] * rdf_results_tmp['value'][interval_indices[0]]
+        )
+        for i_interval, interval in enumerate(interval_indices[1:]):
+            assert (
+                rdf_results_tmp['types'][interval]
+                == rdf_results_tmp['types'][interval - 1]
+            )
+            assert (
+                rdf_results_tmp['variables_name'][interval]
+                == rdf_results_tmp['variables_name'][interval - 1]
+            )
+            assert (
+                rdf_results_tmp['bins'][interval]
+                == rdf_results_tmp['bins'][interval - 1]
+            ).all()
+            rdf_values_avg += (
+                split_weights[i_interval + 1] * rdf_results_tmp['value'][interval]
+            )
+        rdf_results['types'].append(rdf_results_tmp['types'][interval_indices[0]])
+        rdf_results['variables_name'].append(
+            rdf_results_tmp['variables_name'][interval_indices[0]]
+        )
+        rdf_results['bins'].append(rdf_results_tmp['bins'][interval_indices[0]])
+        rdf_results['value'].append(rdf_values_avg)
+        rdf_results['frame_start'].append(
+            int(rdf_results_tmp['frame_start'][interval_indices[0]])
+        )
+        rdf_results['frame_end'].append(
+            int(rdf_results_tmp['frame_end'][interval_indices[-1]])
+        )
 
     @property
     def with_trajectory(self):
@@ -397,7 +436,8 @@ class MDAnalysisParser(FileParser):
 
     def get_time(self, frame_index):
         """
-        Returns the elapsed simulated physical time since the start of the simulation for index frame_index.
+        Returns the elapsed simulated physical time since the start of the simulation
+        for index frame_index.
         """
         frame = self.get_frame(frame_index)
         return frame.time * ureg.picosecond if frame is not None else None
@@ -476,8 +516,11 @@ class MDAnalysisParser(FileParser):
                 interactions.append(
                     dict(
                         atom_labels=atom_labels,
-                        # parameters=float(inter.value()),  ## This is not the parameter but rather the value of the interaction order parameter for a single frame
-                        # TODO implement functions to get parameters for individual parsers
+                        # parameters=float(inter.value()),
+                        ## This is not the parameter but rather the value of the
+                        ## interaction order parameter for a single frame
+                        # TODO implement functions to get parameters for
+                        # TODO individual parsers
                         atom_indices=inter.indices,
                         type=inter.btype,
                     )
@@ -487,7 +530,9 @@ class MDAnalysisParser(FileParser):
 
         return interactions
 
-    def __calc_diffusion_constant(self, times: NDArray, values: NDArray, dim: int = 3):
+    def __calc_diffusion_constant(
+        self, times: np.ndarray, values: np.ndarray, dim: int = 3
+    ):
         """
         Determines the diffusion constant from a fit of the mean squared displacement
         vs. time according to the Einstein relation.
@@ -497,22 +542,17 @@ class MDAnalysisParser(FileParser):
         error = linear_model.rvalue
         return slope * 1 / (2 * dim), error
 
+    MIN_FRAMES_FOR_MSD = 50
+
     def calc_molecular_mean_squared_displacements(self, max_mols=5000):
         """
         Calculates the mean squared displacement for the center of mass of each
         molecule type.
 
-        max_mols: the maximum number of molecules per bead group for calculating the msd, for efficiency purposes.
-        1M is arbitrary, 50k was tested and is very fast and does not seem to have any memory issues.
+        max_mols: the maximum number of molecules per bead group for calculating
+          the msd, for efficiency purposes. 1M is arbitrary, 50k was tested and is
+          very fast and does not seem to have any memory issues.
         """
-
-        def mean_squared_displacement(start: np.ndarray, current: np.ndarray):
-            """
-            Calculates mean square displacement between current and initial (start) coordinates.
-            """
-            vec = start - current
-            return (vec**2).sum(axis=1).mean()
-
         if self.universe is None:
             return
         trajectory = self.universe.trajectory[0] if self.universe.trajectory else None
@@ -521,9 +561,9 @@ class MDAnalysisParser(FileParser):
             return
 
         n_frames = self.universe.trajectory.n_frames
-        if n_frames < 50:
+        if n_frames < self.MIN_FRAMES_FOR_MSD:
             self.logger.warning(
-                'At least 50 frames required to calculate molecular'  # noqa: PLE1205
+                'Not enough frames to calculate molecular'
                 ' mean squared displacements, skipping.',
             )
             return
@@ -534,15 +574,22 @@ class MDAnalysisParser(FileParser):
         times = np.arange(n_frames) * dt
 
         bead_groups = self.bead_groups
-        if bead_groups is {}:
+        if bead_groups == {}:
             return bead_groups
 
         moltypes = [moltype for moltype in bead_groups.keys()]
+        moltypes, bead_groups = self._prune_large_bead_groups(
+            moltypes, bead_groups, max_mols
+        )
+
+        msd_results = self._calculate_msd_for_moltypes(moltypes, bead_groups, times)
+        return msd_results
+
+    def _prune_large_bead_groups(self, moltypes, bead_groups, max_mols):
         del_list = []
         for i_moltype, moltype in enumerate(moltypes):
             if bead_groups[moltype]._nbeads > max_mols:
                 try:
-                    # select max_mols nr. of rnd molecules from this moltype
                     moltype_indices = np.array(
                         [atom._ix for atom in bead_groups[moltype]._atoms]
                     )
@@ -566,16 +613,28 @@ class MDAnalysisParser(FileParser):
                         ags_moltype_rnd, compound='fragments'
                     )
                     self.logger.warning(
-                        'Maximum number of molecules for calculating the msd has been reached.'
-                        ' Will make a random selection for calculation.'
+                        'Maximum number of molecules for calculating the msd has been '
+                        'reached. Will make a random selection for calculation.'
                     )
                 except Exception:
                     self.logger.warning(
-                        'Tried to select random molecules for large group when calculating msd, but something went wrong. Skipping this molecule type.'
+                        'Tried to select random molecules for large group when '
+                        'calculating msd, but something went wrong. '
+                        'Skipping this molecule type.'
                     )
                 del_list.append(i_moltype)
         moltypes = np.delete(moltypes, del_list)
+        return moltypes, bead_groups
 
+    def _mean_squared_displacement(self, start: np.ndarray, current: np.ndarray):
+        """
+        Calculates mean square displacement between current and initial (start)
+        coordinates.
+        """
+        vec = start - current
+        return (vec**2).sum(axis=1).mean()
+
+    def _calculate_msd_for_moltypes(self, moltypes, bead_groups, times):
         msd_results = {}
         msd_results['value'] = []
         msd_results['times'] = []
@@ -584,7 +643,7 @@ class MDAnalysisParser(FileParser):
         for moltype in moltypes:
             positions = self.get_nojump_positions(bead_groups[moltype])
             results = shifted_correlation_average(
-                mean_squared_displacement, times, positions
+                self._mean_squared_displacement, times, positions
             )
             msd_results['value'].append(results[1])
             msd_results['times'].append(results[0])
@@ -603,7 +662,6 @@ class MDAnalysisParser(FileParser):
         msd_results['error_diffusion_constant'] = np.array(
             msd_results['error_diffusion_constant']
         )
-
         return msd_results
 
     def parse_jumps(self, selection):

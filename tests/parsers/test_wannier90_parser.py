@@ -5,6 +5,7 @@ from nomad_simulation_parsers.parsers.wannier90.parser import Wannier90Parser
 
 LOGGER = get_logger(__name__)
 
+
 def test_parse_file():
     parser = Wannier90Parser()
     archive = EntryArchive()
