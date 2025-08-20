@@ -968,7 +968,7 @@ class LogParser(TextParser):
         return styles_coeffs
 
 
-class LammpsArchiveWriter(ArchiveWriter):
+class LammpsArchiveWriter(MDParser):
     """
     TODO: Docstring
     """
