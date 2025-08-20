@@ -223,7 +223,6 @@ class TrajParser(TextParser):
             # https://docs.lammps.org/boundary.html
             # https://docs.lammps.org/Howto_triclinic.html
             val = val.split()
-            print('PBC info:', val)
             cell = np.zeros((3, 3))
             if 'xy' == val[0]:
                 pbc = [v == 'pp' for v in val[3:6]]
@@ -1146,7 +1145,7 @@ class LammpsArchiveWriter(MDParser):
         # sec_system = sec_run.system[-1]
 
         # parse atomsgroup (moltypes --> molecules --> residues)
-        # ! Only infromation from first frame is used
+        # ! Only information from first frame is used
         first_frame = 0
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -1159,9 +1158,7 @@ class LammpsArchiveWriter(MDParser):
             atoms_moltypes = np.array(atoms_info.get('moltypes', []))
             atoms_molnums = np.array(atoms_info.get('molnums', []))
             atoms_resids = np.array(atoms_info.get('resids', []))
-            atoms_elements = np.array(
-                atoms_info.get('elements', ['X'] * self.n_atoms[first_frame])
-            )
+            atoms_elements = np.array(atoms_info.get('elements', ['X'] * self.n_atoms))
             atoms_types = np.array(atoms_info.get('types', []))
             atom_labels = [
                 particle_state.label
