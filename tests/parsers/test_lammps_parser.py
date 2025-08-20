@@ -21,13 +21,13 @@ import numpy as np
 
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
+from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser, TrajParser
 
 LOGGER = get_logger(__name__)
 
 
-def approx(value, abs=0, rel=1e-6):
-    return pytest.approx(value, abs=abs, rel=rel)
+# def approx(value, abs=0, rel=1e-6):
+#     return pytest.approx(value, abs=abs, rel=rel)
 
 
 @pytest.fixture(scope='module')
@@ -127,7 +127,6 @@ def parser():
 #     assert len(archive.run[0].system) == 4
 
 
-# TODO: update structure to new schema
 def test_traj_xyz(parser):
     archive = EntryArchive()
     parser.parse(
@@ -137,7 +136,7 @@ def test_traj_xyz(parser):
     )
     sec_systems = archive.data.model_system
     assert len(sec_systems) == 201
-    assert sec_systems[13].positions[7][0].magnitude == approx(-8.00436e-10)
+    assert sec_systems[13].positions[7][0].magnitude == pytest.approx(-8.00436e-10)
 
 
 def test_traj_dcd(parser):
@@ -163,31 +162,52 @@ def test_traj_dcd(parser):
     )
 
 
-# ! Issue with 'tests/data/lammps/1_xyz_files'
-# ! Normalization fails in parse_system -> parse_trajectory_step ->
-# ! parse_section -> root.m_set(root.m_get_quantity_definition(key), val)
-# ! ValueError: Invalid shape for [].
+# TODO: Discuss with Alvin how to cover (nested) functions in supporting classes
+# def test_pbc_cell_extraction_orthogonal(parser):
+#     # Create a fake LAMMPS-style trajectory chunk that triggers get_pbc_cell
+#     content = """
+# ITEM: TIMESTEP
+# 0
+# ITEM: NUMBER OF ATOMS
+# 2
+# ITEM: BOX BOUNDS pp pp pp
+# -13.4569 13.25
+# -14.6313 14.1743
+# -12.4476 12.4476
+#     """
+
+#     parser = TrajParser()
+#     parser.mainfile = 'dummy'
+#     parser._file_handler = content.strip().splitlines(keepends=True)
+#     parser.init_quantities()
+
+#     pbc_cell = parser.get('pbc_cell')
+#     assert len(pbc_cell) == 1
+
+#     pbc, cell = pbc_cell[0]
+
+#     assert pbc == [True, True, True]
+#     expected_cell = np.diag(
+#         [13.25 - (-13.4569), 14.1743 - (-14.6313), 12.4476 - (-12.4476)]
+#     )
+#     assert cell == pytest.approx(expected_cell)
+
+
 def test_unwrapped_pos(parser):
     archive = EntryArchive()
-    # parser.parse('tests/data/lammps/1_xyz_files/log.lammps', archive, LOGGER)
-    parser.parse(
-        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
-        archive,
-        LOGGER,
-    )
+    parser.parse('tests/data/lammps/1_xyz_files/log.lammps', archive, LOGGER)
     # TODO: add assertion for calculation
     # ? Where has "calculation" moved to now, which section of the parser?
     # assert len(archive.run[0].calculation) == 101
     sec_systems = archive.data.model_system
-    assert sec_systems[1].positions[452][2].magnitude == approx(
-        9.34404e-11
-    )  # approx(5.99898)  # JFR - units are incorrect?!
-    # ! velocities are not being read, independent of test data
-    # assert sec_systems[2].velocities[457][-2].magnitude == approx(
-    #     -0.928553
-    # )  # JFR - velocities are not being read!! BM - confirmed, also with 1_methyl_naphthalene/log.1_methyl_naphthalene
+    assert sec_systems[1].positions[452][2].magnitude == pytest.approx(5.99898)
+    assert sec_systems[2].velocities[457][-2].magnitude == pytest.approx(-0.928553)
 
 
+# ! Positions and velocities are in separate files. MDAnalysis-parser fails to create
+# ! universe during parsing attempt of velocities file.
+# ? Solution: somehow identify velocities-only file and declare it an auxillary file,
+# ? use universe generated with positions?
 # TODO Fix dealing with multiple output files with archive_to_universe function, then add back in this test
 # def test_multiple_dump(parser):
 #     archive = EntryArchive()
@@ -200,117 +220,117 @@ def test_unwrapped_pos(parser):
 
 
 # TODO: update structure to new schema
-def test_md_atomsgroup(parser):
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/lammps/polymer_melt/Emin/log.step4.0_minimization', archive, None
-    )
+# def test_md_atomsgroup(parser):
+#     archive = EntryArchive()
+#     parser.parse(
+#         'tests/data/lammps/polymer_melt/Emin/log.step4.0_minimization', archive, None
+#     )
 
-    # sec_run = archive.run[0]
-    sec_systems = archive.data.model_system
+#     # sec_run = archive.run[0]
+#     sec_systems = archive.data.model_system
 
-    # assert len(sec_systems[0].atoms_group) == 1
-    # assert len(sec_systems[0].atoms_group[0].atoms_group) == 100
+#     # assert len(sec_systems[0].atoms_group) == 1
+#     # assert len(sec_systems[0].atoms_group[0].atoms_group) == 100
 
-    # assert sec_systems[0].atoms_group[0].label == 'group_0'
-    # assert sec_systems[0].atoms_group[0].type == 'molecule_group'
-    # assert sec_systems[0].atoms_group[0].index == 0
-    # assert sec_systems[0].atoms_group[0].composition_formula == '0(100)'
-    # assert sec_systems[0].atoms_group[0].n_atoms == 7200
-    # assert sec_systems[0].atoms_group[0].atom_indices[5] == 5
-    # assert sec_systems[0].atoms_group[0].is_molecule is False
+#     # assert sec_systems[0].atoms_group[0].label == 'group_0'
+#     # assert sec_systems[0].atoms_group[0].type == 'molecule_group'
+#     # assert sec_systems[0].atoms_group[0].index == 0
+#     # assert sec_systems[0].atoms_group[0].composition_formula == '0(100)'
+#     # assert sec_systems[0].atoms_group[0].n_atoms == 7200
+#     # assert sec_systems[0].atoms_group[0].atom_indices[5] == 5
+#     # assert sec_systems[0].atoms_group[0].is_molecule is False
 
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].label == '0'
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].type == 'molecule'
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].index == 52
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[52].composition_formula
-    #     == '1(1)2(1)3(1)4(1)5(1)6(1)7(1)8(1)9(1)10(1)'
-    # )
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].n_atoms == 72
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].atom_indices[8] == 3752
-    # assert sec_systems[0].atoms_group[0].atoms_group[52].is_molecule is True
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].label == '0'
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].type == 'molecule'
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].index == 52
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[52].composition_formula
+#     #     == '1(1)2(1)3(1)4(1)5(1)6(1)7(1)8(1)9(1)10(1)'
+#     # )
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].n_atoms == 72
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].atom_indices[8] == 3752
+#     # assert sec_systems[0].atoms_group[0].atoms_group[52].is_molecule is True
 
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].label == 'group_8'
-    # )
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].type
-    #     == 'monomer_group'
-    # )
-    # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].index == 7
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].composition_formula
-    #     == '8(1)'
-    # )
-    # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].n_atoms == 7
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atom_indices[5]
-    #     == 5527
-    # )
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].is_molecule
-    #     is False
-    # )
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].label == 'group_8'
+#     # )
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].type
+#     #     == 'monomer_group'
+#     # )
+#     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].index == 7
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].composition_formula
+#     #     == '8(1)'
+#     # )
+#     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].n_atoms == 7
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atom_indices[5]
+#     #     == 5527
+#     # )
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].is_molecule
+#     #     is False
+#     # )
 
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .label
-    #     == '8'
-    # )
-    # assert (
-    #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atoms_group[0].type
-    #     == 'monomer'
-    # )
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .index
-    #     == 0
-    # )
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .composition_formula
-    #     == '1(4)4(2)6(1)'
-    # )
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .n_atoms
-    #     == 7
-    # )
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .atom_indices[5]
-    #     == 5527
-    # )
-    # assert (
-    #     sec_systems[0]
-    #     .atoms_group[0]
-    #     .atoms_group[76]
-    #     .atoms_group[7]
-    #     .atoms_group[0]
-    #     .is_molecule
-    #     is False
-    # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .label
+#     #     == '8'
+#     # )
+#     # assert (
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atoms_group[0].type
+#     #     == 'monomer'
+#     # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .index
+#     #     == 0
+#     # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .composition_formula
+#     #     == '1(4)4(2)6(1)'
+#     # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .n_atoms
+#     #     == 7
+#     # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .atom_indices[5]
+#     #     == 5527
+#     # )
+#     # assert (
+#     #     sec_systems[0]
+#     #     .atoms_group[0]
+#     #     .atoms_group[76]
+#     #     .atoms_group[7]
+#     #     .atoms_group[0]
+#     #     .is_molecule
+#     #     is False
+#     # )
 
 
 # TODO re-activate when migrating workflow parsing

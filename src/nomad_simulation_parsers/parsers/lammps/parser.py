@@ -160,6 +160,27 @@ def get_unit(units_type, property_type=None, dimension=3):
             density=ureg.ag / ureg.nm**dimension,
         )
 
+    # TODO: Add support for lj systems
+    # elif units_type == 'lj':
+    #    units = dict(
+    #        mass=ureg('dimensionless'),
+    #        distance=ureg('dimensionless'),
+    #        time=ureg('dimensionless'),
+    #        energy=ureg('dimensionless'),
+    #        velocity=ureg('dimensionless'),
+    #        force=ureg('dimensionless'),
+    #        torque=ureg('dimensionless'),
+    #        temperature=ureg('dimensionless'),
+    #        pressure=ureg('dimensionless'),
+    #        dynamic_viscosity=ureg('dimensionless'),
+    #        charge=ureg('dimensionless'),
+    #        dipole=ureg('dimensionless'),
+    #        electric_field=ureg('dimensionless'),
+    #        density=ureg('dimensionless'),
+    #    )
+    #
+    # ! Temporary, untested fix
+    # LJ units according to the LAMMPS documentation
     elif units_type == 'lj':
         units = dict(
             mass=1,
@@ -197,13 +218,27 @@ class TrajParser(TextParser):
 
     def init_quantities(self):
         def get_pbc_cell(val):
+            # TODO: extend logic to handle all LAMMPS-supported pbc styles
+            # TODO: collect example output for all different box styles!
+            # https://docs.lammps.org/boundary.html
+            # https://docs.lammps.org/Howto_triclinic.html
             val = val.split()
-
-            pbc = [v == 'pp' for v in val[:3]]
-
+            print('PBC info:', val)
             cell = np.zeros((3, 3))
-            for i in range(3):
-                cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
+            if 'xy' == val[0]:
+                pbc = [v == 'pp' for v in val[3:6]]
+                tilt_factors = np.zeros(3)
+                for i in range(3):
+                    tilt_factors[i] = float(val[i * 3 + 8])
+                    cell[i][i] = float(val[i * 3 + 7]) - float(val[i * 3 + 6])
+                xy, yz, xz = tilt_factors
+                cell[1][0] = xy
+                cell[2][0] = xz
+                cell[2][1] = yz
+            else:  # orthogonal can have ff or ss (or mm?)
+                pbc = [v == 'pp' for v in val[:3]]
+                for i in range(3):
+                    cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
 
             return pbc, cell
 
@@ -244,17 +279,18 @@ class TrajParser(TextParser):
         ]
 
     @property
-    def with_trajectory(self):
+    def with_trajectory(self) -> bool:
         return self.get('atoms_info') is not None
 
     @property
-    def n_frames(self):
+    def n_frames(self) -> int:
         return len(self.get('atoms_info', []))
 
     @property
-    def masses(self):
+    def masses(self) -> np.ndarray:
         return self._masses
 
+    # TODO: handle non-atomistic representations
     @masses.setter
     def masses(self, val):
         self._masses = val
@@ -960,13 +996,11 @@ class LammpsArchiveWriter(ArchiveWriter):
         # ? Why should _bond_list be set here?
         # ? If anything failed with the universe, would it have errored out already, or happen here?
         # Exract bond list from MDAnalysis universe
-        self._bond_list = np.array(
-            [
-                interaction['atom_indices']
-                for interaction in self._mdanalysistraj_parser.get_interactions()
-                if interaction['type'] == 'bond'
-            ]
-        )
+        self._bond_list = [
+            tuple(interaction['atom_indices'])
+            for interaction in self._mdanalysistraj_parser.get_interactions()
+            if interaction['type'] == 'bond'
+        ]
 
         # @Landinesa: we should be able to set the atom masses with the TrajParser, but I don't quite understand how to use this.
         # Can you add the implementation here, and then we can make the MDA implementation below as a backup?
@@ -1084,11 +1118,14 @@ class LammpsArchiveWriter(ArchiveWriter):
                 # )
                 if self._bond_list is None:
                     # Convert bond list returned by data parser from
-                    # List[Tuple[None, np.ndarray]] to np.ndarray[[int, int]]
-                    self._bond_list = self.data_parser.get('Bonds', None)[0][1][
-                        :, 2:4
-                    ].astype(int)
-
+                    # List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
+                    bonds = self.data_parser.get('Bonds', None)
+                    if bonds is None or bonds[0][1].size == 0:
+                        self._bond_list = None
+                    else:
+                        self._bond_list = list(
+                            map(tuple, bonds[0][1][:, 2:4].astype(int))
+                        )
             # Set the structure of the data dictionary according to ModelSystem
             particles_dict = {
                 'cell': {
@@ -1103,7 +1140,7 @@ class LammpsArchiveWriter(ArchiveWriter):
                     self.traj_parsers.eval('get_positions', traj_n), 'distance'
                 ),
                 'velocities': velocities,
-                'bond_list': self._bond_list if self._bond_list is not None else None,
+                'bond_list': self._bond_list if self._bond_list else None,
             }
             self._md_parser.parse_trajectory_step(particles_dict, simulation)
         # sec_system = sec_run.system[-1]
@@ -1299,6 +1336,7 @@ class LammpsArchiveWriter(ArchiveWriter):
                 'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
             )[n][2]
             print('file_type:', file_type)
+            # TODO: add support for other LAMMPs dump file formats (https://docs.lammps.org/dump.html)
             if file_type == 'dcd' and data_files:
                 traj_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
                 traj_parser.mainfile = data_files[0]
@@ -1349,7 +1387,6 @@ class LammpsArchiveWriter(ArchiveWriter):
         print('Traj parsers:', self.traj_parsers)
         if self.traj_parsers[0] is None:
             return
-
         # parse data from auxiliary log file
         if self.log_parser.get('log') is not None:
             self.aux_log_parser.mainfile = os.path.join(
