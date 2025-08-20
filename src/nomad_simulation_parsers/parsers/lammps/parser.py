@@ -972,6 +972,24 @@ class LammpsArchiveWriter(MDParser):
     TODO: Docstring
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.log_parser = LogParser()
+        self.units = self.log_parser.units
+        self.aux_log_parser = LogParser()
+        self._md_parser = MDParser()
+        self._traj_parser = TrajParser()
+        self._xyztraj_parser = XYZTrajParser()
+        self._mdanalysistraj_parser = MDAnalysisParser(
+            topology_format='DATA', format='LAMMPSDUMP'
+        )
+        self.data_parser = DataParser()
+
+    def apply_unit(self, value, unit):
+        if not hasattr(value, 'units'):
+            value = value * self.units.get(unit, 1)
+        return value
+
     def parse_method(self, simulation):
         # TODO: replace with counterparts from nomad_simulations!
         # sec_run = self.archive.run[-1]
@@ -1088,28 +1106,14 @@ class LammpsArchiveWriter(MDParser):
             if (step := self.traj_parsers.eval('get_step', n)) is not None
         ]
 
-        units = self.log_parser.units
-
-        def apply_unit(value, unit):
-            if not hasattr(value, 'units'):
-                value = value * units.get(unit, 1)
-            return value
-
-        def get_composition(children_names):
-            children_count_tup = np.unique(children_names, return_counts=True)
-            formula = ''.join(
-                [f'{name}({count})' for name, count in zip(*children_count_tup)]
-            )
-            return formula
-
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
             if lattice_vectors is not None:
-                lattice_vectors = apply_unit(lattice_vectors, 'distance')
+                lattice_vectors = self.apply_unit(lattice_vectors, 'distance')
             velocities = self.traj_parsers.eval('get_velocities', traj_n)
             if velocities is not None:
-                velocities = apply_unit(velocities, 'velocity')
+                velocities = self.apply_unit(velocities, 'velocity')
             if traj_n == 0:  # TODO add references to the bond list for other steps
                 # TODO: update get_bond_list_from_model_contributions, maybe move to MDParserUtils?
                 # bond_list = get_bond_list_from_model_contributions(
@@ -1135,7 +1139,7 @@ class LammpsArchiveWriter(MDParser):
                 },
                 'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
                 'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
-                'positions': apply_unit(
+                'positions': self.apply_unit(
                     self.traj_parsers.eval('get_positions', traj_n), 'distance'
                 ),
                 'velocities': velocities,
@@ -1282,13 +1286,11 @@ class LammpsArchiveWriter(MDParser):
         # LAMMPS mainfile is the main log file
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
-        self.log_parser = LogParser()
         self.log_parser.mainfile = self.mainfile
         self.log_parser.logger = self.logger
         self.log_parser._units = None
 
         # parse data from auxiliary log file
-        self.aux_log_parser = LogParser()
         if self.log_parser.get('log') is not None:
             self.aux_log_parser.mainfile = os.path.join(
                 self.log_parser.maindir,
@@ -1297,19 +1299,13 @@ class LammpsArchiveWriter(MDParser):
             # we assign units here which is read from log parser
             self.aux_log_parser._units = self.log_parser.units
             self.aux_log_parser.logger = self.logger
-        self._md_parser = MDParser()
-        self._traj_parser = TrajParser()
+
         self._traj_parser.logger = self.logger
         self._traj_parser._chemical_symbols = None
-        self._xyztraj_parser = XYZTrajParser()
         self._xyztraj_parser.logger = self.logger
-        self._mdanalysistraj_parser = MDAnalysisParser(
-            topology_format='DATA', format='LAMMPSDUMP'
-        )
         self._mdanalysistraj_parser.logger = self.logger
         # self._mdparser = MDParser()
         # self._mdparser.logger = self.logger
-        self.data_parser = DataParser()
         self.data_parser.logger = self.logger
 
         # parse data file associated with calculation
