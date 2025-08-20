@@ -93,7 +93,7 @@ fhiaims_parser = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
-lammps_parser_entry_point = EntryPoint(
+lammps_parser = EntryPoint(
     name='parsers/lammps',
     aliases=['parsers/lammps'],
     description='NOMAD parser for LAMMPS.',
