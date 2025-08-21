@@ -21,7 +21,11 @@ import numpy as np
 
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser, TrajParser
+from nomad_simulation_parsers.parsers.lammps.parser import (
+    LammpsParser,
+    TrajParser,
+    TrajParsers,
+)
 
 LOGGER = get_logger(__name__)
 
@@ -162,35 +166,50 @@ def test_traj_dcd(parser):
     )
 
 
-# TODO: Discuss with Alvin how to cover (nested) functions in supporting classes
-# def test_pbc_cell_extraction_orthogonal(parser):
-#     # Create a fake LAMMPS-style trajectory chunk that triggers get_pbc_cell
-#     content = """
-# ITEM: TIMESTEP
-# 0
-# ITEM: NUMBER OF ATOMS
-# 2
-# ITEM: BOX BOUNDS pp pp pp
-# -13.4569 13.25
-# -14.6313 14.1743
-# -12.4476 12.4476
-#     """
+# TODO: Extend test to cover all relevant LAMMPS box styles
+@pytest.mark.parametrize(
+    'description, content, expected_pbc, expected_cell',
+    [
+        (
+            'Orthogonal cell, all periodic',
+            """
+ITEM: BOX BOUNDS pp pp pp
+-13.4569 13.25
+-14.6313 14.1743
+-12.4476 12.4476
+        """,
+            [True, True, True],
+            np.diag(
+                [
+                    13.25 - (-13.4569),
+                    14.1743 - (-14.6313),
+                    12.4476 - (-12.4476),
+                ]
+            ),
+        ),
+        # (
+        #     'Description',
+        #     """
+        # ITEM: BOX BOUNDS
+        #         """,
+        #     [],
+        #     np.array([[], [], []]),
+        # ),
+    ],
+)
+def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
+    parser = TrajParser()
+    parser.mainfile = 'dummy'
+    parser._file_handler = content.encode('utf-8')
+    parser.init_quantities()
 
-#     parser = TrajParser()
-#     parser.mainfile = 'dummy'
-#     parser._file_handler = content.strip().splitlines(keepends=True)
-#     parser.init_quantities()
+    parsers = TrajParsers([parser])
+    pbc_cell = parsers.eval('pbc_cell')
+    assert len(pbc_cell) == 1, f'{description} - pbc_cell not extracted'
 
-#     pbc_cell = parser.get('pbc_cell')
-#     assert len(pbc_cell) == 1
-
-#     pbc, cell = pbc_cell[0]
-
-#     assert pbc == [True, True, True]
-#     expected_cell = np.diag(
-#         [13.25 - (-13.4569), 14.1743 - (-14.6313), 12.4476 - (-12.4476)]
-#     )
-#     assert cell == pytest.approx(expected_cell)
+    pbc, cell = pbc_cell[0]
+    assert pbc == expected_pbc, f'{description} - wrong PBC'
+    assert cell == pytest.approx(expected_cell), f'{description} - wrong cell'
 
 
 def test_unwrapped_pos(parser):
