@@ -732,6 +732,7 @@ class LogParser(TextParser):
             Quantity(
                 'program_version',
                 r'\s*LAMMPS\s*\(([\w ]+)\)\n',
+                # r'\s*LAMMPS\s*\(([^)]+)\)\n',  # LB - Edited regex for '(2 Aug 2023 - Update 1)' searches for any character except ')' now, not just word chars
                 dtype=str,
                 repeats=False,
                 flatten=False,
@@ -778,6 +779,7 @@ class LogParser(TextParser):
             Quantity(
                 'thermo_data',
                 r'\s*\-*(\s*Step\s*[\-\s\w\.\=\(\)]*[ \-\.\d\n]+)Loop',
+                # r'([ \-]*Step\s*[\-/\s\w\.\=\(\)]*[ \-\.\d\n]+)Loop',  # TODO: LB edit
                 str_operation=str_to_thermo,
                 repeats=False,
                 convert=False,
@@ -858,11 +860,19 @@ class LogParser(TextParser):
             return re.search(regex_pattern, file_header_str)
 
         read_data = self.get('read_data')
+        # # Chop out 'CPU' before, then just check none
+        # if read_data is not None:
+        #     try:
+        #         read_data.remove('CPU')
+        #     except Exception:
+        #         pass
         if read_data is None or 'CPU' in read_data:
             self.logger.warning('Data file not specified in directory, will scan.')
             data_files = os.listdir(self.maindir)
             data_files = [
-                f for f in data_files if f.endswith('data') or f.startswith('data')
+                f
+                for f in data_files
+                if f.endswith('data') or f.startswith('data') or f.endswith('dat')
             ]
             if not data_files:
                 # Search any file for the LAMMPS data file header.
@@ -882,6 +892,9 @@ class LogParser(TextParser):
                 ]
         else:
             data_files = read_data
+
+        if not data_files:
+            self.logger.warning('No data_files found to match the log file.')
 
         return [os.path.join(self.maindir, f) for f in data_files]
 
@@ -1031,11 +1044,23 @@ class LammpsArchiveWriter(MDParser):
         # n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
         # if n_atoms is not None:
         #     atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
+        #     labels = self.traj_parsers.eval('labels')
+        #     # TODO: LB, test
+        #     # if labels is None or 'X' in labels:
+        #     #     atom_types = self._mdanalysistraj_parser.get('types', None) # atom_types = self._mdanalysis.get('atom_types')
+        #     #     #check if none and revert to X's if none
+        #     #     if atom_types is None:
+        #     #         atom_types = atoms_info.get('types', None)
+        #     #         #atom_types = ['X']*n_atoms
+        #     #     else:
+        #     #         labels = [f'X_{atom_type}' for atom_type in atom_types]
         #     for n in range(n_atoms):
         #         sec_atom = AtomParameters()
         #         sec_method.atom_parameters.append(sec_atom)
         #         sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
         #         sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
+        #         # TODO: LB edit, test
+        #         # sec_atom.label = (labels[n] if labels is not None else f'X_{atom_types[n]}')  # *[n]
 
     #     # TODO address case types are numbered instead of giving atom labels (fix tests accordingly)
     #     interactions = self._mdanalysistraj_parser.get_interactions()
@@ -1058,6 +1083,8 @@ class LammpsArchiveWriter(MDParser):
     #         ):  # only cover the simplest case
     #             sec_force_calculations.vdw_cutoff = (
     #                 float(pairstyle_args[-1]) * ureg.nanometer
+    #                 # TODO: LB edit
+    #                 # float(pairstyle_args[-1]) * ureg.angstrom
     #             )
     #         if 'coul' in pairstyle:
     #             if 'streitz' in pairstyle:
@@ -1065,6 +1092,8 @@ class LammpsArchiveWriter(MDParser):
     #             else:
     #                 cutoff = float(pairstyle_args[-1])
     #             sec_force_calculations.coulomb_cutoff = cutoff * ureg.nanometer
+    #             # TODO: LB edit
+    #             # sec_force_calculations.coulomb_cutoff = cutoff * ureg.angstrom
     #         val = self.log_parser.get('kspace_style', None)
     #         if val is not None:
     #             kspacestyle = val[0][0].lower()
@@ -1344,6 +1373,23 @@ class LammpsArchiveWriter(MDParser):
                 traj_parser.mainfile = data_files[0]
                 traj_parser.auxilliary_files = [traj_file]
                 self._mdanalysistraj_parser = traj_parser
+            # TODO: LB edit
+            # elif file_type == 'atom' and data_files:
+            #     traj_parser = MDAnalysisParser(
+            #         topology_format='DATA', format='LAMMPSDUMP'
+            #     )
+            #     if data_files:
+            #         traj_parser.mainfile = data_files[0]
+            #     traj_parser.auxilliary_files = [traj_file]
+
+            #     if traj_parser.universe is None or 'X' in traj_parser.get(
+            #         'atoms_info', {}
+            #     ).get('names', []):
+            #         # mda necessary to calculate rdf and atomsgroup
+            #         if n == 0:
+            #             self._mdanalysistraj_parser = traj_parser
+            #         traj_parser = TrajParser()
+            #         traj_parser.mainfile = traj_file
             elif file_type == 'custom' and data_files:
                 custom_options = self.log_parser.get('dump')[n][5:]
                 custom_options = [
@@ -1375,6 +1421,8 @@ class LammpsArchiveWriter(MDParser):
                     traj_parser = TrajParser()
                     traj_parser.mainfile = traj_file
             else:
+                # TODO LB edit
+                # self.logger.warning('No file_type found for traj_file.')
                 traj_parser = TrajParser()
                 traj_parser.mainfile = traj_file
                 # TODO provide support for other file types
