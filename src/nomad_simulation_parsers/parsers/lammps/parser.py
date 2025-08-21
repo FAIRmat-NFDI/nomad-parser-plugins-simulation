@@ -216,31 +216,31 @@ class TrajParser(TextParser):
         self._chemical_symbols = None
         super().__init__(None)
 
+    def get_pbc_cell(self, val) -> tuple[list, np.ndarray]:
+        # TODO: extend logic to handle all LAMMPS-supported pbc styles
+        # TODO: collect example output for all different box styles!
+        # https://docs.lammps.org/boundary.html
+        # https://docs.lammps.org/Howto_triclinic.html
+        val = val.split()
+        cell = np.zeros((3, 3))
+        if 'xy' == val[0]:
+            pbc = [v == 'pp' for v in val[3:6]]
+            tilt_factors = np.zeros(3)
+            for i in range(3):
+                tilt_factors[i] = float(val[i * 3 + 8])
+                cell[i][i] = float(val[i * 3 + 7]) - float(val[i * 3 + 6])
+            xy, yz, xz = tilt_factors
+            cell[1][0] = xy
+            cell[2][0] = xz
+            cell[2][1] = yz
+        else:  # orthogonal can have ff or ss (or mm?)
+            pbc = [v == 'pp' for v in val[:3]]
+            for i in range(3):
+                cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
+
+        return pbc, cell
+
     def init_quantities(self):
-        def get_pbc_cell(val):
-            # TODO: extend logic to handle all LAMMPS-supported pbc styles
-            # TODO: collect example output for all different box styles!
-            # https://docs.lammps.org/boundary.html
-            # https://docs.lammps.org/Howto_triclinic.html
-            val = val.split()
-            cell = np.zeros((3, 3))
-            if 'xy' == val[0]:
-                pbc = [v == 'pp' for v in val[3:6]]
-                tilt_factors = np.zeros(3)
-                for i in range(3):
-                    tilt_factors[i] = float(val[i * 3 + 8])
-                    cell[i][i] = float(val[i * 3 + 7]) - float(val[i * 3 + 6])
-                xy, yz, xz = tilt_factors
-                cell[1][0] = xy
-                cell[2][0] = xz
-                cell[2][1] = yz
-            else:  # orthogonal can have ff or ss (or mm?)
-                pbc = [v == 'pp' for v in val[:3]]
-                for i in range(3):
-                    cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
-
-            return pbc, cell
-
         def get_atoms_info(val):
             val = val.split('\n')
             keys = val[0].split()
@@ -263,8 +263,8 @@ class TrajParser(TextParser):
             ),
             Quantity(
                 'pbc_cell',
-                r'\s*ITEM: BOX BOUNDS\s*([\s\w]+)\n([\+\-\d\.eE\s]+)\n',
-                str_operation=get_pbc_cell,
+                r'\s*ITEM: BOX BOUNDS\s*([\s\w]+)\n([\+\-\d\.eE\s]+)\n',  # TODO: Check why pbc none for atom_run
+                str_operation=self.get_pbc_cell,
                 comment='#',
                 repeats=True,
             ),
@@ -314,7 +314,9 @@ class TrajParser(TextParser):
             return
 
         atoms_id = atoms_info[idx].get('id')
-        default = ['X' for _ in atoms_id] if atoms_id is not None else None
+        default = (
+            ['X' for _ in atoms_id] if atoms_id is not None else None
+        )  # TODO: LB 'X' to 'D' for debug
         atoms_type = atoms_info[idx].get('type')
         if atoms_type is None:
             return default
@@ -717,6 +719,8 @@ class LogParser(TextParser):
             Quantity(
                 name,
                 r'\n\s*%s\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*' % name,
+                # r'\n\s*\b%s\b\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*'
+                # % name,  # TODO: LB - Edited regex (added \b \b) - word boundaries
                 str_operation=str_op,
                 comment='#',
                 repeats=True,
@@ -1412,7 +1416,9 @@ class LammpsParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = LammpsArchiveWriter()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.archive_writer = LammpsArchiveWriter()
 
     # ? Really needed for the LAMMPS parser?
     # ? Would it make sense to handle a potential auxillary log file here,
