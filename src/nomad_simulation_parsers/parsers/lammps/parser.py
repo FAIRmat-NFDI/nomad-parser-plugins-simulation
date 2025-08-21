@@ -233,7 +233,7 @@ class TrajParser(TextParser):
             cell[1][0] = xy
             cell[2][0] = xz
             cell[2][1] = yz
-        else:  # orthogonal can have ff or ss (or mm?)
+        else:  # TODO: orthogonal can have ff or ss (or mm?)
             pbc = [v == 'pp' for v in val[:3]]
             for i in range(3):
                 cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
@@ -1179,7 +1179,9 @@ class LammpsArchiveWriter(MDParser):
                 'bond_list': self._bond_list if self._bond_list else None,
             }
             self._md_parser.parse_trajectory_step(particles_dict, simulation)
-        # sec_system = sec_run.system[-1]
+
+        print(simulation.model_system.__dict__)
+        sys.exit()
 
         # parse atomsgroup (moltypes --> molecules --> residues)
         # ! Only information from first frame is used
