@@ -13,11 +13,9 @@ from ..utils.mdanalysisparser import MDAnalysisParser
 from ..utils.mdparserutils import MDParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.atoms_state import AtomsState
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.model_method import ModelMethod
-from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
-
-# from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
 
 from simulationworkflowschema import (
     GeometryOptimization,
@@ -218,11 +216,12 @@ class TrajParser(TextParser):
 
     def get_pbc_cell(self, val) -> tuple[list, np.ndarray]:
         # TODO: extend logic to handle all LAMMPS-supported pbc styles
-        # TODO: collect example output for all different box styles!
+        # TODO: collect example outputs!
         # https://docs.lammps.org/boundary.html
         # https://docs.lammps.org/Howto_triclinic.html
         val = val.split()
         cell = np.zeros((3, 3))
+        # ! LB edit, untested!
         if 'xy' == val[0]:
             pbc = [v == 'pp' for v in val[3:6]]
             tilt_factors = np.zeros(3)
@@ -233,7 +232,7 @@ class TrajParser(TextParser):
             cell[1][0] = xy
             cell[2][0] = xz
             cell[2][1] = yz
-        else:  # TODO: orthogonal can have ff or ss (or mm?)
+        else:  # TODO: orthogonal can be ff or ss (or mm?)
             pbc = [v == 'pp' for v in val[:3]]
             for i in range(3):
                 cell[i][i] = float(val[i * 2 + 4]) - float(val[i * 2 + 3])
@@ -263,7 +262,8 @@ class TrajParser(TextParser):
             ),
             Quantity(
                 'pbc_cell',
-                r'\s*ITEM: BOX BOUNDS\s*([\s\w]+)\n([\+\-\d\.eE\s]+)\n',  # TODO: Check why pbc none for atom_run
+                # TODO: LB - Check why pbc none for atom_run
+                r'\s*ITEM: BOX BOUNDS\s*([\s\w]+)\n([\+\-\d\.eE\s]+)\n',
                 str_operation=self.get_pbc_cell,
                 comment='#',
                 repeats=True,
@@ -314,9 +314,7 @@ class TrajParser(TextParser):
             return
 
         atoms_id = atoms_info[idx].get('id')
-        default = (
-            ['X' for _ in atoms_id] if atoms_id is not None else None
-        )  # TODO: LB 'X' to 'D' for debug
+        default = ['CGX' for _ in atoms_id] if atoms_id is not None else None
         atoms_type = atoms_info[idx].get('type')
         if atoms_type is None:
             return default
@@ -719,8 +717,9 @@ class LogParser(TextParser):
             Quantity(
                 name,
                 r'\n\s*%s\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*' % name,
+                # TODO: LB - Edited regex (added \b \b) - word boundaries
                 # r'\n\s*\b%s\b\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*'
-                # % name,  # TODO: LB - Edited regex (added \b \b) - word boundaries
+                # % name,
                 str_operation=str_op,
                 comment='#',
                 repeats=True,
@@ -732,7 +731,8 @@ class LogParser(TextParser):
             Quantity(
                 'program_version',
                 r'\s*LAMMPS\s*\(([\w ]+)\)\n',
-                # r'\s*LAMMPS\s*\(([^)]+)\)\n',  # LB - Edited regex for '(2 Aug 2023 - Update 1)' searches for any character except ')' now, not just word chars
+                # TODO: LB edit - Edited regex for '(2 Aug 2023 - Update 1)' searches for any character except ')' now, not just word chars
+                # r'\s*LAMMPS\s*\(([^)]+)\)\n',
                 dtype=str,
                 repeats=False,
                 flatten=False,
@@ -860,6 +860,7 @@ class LogParser(TextParser):
             return re.search(regex_pattern, file_header_str)
 
         read_data = self.get('read_data')
+        # TODO: Check in with Leo on the reasoning behind this change
         # # Chop out 'CPU' before, then just check none
         # if read_data is not None:
         #     try:
@@ -985,10 +986,6 @@ class LogParser(TextParser):
 
 
 class LammpsArchiveWriter(MDParser):
-    """
-    TODO: Docstring
-    """
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.log_parser = LogParser()
@@ -1009,7 +1006,6 @@ class LammpsArchiveWriter(MDParser):
 
     def parse_method(self, simulation):
         # TODO: replace with counterparts from nomad_simulations!
-        # sec_run = self.archive.run[-1]
 
         if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
             return
@@ -1027,7 +1023,7 @@ class LammpsArchiveWriter(MDParser):
         masses = self.data_parser.get('Masses', None)
         self.traj_parsers[0].masses = masses
 
-        # ? Why should _bond_list be set here?
+        # ? Should _bond_list be set here, or is there a better place for it?
         # ? If anything failed with the universe, would it have errored out already, or happen here?
         # Exract bond list from MDAnalysis universe
         self._bond_list = [
@@ -1036,22 +1032,19 @@ class LammpsArchiveWriter(MDParser):
             if interaction['type'] == 'bond'
         ]
 
-        # @Landinesa: we should be able to set the atom masses with the TrajParser, but I don't quite understand how to use this.
-        # Can you add the implementation here, and then we can make the MDA implementation below as a backup?
-        # Can you also get the charges somehow?
-
-        # parse method with MDAnalysis (should be a backup for the charges and masses...but the interactions are most easily read from the MDA universe right now)
+        # parse method with MDAnalysis (should be a backup for the charges and masses...
+        # but the interactions are most easily read from the MDA universe right now)
         # n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
         # if n_atoms is not None:
         #     atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         #     labels = self.traj_parsers.eval('labels')
         #     # TODO: LB, test
-        #     # if labels is None or 'X' in labels:
+        #     # if labels is None or 'CGX' in labels:
         #     #     atom_types = self._mdanalysistraj_parser.get('types', None) # atom_types = self._mdanalysis.get('atom_types')
         #     #     #check if none and revert to X's if none
         #     #     if atom_types is None:
         #     #         atom_types = atoms_info.get('types', None)
-        #     #         #atom_types = ['X']*n_atoms
+        #     #         #atom_types = ['CGX']*n_atoms
         #     #     else:
         #     #         labels = [f'X_{atom_type}' for atom_type in atom_types]
         #     for n in range(n_atoms):
@@ -1180,11 +1173,8 @@ class LammpsArchiveWriter(MDParser):
             }
             self._md_parser.parse_trajectory_step(particles_dict, simulation)
 
-        print(simulation.model_system.__dict__)
-        sys.exit()
-
         # parse atomsgroup (moltypes --> molecules --> residues)
-        # ! Only information from first frame is used
+        # ! Only information from first frame is used to date
         first_frame = 0
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -1197,7 +1187,9 @@ class LammpsArchiveWriter(MDParser):
             atoms_moltypes = np.array(atoms_info.get('moltypes', []))
             atoms_molnums = np.array(atoms_info.get('molnums', []))
             atoms_resids = np.array(atoms_info.get('resids', []))
-            atoms_elements = np.array(atoms_info.get('elements', ['X'] * self.n_atoms))
+            atoms_elements = np.array(
+                atoms_info.get('elements', ['CGX'] * self.n_atoms)
+            )
             atoms_types = np.array(atoms_info.get('types', []))
             atom_labels = [
                 particle_state.label
@@ -1205,10 +1197,10 @@ class LammpsArchiveWriter(MDParser):
                     first_frame
                 ].particle_states
             ]
-            if 'X' in atoms_elements:
+            if 'CGX' in atoms_elements:
                 atoms_elements = (
                     np.array(atom_labels)
-                    if atom_labels and 'X' not in atom_labels
+                    if atom_labels and 'CGX' not in atom_labels
                     else atoms_types
                 )
             atoms_resnames = np.array(atoms_info.get('resnames', []))
@@ -1357,13 +1349,11 @@ class LammpsArchiveWriter(MDParser):
 
         parsers = []
         for n, traj_file in enumerate(traj_files):
-            print('Parsing trajectory file:', traj_file)
             # parser initialization for each traj file cannot be avoided as there are
             # cases where traj files can share the same parser
             file_type = self.log_parser.get(
                 'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
             )[n][2]
-            print('file_type:', file_type)
             # TODO: add support for other LAMMPs dump file formats (https://docs.lammps.org/dump.html)
             if file_type == 'dcd' and data_files:
                 traj_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
@@ -1384,7 +1374,7 @@ class LammpsArchiveWriter(MDParser):
             #         traj_parser.mainfile = data_files[0]
             #     traj_parser.auxilliary_files = [traj_file]
 
-            #     if traj_parser.universe is None or 'X' in traj_parser.get(
+            #     if traj_parser.universe is None or 'CGX' in traj_parser.get(
             #         'atoms_info', {}
             #     ).get('names', []):
             #         # mda necessary to calculate rdf and atomsgroup
@@ -1414,7 +1404,7 @@ class LammpsArchiveWriter(MDParser):
                 traj_parser.auxilliary_files = [traj_file]
                 # try to check if MDAnalysis can construct the universe or at least parse
                 # the atoms, otherwise will fall back to TrajParser
-                if traj_parser.universe is None or 'X' in traj_parser.get(
+                if traj_parser.universe is None or 'CGX' in traj_parser.get(
                     'atoms_info', {}
                 ).get('names', []):
                     # mda necessary to calculate rdf and atomsgroup
@@ -1431,7 +1421,6 @@ class LammpsArchiveWriter(MDParser):
             parsers.append(traj_parser)
 
         self.traj_parsers = TrajParsers(parsers)
-        print('Traj parsers:', self.traj_parsers)
         if self.traj_parsers[0] is None:
             return
         # parse data from auxiliary log file
@@ -1441,8 +1430,6 @@ class LammpsArchiveWriter(MDParser):
             )
             # we assign units here which is read from log parser
             self.aux_log_parser._units = self.log_parser.units
-
-        print('Parsing auxiliary log file:', self.aux_log_parser.mainfile)
 
         self.parse_method(self.archive.data)
 
@@ -1462,10 +1449,6 @@ class LammpsArchiveWriter(MDParser):
 
 
 class LammpsParser(MatchingParser):
-    """
-    Main parser interface to NOMAD.
-    """
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.archive_writer = LammpsArchiveWriter()

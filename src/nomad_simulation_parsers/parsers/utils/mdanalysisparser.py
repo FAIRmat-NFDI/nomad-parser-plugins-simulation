@@ -132,7 +132,7 @@ class MDAnalysisParser(FileParser):
 
         # Fallbacks/substitutions for missing atom info
         substitutions = [
-            ('names', lambda: ['X'] * self.universe.atoms.n_atoms),
+            ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
                 lambda: self.get_fragtypes()
