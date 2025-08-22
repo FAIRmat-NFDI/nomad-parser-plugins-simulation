@@ -30,13 +30,55 @@ from nomad_simulation_parsers.parsers.lammps.parser import (
 LOGGER = get_logger(__name__)
 
 
-# def approx(value, abs=0, rel=1e-6):
-#     return pytest.approx(value, abs=abs, rel=rel)
-
-
 @pytest.fixture(scope='module')
 def parser():
     return LammpsParser()
+
+
+# TODO: Extend test to cover all relevant LAMMPS box styles
+@pytest.mark.parametrize(
+    'description, content, expected_pbc, expected_cell',
+    [
+        (
+            'Orthogonal cell, all dimensions periodic',
+            """
+ITEM: BOX BOUNDS pp pp pp
+-13.4569 13.25
+-14.6313 14.1743
+-12.4476 12.4476
+        """,
+            [True, True, True],
+            np.diag(
+                [
+                    13.25 - (-13.4569),
+                    14.1743 - (-14.6313),
+                    12.4476 - (-12.4476),
+                ]
+            ),
+        ),
+        # (
+        #     'Description',
+        #     """
+        # ITEM: BOX BOUNDS
+        #         """,
+        #     [],
+        #     np.array([[], [], []]),
+        # ),
+    ],
+)
+def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
+    parser = TrajParser()
+    parser.mainfile = 'dummy'
+    parser._file_handler = content.encode('utf-8')
+    parser.init_quantities()
+
+    parsers = TrajParsers([parser])
+    pbc_cell = parsers.eval('pbc_cell')
+    assert len(pbc_cell) == 1, f'{description} - pbc_cell not extracted'
+
+    pbc, cell = pbc_cell[0]
+    assert pbc == expected_pbc, f'{description} - wrong PBC'
+    assert cell == pytest.approx(expected_cell), f'{description} - wrong cell'
 
 
 # TODO: re-include output testing alongside migration of parser functionalities
@@ -151,7 +193,6 @@ def test_traj_dcd(parser):
         LOGGER,
     )
     # TODO: add assertion for calculation
-    # ? Where has "calculation" moved to now, which section of the parser?
     # assert len(archive.run[0].calculation) == 201
     sec_systems = archive.data.model_system
     assert np.shape(sec_systems[56].positions) == (320, 3)
@@ -164,52 +205,6 @@ def test_traj_dcd(parser):
         )
         == 320
     )
-
-
-# TODO: Extend test to cover all relevant LAMMPS box styles
-@pytest.mark.parametrize(
-    'description, content, expected_pbc, expected_cell',
-    [
-        (
-            'Orthogonal cell, all periodic',
-            """
-ITEM: BOX BOUNDS pp pp pp
--13.4569 13.25
--14.6313 14.1743
--12.4476 12.4476
-        """,
-            [True, True, True],
-            np.diag(
-                [
-                    13.25 - (-13.4569),
-                    14.1743 - (-14.6313),
-                    12.4476 - (-12.4476),
-                ]
-            ),
-        ),
-        # (
-        #     'Description',
-        #     """
-        # ITEM: BOX BOUNDS
-        #         """,
-        #     [],
-        #     np.array([[], [], []]),
-        # ),
-    ],
-)
-def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
-    parser = TrajParser()
-    parser.mainfile = 'dummy'
-    parser._file_handler = content.encode('utf-8')
-    parser.init_quantities()
-
-    parsers = TrajParsers([parser])
-    pbc_cell = parsers.eval('pbc_cell')
-    assert len(pbc_cell) == 1, f'{description} - pbc_cell not extracted'
-
-    pbc, cell = pbc_cell[0]
-    assert pbc == expected_pbc, f'{description} - wrong PBC'
-    assert cell == pytest.approx(expected_cell), f'{description} - wrong cell'
 
 
 def test_unwrapped_pos(parser):
