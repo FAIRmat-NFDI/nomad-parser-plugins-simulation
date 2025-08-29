@@ -29,11 +29,31 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, array: list) -> dict[str, Any]:
-        if array is None:
-            return {}
-        transposed = np.transpose(array)
-        return dict(eigenvalues=transposed[0], occupations=transposed[1])
+    def get_bands(self, package: dict) -> dict[str, Any]:
+        """
+        Extracts eigenvalues and occupations
+        from the VASP XML <eigenvalues.array> branch.
+        """
+
+        def extract_layer(layers: list[dict | list], keys: list[str]) -> list:
+            """
+            Extracts the specified keys from each layer in the layers list.
+            """
+            if isinstance(layers, dict):
+                layers = [layers]
+
+            data = []
+            for lyr in layers:
+                if isinstance(lyr, dict):
+                    for key in keys:
+                        if key in lyr:
+                            data.append(extract_layer(lyr[key], keys))
+                elif isinstance(lyr, list):
+                    data.append(lyr)
+            return data
+
+        data = np.array(extract_layer(package.get('set', []), keys=['set', 'r'])[0])
+        return dict(eigenvalues=data[:, :, :, 0], occupations=data[:, :, :, 1])
 
     def get_energy_contributions(
         self, source: list[dict[str, Any]], **kwargs
@@ -58,7 +78,7 @@ class VasprunParser(XMLParser):
         value = self.get_data(source, path='.varray.v')
         if value is None:
             return {}
-        return dict(forces=value, npoints=len(value), rank=[3])
+        return dict(forces=value, npoints=len(value))  # ! remove npoints
 
     def reshape_array(self, source: np.ndarray, shape_rest: tuple = (3,)) -> np.ndarray:
         if source is None:
@@ -66,6 +86,13 @@ class VasprunParser(XMLParser):
         return np.reshape(
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
+
+    def get_dos(self, source: list[list[float]] | None) -> dict[str, Any]:
+        if source is None:
+            return {}
+
+        source = np.array([v.get('r') for k, v in source.items() if k == 'set'])
+        return dict(energies=source[0, :, 0], value=source[:, :, 1])
 
 
 class XMLArchiveWriter(ArchiveWriter):
@@ -75,9 +102,19 @@ class XMLArchiveWriter(ArchiveWriter):
 
         xml_parser = VasprunParser(filepath=self.mainfile)
 
+        # Process basic XML mappings first
         data_parser.annotation_key = 'xml'
         xml_parser.convert(data_parser)
 
+        # Process band structure mappings - append to create separate output
+        data_parser.annotation_key = 'xml_bands'
+        xml_parser.convert(data_parser, update_mode='append')
+
+        # Process DOS mappings - append to create another separate output  
+        data_parser.annotation_key = 'xml_dos'
+        xml_parser.convert(data_parser, update_mode='append')
+
+        # Process remaining xml2 mappings
         data_parser.annotation_key = 'xml2'
         xml_parser.convert(data_parser)
 

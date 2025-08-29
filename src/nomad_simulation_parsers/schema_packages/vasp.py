@@ -21,6 +21,8 @@ m_package = SchemaPackage()
 general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
     dict(
         xml=MapperAnnotation(mapper='modeling'),
+        xml_bands=MapperAnnotation(mapper='modeling'),
+        xml_dos=MapperAnnotation(mapper='modeling'),
         xml2=MapperAnnotation(mapper='modeling'),
         outcar=MapperAnnotation(mapper='@'),
     )
@@ -58,6 +60,8 @@ class Simulation(general.Simulation):
     ).update(
         dict(
             xml=MapperAnnotation(mapper='.calculation'),
+            xml_bands=MapperAnnotation(mapper='.calculation'),
+            xml_dos=MapperAnnotation(mapper='.calculation'),
             xml2=MapperAnnotation(mapper='.calculation'),
             outcar=MapperAnnotation(mapper='.calculation'),
         )
@@ -132,13 +136,22 @@ class XCFunctional(model_method.XCFunctional):
 
 
 class ModelMethod(model_method.ModelMethod):
-    # kspace numerical settings
     numerical_settings.KSpace.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(xml=MapperAnnotation(mapper='modeling.kpoints')))
 
 
 class KSpace(numerical_settings.KSpace):
+    numerical_settings.KSpace.reciprocal_lattice_vectors.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            xml=MapperAnnotation(
+                mapper='.generation.v[?starts_with("@name", \'genvec\')].__value',
+                unit='angstrom^-1',
+            ),
+        )
+    )
     numerical_settings.KSpace.k_mesh.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(xml=MapperAnnotation(mapper='.@')))
@@ -253,15 +266,21 @@ class Outputs(outputs.Outputs):
             outcar=MapperAnnotation(mapper=('get_forces', ['.@'])),
         )
     )
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+    outputs.Outputs.electronic_band_structures.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
-            xml2=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
+            xml_bands=MapperAnnotation(mapper=('get_bands', ['.eigenvalues.array'])),
             outcar=MapperAnnotation(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'parameters'])
+                mapper=('get_bands', ['.eigenvalues', 'parameters'])
             ),
+        )
+    )
+    outputs.Outputs.electronic_dos.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            xml_dos=MapperAnnotation(mapper=('get_dos', ['.dos.total.array.set'])),
         )
     )
 
@@ -330,35 +349,39 @@ class TotalForce(properties.forces.TotalForce):
     )
 
 
-class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    outputs.ElectronicBandStructure.occupation.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            xml=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            outcar=MapperAnnotation(mapper='.n_bands'),
-        )
-    )
-
-    # TODO This only works for non-spin pol
-    outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
+            xml_bands=MapperAnnotation(mapper='.occupations'),
             outcar=MapperAnnotation(mapper='.occupations'),
-            xml2=MapperAnnotation(mapper='.occupations'),
         )
     )
-    outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
+    outputs.ElectronicBandStructure.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            outcar=MapperAnnotation(mapper='.eigenvalues'),
-            xml2=MapperAnnotation(mapper='.eigenvalues'),
+            xml_bands=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
+            outcar=MapperAnnotation(mapper='.eigenvalues', unit='eV'),
         )
     )
 
+
+outputs.ElectronicDensityOfStates.value.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(
+    dict(
+        xml_dos=MapperAnnotation(mapper='.value', unit='1/eV'),
+    )
+)
+outputs.ElectronicDensityOfStates.energies.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(
+    dict(
+        xml_dos=MapperAnnotation(mapper='.energies', unit='eV'),
+    )
+)
 
 try:
     m_package.__init_metainfo__()

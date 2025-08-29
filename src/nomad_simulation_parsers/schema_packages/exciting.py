@@ -172,9 +172,9 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
             dos_xml=Mapper(mapper=('to_float', [r'.point[*]."@dos"']), unit='1/hartree')
         )
     )
-    outputs.ElectronicDensityOfStates.projected_dos.m_annotations[
+    """outputs.ElectronicDensityOfStates.projected_dos.m_annotations[
         MAPPING_ANNOTATION_KEY
-    ] = dict(dos_xml=Mapper(mapper='dos.partialdos.diagram'))
+    ] = dict(dos_xml=Mapper(mapper='dos.partialdos.diagram'))"""
 
 
 try:

@@ -211,21 +211,21 @@ class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     ).update(dict(text=Mapper(mapper='.occupations')))
 
 
-class DOSProfile(properties.spectral_profile.DOSProfile):
+"""class DOSProfile(properties.spectral_profile.DOSProfile):
     ### dos quantities
     properties.spectral_profile.DOSProfile.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text_dos=Mapper(mapper='.values')))
+    ).update(dict(text_dos=Mapper(mapper='.values')))"""
 
 
-class ElectronicDensityOfStates(properties.spectral_profile.ElectronicDensityOfStates):
+"""class ElectronicDensityOfStates(properties.spectral_profile.ElectronicDensityOfStates):
     properties.spectral_profile.ElectronicDensityOfStates.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text_dos=Mapper(mapper='.values')))
     ### projected dos
     properties.spectral_profile.ElectronicDensityOfStates.projected_dos.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text_dos=Mapper(mapper='.projected_dos')))
+    ).update(dict(text_dos=Mapper(mapper='.projected_dos')))"""
 
 
 class SimulationWorkflow(workflow.general.SimulationWorkflow):
