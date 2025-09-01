@@ -15,7 +15,7 @@ from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
-from nomad_simulations.schema_packages.workflow.beyond_dft import DFTTBWorkflow
+from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -264,7 +264,7 @@ class WannierArchiveWriter(ArchiveWriter):
             )
 
             workflow_archive = self.child_archives[dft_file]
-            workflow_archive.workflow2 = DFTTBWorkflow(
+            workflow_archive.workflow2 = DFTTBDMFTWorkflow(
                 tasks=[
                     TaskReference(task=dft_archive.workflow2),
                     TaskReference(task=self.archive.workflow2),
