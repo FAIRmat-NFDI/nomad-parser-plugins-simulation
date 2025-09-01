@@ -1131,7 +1131,10 @@ class LammpsArchiveWriter(MDParser):
             for n in range(n_traj)
             if (step := self.traj_parsers.eval('get_step', n)) is not None
         ]
-
+        # ? Shouldn't one root ModelSystem be attached to simulation, instead of a list
+        # ? of n_steps ModelSystems? The quantities are not stored on the same levels as
+        # ? in the example protein system.
+        # sec_system = ModelSystem()  # ? Root Model system here, change parse_trajectory_step to expect root ModelSystem instead of Simulation. adapt appending quantities?
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
@@ -1176,137 +1179,164 @@ class LammpsArchiveWriter(MDParser):
         # parse atomsgroup (moltypes --> molecules --> residues)
         # ! Only information from first frame is used to date
         first_frame = 0
-        atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
-        if atoms_info is None:
-            atoms_info = self.traj_parsers.eval('atoms_info')
-            if isinstance(atoms_info, list):
-                atoms_info = (
-                    atoms_info[first_frame] if atoms_info else None
+        particles_info = self._mdanalysistraj_parser.get('atoms_info', None)
+        if particles_info is None:
+            particles_info = self.traj_parsers.eval('atoms_info')
+            if isinstance(particles_info, list):
+                particles_info = (
+                    particles_info[first_frame] if particles_info else None
                 )  # using info from the initial frame
-        if atoms_info is not None:
-            atoms_moltypes = np.array(atoms_info.get('moltypes', []))
-            atoms_molnums = np.array(atoms_info.get('molnums', []))
-            atoms_resids = np.array(atoms_info.get('resids', []))
-            atoms_elements = np.array(
-                atoms_info.get('elements', ['CGX'] * self.n_atoms)
+        if particles_info is not None:
+            particles_moltypes = np.array(particles_info.get('moltypes', []))
+            particles_molnums = np.array(particles_info.get('molnums', []))
+            print('particles_molnums:', particles_molnums)
+            particles_resids = np.array(particles_info.get('resids', []))
+            print('particles_resids:', particles_resids)
+            particles_elements = np.array(
+                particles_info.get('elements', ['CGX'] * self.n_atoms)
             )
-            atoms_types = np.array(atoms_info.get('types', []))
+            print('particles_elements:', particles_elements)
+            atoms_types = np.array(particles_info.get('types', []))
+            print('atoms_types:', atoms_types)
             atom_labels = [
                 particle_state.label
                 for particle_state in simulation.model_system[
                     first_frame
                 ].particle_states
             ]
-            if 'CGX' in atoms_elements:
-                atoms_elements = (
+            print('atom_labels:', atom_labels)
+            if 'CGX' in particles_elements:
+                particles_elements = (
                     np.array(atom_labels)
                     if atom_labels and 'CGX' not in atom_labels
                     else atoms_types
                 )
-            atoms_resnames = np.array(atoms_info.get('resnames', []))
-            moltypes = np.unique(atoms_moltypes)
-            # for i_moltype, moltype in enumerate(moltypes):
-            #     # Only add atomsgroup for initial system for now
-            #     # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
-            #     sec_molecule_group = ModelSystem()
-            #     # TODO: append to simulation?
-            #     # sec_run.system[0].atoms_group.append(sec_molecule_group)
-            #     # ? ModelSystem has no 'label', 'ParticleState' does.
-            #     # ? Using a 'ParticleState' class for a group of molecules is counter-intuitive
-            #     sec_molecule_group.branch_label = f'group_{moltype}'
-            #     # ? 'molecule_group' deprecated,
-            #     # ? which of 'cluster', 'bulk', or 'unavailable' to use?
-            #     sec_molecule_group.type = 'cluster'  # 'molecule_group'
-            #     sec_molecule_group.index = i_moltype
-            #     sec_molecule_group.atom_indices = np.where(atoms_moltypes == moltype)[0]
-            #     sec_molecule_group.n_atoms = len(sec_molecule_group.atom_indices)
-            #     sec_molecule_group.is_molecule = False
-            #     # mol_nums is the molecule identifier for each atom
-            #     mol_nums = atoms_molnums[sec_molecule_group.atom_indices]
-            #     moltype_count = np.unique(mol_nums).shape[0]
-            #     sec_molecule_group.composition_formula = f'{moltype}({moltype_count})'
+            print('particles_elements after:', particles_elements)
+            atoms_resnames = np.array(particles_info.get('resnames', []))
+            print('atoms_resnames:', atoms_resnames)
+            moltypes = np.unique(particles_moltypes)
+            print('moltypes:', moltypes)
+            # print(simulation.model_system[0].__dict__)
+            print(len(simulation.model_system))
+            sec_system = ModelSystem()
+            # sec_system.dimensionality = 3  # TODO: check if automatic evaluation works, handle CG systems!
+            for i_moltype, moltype in enumerate(moltypes):
+                print('i_moltype:', i_moltype, 'moltype:', moltype)
+                # Only add atomsgroup for initial system for now
+                # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
+                sec_molecule_group = ModelSystem()
+                #     # TODO: append to simulation? -> at the very end!
+                sec_molecule_group.name = f'group_{moltype}'
+                sec_molecule_group.branch_label = 'molecule_group'
+                sec_molecule_group.branch_depth = 1
+                # sec_molecule_group.index = i_moltype
+                sec_molecule_group.particle_indices = np.where(
+                    particles_moltypes == moltype
+                )[0]
+                # sec_molecule_group.n_particles = len(
+                #     sec_molecule_group.particle_indices
+                # )
+                # ? is_molecule is a function now, explicitly needed?
+                # sec_molecule_group.is_molecule = False
+                # mol_nums is the molecule identifier for each atom
+                mol_nums = particles_molnums[sec_molecule_group.particle_indices]
+                moltype_count = np.unique(mol_nums).shape[0]
+                sec_molecule_group.composition_formula = f'{moltype}({moltype_count})'
 
-            #     molecules = atoms_molnums
-            #     for i_molecule, molecule in enumerate(
-            #         np.unique(molecules[sec_molecule_group.atom_indices])
-            #     ):
-            #         sec_molecule = ModelSystem()
-            #         # TODO: append to sec_molecule_group
-            #         # sec_molecule_group.atoms_group.append(sec_molecule)
-            #         if i_molecule == 0:
-            #             sec_molecule.is_representative = True
-            #         sec_molecule.index = i_molecule
-            #         sec_molecule.atom_indices = np.where(molecules == molecule)[0]
-            #         sec_molecule.n_atoms = len(sec_molecule.atom_indices)
-            #         # use first particle to get the moltype
-            #         # not sure why but this value is being cast to int, cast back to str
-            #         sec_molecule.label = str(
-            #             atoms_moltypes[sec_molecule.atom_indices[0]]
-            #         )
-            #         sec_molecule.type = 'molecule'
-            #         sec_molecule.is_molecule = True
+                molecules = particles_molnums
+                for i_molecule, molecule in enumerate(
+                    np.unique(molecules[sec_molecule_group.particle_indices])
+                ):
+                    print('i_molecule:', i_molecule, 'molecule:', molecule)
+                    sec_molecule = ModelSystem()
+                    # TODO: append to sec_molecule_group
+                    # ? Does that happen automatically, or do I have to set 'is_representative'?
+                    # if i_molecule == 0:
+                    #     sec_molecule.is_representative = True
+                    # sec_molecule.index = i_molecule
+                    sec_molecule.particle_indices = np.where(molecules == molecule)[0]
+                    # sec_molecule.n_particles = len(sec_molecule.particle_indices)
+                    sec_molecule.name = molecule
+                    sec_molecule.branch_label = 'molecule'
+                    sec_molecule.branch_depth = 2
+                    # use first particle to get the moltype
+                    # sec_molecule.label = str(
+                    #     particles_moltypes[sec_molecule.particle_indices[0]]
+                    # )
 
-            #         mol_resids = np.unique(atoms_resids[sec_molecule.atom_indices])
-            #         n_res = mol_resids.shape[0]
-            #         if n_res == 1:
-            #             elements = atoms_elements[sec_molecule.atom_indices]
-            #             sec_molecule.composition_formula = get_composition(elements)
-            #         else:
-            #             mol_resnames = atoms_resnames[sec_molecule.atom_indices]
-            #             restypes = np.unique(mol_resnames)
-            #             for i_restype, restype in enumerate(restypes):
-            #                 sec_monomer_group = ModelSystem()
-            #                 # TODO: append to sec_molecule
-            #                 # sec_molecule.atoms_group.append(sec_monomer_group)
-            #                 restype_indices = np.where(atoms_resnames == restype)[0]
-            #                 sec_monomer_group.label = f'group_{restype}'
-            #                 sec_monomer_group.type = 'monomer_group'
-            #                 sec_monomer_group.index = i_restype
-            #                 sec_monomer_group.atom_indices = np.intersect1d(
-            #                     restype_indices, sec_molecule.atom_indices
-            #                 )
-            #                 sec_monomer_group.n_atoms = len(
-            #                     sec_monomer_group.atom_indices
-            #                 )
-            #                 sec_monomer_group.is_molecule = False
+                    # ? Set by normalizer?
+                    sec_molecule.is_molecule = True
+                    mol_resids = np.unique(
+                        particles_resids[sec_molecule.particle_indices]
+                    )
+                    print('mol_resids:', mol_resids)
+                    n_res = mol_resids.shape[0]
+                    if n_res == 1:
+                        elements = particles_elements[sec_molecule.particle_indices]
+                        print('elements:', elements)
+                        # sec_molecule.composition_formula = get_composition(elements)
+                    # else:
+                    #     mol_resnames = atoms_resnames[sec_molecule.atom_indices]
+                    #     restypes = np.unique(mol_resnames)
+                    #     for i_restype, restype in enumerate(restypes):
+                    #         sec_monomer_group = ModelSystem()
+                    #         # TODO: append to sec_molecule
+                    #         # sec_molecule.atoms_group.append(sec_monomer_group)
+                    #         restype_indices = np.where(atoms_resnames == restype)[0]
+                    #         sec_monomer_group.label = f'group_{restype}'
+                    #         sec_monomer_group.type = 'monomer_group'
+                    #         sec_monomer_group.index = i_restype
+                    #         sec_monomer_group.atom_indices = np.intersect1d(
+                    #             restype_indices, sec_molecule.atom_indices
+                    #         )
+                    #         sec_monomer_group.n_atoms = len(
+                    #             sec_monomer_group.atom_indices
+                    #         )
+                    #         sec_monomer_group.is_molecule = False
 
-            #                 restype_resids = np.unique(
-            #                     atoms_resids[sec_monomer_group.atom_indices]
-            #                 )
-            #                 restype_count = restype_resids.shape[0]
-            #                 sec_monomer_group.composition_formula = (
-            #                     f'{restype}({restype_count})'
-            #                 )
-            #                 for i_res, res_id in enumerate(restype_resids):
-            #                     sec_residue = ModelSystem()
-            #                     # TODO: append to sec_monomer_group
-            #                     # sec_monomer_group.atoms_group.append(sec_residue)
-            #                     sec_residue.index = i_res
-            #                     atom_indices = np.where(atoms_resids == res_id)[0]
-            #                     sec_residue.atom_indices = np.intersect1d(
-            #                         atom_indices, sec_monomer_group.atom_indices
-            #                     )
-            #                     sec_residue.n_atoms = len(sec_residue.atom_indices)
-            #                     sec_residue.label = str(restype)
-            #                     sec_residue.type = 'monomer'
-            #                     sec_residue.is_molecule = False
-            #                     elements = atoms_elements[sec_residue.atom_indices]
-            #                     sec_residue.composition_formula = get_composition(
-            #                         elements
-            #                     )
+                    #         restype_resids = np.unique(
+                    #             atoms_resids[sec_monomer_group.atom_indices]
+                    #         )
+                    #         restype_count = restype_resids.shape[0]
+                    #         sec_monomer_group.composition_formula = (
+                    #             f'{restype}({restype_count})'
+                    #         )
+                    #         for i_res, res_id in enumerate(restype_resids):
+                    #             sec_residue = ModelSystem()
+                    #             # TODO: append to sec_monomer_group
+                    #             # sec_monomer_group.atoms_group.append(sec_residue)
+                    #             sec_residue.index = i_res
+                    #             atom_indices = np.where(atoms_resids == res_id)[0]
+                    #             sec_residue.atom_indices = np.intersect1d(
+                    #                 atom_indices, sec_monomer_group.atom_indices
+                    #             )
+                    #             sec_residue.n_atoms = len(sec_residue.atom_indices)
+                    #             sec_residue.label = str(restype)
+                    #             sec_residue.type = 'monomer'
+                    #             sec_residue.is_molecule = False
+                    #             elements = particles_elements[sec_residue.atom_indices]
+                    #             sec_residue.composition_formula = get_composition(
+                    #                 elements
+                    #             )
 
-            #             names = atoms_resnames[sec_molecule.atom_indices]
-            #             ids = atoms_resids[sec_molecule.atom_indices]
-            #             # filter for the first instance of each residue, as to not overcount
-            #             __, ids_count = np.unique(ids, return_counts=True)
-            #             # get the index of the first atom of each residue
-            #             ids_firstatom = np.cumsum(ids_count)[:-1]
-            #             # add the 0th index manually
-            #             ids_firstatom = np.insert(ids_firstatom, 0, 0)
-            #             names_firstatom = names[ids_firstatom]
-            #             sec_molecule.composition_formula = get_composition(
-            #                 names_firstatom
-            #             )
+                    #     names = particles_resnames[sec_molecule.atom_indices]
+                    #     ids = atoms_resids[sec_molecule.atom_indices]
+                    #     # filter for the first instance of each residue, as to not overcount
+                    #     __, ids_count = np.unique(ids, return_counts=True)
+                    #     # get the index of the first atom of each residue
+                    #     ids_firstatom = np.cumsum(ids_count)[:-1]
+                    #     # add the 0th index manually
+                    #     ids_firstatom = np.insert(ids_firstatom, 0, 0)
+                    #     names_firstatom = names[ids_firstatom]
+                    #     sec_molecule.composition_formula = get_composition(
+                    #         names_firstatom
+                    #     )
+                    sec_molecule_group.sub_systems.append(sec_molecule)
+
+                sec_system.sub_systems.append(sec_molecule_group)
+            simulation.model_system.append(sec_system)
+            # print(simulation.model_system[0].__dict__)
+            sys.exit()
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))

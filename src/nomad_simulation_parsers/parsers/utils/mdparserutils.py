@@ -157,8 +157,10 @@ class MDParser(ArchiveWriter):
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
         if model_system is None:
+            print('Creating new ModelSystem')
             model_system = ModelSystem()
         if cell is None:
+            print('Creating new Cell')
             cell = Cell()
 
         cell_dict = data.pop('cell')
