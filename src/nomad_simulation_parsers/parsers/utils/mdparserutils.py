@@ -25,9 +25,9 @@ import numpy as np
 # from nomad.metainfo import MSection
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.atoms_state import AtomsState
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import AtomicCell, ModelSystem
+from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
 
 # nomad-simulations
 from nomad_simulations.schema_packages.outputs import (
@@ -145,30 +145,29 @@ class MDParser(ArchiveWriter):
         data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
-        atomic_cell: AtomicCell = None,
+        cell: Cell = None,
     ) -> None:
         """
         Create a system section and write the provided data.
         """
-        if self.archive is None:
-            return
+        # ? How to handle a missing archive now?
+        # if self.archive is None:
+        #     return
 
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
         if model_system is None:
             model_system = ModelSystem()
-        if atomic_cell is None:
-            atomic_cell = AtomicCell()
+        if cell is None:
+            cell = Cell()
 
-        atomic_cell_dict = data.pop('atomic_cell')
-        atom_labels = atomic_cell_dict.pop('labels')
-        for label in atom_labels:
-            atoms_state = AtomsState(
-                chemical_symbol=label
-            )  # ? how can I customize AtomsState within the parser?
-            atomic_cell.atoms_state.append(atoms_state)
-        self.parse_section(atomic_cell_dict, atomic_cell)
-        model_system.cell.append(atomic_cell)
+        cell_dict = data.pop('cell')
+        particle_labels = data.pop('labels')
+        for label in particle_labels:
+            particle_state = ParticleState(label=label)
+            model_system.particle_states.append(particle_state)
+        self.parse_section(cell_dict, cell)
+        model_system.cell.append(cell)
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 
