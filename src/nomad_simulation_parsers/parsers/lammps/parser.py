@@ -1214,6 +1214,7 @@ class LammpsArchiveWriter(MDParser):
                 # Only add atomsgroup for initial system for now
                 # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
                 sec_molecule_group = ModelSystem()
+                sec_molecule_group.dimensionality = 3
                 sec_molecule_group.name = f'group_{moltype}'
                 sec_molecule_group.branch_label = 'molecule_group'
                 sec_molecule_group.particle_indices = np.where(
