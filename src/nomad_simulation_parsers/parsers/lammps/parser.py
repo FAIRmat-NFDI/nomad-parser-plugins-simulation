@@ -1209,12 +1209,11 @@ class LammpsArchiveWriter(MDParser):
                 )
             particles_resnames = np.array(particles_info.get('resnames', []))
             moltypes = np.unique(particles_moltypes)
-            # sec_system.dimensionality = 3  # TODO: check if automatic evaluation works, handles CG systems!
+            simulation.model_system[0].dimensionality = 3
             for i_moltype, moltype in enumerate(moltypes):
                 # Only add atomsgroup for initial system for now
                 # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
                 sec_molecule_group = ModelSystem()
-                sec_molecule_group.dimensionality = 3
                 sec_molecule_group.name = f'group_{moltype}'
                 sec_molecule_group.branch_label = 'molecule_group'
                 sec_molecule_group.particle_indices = np.where(
@@ -1411,29 +1410,25 @@ class LammpsArchiveWriter(MDParser):
 
         self.parse_system(self.archive.data)
 
-        normalize_all(self.archive)
-        simulation = self.archive.data
-        print(len(simulation.model_system))
-        print(simulation.model_system[0].n_particles)
-        print(np.shape(simulation.model_system[0].positions))
-        print(np.shape(simulation.model_system[0].velocities))
-        print(simulation.model_system[0].particle_states[100].chemical_symbol)
-        print(simulation.model_system[0].particle_states[100].label)
-        print(
-            simulation.model_system[3]
-            .cell[0]
-            .lattice_vectors[2][2]
-            .to('angstrom')
-            .magnitude
-        )
-        print(simulation.model_system[3].cell[0].periodic_boundary_conditions)
-        print(
-            simulation.model_system[0].bond_list[200],
-            type(simulation.model_system[0].bond_list[200]),
-        )
-        print(simulation.model_system[0].dimensionality)
-        print(simulation.model_system[0].is_molecule())
-        # print(simulation.model_system[2].velocities[0][2].to('angstrom/ps').magnitude)
+        # normalize_all(self.archive)
+        # sec_atoms_group = self.archive.data.model_system[0].sub_systems
+        # print(len(sec_atoms_group))
+        # print(sec_atoms_group[0].particle_states)
+        # print(sec_atoms_group[0].name)
+        # print(sec_atoms_group[0].branch_label)
+        # print(sec_atoms_group[0].composition_formula)
+        # print(sec_atoms_group[0].particle_indices[13])
+        # print(sec_atoms_group[0].is_molecule())
+        # print('\n')
+        # sec_proteins = sec_atoms_group[0].sub_systems
+        # print(len(sec_proteins))
+        # print(sec_proteins[0].particle_states)
+        # print(sec_proteins[0].name)
+        # print(sec_proteins[0].branch_label)
+        # print(sec_proteins[0].composition_formula)
+        # print(sec_proteins[0].particle_indices[20])
+        # print(sec_proteins[0].is_molecule())
+        # print('\n')
 
         # # include input controls from log file
         # self.parse_input()

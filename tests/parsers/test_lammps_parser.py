@@ -19,6 +19,7 @@
 import pytest
 import numpy as np
 
+from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.lammps.parser import (
@@ -236,13 +237,15 @@ def test_unwrapped_pos(parser):
 def test_systems(parser) -> None:
     archive = EntryArchive()
     parser.parse(
-        'tests/data/lammps/methane_dcd/log.methane_nvt_traj_dcd_thermo_style_custom',
+        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
         archive,
         LOGGER,
     )
+    normalize_all(archive, logger=LOGGER)
     sec_systems = archive.data.model_system
     assert len(sec_systems) == 4
     assert np.shape(sec_systems[0].positions) == (1134, 3)
+    # TODO: Atomic test data does not have velocities, update testing!
     # assert np.shape(sec_systems[0].velocities) == (1134, 3)
     assert sec_systems[0].n_particles == 1134
     assert sec_systems[0].particle_states[100].chemical_symbol == 'H'
@@ -251,7 +254,6 @@ def test_systems(parser) -> None:
     assert sec_systems[2].positions[567][1].to('angstrom').magnitude == pytest.approx(
         -58847500000.0
     )
-    # TODO: Atomic test data does not have velocities, update testing!
     # assert sec_systems[idx].velocities[idx][idx].to(
     #     'angstrom/ps'
     # ).magnitude == pytest.approx(target_float)
@@ -259,169 +261,60 @@ def test_systems(parser) -> None:
         'angstrom'
     ).magnitude == pytest.approx(214680000000.0)
     assert sec_systems[3].cell[0].periodic_boundary_conditions == [True, True, True]
-    assert sec_systems[0].bond_list[200][0] == np.array([189, 192])
-    # TODO: fiugre out why dimensionality isn't set
-    # assert sec_systems[0].dimensionality == 3
+    assert (
+        np.testing.assert_array_equal(
+            sec_systems[0].bond_list[200], np.array([189, 192])
+        )
+        is None
+    )
+    assert sec_systems[0].dimensionality == 3
     assert sec_systems[0].is_molecule() is False
 
 
-def assert_system_hierarchy(archive: EntryArchive) -> None:
-    sec_atoms_group = archive.data.model_system[0].sub_systems
-    assert len(sec_atoms_group) == 4
-    assert sec_atoms_group[0].particle_states == []
+def test_systems_velocities(parser):
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_xyz_files/log.lammps',
+        archive,
+        LOGGER,
+    )
+    normalize_all(archive, logger=LOGGER)
+    sec_systems = archive.data.model_system
+    assert np.shape(sec_systems[0].velocities) == (500, 3)
+    assert sec_systems[100].velocities[250][2].to(
+        'angstrom/ps'
+    ).magnitude == pytest.approx(0.0256726)
+
+
+# TODO: Needs to be tested with more complex system!
+def test_system_hierarchy(parser) -> None:
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
+        archive,
+        LOGGER,
+    )
+    normalize_all(archive, logger=LOGGER)
+    sec_particles_group = archive.data.model_system[0].sub_systems
+    assert len(sec_particles_group) == 1
+    assert sec_particles_group[0].particle_states == []
     # TODO comment back in once nested fix is in release
-    # assert sec_atoms_group[0].cell == []
-    assert sec_atoms_group[0].name == 'group_1ZNF'
-    assert sec_atoms_group[0].branch_label == 'molecule_group'
-    assert sec_atoms_group[0].composition_formula == '1ZNF(1)'
-    assert sec_atoms_group[0].particle_indices[159] == 159
-    assert sec_atoms_group[0].is_molecule() is True
+    # assert sec_particles_group[0].cell == []
+    assert sec_particles_group[0].name == 'group_0'
+    assert sec_particles_group[0].branch_label == 'molecule_group'
+    assert sec_particles_group[0].composition_formula == '0(54)'
+    # ! Particle index is wrong when parsing 1_xyz LJ system!
+    assert sec_particles_group[0].particle_indices[13] == 13
+    # ! Should this or shouldn't this be recognized as a molecule?
+    assert sec_particles_group[0].is_molecule() is False
 
-    sec_proteins = sec_atoms_group[0].sub_systems
-    assert len(sec_proteins) == 1
-    assert sec_proteins[0].name == '1ZNF'
-    assert sec_proteins[0].branch_label == 'molecule'
-    assert (
-        sec_proteins[0].composition_formula
-        == 'ACE(1)TYR(1)LYS(3)CYS(2)GLY(1)LEU(2)GLU(2)ARG(3)SER(3)PHE(1)VAL(2)ALA(1)'
-        'HIS(2)GLN(1)ASN(1)NH2(1)'
-    )
-    assert sec_proteins[0].particle_indices[400] == 400
-    assert sec_proteins[0].is_molecule() is True
-
-    sec_res_group = sec_proteins[0].sub_systems
-    assert len(sec_res_group) == 16
-    assert sec_res_group[13].name == 'group_ARG'
-    assert sec_res_group[14].branch_label == 'monomer_group'
-    assert sec_res_group[13].composition_formula == 'ARG(3)'
-    assert sec_res_group[14].particle_indices[2] == 136  # TODO: check explicitly
-    assert sec_res_group[14].is_molecule() is False
-
-    sec_res = sec_res_group[13].sub_systems
-    assert len(sec_res) == 3
-    assert sec_res[0].name == 'ARG'
-    assert sec_res[0].branch_label == 'monomer'
-    assert (
-        sec_res[0].composition_formula
-        == 'C(1)CA(1)CB(1)CD(1)CG(1)CZ(1)H(1)HA(1)HB2(1)HB3(1)HD2(1)HD3(1)HE(1)HG2(1)'
-        'HG3(1)HH11(1)HH12(1)HH21(1)HH22(1)N(1)NE(1)NH1(1)NH2(1)O(1)'
-    )
-    assert sec_res[0].particle_indices[10] == 120  # TODO: check explicitly
-    assert sec_res[0].is_molecule() is False
-
-
-# TODO: update structure to new schema
-# def test_md_atomsgroup(parser):
-#     archive = EntryArchive()
-#     parser.parse(
-#         'tests/data/lammps/polymer_melt/Emin/log.step4.0_minimization', archive, None
-#     )
-
-#     # sec_run = archive.run[0]
-#     sec_systems = archive.data.model_system
-
-#     # assert len(sec_systems[0].atoms_group) == 1
-#     # assert len(sec_systems[0].atoms_group[0].atoms_group) == 100
-
-#     # assert sec_systems[0].atoms_group[0].label == 'group_0'
-#     # assert sec_systems[0].atoms_group[0].type == 'molecule_group'
-#     # assert sec_systems[0].atoms_group[0].index == 0
-#     # assert sec_systems[0].atoms_group[0].composition_formula == '0(100)'
-#     # assert sec_systems[0].atoms_group[0].n_atoms == 7200
-#     # assert sec_systems[0].atoms_group[0].atom_indices[5] == 5
-#     # assert sec_systems[0].atoms_group[0].is_molecule is False
-
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].label == '0'
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].type == 'molecule'
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].index == 52
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[52].composition_formula
-#     #     == '1(1)2(1)3(1)4(1)5(1)6(1)7(1)8(1)9(1)10(1)'
-#     # )
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].n_atoms == 72
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].atom_indices[8] == 3752
-#     # assert sec_systems[0].atoms_group[0].atoms_group[52].is_molecule is True
-
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].label == 'group_8'
-#     # )
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].type
-#     #     == 'monomer_group'
-#     # )
-#     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].index == 7
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].composition_formula
-#     #     == '8(1)'
-#     # )
-#     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].n_atoms == 7
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atom_indices[5]
-#     #     == 5527
-#     # )
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].is_molecule
-#     #     is False
-#     # )
-
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .label
-#     #     == '8'
-#     # )
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atoms_group[0].type
-#     #     == 'monomer'
-#     # )
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .index
-#     #     == 0
-#     # )
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .composition_formula
-#     #     == '1(4)4(2)6(1)'
-#     # )
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .n_atoms
-#     #     == 7
-#     # )
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .atom_indices[5]
-#     #     == 5527
-#     # )
-#     # assert (
-#     #     sec_systems[0]
-#     #     .atoms_group[0]
-#     #     .atoms_group[76]
-#     #     .atoms_group[7]
-#     #     .atoms_group[0]
-#     #     .is_molecule
-#     #     is False
-#     # )
+    sec_monomers = sec_particles_group[0].sub_systems
+    assert len(sec_monomers) == 54
+    assert sec_monomers[0].name == '0'
+    assert sec_monomers[0].branch_label == 'molecule'
+    assert sec_monomers[0].composition_formula == 'C(11)H(10)'
+    assert sec_monomers[0].particle_indices[20] == 20
+    assert sec_monomers[0].is_molecule() is True
 
 
 # TODO re-activate when migrating workflow parsing
