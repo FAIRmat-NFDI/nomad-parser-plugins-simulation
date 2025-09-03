@@ -11,6 +11,7 @@ from nomad.parsing.parser import MatchingParser
 
 from ..utils.mdanalysisparser import MDAnalysisParser
 from ..utils.mdparserutils import MDParser
+from nomad.client import normalize_all
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.atoms_state import ParticleState
@@ -821,10 +822,9 @@ class LogParser(TextParser):
             traj_files = [
                 f
                 for f in traj_files
-                if f.endswith('trj') or f.endswith('xyz')
+                if f.endswith('trj') or f.endswith('xyz') or f.endswith('dcd')
                 # TODO: add parsers for supported trajectory formats
                 # or f.endswith('lammpstrj')
-                # or f.endswith('dcd')
                 # or f.endswith('h5')
                 # or f.endswith('nc')
             ]
@@ -834,7 +834,13 @@ class LogParser(TextParser):
                 prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
                 traj_files = [f for f in traj_files if prefix in f]
             else:
-                traj_files = [d[2] for d in dump]
+                TRAJ_FILE_INDEX = 2
+                traj_files = [
+                    d[TRAJ_FILE_INDEX]
+                    if isinstance(d, list) and len(d) > TRAJ_FILE_INDEX
+                    else d
+                    for d in traj_files
+                ]
         else:
             traj_files = []
             if type(dump[0]) in [str, int]:
@@ -843,7 +849,6 @@ class LogParser(TextParser):
         traj_files = [
             i for n, i in enumerate(traj_files) if i not in traj_files[:n]
         ]  # remove duplicates
-
         return [os.path.join(self.maindir, f) for f in traj_files]
 
     def get_data_files(self):
@@ -1131,10 +1136,6 @@ class LammpsArchiveWriter(MDParser):
             for n in range(n_traj)
             if (step := self.traj_parsers.eval('get_step', n)) is not None
         ]
-        # ? Shouldn't one root ModelSystem be attached to simulation, instead of a list
-        # ? of n_steps ModelSystems? The quantities are not stored on the same levels as
-        # ? in the example protein system.
-        # sec_system = ModelSystem()  # ? Root Model system here, change parse_trajectory_step to expect root ModelSystem instead of Simulation. adapt appending quantities?
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
             lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
@@ -1176,7 +1177,7 @@ class LammpsArchiveWriter(MDParser):
             }
             self._md_parser.parse_trajectory_step(particles_dict, simulation)
 
-        # parse atomsgroup (moltypes --> molecules --> residues)
+        # parse particlesgroup (moltypes --> molecules --> residues)
         # ! Only information from first frame is used to date
         first_frame = 0
         particles_info = self._mdanalysistraj_parser.get('atoms_info', None)
@@ -1189,47 +1190,32 @@ class LammpsArchiveWriter(MDParser):
         if particles_info is not None:
             particles_moltypes = np.array(particles_info.get('moltypes', []))
             particles_molnums = np.array(particles_info.get('molnums', []))
-            print('particles_molnums:', particles_molnums)
             particles_resids = np.array(particles_info.get('resids', []))
-            print('particles_resids:', particles_resids)
             particles_elements = np.array(
                 particles_info.get('elements', ['CGX'] * self.n_atoms)
             )
-            print('particles_elements:', particles_elements)
-            atoms_types = np.array(particles_info.get('types', []))
-            print('atoms_types:', atoms_types)
-            atom_labels = [
+            particles_types = np.array(particles_info.get('types', []))
+            particle_labels = [
                 particle_state.label
                 for particle_state in simulation.model_system[
                     first_frame
                 ].particle_states
             ]
-            print('atom_labels:', atom_labels)
             if 'CGX' in particles_elements:
                 particles_elements = (
-                    np.array(atom_labels)
-                    if atom_labels and 'CGX' not in atom_labels
-                    else atoms_types
+                    np.array(particle_labels)
+                    if particle_labels and 'CGX' not in particle_labels
+                    else particles_types
                 )
-            print('particles_elements after:', particles_elements)
-            atoms_resnames = np.array(particles_info.get('resnames', []))
-            print('atoms_resnames:', atoms_resnames)
+            particles_resnames = np.array(particles_info.get('resnames', []))
             moltypes = np.unique(particles_moltypes)
-            print('moltypes:', moltypes)
-            # print(simulation.model_system[0].__dict__)
-            print(len(simulation.model_system))
-            sec_system = ModelSystem()
-            # sec_system.dimensionality = 3  # TODO: check if automatic evaluation works, handle CG systems!
+            # sec_system.dimensionality = 3  # TODO: check if automatic evaluation works, handles CG systems!
             for i_moltype, moltype in enumerate(moltypes):
-                print('i_moltype:', i_moltype, 'moltype:', moltype)
                 # Only add atomsgroup for initial system for now
                 # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
                 sec_molecule_group = ModelSystem()
-                #     # TODO: append to simulation? -> at the very end!
                 sec_molecule_group.name = f'group_{moltype}'
                 sec_molecule_group.branch_label = 'molecule_group'
-                sec_molecule_group.branch_depth = 1
-                # sec_molecule_group.index = i_moltype
                 sec_molecule_group.particle_indices = np.where(
                     particles_moltypes == moltype
                 )[0]
@@ -1247,96 +1233,55 @@ class LammpsArchiveWriter(MDParser):
                 for i_molecule, molecule in enumerate(
                     np.unique(molecules[sec_molecule_group.particle_indices])
                 ):
-                    print('i_molecule:', i_molecule, 'molecule:', molecule)
                     sec_molecule = ModelSystem()
-                    # TODO: append to sec_molecule_group
                     # ? Does that happen automatically, or do I have to set 'is_representative'?
                     # if i_molecule == 0:
                     #     sec_molecule.is_representative = True
-                    # sec_molecule.index = i_molecule
                     sec_molecule.particle_indices = np.where(molecules == molecule)[0]
                     # sec_molecule.n_particles = len(sec_molecule.particle_indices)
                     sec_molecule.name = molecule
                     sec_molecule.branch_label = 'molecule'
-                    sec_molecule.branch_depth = 2
-                    # use first particle to get the moltype
-                    # sec_molecule.label = str(
-                    #     particles_moltypes[sec_molecule.particle_indices[0]]
-                    # )
-
                     # ? Set by normalizer?
-                    sec_molecule.is_molecule = True
+                    # sec_molecule.is_molecule = True
                     mol_resids = np.unique(
                         particles_resids[sec_molecule.particle_indices]
                     )
-                    print('mol_resids:', mol_resids)
                     n_res = mol_resids.shape[0]
-                    if n_res == 1:
-                        elements = particles_elements[sec_molecule.particle_indices]
-                        print('elements:', elements)
-                        # sec_molecule.composition_formula = get_composition(elements)
-                    # else:
-                    #     mol_resnames = atoms_resnames[sec_molecule.atom_indices]
-                    #     restypes = np.unique(mol_resnames)
-                    #     for i_restype, restype in enumerate(restypes):
-                    #         sec_monomer_group = ModelSystem()
-                    #         # TODO: append to sec_molecule
-                    #         # sec_molecule.atoms_group.append(sec_monomer_group)
-                    #         restype_indices = np.where(atoms_resnames == restype)[0]
-                    #         sec_monomer_group.label = f'group_{restype}'
-                    #         sec_monomer_group.type = 'monomer_group'
-                    #         sec_monomer_group.index = i_restype
-                    #         sec_monomer_group.atom_indices = np.intersect1d(
-                    #             restype_indices, sec_molecule.atom_indices
-                    #         )
-                    #         sec_monomer_group.n_atoms = len(
-                    #             sec_monomer_group.atom_indices
-                    #         )
-                    #         sec_monomer_group.is_molecule = False
+                    if n_res > 1:
+                        mol_resnames = particles_resnames[sec_molecule.particle_indices]
+                        restypes = np.unique(mol_resnames)
+                        for i_restype, restype in enumerate(restypes):
+                            sec_monomer_group = ModelSystem()
+                            restype_indices = np.where(particles_resnames == restype)[0]
+                            sec_monomer_group.name = f'group_{restype}'
+                            sec_monomer_group.branch_label = 'monomer_group'
+                            sec_monomer_group.particle_indices = np.intersect1d(
+                                restype_indices, sec_molecule.particle_indices
+                            )
+                            # TODO: check if handled by normalizer
+                            # sec_monomer_group.is_molecule = False
 
-                    #         restype_resids = np.unique(
-                    #             atoms_resids[sec_monomer_group.atom_indices]
-                    #         )
-                    #         restype_count = restype_resids.shape[0]
-                    #         sec_monomer_group.composition_formula = (
-                    #             f'{restype}({restype_count})'
-                    #         )
-                    #         for i_res, res_id in enumerate(restype_resids):
-                    #             sec_residue = ModelSystem()
-                    #             # TODO: append to sec_monomer_group
-                    #             # sec_monomer_group.atoms_group.append(sec_residue)
-                    #             sec_residue.index = i_res
-                    #             atom_indices = np.where(atoms_resids == res_id)[0]
-                    #             sec_residue.atom_indices = np.intersect1d(
-                    #                 atom_indices, sec_monomer_group.atom_indices
-                    #             )
-                    #             sec_residue.n_atoms = len(sec_residue.atom_indices)
-                    #             sec_residue.label = str(restype)
-                    #             sec_residue.type = 'monomer'
-                    #             sec_residue.is_molecule = False
-                    #             elements = particles_elements[sec_residue.atom_indices]
-                    #             sec_residue.composition_formula = get_composition(
-                    #                 elements
-                    #             )
+                            restype_resids = np.unique(
+                                particles_resids[sec_monomer_group.particle_indices]
+                            )
+                            for i_res, res_id in enumerate(restype_resids):
+                                sec_residue = ModelSystem()
+                                particle_indices = np.where(particles_resids == res_id)[
+                                    0
+                                ]
+                                sec_residue.particle_indices = np.intersect1d(
+                                    particle_indices, sec_monomer_group.particle_indices
+                                )
+                                sec_residue.name = str(restype)
+                                sec_residue.branch_label = 'monomer'
+                                # TODO: check if normalizer sets 'is_molecule'
+                                # sec_residue.is_molecule = False
 
-                    #     names = particles_resnames[sec_molecule.atom_indices]
-                    #     ids = atoms_resids[sec_molecule.atom_indices]
-                    #     # filter for the first instance of each residue, as to not overcount
-                    #     __, ids_count = np.unique(ids, return_counts=True)
-                    #     # get the index of the first atom of each residue
-                    #     ids_firstatom = np.cumsum(ids_count)[:-1]
-                    #     # add the 0th index manually
-                    #     ids_firstatom = np.insert(ids_firstatom, 0, 0)
-                    #     names_firstatom = names[ids_firstatom]
-                    #     sec_molecule.composition_formula = get_composition(
-                    #         names_firstatom
-                    #     )
+                                sec_monomer_group.sub_systems.append(sec_residue)
+                            sec_molecule.sub_systems.append(sec_monomer_group)
+
                     sec_molecule_group.sub_systems.append(sec_molecule)
-
-                sec_system.sub_systems.append(sec_molecule_group)
-            simulation.model_system.append(sec_system)
-            # print(simulation.model_system[0].__dict__)
-            sys.exit()
+                simulation.model_system[0].sub_systems.append(sec_molecule_group)
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
@@ -1464,6 +1409,30 @@ class LammpsArchiveWriter(MDParser):
         self.parse_method(self.archive.data)
 
         self.parse_system(self.archive.data)
+
+        normalize_all(self.archive)
+        simulation = self.archive.data
+        print(len(simulation.model_system))
+        print(simulation.model_system[0].n_particles)
+        print(np.shape(simulation.model_system[0].positions))
+        print(np.shape(simulation.model_system[0].velocities))
+        print(simulation.model_system[0].particle_states[100].chemical_symbol)
+        print(simulation.model_system[0].particle_states[100].label)
+        print(
+            simulation.model_system[3]
+            .cell[0]
+            .lattice_vectors[2][2]
+            .to('angstrom')
+            .magnitude
+        )
+        print(simulation.model_system[3].cell[0].periodic_boundary_conditions)
+        print(
+            simulation.model_system[0].bond_list[200],
+            type(simulation.model_system[0].bond_list[200]),
+        )
+        print(simulation.model_system[0].dimensionality)
+        print(simulation.model_system[0].is_molecule())
+        # print(simulation.model_system[2].velocities[0][2].to('angstrom/ps').magnitude)
 
         # # include input controls from log file
         # self.parse_input()

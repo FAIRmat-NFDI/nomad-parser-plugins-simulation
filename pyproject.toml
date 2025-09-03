@@ -33,15 +33,8 @@ maintainers = [
 license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 6698e39 (Changed dummy label for non-atomic particles to 'CGX' to bypass ASE check)
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "nomad-schema-plugin-simulation-workflow>=1.0.10",
-=======
-    "nomad-simulations",  # @git+https://github.com/nomad-coe/nomad-simulations.git@develop",
->>>>>>> 798b0b0 (removed git dependency from pyproject.toml)
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
 ]
@@ -158,8 +151,8 @@ quantumespresso_parser = "nomad_simulation_parsers.parsers:quantumespresso_parse
 quantumespresso_schema_package = "nomad_simulation_parsers.schema_packages:quantumespresso_schema_package"
 vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
-wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
-wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
+# wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
+# wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
 
 
 
