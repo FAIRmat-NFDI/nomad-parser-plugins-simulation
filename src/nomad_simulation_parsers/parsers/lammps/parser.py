@@ -1411,24 +1411,6 @@ class LammpsArchiveWriter(MDParser):
         self.parse_system(self.archive.data)
 
         # normalize_all(self.archive)
-        # sec_atoms_group = self.archive.data.model_system[0].sub_systems
-        # print(len(sec_atoms_group))
-        # print(sec_atoms_group[0].particle_states)
-        # print(sec_atoms_group[0].name)
-        # print(sec_atoms_group[0].branch_label)
-        # print(sec_atoms_group[0].composition_formula)
-        # print(sec_atoms_group[0].particle_indices[13])
-        # print(sec_atoms_group[0].is_molecule())
-        # print('\n')
-        # sec_proteins = sec_atoms_group[0].sub_systems
-        # print(len(sec_proteins))
-        # print(sec_proteins[0].particle_states)
-        # print(sec_proteins[0].name)
-        # print(sec_proteins[0].branch_label)
-        # print(sec_proteins[0].composition_formula)
-        # print(sec_proteins[0].particle_indices[20])
-        # print(sec_proteins[0].is_molecule())
-        # print('\n')
 
         # # include input controls from log file
         # self.parse_input()

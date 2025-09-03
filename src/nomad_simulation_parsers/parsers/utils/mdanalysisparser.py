@@ -26,6 +26,8 @@ try:
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
+from nptyping import NDArray
+
 from array import array
 from collections import namedtuple
 from typing import Any, NamedTuple, Optional
