@@ -151,8 +151,8 @@ quantumespresso_parser = "nomad_simulation_parsers.parsers:quantumespresso_parse
 quantumespresso_schema_package = "nomad_simulation_parsers.schema_packages:quantumespresso_schema_package"
 vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
-# wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
-# wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
+wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
+wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
 
 
 [tool.cruft]
