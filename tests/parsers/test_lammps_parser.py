@@ -233,6 +233,83 @@ def test_unwrapped_pos(parser):
 #     assert sec_systems[-1].atoms.velocities[72][1].magnitude == approx(-4.61496)  # JFR - universe cannot be built without positions
 
 
+def test_systems(parser) -> None:
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/methane_dcd/log.methane_nvt_traj_dcd_thermo_style_custom',
+        archive,
+        LOGGER,
+    )
+    sec_systems = archive.data.model_system
+    assert len(sec_systems) == 4
+    assert np.shape(sec_systems[0].positions) == (1134, 3)
+    # assert np.shape(sec_systems[0].velocities) == (1134, 3)
+    assert sec_systems[0].n_particles == 1134
+    assert sec_systems[0].particle_states[100].chemical_symbol == 'H'
+    assert sec_systems[0].particle_states[100].label == 'H'
+
+    assert sec_systems[2].positions[567][1].to('angstrom').magnitude == pytest.approx(
+        -58847500000.0
+    )
+    # TODO: Atomic test data does not have velocities, update testing!
+    # assert sec_systems[idx].velocities[idx][idx].to(
+    #     'angstrom/ps'
+    # ).magnitude == pytest.approx(target_float)
+    assert sec_systems[3].cell[0].lattice_vectors[2][2].to(
+        'angstrom'
+    ).magnitude == pytest.approx(214680000000.0)
+    assert sec_systems[3].cell[0].periodic_boundary_conditions == [True, True, True]
+    assert sec_systems[0].bond_list[200][0] == np.array([189, 192])
+    # TODO: fiugre out why dimensionality isn't set
+    # assert sec_systems[0].dimensionality == 3
+    assert sec_systems[0].is_molecule() is False
+
+
+def assert_system_hierarchy(archive: EntryArchive) -> None:
+    sec_atoms_group = archive.data.model_system[0].sub_systems
+    assert len(sec_atoms_group) == 4
+    assert sec_atoms_group[0].particle_states == []
+    # TODO comment back in once nested fix is in release
+    # assert sec_atoms_group[0].cell == []
+    assert sec_atoms_group[0].name == 'group_1ZNF'
+    assert sec_atoms_group[0].branch_label == 'molecule_group'
+    assert sec_atoms_group[0].composition_formula == '1ZNF(1)'
+    assert sec_atoms_group[0].particle_indices[159] == 159
+    assert sec_atoms_group[0].is_molecule() is True
+
+    sec_proteins = sec_atoms_group[0].sub_systems
+    assert len(sec_proteins) == 1
+    assert sec_proteins[0].name == '1ZNF'
+    assert sec_proteins[0].branch_label == 'molecule'
+    assert (
+        sec_proteins[0].composition_formula
+        == 'ACE(1)TYR(1)LYS(3)CYS(2)GLY(1)LEU(2)GLU(2)ARG(3)SER(3)PHE(1)VAL(2)ALA(1)'
+        'HIS(2)GLN(1)ASN(1)NH2(1)'
+    )
+    assert sec_proteins[0].particle_indices[400] == 400
+    assert sec_proteins[0].is_molecule() is True
+
+    sec_res_group = sec_proteins[0].sub_systems
+    assert len(sec_res_group) == 16
+    assert sec_res_group[13].name == 'group_ARG'
+    assert sec_res_group[14].branch_label == 'monomer_group'
+    assert sec_res_group[13].composition_formula == 'ARG(3)'
+    assert sec_res_group[14].particle_indices[2] == 136  # TODO: check explicitly
+    assert sec_res_group[14].is_molecule() is False
+
+    sec_res = sec_res_group[13].sub_systems
+    assert len(sec_res) == 3
+    assert sec_res[0].name == 'ARG'
+    assert sec_res[0].branch_label == 'monomer'
+    assert (
+        sec_res[0].composition_formula
+        == 'C(1)CA(1)CB(1)CD(1)CG(1)CZ(1)H(1)HA(1)HB2(1)HB3(1)HD2(1)HD3(1)HE(1)HG2(1)'
+        'HG3(1)HH11(1)HH12(1)HH21(1)HH22(1)N(1)NE(1)NH1(1)NH2(1)O(1)'
+    )
+    assert sec_res[0].particle_indices[10] == 120  # TODO: check explicitly
+    assert sec_res[0].is_molecule() is False
+
+
 # TODO: update structure to new schema
 # def test_md_atomsgroup(parser):
 #     archive = EntryArchive()
