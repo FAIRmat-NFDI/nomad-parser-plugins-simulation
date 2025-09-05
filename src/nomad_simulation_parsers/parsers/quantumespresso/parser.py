@@ -294,6 +294,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         from .epw.parser import EPWArchiveWriter  # noqa
+        from .gipaw.parser import GIPAWArchiveWriter  # noqa
         from .phonon.parser import PhononArchiveWriter  # noqa
         from .pwscf.parser import PWSCFArchiveWriter  # noqa
         from .xspectra.parser import XSpectraArchiveWriter  # noqa
@@ -303,6 +304,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             'epw': EPWArchiveWriter(),
             'phonon': PhononArchiveWriter(),
             'xspectra': XSpectraArchiveWriter(),
+            'gipaw': GIPAWArchiveWriter(),
         }
 
         def load_writer(header: str) -> QuantumEspressoArchiveWriter:
