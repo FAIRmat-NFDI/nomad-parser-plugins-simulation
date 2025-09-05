@@ -50,8 +50,9 @@ def add_mapping_annotations(
     annotation_key: str,
     mapper: str | tuple[str, list[str] | tuple[str, list[str], dict[str, Any]]],
     update: bool = True,
+    **kwargs,
 ) -> None:
-    annotation = {annotation_key: Mapper(mapper=mapper)}
+    annotation = {annotation_key: Mapper(mapper=mapper, **kwargs)}
     if update:
         property.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(annotation)
     else:
