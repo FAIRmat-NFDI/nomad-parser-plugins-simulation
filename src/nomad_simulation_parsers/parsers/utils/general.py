@@ -1,4 +1,5 @@
 import functools
+import inspect
 import os
 import re
 from collections.abc import Callable
@@ -9,8 +10,10 @@ if TYPE_CHECKING:
     from structlog.stdlib import (
         BoundLogger,
     )
-from nomad.metainfo import Section, SubSection
+
 from nomad.utils import get_logger
+
+DEFAULT_LOGGER = get_logger(__name__)
 
 
 def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
@@ -50,60 +53,9 @@ def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
     return filenames
 
 
-def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
-    """
-    Remove mapping annotations from the input section definition, all its quantities
-    and sub-sections recursively.
-
-    Args:
-        property (Section): The section definition to remove the annotations from.
-        max_depth (int, optional): The maximum depth of the recursion for sub-sections
-            using the same section as parent.
-    """
-
-    def _remove(property: Section | SubSection, depth: int = 0):
-        if depth > max_depth:
-            return
-
-        annotation_key = 'mapping'
-        property.m_annotations.pop(annotation_key, None)
-
-        depth += 1
-        property_section = (
-            property.sub_section if isinstance(property, SubSection) else property
-        )
-        for quantity in property_section.all_quantities.values():
-            quantity.m_annotations.pop(annotation_key, None)
-
-        for sub_section in property_section.all_sub_sections.values():
-            if sub_section.m_annotations.get(annotation_key):
-                _remove(sub_section, depth)
-            elif sub_section.sub_section.m_annotations.get(annotation_key):
-                _remove(sub_section.sub_section, depth)
-            else:
-                for (
-                    inheriting_section
-                ) in sub_section.sub_section.all_inheriting_sections:
-                    if inheriting_section.m_annotations.get(annotation_key):
-                        _remove(inheriting_section, depth)
-
-    _remove(property)
-
-
-def with_logger(cls=None, logger: 'BoundLogger' = get_logger(__name__)):
-    def add_logger(cls):
-        def add(cls):
-            setattr(cls, 'logger', property(lambda self: logger))
-            return cls
-
-        return add(cls)
-
-    return add_logger(cls) if cls else add_logger
-
-
 def log(
-    function: Callable = None,
-    logger: 'BoundLogger' = get_logger(__name__),
+    function: 'Callable' = None,
+    logger: 'BoundLogger' = DEFAULT_LOGGER,
     exc_msg: str = None,
     exc_raise: bool = False,
     default: Any = None,
@@ -127,9 +79,16 @@ def log(
                 'exc_msg', exc_msg or f'Exception raised in {func.__name__}:'
             )
             _exc_raise = kwargs.get('exc_raise', exc_raise)
-
+            func.__annotations__['logger'] = _logger
             try:
-                return func(*args, **kwargs)
+                return func(
+                    *args,
+                    **{
+                        key: val
+                        for key, val in kwargs.items()
+                        if key in inspect.signature(func).parameters
+                    },
+                )
             except Exception as e:
                 _logger.warning(f'{_exc_msg} {e}')
                 if _exc_raise:
