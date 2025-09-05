@@ -3,9 +3,7 @@ from importlib import reload
 from typing import Any
 
 import numpy as np
-from nomad.datamodel.datamodel import (
-    EntryArchive,
-)
+from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import (
@@ -16,13 +14,9 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
-from structlog.stdlib import (
-    BoundLogger,
-)
+from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import (
-    search_files,
-)
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import exciting
 from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
