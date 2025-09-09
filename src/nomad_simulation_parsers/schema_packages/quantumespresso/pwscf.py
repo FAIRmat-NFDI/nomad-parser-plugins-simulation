@@ -1,46 +1,44 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import general, outputs
+
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
 
 m_package = SchemaPackage()
 
 
 class TotalForce(outputs.TotalForce):
-    outputs.TotalForce.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .forces', unit='rydberg/bohr')))
-    outputs.TotalForce.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(mapper=('get_force_contributions', ['.@']), unit='rydberg/bohr')
-        )
+    add_mapping_annotations(
+        outputs.TotalForce.value, 'out', '.value || .forces', unit='rydberg/bohr'
+    )
+    add_mapping_annotations(
+        outputs.TotalForce.contributions,
+        'out',
+        ('get_force_contributions', ['.@']),
+        unit='rydberg/bohr',
     )
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.eigenvalues')))
+    add_mapping_annotations(outputs.ElectronicEigenvalues.value, 'out', '.eigenvalues')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_eigenvalues', ['.@']))))
+    add_mapping_annotations(outputs.Outputs.total_forces, 'out', '.@')
+    add_mapping_annotations(
+        outputs.Outputs.electronic_eigenvalues, 'out', ('get_eigenvalues', ['.@'])
+    )
 
 
 class Simulation(general.Simulation):
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_configurations', ['.@']), cache=True)))
-    general.Simulation.outputs.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_configurations', ['.@']), cache=True)))
+    add_mapping_annotations(
+        general.Simulation.model_system,
+        'out',
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotations(
+        general.Simulation.outputs, 'out', ('get_configurations', ['.@']), cache=True
+    )
 
 
 try:

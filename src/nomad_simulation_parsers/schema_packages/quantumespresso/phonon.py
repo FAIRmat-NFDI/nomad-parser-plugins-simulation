@@ -1,15 +1,13 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import general
+
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
 
 m_package = SchemaPackage()
 
 
 class Simulation(general.Simulation):
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.calculation')))
+    add_mapping_annotations(general.Simulation.model_system, 'out', '.calculation')
 
 
 try:
