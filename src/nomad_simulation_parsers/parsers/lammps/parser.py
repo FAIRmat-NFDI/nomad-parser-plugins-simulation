@@ -3,6 +3,7 @@ import re
 from collections.abc import Iterable
 
 import numpy as np
+from typing import Any
 from ase import data as asedata
 from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import Quantity, TextParser
@@ -20,7 +21,7 @@ re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 re_n = r'[\n\r]'
 
 
-def get_unit(units_type, property_type=None, dimension=3):
+def get_unit(units_type, property_type=None, dimension=3) -> dict[str, Any]:
     mole = 6.022140857e23
 
     units_type = units_type.lower()
@@ -195,7 +196,7 @@ def get_unit(units_type, property_type=None, dimension=3):
 
 
 class TrajParser(TextParser):
-    def __init__(self):
+    def __init__(self) -> None:
         self._masses = None
         self._reference_masses = dict(
             masses=np.array(asedata.atomic_masses), symbols=asedata.chemical_symbols
@@ -228,8 +229,8 @@ class TrajParser(TextParser):
 
         return pbc, cell
 
-    def init_quantities(self):
-        def get_atoms_info(val):
+    def init_quantities(self) -> None:
+        def get_atoms_info(val) -> dict[str, float]:
             val = val.split('\n')
             keys = val[0].split()
             values = np.array([v.split() for v in val[1:] if v], dtype=float)
@@ -280,12 +281,11 @@ class TrajParser(TextParser):
 
     # TODO: handle non-atomistic representations
     @masses.setter
-    def masses(self, val):
+    def masses(self, val) -> None:
         self._masses = val
         if self._masses is None:
             return
 
-        self._masses = val
         if self._chemical_symbols is None:
             masses = self._masses[0][1]
             self._chemical_symbols = {}
@@ -297,8 +297,15 @@ class TrajParser(TextParser):
                     'symbols'
                 ][symbol_idx]
 
-    def get_atom_labels(self, idx):
+    def get_atom_labels(self, idx) -> list[str] | None:
         atoms_info = self.get('atoms_info')
+        print(
+            'atoms_info type:',
+            type(atoms_info),
+            type(atoms_info[0])
+            if isinstance(atoms_info, (list | np.ndarray)) and len(atoms_info) > 0
+            else None,
+        )
         if atoms_info is None:
             return
 
@@ -318,7 +325,7 @@ class TrajParser(TextParser):
 
         return atom_labels
 
-    def get_positions(self, idx):
+    def get_positions(self, idx) -> np.ndarray | None:
         atoms_info = self.get('atoms_info')
         if atoms_info is None:
             return
@@ -363,7 +370,7 @@ class TrajParser(TextParser):
 
         return positions
 
-    def get_velocities(self, idx):
+    def get_velocities(self, idx) -> np.ndarray | None:
         atoms_info = self.get('atoms_info')
         if atoms_info is None:
             return
@@ -373,7 +380,7 @@ class TrajParser(TextParser):
 
         return np.array([atoms_info['vx'], atoms_info['vy'], atoms_info['vz']]).T
 
-    def get_forces(self, idx):
+    def get_forces(self, idx) -> np.ndarray | None:
         atoms_info = self.get('atoms_info')
         if atoms_info is None:
             return
@@ -382,25 +389,25 @@ class TrajParser(TextParser):
             return
         return np.array([atoms_info['fx'], atoms_info['fy'], atoms_info['fz']]).T
 
-    def get_lattice_vectors(self, idx):
+    def get_lattice_vectors(self, idx) -> np.ndarray | None:
         pbc_cell = self.get('pbc_cell')
         if pbc_cell is None:
             return
         return pbc_cell[idx][1]
 
-    def get_pbc(self, idx):
+    def get_pbc(self, idx) -> np.ndarray | None:
         pbc_cell = self.get('pbc_cell')
         if pbc_cell is None:
             return
         return pbc_cell[idx][0]
 
-    def get_n_atoms(self, idx):
+    def get_n_atoms(self, idx) -> int | None:
         n_atoms = self.get('n_atoms')
         if n_atoms is None:
             return len(self.get_positions(idx))
         return n_atoms[idx]
 
-    def get_step(self, idx):
+    def get_step(self, idx) -> int | None:
         step = self.get('time_step')
         if step is None:
             return
@@ -408,11 +415,11 @@ class TrajParser(TextParser):
 
 
 class XYZTrajParser(TrajParser):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def init_quantities(self):
-        def get_atoms_info(val_in):
+    def init_quantities(self) -> None:
+        def get_atoms_info(val_in) -> dict[str, np.ndarray]:
             val = [v.split('#')[0].split() for v in val_in.strip().split('\n')]
             symbols = []
             for v in val:
@@ -440,16 +447,16 @@ class XYZTrajParser(TrajParser):
 
 
 class TrajParsers:
-    def __init__(self, parsers):
+    def __init__(self, parsers) -> None:
         self._parsers = parsers
         for parser in parsers:
             parser.parse()
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> TrajParser | None:
         if self._parsers:
             return self._parsers[index]
 
-    def eval(self, key, *args, **kwargs):
+    def eval(self, key, *args, **kwargs) -> Any | None:
         for parser in self._parsers:
             parser_method = getattr(parser, key)
             if parser_method is not None:
@@ -461,7 +468,7 @@ class TrajParsers:
 
 
 class DataParser(TextParser):
-    def __init__(self):
+    def __init__(self) -> None:
         self._headers = [
             'atoms',
             'bonds',
@@ -520,13 +527,13 @@ class DataParser(TextParser):
         ]
         super().__init__(None)
 
-    def init_quantities(self):
+    def init_quantities(self) -> None:
         self._quantities = [
             Quantity(header, rf'{re_n} *(\d+) +{header}', repeats=True, dtype=np.int32)
             for header in self._headers
         ]
 
-        def get_section_value(val):
+        def get_section_value(val: str) -> tuple[str | None, np.ndarray | None]:
             val = val.strip().splitlines()
             name = None
 
@@ -559,7 +566,7 @@ class DataParser(TextParser):
             ]
         )
 
-    def get_interactions(self):
+    def get_interactions(self) -> list[list | None]:
         styles_coeffs = []
         for interaction in self._interactions:
             coeffs = self.get(interaction, None)
@@ -574,7 +581,7 @@ class DataParser(TextParser):
 
 
 class LogParser(TextParser):
-    def __init__(self):
+    def __init__(self) -> None:
         self._commands = [
             'angle_coeff',
             'angle_style',
@@ -698,8 +705,8 @@ class LogParser(TextParser):
         self._units = None
         super().__init__(None)
 
-    def init_quantities(self):
-        def str_op(val):
+    def init_quantities(self) -> None:
+        def str_op(val) -> str | list[str]:
             val = val.split('#')[0]
             val = val.replace('&\n', ' ').split()
             val = val if len(val) > 1 else val[0]
@@ -743,7 +750,7 @@ class LogParser(TextParser):
             )
         )
 
-        def str_to_thermo(val):
+        def str_to_thermo(val) -> dict[str, np.ndarray] | None:
             res = {}
             if val.count('Step') > 1:
                 val = (
@@ -779,13 +786,13 @@ class LogParser(TextParser):
         )
 
     @property
-    def units(self):
+    def units(self) -> dict[str, float]:
         if self._units is None:
             units_type = self.get('units', ['lj'])[0]
             self._units = get_unit(units_type)
         return self._units
 
-    def get_thermodynamic_data(self):
+    def get_thermodynamic_data(self) -> dict[str, float] | None:
         thermo_data = self.get('thermo_data')
 
         if thermo_data is None:
@@ -804,7 +811,7 @@ class LogParser(TextParser):
                 data[key] = val
         return data
 
-    def get_traj_files(self):
+    def get_traj_files(self) -> list[str]:
         dump = self.get('dump', None)
         if dump is None:
             self.logger.warning('Trajectory not specified in directory, will scan.')
@@ -842,8 +849,8 @@ class LogParser(TextParser):
         ]  # remove duplicates
         return [os.path.join(self.maindir, f) for f in traj_files]
 
-    def get_data_files(self):
-        def check_file_header(file_path, regex_pattern):
+    def get_data_files(self) -> list[str]:
+        def check_file_header(file_path, regex_pattern) -> None:
             header_size = 1024
             file_path = f'{self.maindir}/{file_path}'
             try:
@@ -895,11 +902,11 @@ class LogParser(TextParser):
 
         return [os.path.join(self.maindir, f) for f in data_files]
 
-    def get_pbc(self):
+    def get_pbc(self) -> list[str]:
         pbc = self.get('boundary', ['p', 'p', 'p'])
         return [v == 'p' for v in pbc]
 
-    def get_sampling_method(self):
+    def get_sampling_method(self) -> str:
         fix_style = self.get('fix', [[''] * 3])[0][2]
 
         sampling_method = (
