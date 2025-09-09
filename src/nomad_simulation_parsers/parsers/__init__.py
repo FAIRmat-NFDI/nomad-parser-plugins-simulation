@@ -117,8 +117,34 @@ gpaw_parser = EntryPoint(
     code_category='Atomistic code',
 )
 
+h5md_parser = EntryPoint(
+    name='parsers/h5md',
+    aliases=['parsers/h5md'],
+    description='NOMAD parser for H5MD.',
+    python_package='nomad_simulation_parsers',
+    mainfile_binary_header_re=b'^\\x89HDF',
+    mainfile_contents_dict={'__has_all_keys': ['h5md']},
+    mainfile_mime_re='(application/x-hdf)',
+    mainfile_name_re=r'^.*\.(h5|hdf5)$',
+    parser_class_name='nomad_simulation_parsers.parsers.h5md.parser.H5MDParser',
+    code_name='H5MD',
+    code_category='MD code',
+    # metadata={
+    #     'codeCategory': 'MD code',
+    #     'codeLabel': 'H5MD',
+    #     'codeLabelStyle': 'All in capitals',
+    #     'codeName': 'h5md',
+    #     # 'parserDirName': 'dependencies/parsers/atomistic/atomisticparsers/h5md/',
+    #     'parserGitUrl': 'https://github.com/FAIRmat-NFDI/'
+    #     'nomad-parser-plugins-simulation.git',  # ? Is this useful?
+    #     # 'parserSpecific': '',
+    #     # 'preamble': '',
+    #     # 'status': 'production',
+    #     # 'tableOfFiles': '',
+    # },
+)
 
-octopus_parser_entry_point = EntryPoint(
+octopus_parser = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],
     description='NOMAD parser for OCTOPUS.',
