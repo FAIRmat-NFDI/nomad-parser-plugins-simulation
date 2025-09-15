@@ -6,13 +6,13 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 )
 from nomad_simulation_parsers.schema_packages.quantumespresso import xspectra
 
-from ..parser import MainfileParser
+from ..parser import MainfileTextParser
 from .file_parser import XSpectraFileParser
 
 LOGGER = get_logger(__name__)
 
 
-class XspectraMainfileParser(MainfileParser):
+class XspectraMainfileParser(MainfileTextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
