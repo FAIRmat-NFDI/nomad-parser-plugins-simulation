@@ -10,13 +10,22 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
+OUT_KEY = 'out'
+XML_KEY = 'xml'
+
 
 class Program(general.Program):
     add_mapping_annotations(
-        general.Program.version, 'out', ('get_version', ['.program_name_version'])
+        general.Program.version, OUT_KEY, ('get_version', ['.program_name_version'])
+    )
+    add_mapping_annotations(general.Program.version, XML_KEY, '.creator."@VERSION"')
+    add_mapping_annotations(
+        general.Program.datetime, OUT_KEY, ('get_datetime', ['.start_date_time'])
     )
     add_mapping_annotations(
-        general.Program.datetime, 'out', ('get_datetime', ['.start_date_time'])
+        general.Program.datetime,
+        XML_KEY,
+        ('get_datetime', ['.created."@DATE"', '.created."@TIME"']),
     )
 
 
@@ -39,7 +48,10 @@ class DFT(model_method.DFT):
 
 
 class AtomsState(model_system.AtomsState):
-    add_mapping_annotations(model_system.AtomsState.chemical_symbol, 'out', '.@')
+    add_mapping_annotations(model_system.AtomsState.chemical_symbol, OUT_KEY, '.@')
+    add_mapping_annotations(
+        model_system.AtomsState.chemical_symbol, XML_KEY, '."@name"'
+    )
 
 
 class Representation(model_system.Representation):
@@ -49,12 +61,21 @@ class Representation(model_system.Representation):
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotations(
         model_system.ModelSystem.positions,
-        'out',
+        OUT_KEY,
         ('get_value', ['.@'], dict(key='labels_positions.positions')),
     )
     add_mapping_annotations(
+        model_system.ModelSystem.positions,
+        XML_KEY,
+        (
+            'apply_unit',
+            ['.atomic_structure.atomic_positions.atom[].__value'],
+            dict(name='length'),
+        ),
+    )
+    add_mapping_annotations(
         model_system.AtomsState.m_def,
-        'out',
+        OUT_KEY,
         (
             'get_value',
             ['.@'],
@@ -66,29 +87,41 @@ class ModelSystem(model_system.ModelSystem):
         'out',
         ('get_value', ['.@'], dict(key='simulation_cell')),
     )
+    add_mapping_annotations(
+        model_system.AtomicCell.m_def, XML_KEY, '.atomic_structure.cell'
+    )
 
 
 class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotations(
-        outputs.TotalEnergy.value, 'out', '.value || .energy_total', unit='rydberg'
+        outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total', unit='rydberg'
+    )
+    add_mapping_annotations(outputs.TotalEnergy.value, XML_KEY, '.value || .etot')
+    add_mapping_annotations(
+        outputs.TotalEnergy.contributions, OUT_KEY, ('get_energy_contributions', ['.@'])
     )
     add_mapping_annotations(
-        outputs.TotalEnergy.contributions, 'out', ('get_energy_contributions', ['.@'])
+        outputs.TotalEnergy.contributions, XML_KEY, ('get_energy_contributions', ['.@'])
     )
+    add_mapping_annotations(outputs.TotalEnergy.name, XML_KEY, '.name')
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotations(outputs.Outputs.total_energies, 'out', '.energies')
+    add_mapping_annotations(outputs.Outputs.total_energies, OUT_KEY, '.energies')
+    add_mapping_annotations(outputs.Outputs.total_energies, XML_KEY, '.total_energy')
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotations(general.Simulation.program, 'out', '.header')
-    add_mapping_annotations(model_method.DFT.m_def, 'out', '.header')
-    add_mapping_annotations(general.Simulation.model_system, 'out', '.@')
-    add_mapping_annotations(general.Simulation.outputs, 'out', '.@')
+    add_mapping_annotations(general.Simulation.program, OUT_KEY, '.header')
+    add_mapping_annotations(general.Simulation.program, XML_KEY, '.general_info')
+    add_mapping_annotations(model_method.DFT.m_def, OUT_KEY, '.header')
+    add_mapping_annotations(model_method.DFT.m_def, XML_KEY, '.input')
+    add_mapping_annotations(general.Simulation.model_system, OUT_KEY, '.@')
+    add_mapping_annotations(general.Simulation.outputs, OUT_KEY, '.@')
 
 
-add_mapping_annotations(general.Simulation.m_def, 'out', '@')
+add_mapping_annotations(general.Simulation.m_def, OUT_KEY, '@')
+add_mapping_annotations(general.Simulation.m_def, XML_KEY, '@')
 
 try:
     m_package.__init_metainfo__()
