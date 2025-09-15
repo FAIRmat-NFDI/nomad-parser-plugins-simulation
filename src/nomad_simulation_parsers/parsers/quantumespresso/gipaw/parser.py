@@ -3,13 +3,20 @@ from nomad.utils import get_logger
 
 from nomad_simulation_parsers.schema_packages.quantumespresso import gipaw
 
-from ..parser import MainfileParser, QuantumEspressoArchiveWriter
+from ..parser import MainfileTextParser, MainfileXMLParser, QuantumEspressoArchiveWriter
 from .file_parser import GIPAWFileParser
 
 LOGGER = get_logger(__name__)
 
 
-class GIPAWMainfileParser(MainfileParser):
+class GIPAWMainfileTextParser(MainfileTextParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+
+class GIPAWMainfileXMLParser(MainfileXMLParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -18,8 +25,8 @@ class GIPAWMainfileParser(MainfileParser):
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
     schema = gipaw
-    mainfile_parser = GIPAWMainfileParser(text_parser=GIPAWFileParser())
+    _text_parser = GIPAWMainfileTextParser(text_parser=GIPAWFileParser())
+    _xml_parser = GIPAWMainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        self.simulation_parser.annotation_key = 'out'
         super().parse_program(archive, index)

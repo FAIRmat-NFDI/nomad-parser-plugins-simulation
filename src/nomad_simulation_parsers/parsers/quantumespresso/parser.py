@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
@@ -12,7 +14,12 @@ from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, TextParser
+from nomad.parsing.file_parser.mapping_parser import (
+    MetainfoParser,
+    Path,
+    TextParser,
+    XMLParser,
+)
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -30,6 +37,7 @@ from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
 
 LOGGER = get_logger(__name__)
+PROGRAM_NAME_RE = re.compile(r'(?:Program +(\w+))|(?:<creator NAME=\"(\w+))')
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -70,7 +78,26 @@ class XCFunctionalParser:
         return out
 
 
-class MainfileParser(TextParser):
+def load_writer(header: str) -> QuantumEspressoArchiveWriter:
+    from .epw.parser import EPWArchiveWriter  # noqa
+    from .gipaw.parser import GIPAWArchiveWriter  # noqa
+    from .phonon.parser import PhononArchiveWriter  # noqa
+    from .pwscf.parser import PWSCFArchiveWriter  # noqa
+    from .xspectra.parser import XSpectraArchiveWriter  # noqa
+
+    _writers = {
+        'pwscf': PWSCFArchiveWriter(),
+        'epw': EPWArchiveWriter(),
+        'phonon': PhononArchiveWriter(),
+        'xspectra': XSpectraArchiveWriter(),
+        'gipaw': GIPAWArchiveWriter(),
+    }
+
+    match = PROGRAM_NAME_RE.match(header)
+    return _writers.get(match.group(1).lower() if match else header)
+
+
+class MainfileTextParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -207,6 +234,69 @@ class MainfileParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    @property
+    def program_name(self) -> str:
+        return self.data_object.get('header', {}).get('program_name_version', [''])[0]
+
+    @property
+    def writers(self) -> Iterator[QuantumEspressoArchiveWriter]:
+        if not self.data_object.get('program'):
+            return
+
+        for program in self.data.get('program', []):
+            writer = load_writer(program[:30])
+            if writer is None:
+                self.logger.error('Parser not found for program.')
+                continue
+            writer.mainfile = self.filepath
+            writer.mainfile_parser.data_object.mainfile = self.filepath
+            # parse only the relevant program
+            writer.mainfile_parser.data_object._file_handler = program.encode()
+            yield writer
+
+
+class MainfileXMLParser(XMLParser):
+    _units_map = {'Hartree atomic units': dict(energy='hartee', length='bohr')}
+
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+    def get_datetime(self, date: str, time: str) -> datetime:
+        return datetime.strptime(f'{date}{time}'.replace(' ', ''), '%d%b%Y%H:%M:%S')
+
+    def apply_unit(self, value: np.ndarray | float, **kwargs) -> Any:
+        unit = self._units_map.get(self.data.get('@Units')).get(kwargs.get('name'))
+        if not unit or value is None:
+            return value
+        return value * ureg(unit)
+
+    def get_forces(self, source: np.ndarray):
+        return np.reshape(source, (np.size(source) // 3, 3))
+
+    def get_energy_contributions(self, source: dict[str, Any]):
+        return [
+            dict(value=val, name=key) for key, val in source.items() if key != 'etot'
+        ]
+
+    @property
+    def program_name(self) -> str:
+        keys = list(self.data.keys())
+        source = self.data if 'general_info' in keys else self.data[keys[0]]
+        return source.get('general_info', {}).get('creator', {}).get('@NAME', '')
+
+    @property
+    def writers(self) -> Iterator[QuantumEspressoArchiveWriter]:
+        for dct in self.data.values():
+            writer = load_writer(self.program_name.lower())
+            if writer is None:
+                self.logger.error('Parser not found for program.')
+                continue
+            writer.mainfile = self.filepath
+            writer.mainfile_parser._data = dct
+            yield writer
+
 
 class QuantumEspressoArchiveWriter(ArchiveWriter):
     """
@@ -215,10 +305,12 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     schema: ModuleType = common
     simulation_parser = QuantumEspressoMetainfoParser()
-    mainfile_parser = MainfileParser(text_parser=QuantumEspressoFileParser())
+    _text_parser = MainfileTextParser(text_parser=QuantumEspressoFileParser())
+    _xml_parser = MainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
         # reload the schema annotations
+        reload(common)
         reload(self.schema)
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
@@ -292,50 +384,24 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                             Link(section=parent_archive.workflow2)
                         )
 
+    @property
+    def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
+        ext = self.mainfile.split('.')[-1]
+        parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
+        self.simulation_parser.annotation_key = ext
+        return parser
+
     def write_to_archive(self) -> None:
-        from .epw.parser import EPWArchiveWriter  # noqa
-        from .gipaw.parser import GIPAWArchiveWriter  # noqa
-        from .phonon.parser import PhononArchiveWriter  # noqa
-        from .pwscf.parser import PWSCFArchiveWriter  # noqa
-        from .xspectra.parser import XSpectraArchiveWriter  # noqa
-
-        writers = {
-            'pwscf': PWSCFArchiveWriter(),
-            'epw': EPWArchiveWriter(),
-            'phonon': PhononArchiveWriter(),
-            'xspectra': XSpectraArchiveWriter(),
-            'gipaw': GIPAWArchiveWriter(),
-        }
-
-        def load_writer(header: str) -> QuantumEspressoArchiveWriter:
-            match = re.match(r'Program +(\w+)', header)
-            return writers.get(match.group(1).lower()) if match else None
-
         # set up mainfile parser
         self.mainfile_parser.filepath = self.mainfile
-
-        if not self.mainfile_parser.data_object.get('program'):
-            return
-
-        for n, program in enumerate(
-            self.mainfile_parser.data_object.get('program', [])
-        ):
-            writer = load_writer(program[:30])
-            if writer is None:
-                self.logger.error('Parser not found for program.')
-                continue
-            writer.mainfile_parser.data_object.mainfile = self.mainfile
-            # parse only the relevant program
-            writer.mainfile_parser.data_object._file_handler = program.encode()
-
+        for n, writer in enumerate(self.mainfile_parser.writers):
             # write the first program to the main archive, the rest to child archives
-            program_name = writer.mainfile_parser.data_object.get('header', {}).get(
-                'program_name_version', ['']
-            )[0]
             archive = (
                 self.archive
                 if n == 0
-                else self.child_archives.get(f'{n} {program_name}')
+                else self.child_archives.get(
+                    f'{n} {writer.mainfile_parser.program_name}'
+                )
             )
             if archive is None:
                 self.logger.error('Archive not found for program.')
@@ -403,13 +469,14 @@ class QuantumEspressoParser(MatchingParser):
         if is_mainfile:
             children = []
             programs = []
-            program_re = re.compile(r'Program +(\w+)')
             with open(filename) as f:
                 for line in f:
-                    match = program_re.search(line)
+                    match = PROGRAM_NAME_RE.search(line)
                     if not match:
                         continue
                     programs.append(f'{len(programs)} {match.group(1)}')
+            if not programs:
+                return True
             if 'pwscf' in programs[0].lower():
                 # TODO not possible at the moment to redefine level
                 self._levels[filename] = 2
