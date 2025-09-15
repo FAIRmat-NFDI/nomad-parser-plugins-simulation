@@ -6,13 +6,13 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 )
 from nomad_simulation_parsers.schema_packages.quantumespresso import common, epw
 
-from ..parser import MainfileParser
+from ..parser import MainfileTextParser
 from .file_parser import EPWFileParser
 
 LOGGER = get_logger(__name__)
 
 
-class EPWMainfileParser(MainfileParser):
+class EPWMainfileParser(MainfileTextParser):
     @property
     def logger(self):
         return LOGGER

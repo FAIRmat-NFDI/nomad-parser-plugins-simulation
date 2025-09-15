@@ -3,7 +3,7 @@ from nomad_simulations.schema_packages import general, outputs
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-from .common import OUT_KEY
+from .common import OUT_KEY, XML_KEY
 
 m_package = SchemaPackage()
 
@@ -11,6 +11,9 @@ m_package = SchemaPackage()
 class TotalForce(outputs.TotalForce):
     add_mapping_annotation(
         outputs.TotalForce.value, OUT_KEY, '.value || .forces', unit='rydberg/bohr'
+    )
+    add_mapping_annotation(
+        outputs.TotalForce.value, XML_KEY, ('get_forces', ['.__value'])
     )
     add_mapping_annotation(
         outputs.TotalForce.contributions,
@@ -26,6 +29,7 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.total_forces, XML_KEY, '.forces')
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, OUT_KEY, ('get_eigenvalues', ['.@'])
     )
@@ -39,7 +43,16 @@ class Simulation(general.Simulation):
         cache=True,
     )
     add_mapping_annotation(
+        general.Simulation.model_system,
+        XML_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
         general.Simulation.outputs, OUT_KEY, ('get_configurations', ['.@']), cache=True
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, XML_KEY, ('get_configurations', ['.@']), cache=True
     )
 
 
