@@ -308,7 +308,6 @@ class TotalEnergy(properties.energies.TotalEnergy):
     )
 
 
-<<<<<<< HEAD
 class BaseEnergy(properties.energies.BaseEnergy):
     properties.energies.BaseEnergy.name.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
@@ -318,17 +317,6 @@ class BaseEnergy(properties.energies.BaseEnergy):
             outcar=MapperAnnotation(mapper='.name'),
         )
     )
-=======
-# class EnergyContribution(properties.energies.EnergyContribution):
-#     properties.energies.EnergyContribution.name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(mapper='."@name"'),
-#             outcar=MapperAnnotation(mapper='.name'),
-#         )
-#     )
->>>>>>> b99dc8e (Updated MDParserutils.parse_trajectory_step according to new ModelSystem. Temporarily uncommented ForceContribution and EnergyContribution due to ongoing changes in nomad-simulations)
 
 
 class TotalForce(properties.forces.TotalForce):
