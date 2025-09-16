@@ -1,32 +1,21 @@
 import os
 import re
-import sys
 from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
-from typing import Any
+import pint
 from ase import data as asedata
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
+from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
-
-from ..utils.mdanalysisparser import MDAnalysisParser
-from ..utils.mdparserutils import MDParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.model_method import ModelMethod
-from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
-
-from simulationworkflowschema import (
-    GeometryOptimization,
-    GeometryOptimizationMethod,
-    GeometryOptimizationResults,
-)
-from simulationworkflowschema.molecular_dynamics import (
-    get_bond_list_from_model_contributions,
-)
 from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 
 re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 re_n = r'[\n\r]'
@@ -310,13 +299,6 @@ class TrajParser(TextParser):
 
     def get_atom_labels(self, idx) -> list[str] | None:
         atoms_info = self.get('atoms_info')
-        print(
-            'atoms_info type:',
-            type(atoms_info),
-            type(atoms_info[0])
-            if isinstance(atoms_info, (list | np.ndarray)) and len(atoms_info) > 0
-            else None,
-        )
         if atoms_info is None:
             return
 
@@ -406,7 +388,7 @@ class TrajParser(TextParser):
             return
         return pbc_cell[idx][1]
 
-    def get_pbc(self, idx) -> np.ndarray | None:
+    def get_pbc(self, idx) -> list[bool] | None:
         pbc_cell = self.get('pbc_cell')
         if pbc_cell is None:
             return
@@ -430,7 +412,7 @@ class XYZTrajParser(TrajParser):
         super().__init__()
 
     def init_quantities(self) -> None:
-        def get_atoms_info(val_in) -> dict[str, np.ndarray]:
+        def get_atoms_info(val_in) -> dict[str, int | float]:
             val = [v.split('#')[0].split() for v in val_in.strip().split('\n')]
             symbols = []
             for v in val:
@@ -438,7 +420,10 @@ class XYZTrajParser(TrajParser):
                     if v[0] not in symbols:
                         symbols.append(v[0])
                     v[0] = symbols.index(v[0]) + 1
-            val = np.transpose(np.array([v for v in val if len(v) == 4], dtype=float))
+            N_VALS = 4
+            val = np.transpose(
+                np.array([v for v in val if len(v) == N_VALS], dtype=float)
+            )
             # val[0] is the atomic number
             val[0] = [list(set(val[0])).index(v) + 1 for v in val[0]]
             return dict(type=val[0], x=val[1], y=val[2], z=val[3])
@@ -460,10 +445,13 @@ class TrajParsers:
         for parser in parsers:
             parser.parse()
 
+    # ? Is this function used anywhere?
+    # ? Should the return types for the else case be handled better?
     def __getitem__(self, index) -> TrajParser | None:
         if self._parsers:
             return self._parsers[index]
 
+    # ? Also here, should we make the negative return type more explicit?
     def eval(self, key, *args, **kwargs) -> Any | None:
         for parser in self._parsers:
             parser_method = getattr(parser, key)
@@ -541,7 +529,7 @@ class DataParser(TextParser):
             for header in self._headers
         ]
 
-        def get_section_value(val: str) -> tuple[str | None, np.ndarray | None]:
+        def get_section_value(val: str) -> tuple[str | None, np.ndarray]:
             val = val.strip().splitlines()
             name = None
 
@@ -557,6 +545,7 @@ class DataParser(TextParser):
 
                 try:
                     value.append(np.array(v, dtype=float))
+                # ? Should we append None here, instead of leaving value potentially an empty list?
                 except Exception:
                     break
 
@@ -574,7 +563,7 @@ class DataParser(TextParser):
             ]
         )
 
-    def get_interactions(self) -> list[list | None]:
+    def get_interactions(self) -> list[list]:
         styles_coeffs = []
         for interaction in self._interactions:
             coeffs = self.get(interaction, None)
@@ -758,7 +747,7 @@ class LogParser(TextParser):
             )
         )
 
-        def str_to_thermo(val) -> dict[str, np.ndarray] | None:
+        def str_to_thermo(val) -> dict[str, float]:
             res = {}
             if val.count('Step') > 1:
                 val = (
@@ -794,7 +783,7 @@ class LogParser(TextParser):
         )
 
     @property
-    def units(self) -> dict[str, float]:
+    def units(self) -> dict[str, pint.Quantity]:
         if self._units is None:
             units_type = self.get('units', ['lj'])[0]
             self._units = get_unit(units_type)
@@ -817,6 +806,7 @@ class LogParser(TextParser):
                 data[key] = val * self.units.get('temperature', 1)
             else:
                 data[key] = val
+
         return data
 
     def get_traj_files(self) -> list[str]:
@@ -910,7 +900,7 @@ class LogParser(TextParser):
         pbc = self.get('boundary', ['p', 'p', 'p'])
         return [v == 'p' for v in pbc]
 
-    def get_sampling_method(self) -> str:
+    def get_sampling_method(self) -> tuple[str, str]:
         fix_style = self.get('fix', [[''] * 3])[0][2]
 
         sampling_method = (
@@ -918,7 +908,7 @@ class LogParser(TextParser):
         )
         return sampling_method, fix_style
 
-    def get_thermostat_settings(self):
+    def get_thermostat_settings(self) -> dict:
         fix = self.get('fix', [None])[0]
         if fix is None:
             return {}
