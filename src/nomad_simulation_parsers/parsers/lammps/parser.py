@@ -958,7 +958,7 @@ class LogParser(TextParser):
 
         return res
 
-    def get_interactions(self):
+    def get_interactions(self) -> list[tuple[str, list]]:
         styles_coeffs = []
         for interaction in self._interactions:
             styles = self.get('%s_style' % interaction, None)
@@ -983,7 +983,7 @@ class LogParser(TextParser):
 
 
 class LammpsArchiveWriter(MDParser):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.log_parser = LogParser()
         self.units = self.log_parser.units
@@ -996,12 +996,12 @@ class LammpsArchiveWriter(MDParser):
         )
         self.data_parser = DataParser()
 
-    def apply_unit(self, value, unit):
+    def apply_unit(self, value, unit) -> float:
         if not hasattr(value, 'units'):
             value = value * self.units.get(unit, 1)
         return value
 
-    def parse_method(self, simulation):
+    def parse_method(self, simulation) -> None:
         # TODO: replace with counterparts from nomad_simulations!
 
         if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
