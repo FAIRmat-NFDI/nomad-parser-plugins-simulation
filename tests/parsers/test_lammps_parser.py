@@ -16,16 +16,18 @@
 # limitations under the License.
 #
 
-import pytest
-import numpy as np
 
-from nomad.datamodel import EntryArchive
+import numpy as np
+import pytest
 from nomad.utils import get_logger
+
 from nomad_simulation_parsers.parsers.lammps.parser import (
     LammpsParser,
     TrajParser,
     TrajParsers,
+    XYZTrajParser,
 )
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
 LOGGER = get_logger(__name__)
 
@@ -173,49 +175,41 @@ def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
 #     assert len(archive.run[0].system) == 4
 
 
-def test_traj_xyz(parser):
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/lammps/methane_xyz/log.methane_nvt_traj_xyz_thermo_style_custom',
-        archive,
-        LOGGER,
-    )
-    sec_systems = archive.data.model_system
-    assert len(sec_systems) == 201
-    assert sec_systems[13].positions[7][0].magnitude == pytest.approx(-8.00436e-10)
+def test_traj_xyz():
+    xyz_parser = XYZTrajParser()
+    xyz_parser.mainfile = 'tests/data/lammps/methane_xyz/64xmethane-nvt.xyz'
+    xyz_parser.logger = LOGGER
+    xyz_parser.init_quantities()
+    parsers = TrajParsers([xyz_parser])
+    n_frames = parsers.eval('n_frames')
+    assert n_frames == 201
+    positions = xyz_parser.get_positions(13)
+    assert positions[7][0] == pytest.approx(-8.00436)
 
 
-def test_traj_dcd(parser):
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/lammps/methane_dcd/log.methane_nvt_traj_dcd_thermo_style_custom',
-        archive,
-        LOGGER,
-    )
+def test_traj_dcd():
+    dcd_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
+    dcd_parser.mainfile = 'tests/data/lammps/methane_dcd/data.64xmethane_from_restart'
+    dcd_parser.auxilliary_files = ['tests/data/lammps/methane_dcd/64xmethane-nvt.dcd']
+    dcd_parser.logger = LOGGER
+    dcd_parser.parse()
     # TODO: add assertion for calculation
-    # assert len(archive.run[0].calculation) == 201
-    sec_systems = archive.data.model_system
-    assert np.shape(sec_systems[56].positions) == (320, 3)
-    assert (
-        len(
-            [
-                particle_state.label
-                for particle_state in sec_systems[107].particle_states
-            ]
-        )
-        == 320
-    )
+    positions = dcd_parser.get_positions(56)
+    assert np.shape(positions) == (320, 3)
+    labels = dcd_parser.get_atom_labels(107)
+    assert len(labels) == 320
 
 
-def test_unwrapped_pos(parser):
-    archive = EntryArchive()
-    parser.parse('tests/data/lammps/1_xyz_files/log.lammps', archive, LOGGER)
+def test_unwrapped_pos():
+    # 1_xyz dataset (CG), file type 'custom' -> TrajParser
+    traj_parser = TrajParser()
+    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
+    traj_parser.init_quantities()
     # TODO: add assertion for calculation
-    # ? Where has "calculation" moved to now, which section of the parser?
-    # assert len(archive.run[0].calculation) == 101
-    sec_systems = archive.data.model_system
-    assert sec_systems[1].positions[452][2].magnitude == pytest.approx(5.99898)
-    assert sec_systems[2].velocities[457][-2].magnitude == pytest.approx(-0.928553)
+    positions = traj_parser.get_positions(1)
+    assert positions[452][2] == pytest.approx(5.99898)
+    velocities = traj_parser.get_velocities(2)
+    assert velocities[457][-2] == pytest.approx(-0.928553)
 
 
 # ! Positions and velocities are in separate files. MDAnalysis-parser fails to create
