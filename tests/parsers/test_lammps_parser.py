@@ -17,12 +17,15 @@
 #
 
 
+import os
+import tempfile
+
 import numpy as np
 import pytest
 from nomad.utils import get_logger
 
-from nomad_simulation_parsers.parsers.lammps.parser import (
-    LammpsParser,
+from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
+from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,
     XYZTrajParser,
@@ -37,6 +40,14 @@ def parser():
     return LammpsParser()
 
 
+# TODO: add tests for file_parsers functions
+# Tests for get_unit() function with different unit types
+# Tests for DataParser: regex patterns and section parsing
+# Tests for LogParser: command extraction and thermodynamic data parsing
+# Tests for file discovery methods (get_traj_files, get_data_files)
+
+
+# Tests for TrajParser, XYZTrajParser, TrajParsers classes
 # TODO: Extend test to cover all relevant LAMMPS box styles
 @pytest.mark.parametrize(
     'description, content, expected_pbc, expected_cell',
@@ -81,6 +92,75 @@ def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
     pbc, cell = pbc_cell[0]
     assert pbc == expected_pbc, f'{description} - wrong PBC'
     assert cell == pytest.approx(expected_cell), f'{description} - wrong cell'
+
+
+def test_traj_xyz():
+    # Synthetic XYZ trajectory content
+    xyz_content = """5
+Atoms. Timestep: 0
+1 4.39861 0.0809956 -1.6196
+2 3.65138 0.778109 -1.97822
+2 4.72189 -0.655793 -2.40238
+2 5.23117 0.689443 -1.27747
+2 3.94587 -0.457468 -0.7756
+5
+Atoms. Timestep: 400
+1 4.17634 0.0441698 -1.4592
+2 3.33775 0.267888 -2.08495
+2 4.74748 -0.845205 -1.78471
+2 4.8507 0.87915 -1.4652
+2 3.77509 -0.143827 -0.474483
+"""
+
+    # XYZTrajParser has no _file_handler attribute, needs a temporary file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.xyz', delete=False) as f:
+        f.write(xyz_content)
+        temp_file = f.name
+
+    try:
+        xyz_parser = XYZTrajParser()
+        xyz_parser.mainfile = temp_file
+        xyz_parser.logger = LOGGER
+        xyz_parser.init_quantities()
+
+        parsers = TrajParsers([xyz_parser])
+        n_frames = parsers.eval('n_frames')
+        assert n_frames == 2
+        positions = xyz_parser.get_positions(1)
+        assert positions[2][1] == pytest.approx(-0.845205)
+
+    finally:
+        os.unlink(temp_file)
+
+
+def test_unwrapped_pos():
+    # 1_xyz dataset (CG), file type 'custom' -> TrajParser
+    traj_parser = TrajParser()
+    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
+    traj_parser.init_quantities()
+    # TODO: add assertion for calculation
+    positions = traj_parser.get_positions(1)
+    assert positions[452][2] == pytest.approx(5.99898)
+    velocities = traj_parser.get_velocities(2)
+    assert velocities[457][-2] == pytest.approx(-0.928553)
+
+
+# TODO Fix dealing with multiple output files (positions and velocities in separate files)
+# TODO with archive_to_universe function, then add back in this test
+
+
+# Tests for: LammpsArchiveWriter, LammpsParser (integration tests)
+def test_traj_dcd():
+    dcd_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
+    dcd_parser.mainfile = 'tests/data/lammps/methane_dcd/data.64xmethane_from_restart'
+    dcd_parser.auxilliary_files = ['tests/data/lammps/methane_dcd/64xmethane-nvt.dcd']
+    dcd_parser.logger = LOGGER
+    dcd_parser.parse()
+    # TODO: add assertion for calculation
+    positions = dcd_parser.get_positions(56)
+    assert np.shape(positions) == (320, 3)
+    labels = dcd_parser.get_atom_labels(107)
+    assert len(labels) == 320
 
 
 # TODO: re-include output testing alongside migration of parser functionalities
@@ -173,58 +253,6 @@ def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
 #     assert sec_sccs[98].energy.total.value.magnitude == approx(1.45322428e-17)
 
 #     assert len(archive.run[0].system) == 4
-
-
-def test_traj_xyz():
-    xyz_parser = XYZTrajParser()
-    xyz_parser.mainfile = 'tests/data/lammps/methane_xyz/64xmethane-nvt.xyz'
-    xyz_parser.logger = LOGGER
-    xyz_parser.init_quantities()
-    parsers = TrajParsers([xyz_parser])
-    n_frames = parsers.eval('n_frames')
-    assert n_frames == 201
-    positions = xyz_parser.get_positions(13)
-    assert positions[7][0] == pytest.approx(-8.00436)
-
-
-def test_traj_dcd():
-    dcd_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
-    dcd_parser.mainfile = 'tests/data/lammps/methane_dcd/data.64xmethane_from_restart'
-    dcd_parser.auxilliary_files = ['tests/data/lammps/methane_dcd/64xmethane-nvt.dcd']
-    dcd_parser.logger = LOGGER
-    dcd_parser.parse()
-    # TODO: add assertion for calculation
-    positions = dcd_parser.get_positions(56)
-    assert np.shape(positions) == (320, 3)
-    labels = dcd_parser.get_atom_labels(107)
-    assert len(labels) == 320
-
-
-def test_unwrapped_pos():
-    # 1_xyz dataset (CG), file type 'custom' -> TrajParser
-    traj_parser = TrajParser()
-    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
-    traj_parser.init_quantities()
-    # TODO: add assertion for calculation
-    positions = traj_parser.get_positions(1)
-    assert positions[452][2] == pytest.approx(5.99898)
-    velocities = traj_parser.get_velocities(2)
-    assert velocities[457][-2] == pytest.approx(-0.928553)
-
-
-# ! Positions and velocities are in separate files. MDAnalysis-parser fails to create
-# ! universe during parsing attempt of velocities file.
-# ? Solution: somehow identify velocities-only file and declare it an auxillary file,
-# ? use universe generated with positions?
-# TODO Fix dealing with multiple output files with archive_to_universe function, then add back in this test
-# def test_multiple_dump(parser):
-#     archive = EntryArchive()
-#     parser.parse('tests/data/lammps/2_xyz_files/log.lammps', archive, None)
-
-#     sec_systems = archive.run[0].system
-#     assert len(sec_systems) == 101
-#     assert sec_systems[2].atoms.positions[468][0].magnitude == approx(3.00831)
-#     assert sec_systems[-1].atoms.velocities[72][1].magnitude == approx(-4.61496)  # JFR - universe cannot be built without positions
 
 
 # TODO: update structure to new schema
@@ -376,3 +404,5 @@ def test_unwrapped_pos():
 #     assert sec_workflow.results.energies[14].units == 'joule'
 #     assert len(sec_workflow.results.steps) == 159
 #     assert sec_workflow.results.steps[22] == 1100
+
+# TODO Add tests that use the full parser fixture and test end-to-end parsing
