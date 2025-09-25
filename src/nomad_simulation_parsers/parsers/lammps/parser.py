@@ -1,32 +1,20 @@
 import os
 import re
-import sys
 from collections.abc import Iterable
 
 import numpy as np
 from ase import data as asedata
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
+from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.model_method import ModelMethod
+from nomad_simulations.schema_packages.model_system import ModelSystem
+from structlog.stdlib import BoundLogger
 
 from ..utils.mdanalysisparser import MDAnalysisParser
 from ..utils.mdparserutils import MDParser
-from nomad.client import normalize_all
-from nomad.units import ureg
-from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.atoms_state import ParticleState
-from nomad_simulations.schema_packages.model_method import ModelMethod
-from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
-
-from simulationworkflowschema import (
-    GeometryOptimization,
-    GeometryOptimizationMethod,
-    GeometryOptimizationResults,
-)
-from simulationworkflowschema.molecular_dynamics import (
-    get_bond_list_from_model_contributions,
-)
-from structlog.stdlib import BoundLogger
 
 re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 re_n = r'[\n\r]'
@@ -1209,10 +1197,9 @@ class LammpsArchiveWriter(MDParser):
                 )
             particles_resnames = np.array(particles_info.get('resnames', []))
             moltypes = np.unique(particles_moltypes)
-            simulation.model_system[0].dimensionality = 3
+            # TODO: Make sure index is not needed, then remove enumerate()
             for i_moltype, moltype in enumerate(moltypes):
                 # Only add atomsgroup for initial system for now
-                # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
                 sec_molecule_group = ModelSystem()
                 sec_molecule_group.name = f'group_{moltype}'
                 sec_molecule_group.branch_label = 'molecule_group'
@@ -1222,8 +1209,6 @@ class LammpsArchiveWriter(MDParser):
                 # sec_molecule_group.n_particles = len(
                 #     sec_molecule_group.particle_indices
                 # )
-                # ? is_molecule is a function now, explicitly needed?
-                # sec_molecule_group.is_molecule = False
                 # mol_nums is the molecule identifier for each atom
                 mol_nums = particles_molnums[sec_molecule_group.particle_indices]
                 moltype_count = np.unique(mol_nums).shape[0]
@@ -1234,15 +1219,12 @@ class LammpsArchiveWriter(MDParser):
                     np.unique(molecules[sec_molecule_group.particle_indices])
                 ):
                     sec_molecule = ModelSystem()
-                    # ? Does that happen automatically, or do I have to set 'is_representative'?
-                    # if i_molecule == 0:
-                    #     sec_molecule.is_representative = True
+                    if i_molecule == 0:
+                        sec_molecule.is_representative = True
                     sec_molecule.particle_indices = np.where(molecules == molecule)[0]
                     # sec_molecule.n_particles = len(sec_molecule.particle_indices)
                     sec_molecule.name = molecule
                     sec_molecule.branch_label = 'molecule'
-                    # ? Set by normalizer?
-                    # sec_molecule.is_molecule = True
                     mol_resids = np.unique(
                         particles_resids[sec_molecule.particle_indices]
                     )
@@ -1409,8 +1391,6 @@ class LammpsArchiveWriter(MDParser):
         self.parse_method(self.archive.data)
 
         self.parse_system(self.archive.data)
-
-        # normalize_all(self.archive)
 
         # # include input controls from log file
         # self.parse_input()

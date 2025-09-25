@@ -168,7 +168,7 @@ class MDParser(ArchiveWriter):
             model_system.particle_states.append(particle_state)
         self.parse_section(cell_dict, cell)
         model_system.cell.append(cell)
-        # ? Should the setting of model_system.dimensionality be done here?
+        # ! Setting of model_system.dimensionality needs to be done here!
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 
