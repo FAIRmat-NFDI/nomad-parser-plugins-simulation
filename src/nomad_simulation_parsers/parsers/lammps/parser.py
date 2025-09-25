@@ -382,13 +382,11 @@ class LammpsArchiveWriter(MDParser):
 
         parsers = []
         for n, traj_file in enumerate(traj_files):
-            print(f'\n{n}', f'\n{traj_file}', f'\n{data_files}\n')
             # parser initialization for each traj file cannot be avoided as there are
             # cases where traj files can share the same parser
             file_type = self.log_parser.get(
                 'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
             )[n][2]
-            print(f'file_type: {file_type}')
             # TODO: add support for other LAMMPs dump file formats (https://docs.lammps.org/dump.html)
             if file_type == 'dcd' and data_files:
                 traj_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
