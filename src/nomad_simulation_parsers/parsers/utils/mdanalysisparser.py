@@ -17,8 +17,9 @@
 # limitations under the License.
 #
 
-import numpy as np
 import os
+
+import numpy as np
 
 try:
     import MDAnalysis
@@ -26,7 +27,6 @@ try:
     from MDAnalysis.topology.guessers import guess_atom_element
 except Exception:
     MDAnalysis = None
-from nptyping import NDArray
 
 from array import array
 from collections import namedtuple
@@ -356,7 +356,6 @@ class MDAnalysisParser(FileParser):
                     mode='same',
                 )[int(n_smooth / 2) : -int(n_smooth / 2)]
             )
-        return rdf_results_tmp
         return rdf_results_tmp
 
     def _get_rdf_avg(

@@ -1,12 +1,16 @@
 import os
 import re
+<<<<<<< HEAD
 from difflib import SequenceMatcher
+=======
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
 from typing import Any
 
 import numpy as np
 import pint
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+<<<<<<< HEAD
 from nomad_simulation_parsers.parsers.utils.constants import (
     MOLE,
     RE_FLOAT,
@@ -29,6 +33,26 @@ def get_unit(
             velocity=ureg.angstrom / ureg.fs,
             force=ureg.J * 4184.0 / ureg.angstrom / MOLE,
             torque=ureg.J * 4184.0 / MOLE,
+=======
+
+re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
+re_n = r'[\n\r]'
+
+
+def get_unit(units_type, property_type=None, dimension=3) -> dict[str, Any]:
+    mole = 6.022140857e23
+
+    units_type = units_type.lower()
+    if units_type == 'real':
+        units = dict(
+            mass=ureg.g / mole,
+            distance=ureg.angstrom,
+            time=ureg.fs,
+            energy=ureg.J * 4184.0 / mole,
+            velocity=ureg.angstrom / ureg.fs,
+            force=ureg.J * 4184.0 / ureg.angstrom / mole,
+            torque=ureg.J * 4184.0 / mole,
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             temperature=ureg.K,
             pressure=ureg.atm,
             dynamic_viscosity=ureg.poise,
@@ -40,7 +64,11 @@ def get_unit(
 
     elif units_type == 'metal':
         units = dict(
+<<<<<<< HEAD
             mass=ureg.g / MOLE,
+=======
+            mass=ureg.g / mole,
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             distance=ureg.angstrom,
             time=ureg.ps,
             energy=ureg.eV,
@@ -252,7 +280,11 @@ class DataParser(TextParser):
 
     def init_quantities(self) -> None:
         self._quantities = [
+<<<<<<< HEAD
             Quantity(header, rf'{RE_N} *(\d+) +{header}', repeats=True, dtype=np.int32)
+=======
+            Quantity(header, rf'{re_n} *(\d+) +{header}', repeats=True, dtype=np.int32)
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             for header in self._headers
         ]
 
@@ -272,8 +304,14 @@ class DataParser(TextParser):
 
                 try:
                     value.append(np.array(v, dtype=float))
+<<<<<<< HEAD
                 except Exception:
                     return name, None
+=======
+                # ? Should we append None here, instead of leaving value potentially an empty list?
+                except Exception:
+                    break
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
 
             return name, np.array(value)
 
@@ -281,7 +319,11 @@ class DataParser(TextParser):
             [
                 Quantity(
                     section,
+<<<<<<< HEAD
                     rf'{section} *(#*.*{RE_N}\s+(?:[\d ]+{RE_FLOAT}.+\s+)+)',
+=======
+                    rf'{section} *(#*.*{re_n}\s+(?:[\d ]+{re_float}.+\s+)+)',
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
                     str_operation=get_section_value,
                     repeats=True,
                 )
@@ -304,10 +346,13 @@ class DataParser(TextParser):
 
 
 class LogParser(TextParser):
+<<<<<<< HEAD
     # TODO: add parsers for other LAMMPS-supported trajectory formats
     _supported_traj_extensions = ['trj', 'xyz', 'dcd', 'lammpstrj']  # , 'h5', 'nc'
     _data_file_patterns = ['data', 'dat']
 
+=======
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
     def __init__(self) -> None:
         self._commands = [
             'angle_coeff',
@@ -430,6 +475,7 @@ class LogParser(TextParser):
             'kspace',
         ]
         self._units = None
+<<<<<<< HEAD
         self._file_scan_warning = '{} file not specified in directory, will scan.'
         super().__init__(None)
 
@@ -438,12 +484,21 @@ class LogParser(TextParser):
             val = val.split('#')[0]
             val = re.sub(f'&{RE_N}+', ' ', val)
             val = val.split()
+=======
+        super().__init__(None)
+
+    def init_quantities(self) -> None:
+        def str_op(val) -> str | list[str]:
+            val = val.split('#')[0]
+            val = val.replace('&\n', ' ').split()
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             val = val if len(val) > 1 else val[0]
             return val
 
         self._quantities = [
             Quantity(
                 name,
+<<<<<<< HEAD
                 (
                     rf'\n\s*{name}\s+'  # Name with whitespace
                     r'(?!.*\$\{)'  # No variable substitution
@@ -458,6 +513,12 @@ class LogParser(TextParser):
                 #     r'([${}\w\. \/\#\-]+)'  # Command arguments
                 #     r'(\&\n[\w\. \/\#\-]*)*'  # Line continuation with &
                 # ),
+=======
+                r'\n\s*%s\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*' % name,
+                # TODO: LB - Edited regex (added \b \b) - word boundaries
+                # r'\n\s*\b%s\b\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*'
+                # % name,
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
                 str_operation=str_op,
                 comment='#',
                 repeats=True,
@@ -469,9 +530,13 @@ class LogParser(TextParser):
             Quantity(
                 'program_version',
                 r'\s*LAMMPS\s*\(([\w ]+)\)\n',
+<<<<<<< HEAD
                 # TODO: test!
                 # LB edit - Edited regex for '(2 Aug 2023 - Update 1)' searches for any
                 # character except ')' now, not just word chars
+=======
+                # TODO: LB edit - Edited regex for '(2 Aug 2023 - Update 1)' searches for any character except ')' now, not just word chars
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
                 # r'\s*LAMMPS\s*\(([^)]+)\)\n',
                 dtype=str,
                 repeats=False,
@@ -491,11 +556,20 @@ class LogParser(TextParser):
             )
         )
 
+<<<<<<< HEAD
         def str_to_thermo(val: str) -> dict[str, float]:
             res = {}
             if val.count('Step') > 1:
                 # TODO: Test to make sure the regex substitution works as intended
                 val = re.sub(r'--|=|\(sec\)', '', val).split()
+=======
+        def str_to_thermo(val) -> dict[str, float]:
+            res = {}
+            if val.count('Step') > 1:
+                val = (
+                    val.replace('--', '').replace('=', '').replace('(sec)', '').split()
+                )
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
                 val = [v.strip() for v in val]
 
                 for i in range(len(val)):
@@ -532,10 +606,13 @@ class LogParser(TextParser):
             self._units = get_unit(units_type)
         return self._units
 
+<<<<<<< HEAD
     def reset(self):
         super().reset()
         self._units = None
 
+=======
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
     def get_thermodynamic_data(self) -> dict[str, float] | None:
         thermo_data = self.get('thermo_data')
 
@@ -556,6 +633,7 @@ class LogParser(TextParser):
 
         return data
 
+<<<<<<< HEAD
     # TODO: move to utils
     def find_best_matching_file(
         self, traj_files: list[str], mainfile_basename: str
@@ -649,16 +727,48 @@ class LogParser(TextParser):
             # further eliminate
             if len(traj_files) > 1:
                 traj_files = self.find_best_matching_file(traj_files, self.mainfile)
+=======
+    def get_traj_files(self) -> list[str]:
+        dump = self.get('dump', None)
+        if dump is None:
+            self.logger.warning('Trajectory not specified in directory, will scan.')
+            # TODO: extend matching of traj file
+            traj_files = os.listdir(self.maindir)
+            traj_files = [
+                f
+                for f in traj_files
+                if f.endswith('trj') or f.endswith('xyz')
+                # TODO: add parsers for supported trajectory formats
+                # or f.endswith('lammpstrj')
+                # or f.endswith('dcd')
+                # or f.endswith('h5')
+                # or f.endswith('nc')
+            ]
+            # further eliminate
+            if len(traj_files) > 1:
+                # ! This again wrongfully expects common file naming conventions!
+                prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
+                traj_files = [f for f in traj_files if prefix in f]
+            else:
+                traj_files = [d[2] for d in dump]
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
         else:
             traj_files = []
             if type(dump[0]) in [str, int]:
                 dump = [dump]
             traj_files = [d[4] for d in dump]
+<<<<<<< HEAD
         traj_files = list(dict.fromkeys(traj_files))  # remove duplicates
+=======
+        traj_files = [
+            i for n, i in enumerate(traj_files) if i not in traj_files[:n]
+        ]  # remove duplicates
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
 
         return [os.path.join(self.maindir, f) for f in traj_files]
 
     def get_data_files(self) -> list[str]:
+<<<<<<< HEAD
         """Get the data files either from the input script or by searching the main
         directory for files with LAMMPS data file extensions or header patterns."""
 
@@ -666,12 +776,21 @@ class LogParser(TextParser):
             header_size = 1024
             if not os.path.isabs(file_path):
                 file_path = os.path.join(self.maindir, file_path)
+=======
+        def check_file_header(file_path, regex_pattern) -> None:
+            header_size = 1024
+            file_path = f'{self.maindir}/{file_path}'
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             try:
                 with open(file_path, 'rb') as file:
                     file_header = file.read(header_size)
                     file_header_str = file_header.decode(errors='ignore')
             except Exception:
                 file_header_str = ''
+<<<<<<< HEAD
+=======
+
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             return re.search(regex_pattern, file_header_str)
 
         read_data = self.get('read_data')
@@ -683,6 +802,7 @@ class LogParser(TextParser):
         #     except Exception:
         #         pass
         if read_data is None or 'CPU' in read_data:
+<<<<<<< HEAD
             self.logger.warning(self._file_scan_warning.format('Data'))
             for ext in self._data_file_patterns:
                 data_files = search_files(
@@ -690,6 +810,15 @@ class LogParser(TextParser):
                     basedir=self.maindir,
                     deep=False,  # Only search current directory
                 )
+=======
+            self.logger.warning('Data file not specified in directory, will scan.')
+            data_files = os.listdir(self.maindir)
+            data_files = [
+                f
+                for f in data_files
+                if f.endswith('data') or f.startswith('data') or f.endswith('dat')
+            ]
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             if not data_files:
                 # Search any file for the LAMMPS data file header.
                 # Fallback to the LAMMPS input structure, if no run data file is found.
@@ -727,9 +856,15 @@ class LogParser(TextParser):
         return sampling_method, fix_style
 
     def get_thermostat_settings(self) -> dict:
+<<<<<<< HEAD
         fix = self.get('fix', [[]])[0]
         # TODO: check which items in <fix> need conversion to float
         fix = [float(x) if re.fullmatch(RE_FLOAT, str(x)) else x for x in fix]
+=======
+        fix = self.get('fix', [None])[0]
+        if fix is None:
+            return {}
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
 
         try:
             fix_style = fix[2]
@@ -743,31 +878,53 @@ class LogParser(TextParser):
         res = dict()
         if fix_style.lower() == 'nvt':
             try:
+<<<<<<< HEAD
                 res['target_T'] = fix[5] * temp_unit
                 res['thermostat_tau'] = fix[6] * time_unit
+=======
+                res['target_T'] = float(fix[5]) * temp_unit
+                res['thermostat_tau'] = float(fix[6]) * time_unit
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             except Exception:
                 pass
 
         elif fix_style.lower() == 'npt':
             try:
+<<<<<<< HEAD
                 res['target_T'] = fix[5] * temp_unit
                 res['thermostat_tau'] = fix[6] * time_unit
                 res['target_P'] = fix[9] * press_unit
                 res['barostat_tau'] = fix[10] * time_unit
+=======
+                res['target_T'] = float(fix[5]) * temp_unit
+                res['thermostat_tau'] = float(fix[6]) * time_unit
+                res['target_P'] = float(fix[9]) * press_unit
+                res['barostat_tau'] = float(fix[10]) * time_unit
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             except Exception:
                 pass
 
         elif fix_style.lower() == 'nph':
             try:
+<<<<<<< HEAD
                 res['target_P'] = fix[5] * press_unit
                 res['barostat_tau'] = fix[6] * time_unit
+=======
+                res['target_P'] = float(fix[5]) * press_unit
+                res['barostat_tau'] = float(fix[6]) * time_unit
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             except Exception:
                 pass
 
         elif fix_style.lower() == 'langevin':
             try:
+<<<<<<< HEAD
                 res['target_T'] = fix[4] * temp_unit
                 res['langevin_gamma'] = fix[5] * time_unit
+=======
+                res['target_T'] = float(fix[4]) * temp_unit
+                res['langevin_gamma'] = float(fix[5]) * time_unit
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             except Exception:
                 pass
 
@@ -779,7 +936,11 @@ class LogParser(TextParser):
     def get_interactions(self) -> list[tuple[str, list]]:
         styles_coeffs = []
         for interaction in self._interactions:
+<<<<<<< HEAD
             styles = self.get(f'{interaction}_style', None)
+=======
+            styles = self.get('%s_style' % interaction, None)
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
             if styles is None:
                 continue
 
@@ -792,7 +953,11 @@ class LogParser(TextParser):
                     style = styles[i][0]
 
                 else:
+<<<<<<< HEAD
                     coeff = self.get(f'{interaction}_coeff')
+=======
+                    coeff = self.get('%s_coeff' % interaction)
+>>>>>>> 449464a (Moved auxillary parsers to individual files, rearranged tests)
                     style = ' '.join([str(si) for si in styles[i]])
 
                 styles_coeffs.append((style.strip(), coeff))
