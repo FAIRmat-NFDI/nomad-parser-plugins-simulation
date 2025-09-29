@@ -7,23 +7,26 @@ import pint
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
 
-re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
-re_n = r'[\n\r]'
+from nomad_simulation_parsers.parsers.utils.constants_definitions import (
+    MOLE,
+    RE_FLOAT,
+    RE_N,
+)
 
 
-def get_unit(units_type, property_type=None, dimension=3) -> dict[str, Any]:
-    mole = 6.022140857e23
-
+def get_unit(
+    units_type: str, property_type: Any | None = None, dimension: int = 3
+) -> dict[str, Any]:
     units_type = units_type.lower()
     if units_type == 'real':
         units = dict(
-            mass=ureg.g / mole,
+            mass=ureg.g / MOLE,
             distance=ureg.angstrom,
             time=ureg.fs,
-            energy=ureg.J * 4184.0 / mole,
+            energy=ureg.J * 4184.0 / MOLE,
             velocity=ureg.angstrom / ureg.fs,
-            force=ureg.J * 4184.0 / ureg.angstrom / mole,
-            torque=ureg.J * 4184.0 / mole,
+            force=ureg.J * 4184.0 / ureg.angstrom / MOLE,
+            torque=ureg.J * 4184.0 / MOLE,
             temperature=ureg.K,
             pressure=ureg.atm,
             dynamic_viscosity=ureg.poise,
@@ -35,7 +38,7 @@ def get_unit(units_type, property_type=None, dimension=3) -> dict[str, Any]:
 
     elif units_type == 'metal':
         units = dict(
-            mass=ureg.g / mole,
+            mass=ureg.g / MOLE,
             distance=ureg.angstrom,
             time=ureg.ps,
             energy=ureg.eV,
@@ -247,7 +250,7 @@ class DataParser(TextParser):
 
     def init_quantities(self) -> None:
         self._quantities = [
-            Quantity(header, rf'{re_n} *(\d+) +{header}', repeats=True, dtype=np.int32)
+            Quantity(header, rf'{RE_N} *(\d+) +{header}', repeats=True, dtype=np.int32)
             for header in self._headers
         ]
 
@@ -277,7 +280,7 @@ class DataParser(TextParser):
             [
                 Quantity(
                     section,
-                    rf'{section} *(#*.*{re_n}\s+(?:[\d ]+{re_float}.+\s+)+)',
+                    rf'{section} *(#*.*{RE_N}\s+(?:[\d ]+{RE_FLOAT}.+\s+)+)',
                     str_operation=get_section_value,
                     repeats=True,
                 )
@@ -425,7 +428,7 @@ class LogParser(TextParser):
         super().__init__(None)
 
     def init_quantities(self) -> None:
-        def str_op(val) -> str | list[str]:
+        def str_op(val: str) -> str | list[str]:
             val = val.split('#')[0]
             val = val.replace('&\n', ' ').split()
             val = val if len(val) > 1 else val[0]
@@ -469,7 +472,7 @@ class LogParser(TextParser):
             )
         )
 
-        def str_to_thermo(val) -> dict[str, float]:
+        def str_to_thermo(val: str) -> dict[str, float]:
             res = {}
             if val.count('Step') > 1:
                 val = (
@@ -566,7 +569,7 @@ class LogParser(TextParser):
         return [os.path.join(self.maindir, f) for f in traj_files]
 
     def get_data_files(self) -> list[str]:
-        def check_file_header(file_path, regex_pattern) -> None:
+        def check_file_header(file_path: str, regex_pattern: str) -> None:
             header_size = 1024
             file_path = f'{self.maindir}/{file_path}'
             try:
