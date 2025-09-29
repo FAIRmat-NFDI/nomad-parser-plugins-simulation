@@ -1,20 +1,21 @@
 from typing import Any
 
 import numpy as np
-from ase import data as asedata
-from nomad.parsing.file_parser import Quantity, TextParser
+from nomad.parsing.file_parser import FileParser, Quantity, TextParser
+
+from nomad_simulation_parsers.parsers.utils.constants_definitions import (
+    CHEMICAL_SYMBOLS,
+    REFERENCE_MASSES,
+)
 
 
 class TrajParser(TextParser):
     def __init__(self) -> None:
         self._masses = None
-        self._reference_masses = dict(
-            masses=np.array(asedata.atomic_masses), symbols=asedata.chemical_symbols
-        )
         self._chemical_symbols = None
         super().__init__(None)
 
-    def get_pbc_cell(self, val) -> tuple[list, np.ndarray]:
+    def get_pbc_cell(self, val: str) -> tuple[list, np.ndarray]:
         # TODO: extend logic to handle all LAMMPS-supported pbc styles
         # TODO: collect example outputs!
         # https://docs.lammps.org/boundary.html
@@ -40,7 +41,7 @@ class TrajParser(TextParser):
         return pbc, cell
 
     def init_quantities(self) -> None:
-        def get_atoms_info(val) -> dict[str, float]:
+        def get_atoms_info(val: str) -> dict[str, float]:
             val = val.split('\n')
             keys = val[0].split()
             values = np.array([v.split() for v in val[1:] if v], dtype=float)
@@ -91,126 +92,148 @@ class TrajParser(TextParser):
 
     # TODO: handle non-atomistic representations
     @masses.setter
-    def masses(self, val) -> None:
-        self._masses = val
-        if self._masses is None:
+    def masses(self, val: Any) -> None:
+        if not val:
             return
+        if not isinstance(val, np.ndarray):
+            try:
+                val = np.asarray(val)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f'Cannot convert masses to array: {e}')
+        min_dim = 2
+        if val.ndim < min_dim:
+            raise ValueError(f'masses must be at least 2D, got {val.ndim}D array')
 
-        if self._chemical_symbols is None:
-            masses = self._masses[0][1]
-            self._chemical_symbols = {}
-            for i in range(len(masses)):
-                symbol_idx = np.argmin(
-                    abs(self._reference_masses['masses'] - masses[i][1])
-                )
-                self._chemical_symbols[masses[i][0]] = self._reference_masses[
-                    'symbols'
-                ][symbol_idx]
+        self._masses = val
 
-    def get_atom_labels(self, idx) -> list[str] | None:
+    @property
+    def chemical_symbols(self) -> dict | None:
+        """Chemical symbols derived from particle masses."""
+        if self._chemical_symbols is None and self._masses is not None:
+            self._derive_chemical_symbols()
+        return self._chemical_symbols
+
+    def _derive_chemical_symbols(self) -> None:
+        """Derive chemical symbols from mass data."""
+        masses = self._masses[0][1]
+        self._chemical_symbols = {}
+        for i in range(len(masses)):
+            symbol_idx = np.argmin(abs(REFERENCE_MASSES - masses[i][1]))
+            self._chemical_symbols[masses[i][0]] = CHEMICAL_SYMBOLS[symbol_idx]
+
+    def get_atom_labels(self, idx: int) -> list[str] | None:
         atoms_info = self.get('atoms_info')
         if atoms_info is None:
             return
+        atoms_info = atoms_info.get(idx)
 
-        atoms_id = atoms_info[idx].get('id')
+        atoms_id = atoms_info.get('id')
         default = ['CGX' for _ in atoms_id] if atoms_id is not None else None
-        atoms_type = atoms_info[idx].get('type')
+        atoms_type = atoms_info.get('type')
         if atoms_type is None:
             return default
         if self._chemical_symbols is None:
             return default
 
-        try:
-            atom_labels = [self._chemical_symbols[atype] for atype in atoms_type]
-        except Exception:
-            self.logger.error('Error resolving atom labels.')
-            return
+        atom_labels = [self._chemical_symbols[atype] for atype in atoms_type]
 
-        return atom_labels
+        return [label for label in atom_labels if label is not None]
 
-    def get_positions(self, idx) -> np.ndarray | None:
+    def _get_frame_atoms_info(self, idx: int) -> dict | None:
+        """Helper to get atoms_info for a specific frame."""
         atoms_info = self.get('atoms_info')
-        if atoms_info is None:
-            return
+        # ? Is atoms_info really a list, or is it a dict with frame indices as keys?
+        if atoms_info is None or idx < 0 or idx >= len(atoms_info):
+            return None
+        return atoms_info[idx]
 
-        atoms_info = atoms_info[idx]
+    def _extract_vector_components(
+        self, atoms_info: dict, *keys: str
+    ) -> np.ndarray | None:
+        """Extract vector components from atoms_info."""
+        print(keys)
+        if all(k in atoms_info for k in keys):
+            return np.transpose([atoms_info.get(key) for key in keys])
+        return None
+
+    def get_positions(self, idx: int) -> np.ndarray | None:
+        frame_atoms_info = self._get_frame_atoms_info(idx)
+        if frame_atoms_info is None:
+            return None
+
+        positions = None
+
+        def has_coords(*keys):
+            return all(k in frame_atoms_info for k in keys)
 
         cell = self.get('pbc_cell')
         cell = None if cell is None else cell[idx][1]
-        if 'xs' in atoms_info and 'ys' in atoms_info and 'zs' in atoms_info:
-            if cell is None:
-                return
-            positions = np.array(
-                [atoms_info['xs'], atoms_info['ys'], atoms_info['zs']]
-            ).T
-            positions = positions * np.linalg.norm(cell, axis=1) + np.amin(cell, axis=1)
 
-        elif 'xu' in atoms_info and 'yu' in atoms_info and 'zu' in atoms_info:
-            positions = np.array(
-                [atoms_info['xu'], atoms_info['yu'], atoms_info['zu']]
-            ).T
+        # Cell required
+        if cell is not None:
+            if has_coords('xs', 'ys', 'zs'):
+                positions = self._extract_vector_components(
+                    frame_atoms_info, 'xs', 'ys', 'zs'
+                )
+                positions = positions * np.linalg.norm(cell, axis=1) + np.amin(
+                    cell, axis=1
+                )
+            elif has_coords('xsu', 'ysu', 'zsu'):
+                positions = self._extract_vector_components(
+                    frame_atoms_info, 'xsu', 'ysu', 'zsu'
+                )
+                positions = positions * np.linalg.norm(cell, axis=1) + np.amin(
+                    cell, axis=1
+                )
 
-        elif 'xsu' in atoms_info and 'ysu' in atoms_info and 'zsu' in atoms_info:
-            if cell is None:
-                return
-            positions = np.array(
-                [atoms_info['xsu'], atoms_info['ysu'], atoms_info['zsu']]
-            ).T
-            positions = positions * np.linalg.norm(cell, axis=1) + np.amin(cell, axis=1)
+        # Unwrapped
+        if positions is None and has_coords('xu', 'yu', 'zu'):
+            positions = self._extract_vector_components(
+                frame_atoms_info, 'xu', 'yu', 'zu'
+            )
 
-        elif 'x' in atoms_info and 'y' in atoms_info and 'z' in atoms_info:
-            positions = np.array([atoms_info['x'], atoms_info['y'], atoms_info['z']]).T
-            if 'ix' in atoms_info and 'iy' in atoms_info and 'iz' in atoms_info:
-                if cell is None:
-                    return
-                positions_img = np.array(
-                    [atoms_info['ix'], atoms_info['iy'], atoms_info['iz']]
-                ).T
-
+        # Absolute positions with optional image correction
+        if positions is None and has_coords('x', 'y', 'z'):
+            positions = self._extract_vector_components(frame_atoms_info, 'x', 'y', 'z')
+            if cell is not None and has_coords('ix', 'iy', 'iz'):
+                positions_img = self._extract_vector_components(
+                    frame_atoms_info, 'ix', 'iy', 'iz'
+                )
                 positions += positions_img * np.linalg.norm(cell, axis=1)
-        else:
-            positions = None
 
         return positions
 
-    def get_velocities(self, idx) -> np.ndarray | None:
-        atoms_info = self.get('atoms_info')
-        if atoms_info is None:
-            return
-        atoms_info = atoms_info[idx]
-        if 'vx' not in atoms_info or 'vy' not in atoms_info or 'vz' not in atoms_info:
-            return
+    def get_velocities(self, idx: int) -> np.ndarray | None:
+        frame_atoms_info = self._get_frame_atoms_info(idx)
+        if frame_atoms_info is None:
+            return None
+        return self._extract_vector_components(frame_atoms_info, 'vx', 'vy', 'vz')
 
-        return np.array([atoms_info['vx'], atoms_info['vy'], atoms_info['vz']]).T
+    def get_forces(self, idx: int) -> np.ndarray | None:
+        frame_atoms_info = self._get_frame_atoms_info(idx)
+        if frame_atoms_info is None:
+            return None
+        return self._extract_vector_components(frame_atoms_info, 'fx', 'fy', 'fz')
 
-    def get_forces(self, idx) -> np.ndarray | None:
-        atoms_info = self.get('atoms_info')
-        if atoms_info is None:
-            return
-        atoms_info = atoms_info[idx]
-        if 'fx' not in atoms_info or 'fy' not in atoms_info or 'fz' not in atoms_info:
-            return
-        return np.array([atoms_info['fx'], atoms_info['fy'], atoms_info['fz']]).T
-
-    def get_lattice_vectors(self, idx) -> np.ndarray | None:
+    def get_lattice_vectors(self, idx: int) -> np.ndarray | None:
         pbc_cell = self.get('pbc_cell')
         if pbc_cell is None:
             return
         return pbc_cell[idx][1]
 
-    def get_pbc(self, idx) -> list[bool] | None:
+    def get_pbc(self, idx: int) -> list[bool] | None:
         pbc_cell = self.get('pbc_cell')
         if pbc_cell is None:
             return
         return pbc_cell[idx][0]
 
-    def get_n_atoms(self, idx) -> int | None:
+    def get_n_atoms(self, idx: int) -> int | None:
         n_atoms = self.get('n_atoms')
         if n_atoms is None:
             return len(self.get_positions(idx))
         return n_atoms[idx]
 
-    def get_step(self, idx) -> int | None:
+    def get_step(self, idx: int) -> int | None:
         step = self.get('time_step')
         if step is None:
             return
@@ -222,7 +245,7 @@ class XYZTrajParser(TrajParser):
         super().__init__()
 
     def init_quantities(self) -> None:
-        def get_atoms_info(val_in) -> dict[str, int | float]:
+        def get_atoms_info(val_in: str) -> dict[str, int | float]:
             val = [v.split('#')[0].split() for v in val_in.strip().split('\n')]
             symbols = []
             for v in val:
@@ -250,7 +273,7 @@ class XYZTrajParser(TrajParser):
 
 
 class TrajParsers:
-    def __init__(self, parsers) -> None:
+    def __init__(self, parsers: list[TextParser | FileParser]) -> None:
         self._parsers = parsers
         for parser in parsers:
             parser.parse()
@@ -262,7 +285,7 @@ class TrajParsers:
             return self._parsers[index]
 
     # ? Also here, should we make the negative return type more explicit?
-    def eval(self, key, *args, **kwargs) -> Any | None:
+    def eval(self, key: str, *args, **kwargs) -> Any | None:
         for parser in self._parsers:
             parser_method = getattr(parser, key)
             if parser_method is not None:

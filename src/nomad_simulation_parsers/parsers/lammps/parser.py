@@ -1,5 +1,6 @@
 import os
 from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 from nomad.datamodel import EntryArchive
@@ -32,12 +33,12 @@ class LammpsArchiveWriter(MDParser):
         )
         self.data_parser = DataParser()
 
-    def apply_unit(self, value, unit) -> float:
+    def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
             value = value * self.units.get(unit, 1)
         return value
 
-    def parse_method(self, simulation) -> None:
+    def parse_method(self, simulation: Simulation) -> None:
         # TODO: replace with counterparts from nomad_simulations!
 
         if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
@@ -153,9 +154,11 @@ class LammpsArchiveWriter(MDParser):
     #                 neighmodify[index + 1]
     #            )
 
-    def parse_system(self, simulation):
+    def parse_system(self, simulation: Simulation) -> None:
         # sec_run = self.archive.run[-1]
         n_traj = self.traj_parsers.eval('n_frames')
+        print(n_traj)
+        print(self.traj_parsers.eval('masses', 0))
         if n_traj is None:
             return
         self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
@@ -467,6 +470,7 @@ class LammpsArchiveWriter(MDParser):
         self.parse_method(self.archive.data)
 
         self.parse_system(self.archive.data)
+        
 
         # # include input controls from log file
         # self.parse_input()
