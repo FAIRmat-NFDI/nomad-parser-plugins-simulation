@@ -41,7 +41,7 @@ from simulationworkflowschema.molecular_dynamics import (
     shifted_correlation_average,
 )
 
-MOL = 6.022140857e23
+from nomad_simulation_parsers.parsers.utils.constants_definitions import MOLE
 
 
 class MDAnalysisParser(FileParser):
@@ -488,7 +488,9 @@ class MDAnalysisParser(FileParser):
         """
         frame = self.get_frame(frame_index)
         return (
-            frame.forces * ureg.kJ / (MOL * ureg.angstrom) if frame.has_forces else None
+            frame.forces * ureg.kJ / (MOLE * ureg.angstrom)
+            if frame.has_forces
+            else None
         )
 
     def get_interactions(self):
