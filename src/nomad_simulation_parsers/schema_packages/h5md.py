@@ -28,7 +28,10 @@ from nomad_simulations.schema_packages import (
     outputs,
     properties,
 )
-from simulationworkflowschema import molecular_dynamics
+
+# from simulationworkflowschema import molecular_dynamics
+from nomad_simulations.schema_packages.workflow import trajectory
+from nomad_simulation.schema_packages.workflow import molecular_dynamics
 
 m_package = SchemaPackage()
 
@@ -1068,15 +1071,80 @@ molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters.m_
 # WORKFLOW.RESULTS --> archive.workflow2.results
 
 
-## class RadialDistributionFunctionValues(
-##     molecular_dynamics.RadialDistributionFunctionValues
-## ):
+class TrajectoryProperty(trajectory.TrajectoryProperty):
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_frames'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
+
+
+class EnsembleProperty(molecular_dynamics.EnsembleProperty):
+    bins_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_bins'],
+        description="""
+        Values of the variable along which the property is calculated.
+        """,
+    )
+
+    bins_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the given bins, using UnitRegistry() notation.
+        """,
+    )
+
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_bins'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
+
+
+class CorrelationFunction(molecular_dynamics.CorrelationFunction):
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_times'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
 
 
 # ! Should be something like this but first need to
 # TODO flatten property structures in MD schema
 # TODO implement observable_type to be passed in the annotation
-molecular_dynamics.RadialDistributionFunctionValues.value.m_annotations.setdefault(
+molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
     mapper=(
@@ -1090,7 +1158,12 @@ molecular_dynamics.RadialDistributionFunctionValues.value.m_annotations.setdefau
 )
 
 
-## class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
+class MolecularDynamicsOutputs(molecular_dynamics.MolecularDynamicsOutputs):
+    ensemble_properties = SubSection(sub_section=EnsembleProperty.m_def, repeats=True)
+
+    correlation_functions = SubSection(
+        sub_section=CorrelationFunction.m_def, repeats=True
+    )
 
 
 # MolecularDynamicsResults.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
@@ -1123,44 +1196,37 @@ molecular_dynamics.RadialDistributionFunctionValues.value.m_annotations.setdefau
 
 ### SUBSECTIONS
 
-
-# ? Add Custom? OR maybe pull custom out of general schema and put here?
-molecular_dynamics.MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+MolecularDynamicsOutputs.ensemble_properties.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.@')
 
 # TODO This subsection is repeated in the schema
-molecular_dynamics.MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
+MolecularDynamicsOutputs.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
-molecular_dynamics.MolecularDynamicsResults.correlation_functions.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+MolecularDynamicsOutputs.correlation_functions.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.@')
 
-molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
+MolecularDynamicsOutputs.mean_squared_displacements.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
-molecular_dynamics.MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+MolecularDynamicsOutputs.radius_of_gyration.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.@')
 
 # ! multi-ensemble property!
-molecular_dynamics.MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
+MolecularDynamicsOutputs.free_energy_calculations.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
 
 # class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 
-
 molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
-
-molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='@')
 

@@ -7,7 +7,11 @@ from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser,
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from simulationworkflowschema.molecular_dynamics import MolecularDynamics
+
+# from simulationworkflowschema.molecular_dynamics import MolecularDynamics
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamics,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
