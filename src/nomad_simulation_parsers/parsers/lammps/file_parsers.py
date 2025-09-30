@@ -303,6 +303,9 @@ class DataParser(TextParser):
 
 
 class LogParser(TextParser):
+    # TODO: add parsers for LAMMPS-supported trajectory formats
+    SUPPORTED_TRAJ_EXTENSIONS = {'trj', 'xyz'}  #'lammpstrj', 'dcd', 'h5', 'nc'
+
     def __init__(self) -> None:
         self._commands = [
             'angle_coeff',
@@ -430,17 +433,17 @@ class LogParser(TextParser):
     def init_quantities(self) -> None:
         def str_op(val: str) -> str | list[str]:
             val = val.split('#')[0]
-            val = val.replace('&\n', ' ').split()
+            val = re.sub(f'&{RE_N}+', ' ', val)
+            val = val.split()
             val = val if len(val) > 1 else val[0]
             return val
 
         self._quantities = [
             Quantity(
                 name,
-                r'\n\s*%s\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*' % name,
+                rf'\n\s*{name}\s+(?!.*\$\{{)([${{\}}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*',
                 # TODO: LB - Edited regex (added \b \b) - word boundaries
-                # r'\n\s*\b%s\b\s+(?!.*\$\{)([${}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*'
-                # % name,
+                # rf'\n\s*\b{name}\b\s+(?!.*\$\{{)([${{\}}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*',
                 str_operation=str_op,
                 comment='#',
                 repeats=True,
@@ -475,9 +478,8 @@ class LogParser(TextParser):
         def str_to_thermo(val: str) -> dict[str, float]:
             res = {}
             if val.count('Step') > 1:
-                val = (
-                    val.replace('--', '').replace('=', '').replace('(sec)', '').split()
-                )
+                # TODO: Test to make sure the regex substitution works as intended
+                val = re.sub(r'--|=|\(sec\)', '', val).split()
                 val = [v.strip() for v in val]
 
                 for i in range(len(val)):

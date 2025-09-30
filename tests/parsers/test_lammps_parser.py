@@ -80,6 +80,7 @@ ITEM: BOX BOUNDS pp pp pp
     ],
 )
 def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
+    """Test PBC and cell extraction from synthetic LAMMPS trajectory content"""
     parser = TrajParser()
     parser.mainfile = 'dummy'
     parser._file_handler = content.encode('utf-8')
@@ -94,7 +95,202 @@ def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
     assert cell == pytest.approx(expected_cell), f'{description} - wrong cell'
 
 
+def test_get_lattice_vectors():
+    """Test lattice vector extraction from TrajParser"""
+    traj_content = """ITEM: TIMESTEP
+0
+ITEM: NUMBER OF ATOMS
+5
+ITEM: BOX BOUNDS pp pp pp
+-10.0 10.0
+-15.0 15.0
+-12.0 12.0
+ITEM: ATOMS id type x y z
+1 1 0.0 0.0 0.0
+2 2 1.0 1.0 1.0
+3 2 2.0 2.0 2.0
+4 2 3.0 3.0 3.0
+5 2 4.0 4.0 4.0
+"""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.lammpstrj', delete=False) as f:
+        f.write(traj_content)
+        temp_file = f.name
+
+    try:
+        traj_parser = TrajParser()
+        traj_parser.mainfile = temp_file
+        traj_parser.logger = LOGGER
+        traj_parser.init_quantities()
+
+        # Test lattice vectors
+        lattice_vectors = traj_parser.get_lattice_vectors(0)
+        assert lattice_vectors is not None
+        assert lattice_vectors.shape == (3, 3)
+        assert lattice_vectors[0, 0] == pytest.approx(20.0)  # 10.0 - (-10.0)
+        assert lattice_vectors[1, 1] == pytest.approx(30.0)  # 15.0 - (-15.0)
+        assert lattice_vectors[2, 2] == pytest.approx(24.0)  # 12.0 - (-12.0)
+
+    finally:
+        os.unlink(temp_file)
+
+
+def test_get_n_atoms():
+    """Test n_atoms extraction"""
+    traj_content = """ITEM: TIMESTEP
+0
+ITEM: NUMBER OF ATOMS
+5
+ITEM: BOX BOUNDS pp pp pp
+-10.0 10.0
+-15.0 15.0
+-12.0 12.0
+ITEM: ATOMS id type x y z
+1 1 0.0 0.0 0.0
+2 2 1.0 1.0 1.0
+3 2 2.0 2.0 2.0
+4 2 3.0 3.0 3.0
+5 2 4.0 4.0 4.0
+"""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.lammpstrj', delete=False) as f:
+        f.write(traj_content)
+        temp_file = f.name
+
+    try:
+        traj_parser = TrajParser()
+        traj_parser.mainfile = temp_file
+        traj_parser.logger = LOGGER
+        traj_parser.init_quantities()
+
+        # Test n_atoms
+        n_atoms = traj_parser.get_n_atoms(0)
+        assert n_atoms == 5
+
+    finally:
+        os.unlink(temp_file)
+
+
+def test_get_step():
+    """Test timestep extraction"""
+    traj_content = """ITEM: TIMESTEP
+100
+ITEM: NUMBER OF ATOMS
+3
+ITEM: BOX BOUNDS pp pp pp
+0.0 10.0
+0.0 10.0
+0.0 10.0
+ITEM: ATOMS id type x y z
+1 1 0.0 0.0 0.0
+2 2 1.0 1.0 1.0
+3 2 2.0 2.0 2.0
+ITEM: TIMESTEP
+200
+ITEM: NUMBER OF ATOMS
+3
+ITEM: BOX BOUNDS pp pp pp
+0.0 10.0
+0.0 10.0
+0.0 10.0
+ITEM: ATOMS id type x y z
+1 1 0.5 0.5 0.5
+2 2 1.5 1.5 1.5
+3 2 2.5 2.5 2.5
+"""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.lammpstrj', delete=False) as f:
+        f.write(traj_content)
+        temp_file = f.name
+
+    try:
+        traj_parser = TrajParser()
+        traj_parser.mainfile = temp_file
+        traj_parser.logger = LOGGER
+        traj_parser.init_quantities()
+
+        # Test timestep for first frame
+        step_0 = traj_parser.get_step(0)
+        assert step_0 == 100
+
+        # Test timestep for second frame
+        step_1 = traj_parser.get_step(1)
+        assert step_1 == 200
+
+    finally:
+        os.unlink(temp_file)
+
+
+def test_none_returns():
+    """Test that methods return None when data is missing"""
+    # Create parser with minimal/no data
+    traj_content = """ITEM: TIMESTEP
+0
+"""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.lammpstrj', delete=False) as f:
+        f.write(traj_content)
+        temp_file = f.name
+
+    try:
+        traj_parser = TrajParser()
+        traj_parser.mainfile = temp_file
+        traj_parser.logger = LOGGER
+        traj_parser.init_quantities()
+
+        # All should return None when data is missing
+        assert traj_parser.get_lattice_vectors(0) is None
+        assert traj_parser.get_pbc(0) is None
+        # n_atoms falls back to counting positions, which also returns None
+        assert traj_parser.get_n_atoms(0) is None
+
+    finally:
+        os.unlink(temp_file)
+
+
+def test_with_real_data():
+    """Test methods with existing real test data"""
+    traj_parser = TrajParser()
+    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
+    traj_parser.logger = LOGGER
+    traj_parser.init_quantities()
+
+    # Test that methods work with real data
+    n_atoms = traj_parser.get_n_atoms(5)
+    assert n_atoms is not None
+    assert isinstance(n_atoms, int)
+    assert n_atoms > 0
+
+    step = traj_parser.get_step(3)
+    assert step is not None
+    assert isinstance(step, int)
+
+    # If the real data has PBC info, test it
+    pbc = traj_parser.get_pbc(1)
+    lattice_vectors = traj_parser.get_lattice_vectors(1)
+    # These might be None if the file doesn't include PBC info
+    assert isinstance(pbc, list)
+    assert isinstance(lattice_vectors, np.ndarray)
+
+
+def test_unwrapped_pos():
+    # 1_xyz dataset (CG), file type 'custom' -> TrajParser
+    traj_parser = TrajParser()
+    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
+    traj_parser.init_quantities()
+    # TODO: add assertion for calculation
+    positions = traj_parser.get_positions(1)
+    assert positions[452][2] == pytest.approx(5.99898)
+    velocities = traj_parser.get_velocities(2)
+    assert velocities[457][-2] == pytest.approx(-0.928553)
+
+
+# TODO Fix dealing with multiple output files (positions and velocities in separate files)
+# TODO with archive_to_universe function, then add back in this test
+
+
 def test_traj_xyz():
+    """Test XYZTrajParser with synthetic XYZ trajectory content"""
     # Synthetic XYZ trajectory content
     xyz_content = """5
 Atoms. Timestep: 0
@@ -131,22 +327,6 @@ Atoms. Timestep: 400
 
     finally:
         os.unlink(temp_file)
-
-
-def test_unwrapped_pos():
-    # 1_xyz dataset (CG), file type 'custom' -> TrajParser
-    traj_parser = TrajParser()
-    traj_parser.mainfile = 'tests/data/lammps/1_xyz_files/pos_vel.xyz'
-    traj_parser.init_quantities()
-    # TODO: add assertion for calculation
-    positions = traj_parser.get_positions(1)
-    assert positions[452][2] == pytest.approx(5.99898)
-    velocities = traj_parser.get_velocities(2)
-    assert velocities[457][-2] == pytest.approx(-0.928553)
-
-
-# TODO Fix dealing with multiple output files (positions and velocities in separate files)
-# TODO with archive_to_universe function, then add back in this test
 
 
 # Tests for: LammpsArchiveWriter, LammpsParser (integration tests)

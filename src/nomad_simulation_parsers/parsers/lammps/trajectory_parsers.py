@@ -1,12 +1,13 @@
 from typing import Any
 
 import numpy as np
-from nomad.parsing.file_parser import FileParser, Quantity, TextParser
+from nomad.parsing.file_parser import Quantity, TextParser
 
 from nomad_simulation_parsers.parsers.utils.constants_definitions import (
     CHEMICAL_SYMBOLS,
     REFERENCE_MASSES,
 )
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
 
 class TrajParser(TextParser):
@@ -142,8 +143,7 @@ class TrajParser(TextParser):
     def _get_frame_atoms_info(self, idx: int) -> dict | None:
         """Helper to get atoms_info for a specific frame."""
         atoms_info = self.get('atoms_info')
-        # ? Is atoms_info really a list, or is it a dict with frame indices as keys?
-        if atoms_info is None or idx < 0 or idx >= len(atoms_info):
+        if atoms_info is None or idx >= len(atoms_info):
             return None
         return atoms_info[idx]
 
@@ -151,7 +151,6 @@ class TrajParser(TextParser):
         self, atoms_info: dict, *keys: str
     ) -> np.ndarray | None:
         """Extract vector components from atoms_info."""
-        print(keys)
         if all(k in atoms_info for k in keys):
             return np.transpose([atoms_info.get(key) for key in keys])
         return None
@@ -215,38 +214,48 @@ class TrajParser(TextParser):
             return None
         return self._extract_vector_components(frame_atoms_info, 'fx', 'fy', 'fz')
 
+    def _get_cell_component(
+        self, idx: int, component: int
+    ) -> np.ndarray | list[bool] | None:
+        """
+        Helper to extract components from cell data.
+        """
+        pbc_cell = self.get('pbc_cell', [])
+        try:
+            return pbc_cell[idx][component]
+        except (IndexError, TypeError):
+            return None
+
     def get_lattice_vectors(self, idx: int) -> np.ndarray | None:
-        pbc_cell = self.get('pbc_cell')
-        if pbc_cell is None:
-            return
-        return pbc_cell[idx][1]
+        _LATTICE_VECTORS_IDX = 1
+        return self._get_cell_component(idx, _LATTICE_VECTORS_IDX)
 
     def get_pbc(self, idx: int) -> list[bool] | None:
-        pbc_cell = self.get('pbc_cell')
-        if pbc_cell is None:
-            return
-        return pbc_cell[idx][0]
+        _PBC_FLAGS_IDX = 0
+        return self._get_cell_component(idx, _PBC_FLAGS_IDX)
+
+    def _get_trajectory_info(self, idx: int, key: str) -> int | None:
+        """Helper to get specific trajectory info."""
+        info = self.get(key)
+        if info is None or idx >= len(info):
+            return None
+        return info[idx]
 
     def get_n_atoms(self, idx: int) -> int | None:
-        n_atoms = self.get('n_atoms')
+        n_atoms = self._get_trajectory_info(idx, 'n_atoms')
         if n_atoms is None:
-            return len(self.get_positions(idx))
-        return n_atoms[idx]
+            positions = self.get_positions(idx)
+            return len(positions) if positions is not None else None
+        return n_atoms
 
     def get_step(self, idx: int) -> int | None:
-        step = self.get('time_step')
-        if step is None:
-            return
-        return step[idx]
+        return self._get_trajectory_info(idx, 'time_step')
 
 
 class XYZTrajParser(TrajParser):
-    def __init__(self) -> None:
-        super().__init__()
-
     def init_quantities(self) -> None:
         def get_atoms_info(val_in: str) -> dict[str, int | float]:
-            val = [v.split('#')[0].split() for v in val_in.strip().split('\n')]
+            val = [v.split('#')[0].split() for v in val_in.strip().splitlines()]
             symbols = []
             for v in val:
                 if v[0].isalpha():
@@ -259,7 +268,7 @@ class XYZTrajParser(TrajParser):
             )
             # val[0] is the atomic number
             val[0] = [list(set(val[0])).index(v) + 1 for v in val[0]]
-            return dict(type=val[0], x=val[1], y=val[2], z=val[3])
+            return {key: val[n] for n, key in enumerate(['type', 'x', 'y', 'z'])}
 
         self.quantities = [
             Quantity(
@@ -273,24 +282,58 @@ class XYZTrajParser(TrajParser):
 
 
 class TrajParsers:
-    def __init__(self, parsers: list[TextParser | FileParser]) -> None:
+    def __init__(
+        self, parsers: list[TrajParser | XYZTrajParser | MDAnalysisParser]
+    ) -> None:
         self._parsers = parsers
         for parser in parsers:
             parser.parse()
 
-    # ? Is this function used anywhere?
-    # ? Should the return types for the else case be handled better?
-    def __getitem__(self, index) -> TrajParser | None:
-        if self._parsers:
-            return self._parsers[index]
+    def __getitem__(self, index: int) -> TrajParser | XYZTrajParser | MDAnalysisParser:
+        if self._parsers is None or not self._parsers:
+            raise IndexError('No parsers available')
+        return self._parsers[index]
 
-    # ? Also here, should we make the negative return type more explicit?
     def eval(self, key: str, *args, **kwargs) -> Any | None:
+        """
+        Evaluate a method or property across all parsers.
+
+        Returns:
+            First non-None result from the parsers, or None if all return None
+
+        Raises:
+            AttributeError: If none of the parsers have the requested attribute
+        """
+        found_attribute = False
+        val = None
+
         for parser in self._parsers:
-            parser_method = getattr(parser, key)
-            if parser_method is not None:
-                val = (
-                    parser_method(*args, **kwargs) if args or kwargs else parser_method
+            try:
+                parser_attr = getattr(parser, key, None)
+                if parser_attr is None:
+                    continue
+
+                found_attribute = True
+
+                if callable(parser_attr):
+                    # Always call if it's callable (even with no args)
+                    val = parser_attr(*args, **kwargs)
+                else:
+                    # It's a property/attribute - only return if no args expected
+                    if args or kwargs:
+                        self.logger.warning(
+                            f"Arguments provided for non-callable attribute '{key}'"
+                        )
+                        continue
+                    val = parser_attr
+
+            except Exception as e:
+                self.logger.debug(
+                    f"Error evaluating '{key}' on {parser.__class__.__name__}: {e}"
                 )
-                if val is not None:
-                    return val
+                continue
+
+        if not found_attribute:
+            raise AttributeError(f"Attribute '{key}' not found in parsers")
+
+        return val
