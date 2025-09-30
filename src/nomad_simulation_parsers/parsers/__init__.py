@@ -118,6 +118,18 @@ gpaw_parser = EntryPoint(
     code_category='Atomistic code',
 )
 
+gromacs_parser = EntryPoint(
+    name='parsers/gromacs',
+    aliases=['parsers/gromacs'],
+    description='NOMAD parser for GROMACS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'gmx mdrun, (VERSION|version)[\s\S]*Input Parameters:',
+    parser_class_name='nomad_simulation_parsers.parsers.gromacs.GromacsParser',
+    code_name='GROMACS',
+    code_homepage='http://www.gromacs.org/',
+    code_category='Atomistic code',
+)
+
 h5md_parser = EntryPoint(
     name='parsers/h5md',
     aliases=['parsers/h5md'],
