@@ -494,9 +494,8 @@ class LogParser(TextParser):
         def str_to_thermo(val: str) -> dict[str, float]:
             res = {}
             if val.count('Step') > 1:
-                val = (
-                    val.replace('--', '').replace('=', '').replace('(sec)', '').split()
-                )
+                # TODO: Test to make sure the regex substitution works as intended
+                val = re.sub(r'--|=|\(sec\)', '', val).split()
                 val = [v.strip() for v in val]
 
                 for i in range(len(val)):

@@ -6,6 +6,7 @@ from nomad_simulation_parsers.parsers.utils.constants import (
     CHEMICAL_SYMBOLS,
     REFERENCE_MASSES,
 )
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
