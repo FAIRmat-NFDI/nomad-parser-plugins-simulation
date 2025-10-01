@@ -425,7 +425,10 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
     Sort QE mainfiles based on execution time.
     """
     sorted_files = []
-    re_pattern = re.compile(r'starts on *(\w+) *at *([\d ]+\:[\d ]+\:[\d ]+)')
+    re_pattern = re.compile(
+        r'starts on *(\w+) *at *([\d ]+\:[\d ]+\:[\d ]+)|'
+        r'DATE\="(\w+)"\s+TIME\="([\d ]+\:[\d ]+\:[\d ]+)"'
+    )
     for name in filenames:
         with open(name) as f:
             head = f.read(config.process.parser_matching_size)
@@ -436,7 +439,8 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
                 (
                     name,
                     datetime.strptime(
-                        ''.join(match.groups()).replace(' ', ''), '%d%b%Y%H:%M:%S'
+                        ''.join([g for g in match.groups() if g]).replace(' ', ''),
+                        '%d%b%Y%H:%M:%S',
                     ),
                 )
             )
@@ -472,7 +476,9 @@ class QuantumEspressoParser(MatchingParser):
                     match = PROGRAM_NAME_RE.search(line)
                     if not match:
                         continue
-                    programs.append(f'{len(programs)} {match.group(1)}')
+                    programs.append(
+                        f'{len(programs)} {match.group(1) or match.group(2)}'
+                    )
             if not programs:
                 return True
             if 'pwscf' in programs[0].lower():
