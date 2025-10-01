@@ -35,7 +35,7 @@ from nomad.parsing.file_parser import FileParser
 from nomad.units import ureg
 from scipy import sparse
 from scipy.stats import linregress
-from simulationworkflowschema.molecular_dynamics import (
+from nomad_simulations.schema_packages.utils.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
 )

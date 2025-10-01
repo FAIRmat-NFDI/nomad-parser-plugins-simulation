@@ -31,7 +31,7 @@ from nomad_simulations.schema_packages import (
 
 # from simulationworkflowschema import molecular_dynamics
 from nomad_simulations.schema_packages.workflow import trajectory
-from nomad_simulation.schema_packages.workflow import molecular_dynamics
+from nomad_simulations.schema_packages.workflow import molecular_dynamics
 
 m_package = SchemaPackage()
 
