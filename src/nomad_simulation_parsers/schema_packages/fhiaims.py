@@ -256,42 +256,42 @@ workflow.molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault(
 
 
 class MolecularDynamics(workflow.MolecularDynamics):
-    workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
+    workflow.molecular_dynamics.MolecularDynamicsMethod.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
-    workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
+    workflow.molecular_dynamics.MolecularDynamicsOutputs.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
 
 
 class GeometryOptimization(workflow.GeometryOptimization):
-    workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
-    workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationOutputs.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 
 
-class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
-class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
-    workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
+class MolecularDynamicsMethod(workflow.molecular_dynamics.MolecularDynamicsMethod):
+    workflow.molecular_dynamics.MolecularDynamicsMethod.integration_timestep.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
-    workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
+    workflow.molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
 
 
-class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-    workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
+class MolecularDynamicsOutputs(workflow.molecular_dynamics.MolecularDynamicsOutputs):
+    workflow.molecular_dynamics.MolecularDynamicsOutputs.temperatures.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(

@@ -12,13 +12,13 @@ from nomad_simulations.schema_packages import (
 m_package = SchemaPackage()
 
 
-class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
-    workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -32,7 +32,7 @@ class GeometryOptimizationModel(
             )
         )
     )
-    workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_force_maximum.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -48,7 +48,7 @@ class GeometryOptimizationModel(
     )
 
 
-workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
+workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(out=Mapper(mapper='@')))
 

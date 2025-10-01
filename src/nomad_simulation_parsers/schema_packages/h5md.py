@@ -843,7 +843,7 @@ molecular_dynamics.ShearParameters.step_end.m_annotations.setdefault('mapping', 
 h5md_path_FEC = f'{h5md_path_md}.free_energy_calculation_parameters'
 
 # TODO Change this to fec_type in the schema
-molecular_dynamics.FreeEnergyCalculationParameters.type.m_annotations.setdefault(
+molecular_dynamics.FreeEnergyCalculationParameters.calc_type.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
     mapper=(
@@ -853,7 +853,7 @@ molecular_dynamics.FreeEnergyCalculationParameters.type.m_annotations.setdefault
     )
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.lambda_index.m_annotations.setdefault(
+molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
     mapper=(
@@ -863,75 +863,75 @@ molecular_dynamics.FreeEnergyCalculationParameters.lambda_index.m_annotations.se
     )
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.atom_indices.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='atom_indices'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.atom_indices.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='atom_indices'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_vdw'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_vdw'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_vdw'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_vdw'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_coloumb'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_coloumb'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_coloumb'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_coloumb'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_bonded'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_bonded'),
+#     )
+# )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_bonded'),
-    )
-)
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(
+#     mapper=(
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_bonded'),
+#     )
+# )
 
 ### SUBSECTIONS
 
@@ -946,7 +946,7 @@ molecular_dynamics.FreeEnergyCalculationParameters.lambdas.m_annotations.setdefa
 # ? Not sure about where this info is going in h5md
 h5md_path_lambdas = f'{h5md_path_FEC}.lambdas'
 
-molecular_dynamics.Lambdas.type.m_annotations.setdefault('mapping', {})['hdf5'] = (
+molecular_dynamics.Lambdas.interaction_type.m_annotations.setdefault('mapping', {})['hdf5'] = (
     MapperAnnotation(
         mapper=(
             'map_value',
@@ -956,7 +956,7 @@ molecular_dynamics.Lambdas.type.m_annotations.setdefault('mapping', {})['hdf5'] 
     )
 )
 
-molecular_dynamics.Lambdas.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
+molecular_dynamics.Lambdas.values.m_annotations.setdefault('mapping', {})['hdf5'] = (
     MapperAnnotation(
         mapper=(
             'map_value',
@@ -1166,7 +1166,7 @@ class MolecularDynamicsOutputs(molecular_dynamics.MolecularDynamicsOutputs):
     )
 
 
-# MolecularDynamicsResults.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
+# MolecularDynamicsOutputs.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
 #     MapperAnnotation(mapper=('get_output_data', ['observables']))
 # )
 
@@ -1235,10 +1235,10 @@ molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', 
 ] = MapperAnnotation(mapper='@')
 
 # ? Needed?
-molecular_dynamics.MolecularDynamics.results.m_annotations.setdefault('mapping', {})[
+molecular_dynamics.MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='@')
-# MolecularDynamics.results.m_annotations.setdefault('mapping', {})['hdf5'] = (
+# MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})['hdf5'] = (
 #     MapperAnnotation(mapper=('get_output_data', ['observables']))
 # )
 
