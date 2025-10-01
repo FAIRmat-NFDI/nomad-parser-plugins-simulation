@@ -317,6 +317,11 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         archive.data = self.simulation_parser.data_object
 
     def parse_workflow(self) -> None:
+        if self.archive.workflow2:
+            return
+
+        self.archive.workflow2 = SinglePoint()
+
         # multi run file
         multirun_workflow_archive = self.child_archives.get('workflow_multirun')
         if multirun_workflow_archive is not None:
@@ -358,18 +363,26 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 # include only qe calculations
                 if 'quantumespresso' not in parser_name:
                     continue
-                mainfile = result.get('mainfile')
-                if not mainfile or mainfile == parent_file:
-                    # skip the current mainfile
-                    continue
+
                 entry_id = result.get('entry_id')
-                if not entry_id:
+                if not entry_id or entry_id == self.archive.metadata.entry_id:
+                    # skip the current entry
                     continue
+
                 # link only entries in the same directory or sub-directories
-                if mainfile.startswith(parent_dir):
+                mainfile = result.get('mainfile')
+                if mainfile and mainfile.startswith(parent_dir):
                     entry_archive: EntryArchive = self.archive.m_context.load_archive(
                         entry_id, upload_id, None
                     )
+                    if not entry_archive.workflow2:
+                        continue
+                    if (
+                        entry_archive.metadata.entry_id
+                        == generic_workflow_archive.metadata.entry_id
+                    ):
+                        continue
+
                     # add workflow to generic workflow tasks
                     generic_workflow_archive.workflow2.tasks.append(
                         TaskReference(task=entry_archive.workflow2)
@@ -403,7 +416,6 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 self.logger.error('Archive not found for program.')
                 continue
             writer.parse_program(archive, n)
-            archive.workflow2 = SinglePoint()
 
         self.parse_workflow()
 
@@ -440,16 +452,6 @@ class QuantumEspressoParser(MatchingParser):
     """
 
     archive_writer = QuantumEspressoArchiveWriter()
-    _levels = {}
-    _mainfile = None
-
-    @property
-    def level(self):
-        return self._levels.pop(self._mainfile, self._level)
-
-    @level.setter
-    def level(self, value: int):
-        self._level = value
 
     def is_mainfile(
         self,
@@ -474,13 +476,10 @@ class QuantumEspressoParser(MatchingParser):
             if not programs:
                 return True
             if 'pwscf' in programs[0].lower():
-                # TODO not possible at the moment to redefine level
-                self._levels[filename] = 2
-                self._mainfile = filename
-                # self.level = 2
                 # search all qe mainfiles in the directory and sub directories
+                ext = filename.split('.')[-1]
                 qe_files = search_files(
-                    '*.out', os.path.dirname(filename), include_all=True
+                    f'*.{ext}', os.path.dirname(filename), include_all=True
                 )
                 if len(qe_files) > 1:
                     sorted_files = sort_qe_files(qe_files)
@@ -504,4 +503,5 @@ class QuantumEspressoParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
+        self.level = len(child_archives)
         self.archive_writer.write(mainfile, archive, logger, child_archives)
