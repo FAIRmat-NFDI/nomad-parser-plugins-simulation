@@ -162,7 +162,7 @@ quantumespresso_parser = EntryPoint(
     python_package='nomad_simulation_parsers',
     mainfile_contents_re=(
         r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)|'
-        r'(^\s*<\?xml version="1\.0" encoding="UTF\-8"\?>\s*?\s*<qes\:espresso)'
+        r'(^\s*<\?xml version="1\.0" encoding="UTF\-8"\?>\s*?\s*.+?quantum\-espresso)'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
     mainfile_name_re='.*[^/]*\.out[^/]*',
