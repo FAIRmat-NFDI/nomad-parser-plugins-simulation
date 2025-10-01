@@ -1158,7 +1158,7 @@ molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
 )
 
 
-class MolecularDynamicsOutputs(molecular_dynamics.MolecularDynamicsOutputs):
+class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
     ensemble_properties = SubSection(sub_section=EnsembleProperty.m_def, repeats=True)
 
     correlation_functions = SubSection(
@@ -1196,30 +1196,30 @@ class MolecularDynamicsOutputs(molecular_dynamics.MolecularDynamicsOutputs):
 
 ### SUBSECTIONS
 
-MolecularDynamicsOutputs.ensemble_properties.m_annotations.setdefault('mapping', {})[
+MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
 # TODO This subsection is repeated in the schema
-MolecularDynamicsOutputs.radial_distribution_functions.m_annotations.setdefault(
+MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
-MolecularDynamicsOutputs.correlation_functions.m_annotations.setdefault('mapping', {})[
+MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
-MolecularDynamicsOutputs.mean_squared_displacements.m_annotations.setdefault(
+MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
-MolecularDynamicsOutputs.radius_of_gyration.m_annotations.setdefault('mapping', {})[
+MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
 # ! multi-ensemble property!
-MolecularDynamicsOutputs.free_energy_calculations.m_annotations.setdefault(
+MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.@')
 

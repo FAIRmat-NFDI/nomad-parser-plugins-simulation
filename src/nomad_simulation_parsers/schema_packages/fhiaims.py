@@ -259,7 +259,7 @@ class MolecularDynamics(workflow.MolecularDynamics):
     workflow.molecular_dynamics.MolecularDynamicsMethod.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
-    workflow.molecular_dynamics.MolecularDynamicsOutputs.m_def.m_annotations.setdefault(
+    workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
 
@@ -290,8 +290,11 @@ class MolecularDynamicsMethod(workflow.molecular_dynamics.MolecularDynamicsMetho
     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
 
 
-class MolecularDynamicsOutputs(workflow.molecular_dynamics.MolecularDynamicsOutputs):
-    workflow.molecular_dynamics.MolecularDynamicsOutputs.temperatures.m_annotations.setdefault(
+class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
+    pass
+
+
+workflow.molecular_dynamics.MolecularDynamicsResults.temperatures.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
