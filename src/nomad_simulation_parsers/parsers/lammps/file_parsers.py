@@ -1,5 +1,6 @@
 import os
 import re
+from difflib import SequenceMatcher
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,7 @@ from nomad_simulation_parsers.parsers.utils.constants_definitions import (
     RE_FLOAT,
     RE_N,
 )
+from nomad_simulation_parsers.parsers.utils.general import search_files
 
 
 def get_unit(
@@ -304,7 +306,7 @@ class DataParser(TextParser):
 
 class LogParser(TextParser):
     # TODO: add parsers for LAMMPS-supported trajectory formats
-    SUPPORTED_TRAJ_EXTENSIONS = {'trj', 'xyz'}  #'lammpstrj', 'dcd', 'h5', 'nc'
+    SUPPORTED_TRAJ_EXTENSIONS = {'trj', 'xyz', 'dcd', 'lammpstrj'}  # , 'h5', 'nc'
 
     def __init__(self) -> None:
         self._commands = [
@@ -536,37 +538,98 @@ class LogParser(TextParser):
 
         return data
 
+    def find_best_matching_file(
+        self, traj_files: list[str], mainfile_basename: str
+    ) -> list[str]:
+        """Find the best matching file based on the main input file name.
+        Fall back to the first file if no good match is found."""
+
+        prefix = os.path.basename(mainfile_basename).rsplit('.', 1)[1]
+        matching_files = None
+
+        # Strategy 1: Exact prefix match
+        matching_files = [f for f in traj_files if prefix in f]
+
+        if not matching_files:
+            traj_data = [
+                (os.path.basename(f).rsplit('.', 1)[0].lower(), f) for f in traj_files
+            ]
+
+            def get_tokens(filename: str) -> set[str]:
+                """Extract tokens from filename by splitting on delimiters."""
+                basename = os.path.basename(filename).rsplit('.', 1)[0].lower()
+                tokens = re.split(r'[_\-\.\d]+', basename)
+                MIN_CHARS = 2
+                return {t for t in tokens if len(t) > MIN_CHARS}
+
+            def get_best_from_scores(
+                scores: list[tuple[float, str]], min_score: float
+            ) -> list[str] | None:
+                """Return best match if score exceeds threshold, else None."""
+                if not scores:
+                    return None
+                scores.sort(reverse=True, key=lambda x: x[0])
+                best_score, best_file = scores[0]
+                if best_score > min_score:
+                    return [best_file]
+                return None
+
+            # Strategy 2: Token-based similarity
+            mainfile_tokens = get_tokens(prefix)
+            token_scores = []
+            for traj_basename, traj_file in traj_data:
+                traj_tokens = get_tokens(traj_basename)
+                if mainfile_tokens or traj_tokens:
+                    intersection = len(mainfile_tokens & traj_tokens)
+                    union = len(mainfile_tokens | traj_tokens)
+                    score = intersection / union if union > 0 else 0
+                    token_scores.append((score, traj_file))
+
+            matching_files = get_best_from_scores(token_scores, 0.0)
+
+            # Strategy 3: String sequence similarity
+            if not matching_files:
+                sequence_scores = [
+                    (
+                        SequenceMatcher(None, prefix.lower(), traj_basename).ratio(),
+                        traj_file,
+                    )
+                    for traj_basename, traj_file in traj_data
+                ]
+                matching_files = get_best_from_scores(sequence_scores, 0.3)
+
+            # ? Looking for the biggest file size/keywords (result/final/dry ...) could make more sense?
+            # Fallback: Use first file
+            if not matching_files:
+                self.logger.warning(
+                    f'No match found for "{mainfile_basename}". '
+                    f'Using first file: {os.path.basename(traj_files[0])}'
+                )
+                matching_files = [traj_files[0]]
+
+        return matching_files
+
     def get_traj_files(self) -> list[str]:
         dump = self.get('dump', None)
         if dump is None:
             self.logger.warning('Trajectory not specified in directory, will scan.')
-            # TODO: extend matching of traj file
-            traj_files = os.listdir(self.maindir)
-            traj_files = [
-                f
-                for f in traj_files
-                if f.endswith('trj') or f.endswith('xyz')
-                # TODO: add parsers for supported trajectory formats
-                # or f.endswith('lammpstrj')
-                # or f.endswith('dcd')
-                # or f.endswith('h5')
-                # or f.endswith('nc')
-            ]
+            traj_files = []
+            for ext in self.SUPPORTED_TRAJ_EXTENSIONS:
+                found_files = search_files(
+                    pattern=f'*.{ext}',
+                    basedir=self.maindir,
+                    deep=False,  # Only search current directory
+                )
+                traj_files.extend(found_files)
             # further eliminate
             if len(traj_files) > 1:
-                # ! This again wrongfully expects common file naming conventions!
-                prefix = os.path.basename(self.mainfile).rsplit('.', 1)[0]
-                traj_files = [f for f in traj_files if prefix in f]
-            else:
-                traj_files = [d[2] for d in dump]
+                traj_files = self.find_best_matching_file(traj_files, self.mainfile)
         else:
             traj_files = []
             if type(dump[0]) in [str, int]:
                 dump = [dump]
             traj_files = [d[4] for d in dump]
-        traj_files = [
-            i for n, i in enumerate(traj_files) if i not in traj_files[:n]
-        ]  # remove duplicates
+        traj_files = list(dict.fromkeys(traj_files))  # remove duplicates
 
         return [os.path.join(self.maindir, f) for f in traj_files]
 

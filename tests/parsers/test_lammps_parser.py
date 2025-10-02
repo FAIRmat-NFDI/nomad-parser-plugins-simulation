@@ -24,6 +24,7 @@ import numpy as np
 import pytest
 from nomad.utils import get_logger
 
+from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
@@ -45,6 +46,130 @@ def parser():
 # Tests for DataParser: regex patterns and section parsing
 # Tests for LogParser: command extraction and thermodynamic data parsing
 # Tests for file discovery methods (get_traj_files, get_data_files)
+@pytest.mark.parametrize(
+    'mainfile, traj_files, expected_match',
+    [
+        # Strategy 1: Exact prefix match
+        (
+            'log.hexane_nvt',
+            ['hexane_nvt.lammpstrj', 'water.xyz', 'min.lammpstrj', 'other.dcd'],
+            'hexane_nvt.lammpstrj',
+        ),
+        # Strategy 2: Token-based similarity
+        (
+            'log.hexane_nvt',
+            ['water.lammpstrj', 'hex_nvt_output.xyz', 'polymer.dcd'],
+            'hex_nvt_output.xyz',
+        ),
+        (
+            'log.1_methyl_naphthalene',
+            ['naph_298_eq.lammpstrj', 'water.xyz'],
+            'naph_298_eq.lammpstrj',
+        ),
+        # Strategy 3: String sequence similarity
+        (
+            'log.hexane_nvt',
+            ['hexanol_simulation.lammpstrj', 'completely_different.xyz'],
+            'hexanol_simulation.lammpstrj',
+        ),
+        # Fallback: No match, use first file
+        (
+            'log.hexane_nvt',
+            ['water.lammpstrj', 'polymer.xyz', 'argon.dcd'],
+            'water.lammpstrj',
+        ),
+        # Case insensitive
+        (
+            'log.hexane_nvt',
+            ['HEXANE_NVT.lammpstrj', 'other.xyz'],
+            'HEXANE_NVT.lammpstrj',
+        ),
+    ],
+)
+def test_find_best_matching_file(mainfile, traj_files, expected_match):
+    """Test trajectory file matching with various scenarios"""
+    parser = LogParser()
+    parser.logger = LOGGER
+
+    result = parser.find_best_matching_file(traj_files, mainfile)
+
+    assert len(result) == 1
+    assert result[0] == expected_match
+
+
+def test_get_traj_files():
+    """Test trajectory file discovery and matching"""
+    parser = LogParser()
+    parser.logger = LOGGER
+
+    # Test 1: With dump command specified
+    parser.mainfile = 'tests/data/lammps/1_xyz_files/log.test'
+
+    def mock_get_with_dump(key, default=None):
+        if key == 'dump':
+            return [
+                [
+                    '2',
+                    'all',
+                    'custom',
+                    '100',
+                    'pos_vel.xyz',
+                    'id',
+                    'type',
+                    'xu',
+                    'yu',
+                    'zu',
+                    'fx',
+                    'fy',
+                    'fz',
+                    'vx',
+                    'vy',
+                    'vz',
+                ]
+            ]
+        return default
+
+    parser.get = mock_get_with_dump
+    traj_files = parser.get_traj_files()
+
+    assert len(traj_files) == 1
+    assert os.path.basename(traj_files[0]) == 'pos_vel.xyz'
+    assert os.path.isabs(traj_files[0])
+
+    # Test 2: Scan directory (no dump command)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create test files
+        open(os.path.join(tmpdir, 'hexane_nvt.lammpstrj'), 'w').close()
+        open(os.path.join(tmpdir, 'water.xyz'), 'w').close()
+        open(os.path.join(tmpdir, 'readme.txt'), 'w').close()
+
+        mainfile = os.path.join(tmpdir, 'log.hexane_nvt')
+        open(mainfile, 'w').close()
+
+        parser.mainfile = mainfile
+        parser.get = lambda key, default=None: None if key == 'dump' else default
+
+        traj_files = parser.get_traj_files()
+
+        # Should find trajectory files and return best match to mainfile
+        assert len(traj_files) == 1
+        assert os.path.basename(traj_files[0]) == 'hexane_nvt.lammpstrj'
+        assert all(os.path.isabs(f) for f in traj_files)
+
+    # Test 3: Remove duplicates
+    def mock_get_with_duplicates(key, default=None):
+        if key == 'dump':
+            return [
+                ['id1', 'all', 'custom', '100', 'traj.lammpstrj', 'x', 'y', 'z'],
+                ['id2', 'all', 'custom', '200', 'traj.lammpstrj', 'x', 'y', 'z'],
+            ]
+        return default
+
+    parser.get = mock_get_with_duplicates
+    traj_files = parser.get_traj_files()
+
+    assert len(traj_files) == 1
+    assert os.path.basename(traj_files[0]) == 'traj.lammpstrj'
 
 
 # Tests for TrajParser, XYZTrajParser, TrajParsers classes
