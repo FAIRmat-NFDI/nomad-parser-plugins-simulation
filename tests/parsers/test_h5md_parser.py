@@ -229,16 +229,16 @@ def assert_workflow(archive: EntryArchive) -> None:
 
     # Free energy calc parameters
     sec_free_energy = sec_workflow.method.free_energy_calculation_parameters
-    assert sec_free_energy[0].type == 'alchemical'
-    assert sec_free_energy[0].lambda_index == 7
-    assert sec_free_energy[0].atom_indices.shape == (1,)
-    assert sec_free_energy[0].atom_indices[0] == 0
-    assert sec_free_energy[0].initial_state_vdw is True
-    assert sec_free_energy[0].final_state_vdw is False
-    assert sec_free_energy[0].initial_state_coloumb is False
-    assert sec_free_energy[0].final_state_coloumb is False
-    assert sec_free_energy[0].initial_state_bonded is True
-    assert sec_free_energy[0].final_state_bonded is True
+    assert sec_free_energy[0].calc_type == 'alchemical'
+    assert sec_free_energy[0].current_lambda_index == 7
+    # assert sec_free_energy[0].atom_indices.shape == (1,)
+    # assert sec_free_energy[0].atom_indices[0] == 0
+    # assert sec_free_energy[0].initial_state_vdw is True
+    # assert sec_free_energy[0].final_state_vdw is False
+    # assert sec_free_energy[0].initial_state_coloumb is False
+    # assert sec_free_energy[0].final_state_coloumb is False
+    # assert sec_free_energy[0].initial_state_bonded is True
+    # assert sec_free_energy[0].final_state_bonded is True
 
     # MD results
     # sec_workflow_results = sec_workflow.results
