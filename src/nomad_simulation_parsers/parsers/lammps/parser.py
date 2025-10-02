@@ -449,8 +449,7 @@ class LammpsArchiveWriter(MDParser):
                     traj_parser = TrajParser()
                     traj_parser.mainfile = traj_file
             else:
-                # TODO LB edit
-                # self.logger.warning('No file_type found for traj_file.')
+                self.logger.warning(f'File type of {traj_file} not recognized.')
                 traj_parser = TrajParser()
                 traj_parser.mainfile = traj_file
                 # TODO provide support for other file types
@@ -470,7 +469,6 @@ class LammpsArchiveWriter(MDParser):
         self.parse_method(self.archive.data)
 
         self.parse_system(self.archive.data)
-        
 
         # # include input controls from log file
         # self.parse_input()
