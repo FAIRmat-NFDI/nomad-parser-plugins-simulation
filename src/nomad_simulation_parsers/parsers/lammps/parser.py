@@ -22,16 +22,16 @@ from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 class LammpsArchiveWriter(MDParser):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.log_parser = LogParser()
-        self.units = self.log_parser.units
-        self.aux_log_parser = LogParser()
-        self._md_parser = MDParser()
+        self._log_parser = LogParser()
+        self._aux_log_parser = LogParser()
         self._traj_parser = TrajParser()
         self._xyztraj_parser = XYZTrajParser()
         self._mdanalysistraj_parser = MDAnalysisParser(
             topology_format='DATA', format='LAMMPSDUMP'
         )
-        self.data_parser = DataParser()
+        self._data_parser = DataParser()
+
+        self.units = self._log_parser.units
 
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
@@ -41,7 +41,7 @@ class LammpsArchiveWriter(MDParser):
     def parse_method(self, simulation: Simulation) -> None:
         # TODO: replace with counterparts from nomad_simulations!
 
-        if self.traj_parsers[0].mainfile is None or self.data_parser.mainfile is None:
+        if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
 
         if self.traj_parsers.eval('n_frames') is None:
@@ -54,7 +54,7 @@ class LammpsArchiveWriter(MDParser):
         # sec_force_field.model.append(sec_model)
 
         # Old parsing of method with text parser
-        masses = self.data_parser.get('Masses', None)
+        masses = self._data_parser.get('Masses', None)
         self.traj_parsers[0].masses = masses
 
         # ? Should _bond_list be set here, or is there a better place for it?
@@ -102,7 +102,7 @@ class LammpsArchiveWriter(MDParser):
     #     # Force Calculation Parameters
     #     sec_force_calculations = ForceCalculations()
     #     sec_force_field.force_calculations = sec_force_calculations
-    #     for pairstyle in self.log_parser.get('pair_style', []):
+    #     for pairstyle in self._log_parser.get('pair_style', []):
     #         pairstyle_args = pairstyle[1:]
     #         pairstyle = pairstyle[0].lower()
     #         if (
@@ -121,7 +121,7 @@ class LammpsArchiveWriter(MDParser):
     #             sec_force_calculations.coulomb_cutoff = cutoff * ureg.nanometer
     #             # TODO: LB edit
     #             # sec_force_calculations.coulomb_cutoff = cutoff * ureg.angstrom
-    #         val = self.log_parser.get('kspace_style', None)
+    #         val = self._log_parser.get('kspace_style', None)
     #         if val is not None:
     #             kspacestyle = val[0][0].lower()
     #             if 'ewald' in kspacestyle:
@@ -135,7 +135,7 @@ class LammpsArchiveWriter(MDParser):
 
     #     sec_neighbor_searching = NeighborSearching()
     #     sec_force_calculations.neighbor_searching = sec_neighbor_searching
-    #     val = self.log_parser.get('neighbor', None)
+    #     val = self._log_parser.get('neighbor', None)
     #     if val is not None:
     #         neighbor = val[0][0]  # just use the first instance for now
     #         vdw_cutoff = sec_force_calculations.vdw_cutoff
@@ -144,7 +144,7 @@ class LammpsArchiveWriter(MDParser):
     #                 float(neighbor) * ureg.nanometer
     #             )
     #             sec_neighbor_searching.neighbor_update_cutoff += vdw_cutoff
-    #     val = self.log_parser.get('neigh_modify', None)
+    #     val = self._log_parser.get('neigh_modify', None)
     #     if val is not None:
     #         neighmodify = val[0]  # just use the first instace for now
     #         neighmodify = np.array([str(i).lower() for i in neighmodify])
@@ -184,7 +184,7 @@ class LammpsArchiveWriter(MDParser):
                 if self._bond_list is None:
                     # Convert bond list returned by data parser from
                     # List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
-                    bonds = self.data_parser.get('Bonds', None)
+                    bonds = self._data_parser.get('Bonds', None)
                     if bonds is None or bonds[0][1].size == 0:
                         self._bond_list = None
                     else:
@@ -207,7 +207,7 @@ class LammpsArchiveWriter(MDParser):
                 'velocities': velocities,
                 'bond_list': self._bond_list if self._bond_list else None,
             }
-            self._md_parser.parse_trajectory_step(particles_dict, simulation)
+            self.parse_trajectory_step(particles_dict, simulation)
 
         # parse atomsgroup (moltypes --> molecules --> residues)
         # ! Only information from first frame is used to date
@@ -349,19 +349,19 @@ class LammpsArchiveWriter(MDParser):
         # LAMMPS mainfile is the main log file
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
-        self.log_parser.mainfile = self.mainfile
-        self.log_parser.logger = self.logger
-        self.log_parser._units = None
+        self._log_parser.mainfile = self.mainfile
+        self._log_parser.logger = self.logger
+        self._log_parser._units = None
 
         # parse data from auxiliary log file
-        if self.log_parser.get('log') is not None:
-            self.aux_log_parser.mainfile = os.path.join(
-                self.log_parser.maindir,
-                self.log_parser.get('log')[0],
+        if self._log_parser.get('log') is not None:
+            self._aux_log_parser.mainfile = os.path.join(
+                self._log_parser.maindir,
+                self._log_parser.get('log')[0],
             )
             # we assign units here which is read from log parser
-            self.aux_log_parser._units = self.log_parser.units
-            self.aux_log_parser.logger = self.logger
+            self._aux_log_parser._units = self._log_parser.units
+            self._aux_log_parser.logger = self.logger
 
         self._traj_parser.logger = self.logger
         self._traj_parser._chemical_symbols = None
@@ -369,17 +369,17 @@ class LammpsArchiveWriter(MDParser):
         self._mdanalysistraj_parser.logger = self.logger
         # self._mdparser = MDParser()
         # self._mdparser.logger = self.logger
-        self.data_parser.logger = self.logger
+        self._data_parser.logger = self.logger
 
         # parse data file associated with calculation
-        data_files = self.log_parser.get_data_files()
+        data_files = self._log_parser.get_data_files()
         if len(data_files) > 1:
             self.logger.warning('Multiple data files are specified')
         if data_files:
-            self.data_parser.mainfile = data_files[0]
+            self._data_parser.mainfile = data_files[0]
 
         # parse trajectorty file associated with calculation
-        traj_files = self.log_parser.get_traj_files()
+        traj_files = self._log_parser.get_traj_files()
         if len(traj_files) > 1:
             self.logger.warning('Multiple traj files are specified')
 
@@ -387,7 +387,7 @@ class LammpsArchiveWriter(MDParser):
         for n, traj_file in enumerate(traj_files):
             # parser initialization for each traj file cannot be avoided as there are
             # cases where traj files can share the same parser
-            file_type = self.log_parser.get(
+            file_type = self._log_parser.get(
                 'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
             )[n][2]
             # TODO: add support for other LAMMPs dump file formats (https://docs.lammps.org/dump.html)
@@ -419,7 +419,7 @@ class LammpsArchiveWriter(MDParser):
             #         traj_parser = TrajParser()
             #         traj_parser.mainfile = traj_file
             elif file_type == 'custom' and data_files:
-                custom_options = self.log_parser.get('dump')[n][5:]
+                custom_options = self._log_parser.get('dump')[n][5:]
                 custom_options = [
                     option.replace('xu', 'x') for option in custom_options
                 ]
@@ -459,12 +459,12 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers[0] is None:
             return
         # parse data from auxiliary log file
-        if self.log_parser.get('log') is not None:
-            self.aux_log_parser.mainfile = os.path.join(
-                self.log_parser.maindir, self.log_parser.get('log')[0]
+        if self._log_parser.get('log') is not None:
+            self._aux_log_parser.mainfile = os.path.join(
+                self._log_parser.maindir, self._log_parser.get('log')[0]
             )
             # we assign units here which is read from log parser
-            self.aux_log_parser._units = self.log_parser.units
+            self._aux_log_parser._units = self._log_parser.units
 
         self.parse_method(self.archive.data)
 

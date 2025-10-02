@@ -305,8 +305,9 @@ class DataParser(TextParser):
 
 
 class LogParser(TextParser):
-    # TODO: add parsers for LAMMPS-supported trajectory formats
-    SUPPORTED_TRAJ_EXTENSIONS = {'trj', 'xyz', 'dcd', 'lammpstrj'}  # , 'h5', 'nc'
+    # TODO: add parsers for other LAMMPS-supported trajectory formats
+    SUPPORTED_TRAJ_EXTENSIONS = ['trj', 'xyz', 'dcd', 'lammpstrj']  # , 'h5', 'nc'
+    DATA_FILE_PATTERNS = ['data', 'dat']
 
     def __init__(self) -> None:
         self._commands = [
@@ -616,7 +617,7 @@ class LogParser(TextParser):
             traj_files = []
             for ext in self.SUPPORTED_TRAJ_EXTENSIONS:
                 found_files = search_files(
-                    pattern=f'*.{ext}',
+                    pattern=f'*{ext}*',
                     basedir=self.maindir,
                     deep=False,  # Only search current directory
                 )
@@ -636,14 +637,14 @@ class LogParser(TextParser):
     def get_data_files(self) -> list[str]:
         def check_file_header(file_path: str, regex_pattern: str) -> None:
             header_size = 1024
-            file_path = f'{self.maindir}/{file_path}'
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(self.maindir, file_path)
             try:
                 with open(file_path, 'rb') as file:
                     file_header = file.read(header_size)
                     file_header_str = file_header.decode(errors='ignore')
             except Exception:
                 file_header_str = ''
-
             return re.search(regex_pattern, file_header_str)
 
         read_data = self.get('read_data')
@@ -656,12 +657,12 @@ class LogParser(TextParser):
         #         pass
         if read_data is None or 'CPU' in read_data:
             self.logger.warning('Data file not specified in directory, will scan.')
-            data_files = os.listdir(self.maindir)
-            data_files = [
-                f
-                for f in data_files
-                if f.endswith('data') or f.startswith('data') or f.endswith('dat')
-            ]
+            for ext in self.DATA_FILE_PATTERNS:
+                data_files = search_files(
+                    pattern=f'*{ext}*',
+                    basedir=self.maindir,
+                    deep=False,  # Only search current directory
+                )
             if not data_files:
                 # Search any file for the LAMMPS data file header.
                 # Fallback to the LAMMPS input structure, if no run data file is found.
@@ -699,9 +700,7 @@ class LogParser(TextParser):
         return sampling_method, fix_style
 
     def get_thermostat_settings(self) -> dict:
-        fix = self.get('fix', [None])[0]
-        if fix is None:
-            return {}
+        fix = self.get('fix', [[]])[0]
 
         try:
             fix_style = fix[2]
@@ -751,7 +750,7 @@ class LogParser(TextParser):
     def get_interactions(self) -> list[tuple[str, list]]:
         styles_coeffs = []
         for interaction in self._interactions:
-            styles = self.get('%s_style' % interaction, None)
+            styles = self.get(f'{interaction}_style', None)
             if styles is None:
                 continue
 
