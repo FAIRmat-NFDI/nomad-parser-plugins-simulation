@@ -12,6 +12,7 @@ from nomad_simulation_parsers.parsers.utils.constants import (
     RE_FLOAT,
     RE_N,
 )
+from nomad_simulation_parsers.parsers.utils.general import search_files
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
 
