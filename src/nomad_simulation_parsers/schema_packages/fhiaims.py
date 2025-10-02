@@ -268,7 +268,7 @@ class GeometryOptimization(workflow.GeometryOptimization):
     workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
-    workflow.geometry_optimization.GeometryOptimizationOutputs.m_def.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 
