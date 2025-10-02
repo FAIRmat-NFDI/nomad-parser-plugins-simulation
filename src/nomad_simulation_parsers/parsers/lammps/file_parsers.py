@@ -642,7 +642,7 @@ class LogParser(TextParser):
             traj_files = []
             for ext in self._supported_traj_extensions:
                 found_files = search_files(
-                    pattern=f'*.{ext}',
+                    pattern=f'*{ext}*',
                     basedir=self.maindir,
                     deep=False,  # Only search current directory
                 )
@@ -665,7 +665,8 @@ class LogParser(TextParser):
 
         def check_file_header(file_path: str, regex_pattern: str) -> None:
             header_size = 1024
-            file_path = f'{self.maindir}/{file_path}'
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(self.maindir, file_path)
             try:
                 with open(file_path, 'rb') as file:
                     file_header = file.read(header_size)
