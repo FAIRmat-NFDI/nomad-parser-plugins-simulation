@@ -1252,9 +1252,9 @@ molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.n_times')
 
-molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.errors')
+# molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(mapper='.errors')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
 MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[
