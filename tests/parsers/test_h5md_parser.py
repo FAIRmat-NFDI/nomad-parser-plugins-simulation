@@ -266,6 +266,28 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert rdf_2.label == 'MOL2-MOL2'
     # assert rdf_2.error_type == 'ensemble_average'
 
+    # MD results - MSD
+    assert len(sec_workflow_results.mean_squared_displacements) == 2
+    
+    # Check first MSD (MOL1)
+    msd_0 = sec_workflow_results.mean_squared_displacements[0]
+    assert msd_0.label == 'MOL1'
+    assert msd_0.direction == 'xyz'
+    assert msd_0.n_times == 51
+    assert len(msd_0.times) == 51
+    assert len(msd_0.value) == 51
+    assert msd_0.times[10].to('ps').magnitude == approx(20.0)
+    assert msd_0.value[10].to('nm**2').magnitude == approx(0.679723)
+    # Check errors array exists
+    assert len(msd_0.errors) == 51
+    assert msd_0.errors[10] == approx(0.0)
+    
+    # Check second MSD (MOL2)
+    msd_1 = sec_workflow_results.mean_squared_displacements[1]
+    assert msd_1.label == 'MOL2'
+    assert msd_1.direction == 'xyz'
+    assert msd_1.n_times == 51
+
     # MD RESULTS OLD -- SAVE FOR REF
     # sec_workflow_results = sec_workflow.results
     # assert len(sec_workflow_results.ensemble_properties) == 1

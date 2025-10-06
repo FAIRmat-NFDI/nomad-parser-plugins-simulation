@@ -1224,9 +1224,37 @@ MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
+# Mean Squared Displacements mapping using get_output_data
 MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+)['hdf5'] = MapperAnnotation(
+    mapper=('get_output_data', ['observables.mean_squared_displacements'])
+)
+
+# Individual field mappings for MeanSquaredDisplacement
+molecular_dynamics.MeanSquaredDisplacement.label.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.MeanSquaredDisplacement.times.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.times')
+
+molecular_dynamics.MeanSquaredDisplacement.value.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.value')
+
+molecular_dynamics.MeanSquaredDisplacement.direction.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.direction')
+
+molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.n_times')
+
+molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.errors')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
 MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[

@@ -263,12 +263,12 @@ class H5MDH5Parser(HDF5Parser):
                 if any(key in sample_item for key in ['bins', 'value', 'frame_start']):
                     return self._get_output_data_list_from_source(source, **kwargs)
             return
-        
+
         # Check if this is a request for multiple objects (like RDFs)
         if kwargs.get('return_list', False):
             result = self._get_output_data_list(source, **kwargs)
             return result
-        
+
         observable_type = kwargs.get('observable_type')
         if observable_type is None or observable_type not in [
             'configurational',
@@ -295,48 +295,59 @@ class H5MDH5Parser(HDF5Parser):
         """Extract multiple objects directly from source (e.g., RDFs, MSDs)."""
         try:
             results = []
-            
+
             # Iterate through each item in the source (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
             for item_name, item_data in source.items():
                 # Create entry with label and extract specific values using get_value
                 entry = {'label': item_name}
-                
-                # Extract common RDF/MSD quantities
-                for quantity in ['bins', 'value']:
+
+                # Extract common quantities - extended for MSDs
+                quantities = [
+                    'bins',
+                    'value',
+                    'times',
+                    'errors',
+                    'direction',
+                    'error_type',
+                    'type',
+                    'n_times',
+                ]
+                for quantity in quantities:
                     value = self.get_value(quantity, item_data)
                     if value is not None:
                         entry[quantity] = value
-                
+
                 results.append(entry)
-            
+
             return results
-            
+
         except Exception as e:
-            self.logger.warning(f"Could not extract output data list from source: {e}")
+            self.logger.warning(f'Could not extract output data list from source: {e}')
             return []
+
     def _get_output_data_list(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
         """Extract multiple objects from observables group (e.g., RDFs, MSDs)."""
         try:
             results = []
-            
+
             # Get the source data from the HDF5 path
             source_data = self.get_source(self.data, kwargs['path'])
-            
+
             if not source_data:
                 return []
-            
+
             # Iterate through each item in the group (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
             for item_name, item_data in source_data.items():
                 # Create entry with label and all the data from the item
                 entry = {'label': item_name, **item_data}
                 results.append(entry)
-            
+
             return results
-            
+
         except Exception as e:
-            self.logger.warning(f"Could not extract output data list: {e}")
+            self.logger.warning(f'Could not extract output data list: {e}')
             return []
 
     def get_custom_outputs(
@@ -370,17 +381,17 @@ class H5MDH5Parser(HDF5Parser):
     #     """Extract radial distribution function data from h5md observables."""
     #     try:
     #         rdf_results = []
-    #         
+    #
     #         # source should contain the RDF group data
     #         if not source:
     #             return []
-    #         
+    #
     #         # Iterate through different RDF types (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
     #         for rdf_name, rdf_data in source.items():
     #             # Extract bins and values
     #             bins_data = rdf_data.get('bins', {})
     #             values_data = rdf_data.get('value', [])
-    #             
+    #
     #             # Get the actual bins array from the nested structure
     #             if isinstance(bins_data, dict) and '__value' in bins_data:
     #                 bins = bins_data['__value']
@@ -390,18 +401,18 @@ class H5MDH5Parser(HDF5Parser):
     #                 # If bins is already a list
     #                 bins = bins_data if isinstance(bins_data, list) else []
     #                 bins_m = [b * 1e-9 for b in bins]  # nm to m
-    #             
+    #
     #             rdf_entry = {
     #                 'bins': bins_m,
     #                 'value': values_data,
     #                 'label': rdf_name,  # Add the label for the RDF pair type
     #                 'error_type': 'ensemble_average',  # Set error type as expected by test
     #             }
-    #             
+    #
     #             rdf_results.append(rdf_entry)
-    #         
+    #
     #         return rdf_results
-    #         
+    #
     #     except Exception as e:
     #         self.logger.warning(f"Could not extract RDF data: {e}")
     #         return []
@@ -422,9 +433,12 @@ class H5MDArchiveWriter(MDParser):
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 
-        self.trajectory_steps = Path(path='particles.all.position.step').get_data(
+        trajectory_steps_data = Path(path='particles.all.position.step').get_data(
             self.h5_parser.data, default=[]
         )
+        if trajectory_steps_data is None:
+            trajectory_steps_data = []
+        self.trajectory_steps = trajectory_steps_data
         self.h5_parser.trajectory_steps = self.trajectory_steps
 
         # TODO consider using a single parser for the whole archive
