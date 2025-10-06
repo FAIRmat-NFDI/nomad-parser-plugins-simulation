@@ -1200,10 +1200,29 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
-# TODO This subsection is repeated in the schema
+# Radial Distribution Functions mapping - test simple path first
 MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+)['hdf5'] = MapperAnnotation(
+    mapper=('get_rdf_data', ['observables.radial_distribution_functions'])
+)
+
+# Individual field mappings for RadialDistributionFunction
+molecular_dynamics.RadialDistributionFunction.label.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.RadialDistributionFunction.error_type.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.error_type')
+
+molecular_dynamics.RadialDistributionFunction.bins.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.bins')
+
+molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.value')
 
 MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping', {})[
     'hdf5'
@@ -1231,6 +1250,10 @@ molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault('mapping', {
 ] = MapperAnnotation(mapper='@')
 
 molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='@')
+
+molecular_dynamics.MolecularDynamics.results.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='@')
 
