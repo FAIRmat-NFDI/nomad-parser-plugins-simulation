@@ -946,13 +946,13 @@ molecular_dynamics.FreeEnergyCalculationParameters.lambdas.m_annotations.setdefa
 # ? Not sure about where this info is going in h5md
 h5md_path_lambdas = f'{h5md_path_FEC}.lambdas'
 
-molecular_dynamics.Lambdas.interaction_type.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'map_value',
-            [h5md_path_lambdas],
-            dict(key='type', enum_spec='lower'),
-        )
+molecular_dynamics.Lambdas.interaction_type.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(
+    mapper=(
+        'map_value',
+        [h5md_path_lambdas],
+        dict(key='type', enum_spec='lower'),
     )
 )
 
@@ -1200,21 +1200,17 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 
-# Radial Distribution Functions mapping - test simple path first
+# Radial Distribution Functions mapping using get_output_data
 MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
-    mapper=('get_rdf_data', ['observables.radial_distribution_functions'])
+    mapper=('get_output_data', ['observables.radial_distribution_functions'])
 )
 
 # Individual field mappings for RadialDistributionFunction
 molecular_dynamics.RadialDistributionFunction.label.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.label')
-
-molecular_dynamics.RadialDistributionFunction.error_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.error_type')
 
 molecular_dynamics.RadialDistributionFunction.bins.m_annotations.setdefault(
     'mapping', {}
