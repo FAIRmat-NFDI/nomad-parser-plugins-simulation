@@ -1,5 +1,4 @@
 import os
-from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
@@ -341,132 +340,161 @@ class LammpsArchiveWriter(MDParser):
             #                 names_firstatom
             #             )
 
-    def write_to_archive(self) -> None:
-        self.archive.data = Simulation(program=Program(name='LAMMPS'))
-        # LAMMPS mainfile is the main log file
-        self.basename = os.path.basename(self.mainfile)
-        self.basedir = os.path.dirname(self.mainfile)
+    def _configure_parsers(self) -> None:
+        """Configure all parsers with loggers and basic settings."""
+
+        def _setup_auxiliary_log_parser(aux_log_name) -> None:
+            """Set up auxiliary log parser if specified in main log file."""
+            self._aux_log_parser.mainfile = os.path.join(
+                self._log_parser.maindir,
+                aux_log_name,
+            )
+            # We assign units here which is read from log parser
+            self._aux_log_parser._units = self._log_parser.units
+            self._aux_log_parser.logger = self.logger
+
+        # Configure main log parser
         self._log_parser.mainfile = self.mainfile
         self._log_parser.logger = self.logger
         self._log_parser._units = None
 
-        # parse data from auxiliary log file
-        if self._log_parser.get('log') is not None:
-            self._aux_log_parser.mainfile = os.path.join(
-                self._log_parser.maindir,
-                self._log_parser.get('log')[0],
-            )
-            # we assign units here which is read from log parser
-            self._aux_log_parser._units = self._log_parser.units
-            self._aux_log_parser.logger = self.logger
+        # Set up auxiliary log parser if specified
+        aux_log_files = self._log_parser.get('log')
+        if aux_log_files:
+            _setup_auxiliary_log_parser(aux_log_files[0])
 
+        # Configure trajectory parsers
         self._traj_parser.logger = self.logger
         self._traj_parser._chemical_symbols = None
         self._xyztraj_parser.logger = self.logger
         self._mdanalysistraj_parser.logger = self.logger
-        # self._mdparser = MDParser()
-        # self._mdparser.logger = self.logger
+
+        # Configure data parser
         self._data_parser.logger = self.logger
 
-        # parse data file associated with calculation
+    def _parse_data_files(self) -> None:
+        """Parse and configure data file(s) associated with calculation."""
         data_files = self._log_parser.get_data_files()
+
         if len(data_files) > 1:
             self.logger.warning('Multiple data files are specified')
+
         if data_files:
             self._data_parser.mainfile = data_files[0]
 
-        # parse trajectorty file associated with calculation
+    def _create_formatted_parser(
+        self, traj_file: str, file_type: str, data_file: str
+    ) -> MDAnalysisParser:
+        """Create MDAnalysis parser for specified trajectory file formats."""
+        traj_parser = MDAnalysisParser(topology_format='DATA', format=file_type.upper())
+        traj_parser.mainfile = data_file
+        traj_parser.auxilliary_files = [traj_file]
+        self._mdanalysistraj_parser = traj_parser
+        return traj_parser
+
+    # TODO: Handling of file_type = 'atom' is a LB edit, test
+    def _create_custom_parser(
+        self, traj_file: str, index: int, file_type: str, data_file: str
+    ) -> TrajParser | MDAnalysisParser:
+        """Create parser for custom or atom LAMMPS dump formats."""
+        custom_options = None
+        if file_type == 'custom':
+            custom_options = self._log_parser.get('dump')[index][5:]
+            custom_options = [option.replace('xu', 'x') for option in custom_options]
+            custom_options = [option.replace('yu', 'y') for option in custom_options]
+            custom_options = [option.replace('zu', 'z') for option in custom_options]
+            custom_options = ' '.join(custom_options)
+
+        # Try MDAnalysis first
+        traj_parser = MDAnalysisParser(
+            topology_format='DATA',
+            format='LAMMPSDUMP',
+            atom_style=custom_options,
+        )
+        traj_parser.mainfile = data_file
+        traj_parser.auxilliary_files = [traj_file]
+
+        # Check if MDAnalysis can construct the universe or at least parse the atoms,
+        # otherwise will fall back to TrajParser
+        if traj_parser.universe is None or 'CGX' in traj_parser.get(
+            'atoms_info', {}
+        ).get('names', []):
+            # MDAnalysis is necessary to calculate rdf and atomsgroup
+            if index == 0:
+                self._mdanalysistraj_parser = traj_parser
+            traj_parser = TrajParser()
+            traj_parser.mainfile = traj_file
+
+        return traj_parser
+
+    def _create_fallback_parser(self, traj_file: str) -> TrajParser:
+        """Create fallback TrajParser when file type is not recognized."""
+        self.logger.warning(f'File type of {traj_file} not recognized.')
+        traj_parser = TrajParser()
+        traj_parser.mainfile = traj_file
+        # TODO: provide support for other file types
+        return traj_parser
+
+    def _create_trajectory_parser(
+        self, traj_file: str, index: int, data_file: str
+    ) -> TrajParser | XYZTrajParser | MDAnalysisParser:
+        """
+        Create appropriate trajectory parser based on file type.
+
+        Parser initialization for each traj file cannot be avoided as there are
+        cases where traj files can share the same parser.
+        """
+
+        def _get_trajectory_file_type(traj_file: str, index: int) -> str:
+            """Get trajectory file type from dump command or file extension."""
+            dump_commands = self._log_parser.get('dump')
+
+            if dump_commands:
+                return dump_commands[index][2]
+            else:
+                # Fallback to file extension
+                return traj_file.split('.')[-1]
+
+        # Determine file type from dump command or file extension
+        file_type = _get_trajectory_file_type(traj_file, index)
+
+        # TODO: add support for other LAMMPS dump file formats
+        # (https://docs.lammps.org/dump.html)
+
+        if file_type == 'dcd' or file_type == 'xyz' and data_file:
+            return self._create_formatted_parser(traj_file, data_file, file_type)
+
+        # TODO: 'atom' keyword is a LB edit, test
+        elif file_type == 'custom' or file_type == 'atom' and data_file:
+            return self._create_custom_parser(traj_file, index, data_file, file_type)
+
+        else:
+            return self._create_fallback_parser(traj_file)
+
+    def _parse_trajectory_files(
+        self,
+    ) -> list[TrajParser | XYZTrajParser | MDAnalysisParser]:
+        """Parse trajectory files and create appropriate parsers."""
         traj_files = self._log_parser.get_traj_files()
+
         if len(traj_files) > 1:
             self.logger.warning('Multiple traj files are specified')
 
+        data_file = self._data_parser.mainfile
         parsers = []
-        for n, traj_file in enumerate(traj_files):
-            # parser initialization for each traj file cannot be avoided as there are
-            # cases where traj files can share the same parser
-            file_type = self._log_parser.get(
-                'dump', [[1, 'all', traj_file.split('.')[-1]]] * (n + 1)
-            )[n][2]
-            # TODO: add support for other LAMMPs dump file formats (https://docs.lammps.org/dump.html)
-            if file_type == 'dcd' and data_files:
-                traj_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
-                traj_parser.mainfile = data_files[0]
-                traj_parser.auxilliary_files = [traj_file]
-                self._mdanalysistraj_parser = traj_parser
-            elif file_type == 'xyz' and data_files:
-                traj_parser = MDAnalysisParser(topology_format='DATA', format='XYZ')
-                traj_parser.mainfile = data_files[0]
-                traj_parser.auxilliary_files = [traj_file]
-                self._mdanalysistraj_parser = traj_parser
-            # TODO: LB edit
-            # elif file_type == 'atom' and data_files:
-            #     traj_parser = MDAnalysisParser(
-            #         topology_format='DATA', format='LAMMPSDUMP'
-            #     )
-            #     if data_files:
-            #         traj_parser.mainfile = data_files[0]
-            #     traj_parser.auxilliary_files = [traj_file]
 
-            #     if traj_parser.universe is None or 'CGX' in traj_parser.get(
-            #         'atoms_info', {}
-            #     ).get('names', []):
-            #         # mda necessary to calculate rdf and atomsgroup
-            #         if n == 0:
-            #             self._mdanalysistraj_parser = traj_parser
-            #         traj_parser = TrajParser()
-            #         traj_parser.mainfile = traj_file
-            elif file_type == 'custom' and data_files:
-                custom_options = self._log_parser.get('dump')[n][5:]
-                custom_options = [
-                    option.replace('xu', 'x') for option in custom_options
-                ]
-                custom_options = [
-                    option.replace('yu', 'y') for option in custom_options
-                ]
-                custom_options = [
-                    option.replace('zu', 'z') for option in custom_options
-                ]
-                custom_options = ' '.join(custom_options)
-                traj_parser = MDAnalysisParser(
-                    topology_format='DATA',
-                    format='LAMMPSDUMP',
-                    atom_style=custom_options,
-                )
-                if data_files:
-                    traj_parser.mainfile = data_files[0]
-                traj_parser.auxilliary_files = [traj_file]
-                # try to check if MDAnalysis can construct the universe or at least parse
-                # the atoms, otherwise will fall back to TrajParser
-                if traj_parser.universe is None or 'CGX' in traj_parser.get(
-                    'atoms_info', {}
-                ).get('names', []):
-                    # mda necessary to calculate rdf and atomsgroup
-                    if n == 0:
-                        self._mdanalysistraj_parser = traj_parser
-                    traj_parser = TrajParser()
-                    traj_parser.mainfile = traj_file
-            else:
-                self.logger.warning(f'File type of {traj_file} not recognized.')
-                traj_parser = TrajParser()
-                traj_parser.mainfile = traj_file
-                # TODO provide support for other file types
+        for n, traj_file in enumerate(traj_files):
+            traj_parser = self._create_trajectory_parser(traj_file, n, data_file)
             parsers.append(traj_parser)
 
         self.traj_parsers = TrajParsers(parsers)
-        if self.traj_parsers[0] is None:
-            return
-        # parse data from auxiliary log file
-        if self._log_parser.get('log') is not None:
-            self._aux_log_parser.mainfile = os.path.join(
-                self._log_parser.maindir, self._log_parser.get('log')[0]
-            )
-            # we assign units here which is read from log parser
-            self._aux_log_parser._units = self._log_parser.units
+        return parsers
 
+    def _parse_content_sections(self) -> None:
         self.parse_method(self.archive.data)
-
         self.parse_system(self.archive.data)
 
+        # TODO: uncomment when implemented
         # # include input controls from log file
         # self.parse_input()
 
@@ -475,6 +503,27 @@ class LammpsArchiveWriter(MDParser):
 
         # self.parse_workflow()
 
+    def write_to_archive(self) -> None:
+        self.archive.data = Simulation(program=Program(name='LAMMPS'))
+        # LAMMPS mainfile is the main log file
+        self.basename = os.path.basename(self.mainfile)
+        self.basedir = os.path.dirname(self.mainfile)
+
+        # Configure all parsers (loggers, units, etc.)
+        self._configure_parsers()
+
+        # Set up and parse data files
+        self._parse_data_files()
+
+        # Set up and parse trajectory files
+        parsers = self._parse_trajectory_files()
+        if not self.traj_parsers or self.traj_parsers[0] is None:
+            return
+
+        # Parse system, method, parameters, thermodynamic data, etc.
+        self._parse_content_sections()
+
+        # Close all parser instances
         self._mdanalysistraj_parser.close()
         for parser in parsers:
             parser.close()
@@ -484,28 +533,6 @@ class LammpsParser(MatchingParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.archive_writer = LammpsArchiveWriter()
-
-    # ? Really needed for the LAMMPS parser?
-    # ? Would it make sense to handle a potential auxillary log file here,
-    # ? since there seems to be an issue with its handling in the old parser?
-    def is_mainfile(
-        self,
-        filename: str,
-        mime: str,
-        buffer: bytes,
-        decoded_buffer: str,
-        compression: str = None,
-    ) -> bool | Iterable[str]:
-        """
-        TODO: Documentation
-        """
-        is_mainfile = super().is_mainfile(
-            filename, mime, buffer, decoded_buffer, compression
-        )
-
-        if is_mainfile:
-            # ? Handle check for auxiliary log file here?
-            return is_mainfile
 
     def parse(
         self,
