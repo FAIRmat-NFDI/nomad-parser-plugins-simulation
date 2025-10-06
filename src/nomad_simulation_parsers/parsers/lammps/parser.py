@@ -1132,6 +1132,10 @@ class LammpsArchiveWriter(MDParser):
             velocities = self.traj_parsers.eval('get_velocities', traj_n)
             if velocities is not None:
                 velocities = self.apply_unit(velocities, 'velocity')
+            # For 2D, the 'dimension' command must be used in the input
+            # (https://docs.lammps.org/Howto_2d.html). Default is 3D.
+            # ? Setting the default here makes the default value in get_units() redundant?
+            dimension = self.log_parser.get('dimension', 3)
             if traj_n == 0:  # TODO add references to the bond list for other steps
                 # TODO: update get_bond_list_from_model_contributions, maybe move to MDParserUtils?
                 # bond_list = get_bond_list_from_model_contributions(
@@ -1162,6 +1166,7 @@ class LammpsArchiveWriter(MDParser):
                 ),
                 'velocities': velocities,
                 'bond_list': self._bond_list if self._bond_list else None,
+                'dimensions': dimension,
             }
             self._md_parser.parse_trajectory_step(particles_dict, simulation)
 

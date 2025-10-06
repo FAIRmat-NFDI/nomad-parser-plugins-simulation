@@ -150,9 +150,8 @@ class MDParser(ArchiveWriter):
         """
         Create a system section and write the provided data.
         """
-        # ? How to handle a missing archive now?
-        # if self.archive is None:
-        #     return
+        if simulation is None:
+            return
 
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
@@ -163,12 +162,13 @@ class MDParser(ArchiveWriter):
 
         cell_dict = data.pop('cell')
         particle_labels = data.pop('labels')
+        dimensions = data.pop('dimensions')
         for label in particle_labels:
             particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
         self.parse_section(cell_dict, cell)
         model_system.cell.append(cell)
-        # ! Setting of model_system.dimensionality needs to be done here!
+        model_system.dimensionality = dimensions
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 
