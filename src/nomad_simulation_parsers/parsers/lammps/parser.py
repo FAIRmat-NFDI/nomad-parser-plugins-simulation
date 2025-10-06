@@ -155,10 +155,7 @@ class LammpsArchiveWriter(MDParser):
     #            )
 
     def parse_system(self, simulation: Simulation) -> None:
-        # sec_run = self.archive.run[-1]
         n_traj = self.traj_parsers.eval('n_frames')
-        print(n_traj)
-        print(self.traj_parsers.eval('masses', 0))
         if n_traj is None:
             return
         self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
