@@ -58,8 +58,6 @@ class LammpsArchiveWriter(MDParser):
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
         n_traj = self.traj_parsers.eval('n_frames')
-        print(n_traj)
-        print(self.traj_parsers.eval('masses', 0))
         if n_traj is None:
             return False
 
