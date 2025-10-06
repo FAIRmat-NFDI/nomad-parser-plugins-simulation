@@ -292,8 +292,9 @@ class H5MDH5Parser(HDF5Parser):
             return results
 
         except Exception as e:
-            self.logger.warning(f"Could not extract output data list from source: {e}")
+            self.logger.warning(f'Could not extract output data list from source: {e}')
             return []
+
     def _get_output_data_list(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
@@ -316,7 +317,7 @@ class H5MDH5Parser(HDF5Parser):
             return results
 
         except Exception as e:
-            self.logger.warning(f"Could not extract output data list: {e}")
+            self.logger.warning(f'Could not extract output data list: {e}')
             return []
 
     def get_custom_outputs(
