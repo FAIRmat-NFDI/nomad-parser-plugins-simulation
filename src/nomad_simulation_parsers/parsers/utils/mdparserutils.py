@@ -150,9 +150,8 @@ class MDParser(ArchiveWriter):
         """
         Create a system section and write the provided data.
         """
-        # ? How to handle a missing archive now?
-        # if self.archive is None:
-        #     return
+        if simulation is None:
+            return
 
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
