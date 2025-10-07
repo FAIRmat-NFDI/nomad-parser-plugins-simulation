@@ -53,18 +53,14 @@ def assert_h5md_header(archive: EntryArchive) -> None:
 def assert_systems(archive: EntryArchive) -> None:
     sec_systems = archive.data.model_system
     assert len(sec_systems) == 5
-    assert np.shape(sec_systems[0].positions) == (31583, 3)
-    assert np.shape(sec_systems[0].velocities) == (31583, 3)
-    assert sec_systems[0].n_particles == 31583
+    assert np.shape(sec_systems[0].positions) == (728, 3)
+    assert np.shape(sec_systems[0].velocities) == (728, 3)
+    assert sec_systems[0].n_particles == 728
     assert sec_systems[0].particle_states[100].chemical_symbol == 'H'
     assert sec_systems[0].particle_states[100].label == 'H'
 
-    assert sec_systems[2].positions[800][1].to('angstrom').magnitude == approx(
-        26.860575
-    )
-    assert sec_systems[2].velocities[1200][2].to('angstrom/ps').magnitude == approx(
-        400.0
-    )
+    assert sec_systems[2].positions[80][1].to('angstrom').magnitude == approx(28.748762)
+    assert sec_systems[2].velocities[50][2].to('angstrom/ps').magnitude == approx(400.0)
     assert sec_systems[3].cell[0].lattice_vectors[2][2].to(
         'angstrom'
     ).magnitude == approx(68.22318)
@@ -160,10 +156,10 @@ def assert_outputs(archive: EntryArchive) -> None:
     ).magnitude == approx(1.0)
 
     # Forces
-    assert np.shape(sec_outputs[1].total_forces[0].value) == (31583, 3)
-    assert sec_outputs[1].total_forces[0].value[2100][2].to(
-        'newton'
-    ).magnitude == approx(500.0)
+    assert np.shape(sec_outputs[1].total_forces[0].value) == (728, 3)
+    assert sec_outputs[1].total_forces[0].value[21][2].to('newton').magnitude == approx(
+        500.0
+    )
     assert sec_outputs[2].total_forces[0].value[11].to('newton').magnitude == approx(
         500.0
     )
@@ -340,7 +336,9 @@ def assert_workflow(archive: EntryArchive) -> None:
 def test_md(parser):
     archive = EntryArchive()
     parser.parse(
-        'tests/data/h5md/test_traj_openmm_reduceSOL_5frames_07.10.25.h5', archive, None
+        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        archive,
+        None,
     )
     normalize_all(archive, logger=logger)
 
