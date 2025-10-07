@@ -5,7 +5,6 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.model_method import ModelMethod
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
@@ -46,7 +45,7 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        sec_method = ModelMethod()
+        # sec_method = ModelMethod()
         # sec_force_field = ForceField()
         # sec_method.force_field = sec_force_field
         # sec_model = Model()
@@ -56,9 +55,8 @@ class LammpsArchiveWriter(MDParser):
         masses = self._data_parser.get('Masses', None)
         self.traj_parsers[0].masses = masses
 
-        # ? Should _bond_list be set here, or is there a better place for it?
-        # ? If anything failed with the universe, would it have errored out already, or happen here?
-        # Exract bond list from MDAnalysis universe
+        # TODO: find best place for first attempt to set _bond_list
+        # Extract bond list from MDAnalysis universe
         self._bond_list = [
             tuple(interaction['atom_indices'])
             for interaction in self._mdanalysistraj_parser.get_interactions()
@@ -73,7 +71,8 @@ class LammpsArchiveWriter(MDParser):
         #     labels = self.traj_parsers.eval('labels')
         #     # TODO: LB, test
         #     # if labels is None or 'CGX' in labels:
-        #     #     atom_types = self._mdanalysistraj_parser.get('types', None) # atom_types = self._mdanalysis.get('atom_types')
+        #     #     atom_types = self._mdanalysistraj_parser.get('types', None)
+        #     #     # [ atom_types = self._mdanalysis.get('atom_types')]
         #     #     #check if none and revert to X's if none
         #     #     if atom_types is None:
         #     #         atom_types = atoms_info.get('types', None)
@@ -86,9 +85,11 @@ class LammpsArchiveWriter(MDParser):
         #         sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
         #         sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
         #         # TODO: LB edit, test
-        #         # sec_atom.label = (labels[n] if labels is not None else f'X_{atom_types[n]}')  # *[n]
+        #         # sec_atom.label = (
+        #             labels[n] if labels is not None else f'X_{atom_types[n]}')  # *[n]
 
-    #     # TODO address case types are numbered instead of giving atom labels (fix tests accordingly)
+    #     # TODO address case types are numbered instead of giving atom labels
+    #     # TODO: update tests accordingly
     #     interactions = self._mdanalysistraj_parser.get_interactions()
     #     # for interaction in interactions:
     #     #     for key, val in interaction.items():
@@ -173,7 +174,8 @@ class LammpsArchiveWriter(MDParser):
             if velocities is not None:
                 velocities = self.apply_unit(velocities, 'velocity')
             if traj_n == 0:  # TODO add references to the bond list for other steps
-                # TODO: update get_bond_list_from_model_contributions, maybe move to MDParserUtils?
+                # TODO: update get_bond_list_from_model_contributions,
+                # TODO: maybe move to MDParserUtils?
                 # bond_list = get_bond_list_from_model_contributions(
                 #     sec_run, method_index=-1, model_index=-1
                 # )
@@ -216,9 +218,9 @@ class LammpsArchiveWriter(MDParser):
                     atoms_info[first_frame] if atoms_info else None
                 )  # using info from the initial frame
         if atoms_info is not None:
-            atoms_moltypes = np.array(atoms_info.get('moltypes', []))
-            atoms_molnums = np.array(atoms_info.get('molnums', []))
-            atoms_resids = np.array(atoms_info.get('resids', []))
+            # atoms_moltypes = np.array(atoms_info.get('moltypes', []))
+            # atoms_molnums = np.array(atoms_info.get('molnums', []))
+            # atoms_resids = np.array(atoms_info.get('resids', []))
             atoms_elements = np.array(
                 atoms_info.get('elements', ['CGX'] * self.n_atoms)
             )
@@ -235,22 +237,17 @@ class LammpsArchiveWriter(MDParser):
                     if atom_labels and 'CGX' not in atom_labels
                     else atoms_types
                 )
-            atoms_resnames = np.array(atoms_info.get('resnames', []))
-            moltypes = np.unique(atoms_moltypes)
+            # atoms_resnames = np.array(atoms_info.get('resnames', []))
+            # moltypes = np.unique(atoms_moltypes)
             # for i_moltype, moltype in enumerate(moltypes):
             #     # Only add atomsgroup for initial system for now
-            #     # ! AtomsGroup deprecated, sub_system = ModelSystem() now!
             #     sec_molecule_group = ModelSystem()
-            #     # TODO: append to simulation?
             #     # sec_run.system[0].atoms_group.append(sec_molecule_group)
-            #     # ? ModelSystem has no 'label', 'ParticleState' does.
-            #     # ? Using a 'ParticleState' class for a group of molecules is counter-intuitive
             #     sec_molecule_group.branch_label = f'group_{moltype}'
-            #     # ? 'molecule_group' deprecated,
-            #     # ? which of 'cluster', 'bulk', or 'unavailable' to use?
             #     sec_molecule_group.type = 'cluster'  # 'molecule_group'
             #     sec_molecule_group.index = i_moltype
-            #     sec_molecule_group.atom_indices = np.where(atoms_moltypes == moltype)[0]
+            #     sec_molecule_group.atom_indices = np.where(
+            #         atoms_moltypes == moltype)[0]
             #     sec_molecule_group.n_atoms = len(sec_molecule_group.atom_indices)
             #     sec_molecule_group.is_molecule = False
             #     # mol_nums is the molecule identifier for each atom
@@ -271,7 +268,6 @@ class LammpsArchiveWriter(MDParser):
             #         sec_molecule.atom_indices = np.where(molecules == molecule)[0]
             #         sec_molecule.n_atoms = len(sec_molecule.atom_indices)
             #         # use first particle to get the moltype
-            #         # not sure why but this value is being cast to int, cast back to str
             #         sec_molecule.label = str(
             #             atoms_moltypes[sec_molecule.atom_indices[0]]
             #         )
@@ -329,7 +325,6 @@ class LammpsArchiveWriter(MDParser):
 
             #             names = atoms_resnames[sec_molecule.atom_indices]
             #             ids = atoms_resids[sec_molecule.atom_indices]
-            #             # filter for the first instance of each residue, as to not overcount
             #             __, ids_count = np.unique(ids, return_counts=True)
             #             # get the index of the first atom of each residue
             #             ids_firstatom = np.cumsum(ids_count)[:-1]

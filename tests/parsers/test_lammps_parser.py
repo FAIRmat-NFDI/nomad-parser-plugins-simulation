@@ -218,7 +218,7 @@ def test_get_data_files():
         data_files = parser.get_data_files()
 
         assert len(data_files) == 2
-        assert any('data.polymer' in f or 'initial.dat' in f for f in data_files)
+        assert all('data.polymer' in f or 'initial.dat' in f for f in data_files)
 
     # Test 3: Scan by header when no pattern match
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -233,8 +233,7 @@ def test_get_data_files():
 
         data_files = parser.get_data_files()
 
-        assert len(data_files) == 1
-        assert any('structure.lmp' in f for f in data_files)
+        assert os.path.basename(data_files[0]) == 'structure.lmp'
 
     # Test 4: Multiple files, filter by proper header
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -254,11 +253,13 @@ def test_get_data_files():
 
         data_files = parser.get_data_files()
 
-        assert len(data_files) >= 1
-        if len(data_files) == 1:
-            assert 'data.good' in data_files[0]
+        assert 'data.good' in data_files[0]
 
-    # Test 5: No data files found (warning case)
+
+def test_no_data_file():
+    """Test behavior when no data files are found"""
+    parser = LogParser()
+    parser.logger = LOGGER
     with tempfile.TemporaryDirectory() as tmpdir:
         # Only non-data files
         open(os.path.join(tmpdir, 'log.test'), 'w').close()
@@ -511,7 +512,7 @@ def test_unwrapped_pos():
     assert velocities[457][-2] == pytest.approx(-0.928553)
 
 
-# TODO Fix dealing with multiple output files (positions and velocities in separate files)
+# TODO Fix dealing with multiple output files (positions and velocities separate)
 # TODO with archive_to_universe function, then add back in this test
 
 
@@ -573,7 +574,9 @@ def test_traj_dcd():
 # def test_nvt(parser):
 #     archive = EntryArchive()
 #     parser.parse(
-#         'tests/data/lammps/hexane_cyclohexane/log.hexane_cyclohexane_nvt', archive, None
+#         'tests/data/lammps/hexane_cyclohexane/log.hexane_cyclohexane_nvt',
+#         archive,
+#         None
 #     )
 
 #     sec_run = archive.run[0]
@@ -588,7 +591,9 @@ def test_traj_dcd():
 #     assert sec_workflow.method.n_steps == 80000
 #     assert sec_workflow.method.coordinate_save_frequency == 400
 #     assert sec_workflow.method.thermodynamics_save_frequency == 400
-#     assert sec_workflow.method.thermostat_parameters[0].thermostat_type == 'nose_hoover'
+#     assert (
+#         sec_workflow.method.thermostat_parameters[0].thermostat_type == 'nose_hoover'
+#     )
 #     assert (
 #         sec_workflow.method.thermostat_parameters[0].reference_temperature.magnitude
 #         == 300.0
@@ -602,7 +607,8 @@ def test_traj_dcd():
 #         == 2.5e-14
 #     )
 #     assert (
-#         sec_workflow.method.thermostat_parameters[0].coupling_constant.units == 'second'
+#         sec_workflow.method.thermostat_parameters[0].coupling_constant.units
+#         == 'second'
 #     )
 
 #     sec_method = sec_run.method[0]
@@ -610,17 +616,20 @@ def test_traj_dcd():
 #     assert sec_method.force_field.model[0].contributions[1].type == 'bond'
 #     assert sec_method.force_field.model[0].contributions[1].n_interactions == 666
 #     assert sec_method.force_field.model[0].contributions[1].n_atoms == 2
-#     assert sec_method.force_field.model[0].contributions[1].atom_indices[100, 1] == 103
+#     assert (
+#         sec_method.force_field.model[0].contributions[1].atom_indices[100, 1] == 103
+#     )
 #     assert sec_method.force_field.model[0].contributions[1].atom_labels[350, 0] == '1'
 #     assert (
 #         sec_method.force_field.force_calculations.coulomb_cutoff.magnitude
 #         == 1.2000000000000002e-08
 #     )
 #     assert sec_method.force_field.force_calculations.coulomb_cutoff.units == 'meter'
-#     assert (
-#         sec_method.force_field.force_calculations.neighbor_searching.neighbor_update_frequency
-#         == 10
+#     neighbor_freq = (
+#     sec_method.force_field.force_calculations
+#     .neighbor_searching.neighbor_update_frequency
 #     )
+#     assert neighbor_freq == 10
 
 #     sec_system = sec_run.system
 #     assert len(sec_system) == 201
@@ -637,21 +646,28 @@ def test_traj_dcd():
 #     assert sec_scc[11].step == 4400
 #     assert len(sec_scc[1].energy.contributions) == 9
 #     assert sec_scc[112].energy.contributions[8].kind == 'kspace long range'
-#     assert sec_scc[96].energy.contributions[2].value.magnitude == approx(1.19666271e-18)
-#     assert sec_scc[47].energy.contributions[4].value.magnitude == approx(1.42166035e-18)
+#     assert (
+#         sec_scc[96].energy.contributions[2].value.magnitude
+#         == pytest.approx(1.19666271e-18)
+#     )
+#     assert (
+#         sec_scc[47].energy.contributions[4].value.magnitude
+#         == pytest.approx(1.42166035e-18)
+#     )
 #     assert sec_scc[75].time_physical.magnitude == approx(83.56332225)
 #     assert sec_scc[112].time_calculation.magnitude == approx(1.2351 / 400)
-
-#     assert (
-#         sec_run.x_lammps_section_control_parameters[0].x_lammps_inout_control_atomstyle
-#         == 'full'
+#     inout_control_atomstyle = (
+#        sec_run.x_lammps_section_control_parameters[0].x_lammps_inout_control_atomstyle
 #     )
+#     assert inout_control_atomstyle == 'full'
 
 
 # def test_thermo_format(parser):
 #     archive = EntryArchive()
 #     parser.parse(
-#         'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene', archive, None
+#         'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
+#         archive,
+#         None
 #     )
 
 #     sec_sccs = archive.run[0].calculation
@@ -694,17 +710,18 @@ def test_traj_dcd():
 #     # assert sec_systems[0].atoms_group[0].atoms_group[52].is_molecule is True
 
 #     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].label == 'group_8'
+#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].label
+#     #     == 'group_8'
 #     # )
 #     # assert (
 #     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].type
 #     #     == 'monomer_group'
 #     # )
 #     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].index == 7
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].composition_formula
-#     #     == '8(1)'
+#     # composition_formula = (
+#     # sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].composition_formula
 #     # )
+#     # assert composition_formula == '8(1)'
 #     # assert sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].n_atoms == 7
 #     # assert (
 #     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atom_indices[5]
@@ -724,10 +741,10 @@ def test_traj_dcd():
 #     #     .label
 #     #     == '8'
 #     # )
-#     # assert (
-#     #     sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atoms_group[0].type
-#     #     == 'monomer'
-#     # )
+#     # type = (
+#       sec_systems[0].atoms_group[0].atoms_group[76].atoms_group[7].atoms_group[0].type
+#     )
+#     # assert type == 'monomer'
 #     # assert (
 #     #     sec_systems[0]
 #     #     .atoms_group[0]
@@ -791,12 +808,15 @@ def test_traj_dcd():
 #         sec_workflow.method.convergence_tolerance_energy_difference.magnitude
 #         == approx(0.0)
 #     )
-#     assert sec_workflow.method.convergence_tolerance_energy_difference.units == 'joule'
+#     assert (
+#         sec_workflow.method.convergence_tolerance_energy_difference.units == 'joule'
+#     )
 #     assert sec_workflow.results.final_energy_difference.magnitude == approx(0.0)
 #     assert sec_workflow.results.final_energy_difference.units == 'joule'
 
-#     assert sec_workflow.method.convergence_tolerance_force_maximum.magnitude == approx(
-#         100
+#     assert (
+#         sec_workflow.method.convergence_tolerance_force_maximum.magnitude
+#         == pytest.approx(100)
 #     )
 #     assert sec_workflow.method.convergence_tolerance_force_maximum.units == 'newton'
 
@@ -806,7 +826,10 @@ def test_traj_dcd():
 #     assert sec_workflow.method.optimization_steps_maximum == 10000
 #     assert sec_workflow.results.optimization_steps == 160
 #     assert len(sec_workflow.results.energies) == 159
-#     assert sec_workflow.results.energies[14].magnitude == approx(6.931486093999211e-17)
+#     assert (
+#         sec_workflow.results.energies[14].magnitude
+#         == pytest.approx(6.931486093999211e-17)
+#     )
 #     assert sec_workflow.results.energies[14].units == 'joule'
 #     assert len(sec_workflow.results.steps) == 159
 #     assert sec_workflow.results.steps[22] == 1100
