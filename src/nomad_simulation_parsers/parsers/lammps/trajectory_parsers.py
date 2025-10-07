@@ -16,6 +16,11 @@ class TrajParser(TextParser):
         self._chemical_symbols = None
         super().__init__(None)
 
+    def reset(self):
+        super().reset()
+        self._masses = None
+        self._chemical_symbols = None
+
     def get_pbc_cell(self, val: str) -> tuple[list, np.ndarray]:
         # TODO: extend logic to handle all LAMMPS-supported pbc styles
         # TODO: collect example outputs!
@@ -96,15 +101,14 @@ class TrajParser(TextParser):
     def masses(self, val: Any) -> None:
         if not val:
             return
-        # TODO: Find better way to check for type and shape
         if not isinstance(val, np.ndarray):
             try:
                 val = np.asarray(val)
-            except (ValueError, TypeError) as e:
-                raise ValueError(f'Cannot convert masses to array: {e}')
+            except (ValueError, TypeError):
+                return None
         min_dim = 2
         if val.ndim < min_dim:
-            raise ValueError(f'masses must be at least 2D, got {val.ndim}D array')
+            return None
 
         self._masses = val
 
@@ -112,25 +116,23 @@ class TrajParser(TextParser):
     def chemical_symbols(self) -> dict | None:
         """Chemical symbols derived from particle masses."""
         if self._chemical_symbols is None and self._masses is not None:
-            self._derive_chemical_symbols()
+            self._chemical_symbols = {}
+            for i in range(len(self._masses)):
+                symbol_idx = np.argmin(abs(REFERENCE_MASSES - self._masses[i][1]))
+                self._chemical_symbols[self._masses[i][0]] = CHEMICAL_SYMBOLS[
+                    symbol_idx
+                ]
         return self._chemical_symbols
 
-    def _derive_chemical_symbols(self) -> None:
-        """Derive chemical symbols from mass data."""
-        masses = self._masses[0][1]
-        self._chemical_symbols = {}
-        for i in range(len(masses)):
-            symbol_idx = np.argmin(abs(REFERENCE_MASSES - masses[i][1]))
-            self._chemical_symbols[masses[i][0]] = CHEMICAL_SYMBOLS[symbol_idx]
-
-    def get_atom_labels(self, idx: int) -> list[str] | None:
+    # TODO: Inspect other parsers for consistent default return type
+    def get_atom_labels(self, idx: int) -> list[str] | list:
         atoms_info = self.get('atoms_info')
         if atoms_info is None:
-            return
+            return  # TODO: should this return [] for consistency?
         atoms_info = atoms_info.get(idx)
 
         atoms_id = atoms_info.get('id')
-        default = ['CGX' for _ in atoms_id] if atoms_id is not None else None
+        default = ['CGX' for _ in atoms_id] if atoms_id is not None else []
         atoms_type = atoms_info.get('type')
         if atoms_type is None:
             return default
