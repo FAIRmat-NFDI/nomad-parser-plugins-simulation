@@ -269,6 +269,7 @@ class H5MDH5Parser(HDF5Parser):
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
             return self.get_ensemble_output(source, **kwargs)
 
+    # TODO reassess the necessity of this function
     def _get_output_data_list_from_source(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
