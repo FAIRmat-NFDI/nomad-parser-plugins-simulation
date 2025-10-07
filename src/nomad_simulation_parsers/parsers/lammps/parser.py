@@ -45,13 +45,6 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        # sec_method = ModelMethod()
-        # sec_force_field = ForceField()
-        # sec_method.force_field = sec_force_field
-        # sec_model = Model()
-        # sec_force_field.model.append(sec_model)
-
-        # Old parsing of method with text parser
         masses = self._data_parser.get('Masses', None)
         self.traj_parsers[0].masses = masses
 
@@ -62,97 +55,6 @@ class LammpsArchiveWriter(MDParser):
             for interaction in self._mdanalysistraj_parser.get_interactions()
             if interaction['type'] == 'bond'
         ]
-
-        # parse method with MDAnalysis (should be a backup for the charges and masses...
-        # but the interactions are most easily read from the MDA universe right now)
-        # n_atoms = self.traj_parsers.eval('get_n_atoms', 0)
-        # if n_atoms is not None:
-        #     atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
-        #     labels = self.traj_parsers.eval('labels')
-        #     # TODO: LB, test
-        #     # if labels is None or 'CGX' in labels:
-        #     #     atom_types = self._mdanalysistraj_parser.get('types', None)
-        #     #     # [ atom_types = self._mdanalysis.get('atom_types')]
-        #     #     #check if none and revert to X's if none
-        #     #     if atom_types is None:
-        #     #         atom_types = atoms_info.get('types', None)
-        #     #         #atom_types = ['CGX']*n_atoms
-        #     #     else:
-        #     #         labels = [f'X_{atom_type}' for atom_type in atom_types]
-        #     for n in range(n_atoms):
-        #         sec_atom = AtomParameters()
-        #         sec_method.atom_parameters.append(sec_atom)
-        #         sec_atom.charge = atoms_info.get('charges', [None] * (n + 1))[n]
-        #         sec_atom.mass = atoms_info.get('masses', [None] * (n + 1))[n]
-        #         # TODO: LB edit, test
-        #         # sec_atom.label = (
-        #             labels[n] if labels is not None else f'X_{atom_types[n]}')  # *[n]
-
-    #     # TODO address case types are numbered instead of giving atom labels
-    #     # TODO: update tests accordingly
-    #     interactions = self._mdanalysistraj_parser.get_interactions()
-    #     # for interaction in interactions:
-    #     #     for key, val in interaction.items():
-    #     #         quantity_def = Interaction.m_def.all_quantities.get(key)
-    #     #         if quantity_def and quantity_def.shape:
-    #     #             # TODO reshape properly
-    #     #             interaction[key] = [val]
-    #     self.parse_interactions(interactions, sec_model)
-
-    #     # Force Calculation Parameters
-    #     sec_force_calculations = ForceCalculations()
-    #     sec_force_field.force_calculations = sec_force_calculations
-    #     for pairstyle in self._log_parser.get('pair_style', []):
-    #         pairstyle_args = pairstyle[1:]
-    #         pairstyle = pairstyle[0].lower()
-    #         if (
-    #             'lj' in pairstyle and 'coul' not in pairstyle
-    #         ):  # only cover the simplest case
-    #             sec_force_calculations.vdw_cutoff = (
-    #                 float(pairstyle_args[-1]) * ureg.nanometer
-    #                 # TODO: LB edit
-    #                 # float(pairstyle_args[-1]) * ureg.angstrom
-    #             )
-    #         if 'coul' in pairstyle:
-    #             if 'streitz' in pairstyle:
-    #                 cutoff = float(pairstyle_args[0])
-    #             else:
-    #                 cutoff = float(pairstyle_args[-1])
-    #             sec_force_calculations.coulomb_cutoff = cutoff * ureg.nanometer
-    #             # TODO: LB edit
-    #             # sec_force_calculations.coulomb_cutoff = cutoff * ureg.angstrom
-    #         val = self._log_parser.get('kspace_style', None)
-    #         if val is not None:
-    #             kspacestyle = val[0][0].lower()
-    #             if 'ewald' in kspacestyle:
-    #                 sec_force_calculations.coulomb_type = 'ewald'
-    #             elif 'pppm' in kspacestyle:
-    #                 sec_force_calculations.coulomb_type = (
-    #                     'particle_particle_particle_mesh'
-    #                 )
-    #             elif 'msm' in kspacestyle:
-    #                 sec_force_calculations.coulomb_type = 'multilevel_summation'
-
-    #     sec_neighbor_searching = NeighborSearching()
-    #     sec_force_calculations.neighbor_searching = sec_neighbor_searching
-    #     val = self._log_parser.get('neighbor', None)
-    #     if val is not None:
-    #         neighbor = val[0][0]  # just use the first instance for now
-    #         vdw_cutoff = sec_force_calculations.vdw_cutoff
-    #         if vdw_cutoff is not None:
-    #             sec_neighbor_searching.neighbor_update_cutoff = (
-    #                 float(neighbor) * ureg.nanometer
-    #             )
-    #             sec_neighbor_searching.neighbor_update_cutoff += vdw_cutoff
-    #     val = self._log_parser.get('neigh_modify', None)
-    #     if val is not None:
-    #         neighmodify = val[0]  # just use the first instace for now
-    #         neighmodify = np.array([str(i).lower() for i in neighmodify])
-    #         if 'every' in neighmodify:
-    #             index = np.where(neighmodify == 'every')[0]
-    #             sec_neighbor_searching.neighbor_update_frequency = int(
-    #                 neighmodify[index + 1]
-    #            )
 
     def parse_system(self, simulation: Simulation) -> None:
         n_traj = self.traj_parsers.eval('n_frames')
@@ -237,117 +139,9 @@ class LammpsArchiveWriter(MDParser):
                     if atom_labels and 'CGX' not in atom_labels
                     else atoms_types
                 )
-            # atoms_resnames = np.array(atoms_info.get('resnames', []))
-            # moltypes = np.unique(atoms_moltypes)
-            # for i_moltype, moltype in enumerate(moltypes):
-            #     # Only add atomsgroup for initial system for now
-            #     sec_molecule_group = ModelSystem()
-            #     # sec_run.system[0].atoms_group.append(sec_molecule_group)
-            #     sec_molecule_group.branch_label = f'group_{moltype}'
-            #     sec_molecule_group.type = 'cluster'  # 'molecule_group'
-            #     sec_molecule_group.index = i_moltype
-            #     sec_molecule_group.atom_indices = np.where(
-            #         atoms_moltypes == moltype)[0]
-            #     sec_molecule_group.n_atoms = len(sec_molecule_group.atom_indices)
-            #     sec_molecule_group.is_molecule = False
-            #     # mol_nums is the molecule identifier for each atom
-            #     mol_nums = atoms_molnums[sec_molecule_group.atom_indices]
-            #     moltype_count = np.unique(mol_nums).shape[0]
-            #     sec_molecule_group.composition_formula = f'{moltype}({moltype_count})'
-
-            #     molecules = atoms_molnums
-            #     for i_molecule, molecule in enumerate(
-            #         np.unique(molecules[sec_molecule_group.atom_indices])
-            #     ):
-            #         sec_molecule = ModelSystem()
-            #         # TODO: append to sec_molecule_group
-            #         # sec_molecule_group.atoms_group.append(sec_molecule)
-            #         if i_molecule == 0:
-            #             sec_molecule.is_representative = True
-            #         sec_molecule.index = i_molecule
-            #         sec_molecule.atom_indices = np.where(molecules == molecule)[0]
-            #         sec_molecule.n_atoms = len(sec_molecule.atom_indices)
-            #         # use first particle to get the moltype
-            #         sec_molecule.label = str(
-            #             atoms_moltypes[sec_molecule.atom_indices[0]]
-            #         )
-            #         sec_molecule.type = 'molecule'
-            #         sec_molecule.is_molecule = True
-
-            #         mol_resids = np.unique(atoms_resids[sec_molecule.atom_indices])
-            #         n_res = mol_resids.shape[0]
-            #         if n_res == 1:
-            #             elements = atoms_elements[sec_molecule.atom_indices]
-            #             sec_molecule.composition_formula = get_composition(elements)
-            #         else:
-            #             mol_resnames = atoms_resnames[sec_molecule.atom_indices]
-            #             restypes = np.unique(mol_resnames)
-            #             for i_restype, restype in enumerate(restypes):
-            #                 sec_monomer_group = ModelSystem()
-            #                 # TODO: append to sec_molecule
-            #                 # sec_molecule.atoms_group.append(sec_monomer_group)
-            #                 restype_indices = np.where(atoms_resnames == restype)[0]
-            #                 sec_monomer_group.label = f'group_{restype}'
-            #                 sec_monomer_group.type = 'monomer_group'
-            #                 sec_monomer_group.index = i_restype
-            #                 sec_monomer_group.atom_indices = np.intersect1d(
-            #                     restype_indices, sec_molecule.atom_indices
-            #                 )
-            #                 sec_monomer_group.n_atoms = len(
-            #                     sec_monomer_group.atom_indices
-            #                 )
-            #                 sec_monomer_group.is_molecule = False
-
-            #                 restype_resids = np.unique(
-            #                     atoms_resids[sec_monomer_group.atom_indices]
-            #                 )
-            #                 restype_count = restype_resids.shape[0]
-            #                 sec_monomer_group.composition_formula = (
-            #                     f'{restype}({restype_count})'
-            #                 )
-            #                 for i_res, res_id in enumerate(restype_resids):
-            #                     sec_residue = ModelSystem()
-            #                     # TODO: append to sec_monomer_group
-            #                     # sec_monomer_group.atoms_group.append(sec_residue)
-            #                     sec_residue.index = i_res
-            #                     atom_indices = np.where(atoms_resids == res_id)[0]
-            #                     sec_residue.atom_indices = np.intersect1d(
-            #                         atom_indices, sec_monomer_group.atom_indices
-            #                     )
-            #                     sec_residue.n_atoms = len(sec_residue.atom_indices)
-            #                     sec_residue.label = str(restype)
-            #                     sec_residue.type = 'monomer'
-            #                     sec_residue.is_molecule = False
-            #                     elements = atoms_elements[sec_residue.atom_indices]
-            #                     sec_residue.composition_formula = get_composition(
-            #                         elements
-            #                     )
-
-            #             names = atoms_resnames[sec_molecule.atom_indices]
-            #             ids = atoms_resids[sec_molecule.atom_indices]
-            #             __, ids_count = np.unique(ids, return_counts=True)
-            #             # get the index of the first atom of each residue
-            #             ids_firstatom = np.cumsum(ids_count)[:-1]
-            #             # add the 0th index manually
-            #             ids_firstatom = np.insert(ids_firstatom, 0, 0)
-            #             names_firstatom = names[ids_firstatom]
-            #             sec_molecule.composition_formula = get_composition(
-            #                 names_firstatom
-            #             )
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
-
-        def _setup_auxiliary_log_parser(aux_log_name) -> None:
-            """Set up auxiliary log parser if specified in main log file."""
-            self._aux_log_parser.mainfile = os.path.join(
-                self._log_parser.maindir,
-                aux_log_name,
-            )
-            # We assign units here which is read from log parser
-            self._aux_log_parser._units = self._log_parser.units
-            self._aux_log_parser.logger = self.logger
-
         # Configure main log parser
         self._log_parser.mainfile = self.mainfile
         self._log_parser.logger = self.logger
@@ -356,7 +150,13 @@ class LammpsArchiveWriter(MDParser):
         # Set up auxiliary log parser if specified
         aux_log_files = self._log_parser.get('log')
         if aux_log_files:
-            _setup_auxiliary_log_parser(aux_log_files[0])
+            self._aux_log_parser.mainfile = os.path.join(
+                self._log_parser.maindir,
+                aux_log_files[0],
+            )
+            # We assign units here which is read from log parser
+            self._aux_log_parser._units = self._log_parser.units
+            self._aux_log_parser.logger = self.logger
 
         # Configure trajectory parsers
         self._traj_parser.logger = self.logger
@@ -367,7 +167,7 @@ class LammpsArchiveWriter(MDParser):
         # Configure data parser
         self._data_parser.logger = self.logger
 
-    def _parse_data_files(self) -> None:
+    def _set_data_files(self) -> None:
         """Parse and configure data file(s) associated with calculation."""
         data_files = self._log_parser.get_data_files()
 
@@ -376,59 +176,6 @@ class LammpsArchiveWriter(MDParser):
 
         if data_files:
             self._data_parser.mainfile = data_files[0]
-
-    def _create_formatted_parser(
-        self, traj_file: str, file_type: str, data_file: str
-    ) -> MDAnalysisParser:
-        """Create MDAnalysis parser for specified trajectory file formats."""
-        traj_parser = MDAnalysisParser(topology_format='DATA', format=file_type.upper())
-        traj_parser.mainfile = data_file
-        traj_parser.auxilliary_files = [traj_file]
-        self._mdanalysistraj_parser = traj_parser
-        return traj_parser
-
-    # TODO: Handling of file_type = 'atom' is a LB edit, test
-    def _create_custom_parser(
-        self, traj_file: str, index: int, file_type: str, data_file: str
-    ) -> TrajParser | MDAnalysisParser:
-        """Create parser for custom or atom LAMMPS dump formats."""
-        custom_options = None
-        if file_type == 'custom':
-            custom_options = self._log_parser.get('dump')[index][5:]
-            custom_options = [option.replace('xu', 'x') for option in custom_options]
-            custom_options = [option.replace('yu', 'y') for option in custom_options]
-            custom_options = [option.replace('zu', 'z') for option in custom_options]
-            custom_options = ' '.join(custom_options)
-
-        # Try MDAnalysis first
-        traj_parser = MDAnalysisParser(
-            topology_format='DATA',
-            format='LAMMPSDUMP',
-            atom_style=custom_options,
-        )
-        traj_parser.mainfile = data_file
-        traj_parser.auxilliary_files = [traj_file]
-
-        # Check if MDAnalysis can construct the universe or at least parse the atoms,
-        # otherwise will fall back to TrajParser
-        if traj_parser.universe is None or 'CGX' in traj_parser.get(
-            'atoms_info', {}
-        ).get('names', []):
-            # MDAnalysis is necessary to calculate rdf and atomsgroup
-            if index == 0:
-                self._mdanalysistraj_parser = traj_parser
-            traj_parser = TrajParser()
-            traj_parser.mainfile = traj_file
-
-        return traj_parser
-
-    def _create_fallback_parser(self, traj_file: str) -> TrajParser:
-        """Create fallback TrajParser when file type is not recognized."""
-        self.logger.warning(f'File type of {traj_file} not recognized.')
-        traj_parser = TrajParser()
-        traj_parser.mainfile = traj_file
-        # TODO: provide support for other file types
-        return traj_parser
 
     def _create_trajectory_parser(
         self, traj_file: str, index: int, data_file: str
@@ -440,29 +187,78 @@ class LammpsArchiveWriter(MDParser):
         cases where traj files can share the same parser.
         """
 
-        def _get_trajectory_file_type(traj_file: str, index: int) -> str:
-            """Get trajectory file type from dump command or file extension."""
-            dump_commands = self._log_parser.get('dump')
-            # ! Assumes the extension is always a valid lampps dump format
-            if dump_commands:
-                return dump_commands[index][2]
-            else:
-                # Fallback to file extension
-                return traj_file.split('.')[-1]
+        def _create_formatted_parser(
+            traj_file: str, file_type: str, data_file: str
+        ) -> MDAnalysisParser:
+            """Create MDAnalysis parser for specified trajectory file formats."""
+            traj_parser = MDAnalysisParser(
+                topology_format='DATA', format=file_type.upper()
+            )
+            traj_parser.mainfile = data_file
+            traj_parser.auxilliary_files = [traj_file]
+            self._mdanalysistraj_parser = traj_parser
+            return traj_parser
+
+        # TODO: Handling of file_type = 'atom' is a LB edit, test
+        def _create_custom_parser(
+            traj_file: str, index: int, file_type: str, data_file: str
+        ) -> TrajParser | MDAnalysisParser:
+            """Create parser for custom or atom LAMMPS dump formats."""
+            custom_options = None
+            if file_type == 'custom':
+                custom_options = self._log_parser.get('dump')[index][5:]
+                # Convert unwrapped coordinates (xu, yu, zu) to regular (x, y, z)
+                custom_options = [
+                    option.replace('xu', 'x').replace('yu', 'y').replace('zu', 'z')
+                    for option in custom_options
+                ]
+                custom_options = ' '.join(custom_options)
+
+            # Try MDAnalysis first
+            traj_parser = MDAnalysisParser(
+                topology_format='DATA',
+                format='LAMMPSDUMP',
+                atom_style=custom_options,
+            )
+            traj_parser.mainfile = data_file
+            traj_parser.auxilliary_files = [traj_file]
+
+            # Check if MDAnalysis can construct the universe or parse the atoms,
+            # otherwise will fall back to TrajParser
+            if traj_parser.universe is None or 'CGX' in traj_parser.get(
+                'atoms_info', {}
+            ).get('names', []):
+                # MDAnalysis is necessary to calculate rdf and atomsgroup
+                if index == 0:
+                    self._mdanalysistraj_parser = traj_parser
+                traj_parser = TrajParser()
+                traj_parser.mainfile = traj_file
+
+            return traj_parser
 
         # Determine file type from dump command or file extension
-        file_type = _get_trajectory_file_type(traj_file, index)
+        dump_commands = self._log_parser.get('dump')
+        if dump_commands:
+            file_type = dump_commands[index][2]
+        else:
+            # TODO: Assumes the extension is always a valid lammps dump format, improve
+            # Fallback to file extension
+            file_type = traj_file.split('.')[-1]
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:
-            return self._create_formatted_parser(traj_file, data_file, file_type)
+            return _create_formatted_parser(traj_file, data_file, file_type)
 
         # TODO: 'atom' keyword is a LB edit, test
         elif file_type == 'custom' or file_type == 'atom' and data_file:
-            return self._create_custom_parser(traj_file, index, data_file, file_type)
+            return _create_custom_parser(traj_file, index, data_file, file_type)
 
         else:
-            return self._create_fallback_parser(traj_file)
+            self.logger.warning('File type of %s not recognized.', traj_file)
+            traj_parser = TrajParser()
+            traj_parser.mainfile = traj_file
+            # TODO: provide support for other file types
+            return traj_parser
 
     def _parse_trajectory_files(
         self,
@@ -506,7 +302,7 @@ class LammpsArchiveWriter(MDParser):
         self._configure_parsers()
 
         # Set up and parse data files
-        self._parse_data_files()
+        self._set_data_files()
 
         # Set up and parse trajectory files
         parsers = self._parse_trajectory_files()

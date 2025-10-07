@@ -272,9 +272,8 @@ class DataParser(TextParser):
 
                 try:
                     value.append(np.array(v, dtype=float))
-                # ? Should we append None here, instead of defaulting to an empty list?
                 except Exception:
-                    break
+                    return name, None
 
             return name, np.array(value)
 
@@ -306,8 +305,8 @@ class DataParser(TextParser):
 
 class LogParser(TextParser):
     # TODO: add parsers for other LAMMPS-supported trajectory formats
-    SUPPORTED_TRAJ_EXTENSIONS = ['trj', 'xyz', 'dcd', 'lammpstrj']  # , 'h5', 'nc'
-    DATA_FILE_PATTERNS = ['data', 'dat']
+    _supported_traj_extensions = ['trj', 'xyz', 'dcd', 'lammpstrj']  # , 'h5', 'nc'
+    _data_file_patterns = ['data', 'dat']
 
     def __init__(self) -> None:
         self._commands = [
@@ -533,6 +532,10 @@ class LogParser(TextParser):
             self._units = get_unit(units_type)
         return self._units
 
+    def reset(self):
+        super().reset()
+        self._units = None
+
     def get_thermodynamic_data(self) -> dict[str, float] | None:
         thermo_data = self.get('thermo_data')
 
@@ -577,6 +580,7 @@ class LogParser(TextParser):
                 MIN_CHARS = 2
                 return {t for t in tokens if len(t) > MIN_CHARS}
 
+            # TODO: check difflib or bisect to get best match
             def get_best_from_scores(
                 scores: list[tuple[float, str]], min_score: float
             ) -> list[str] | None:
@@ -616,8 +620,14 @@ class LogParser(TextParser):
             # Fallback: Use first file
             if not matching_files:
                 self.logger.warning(
-                    f'No match found for "{mainfile_basename}". '
-                    f'Using first file: {os.path.basename(traj_files[0])}'
+                    (
+                        'No match found for "%(mainfile)s". '
+                        'Using first file: %(first_file)s'
+                    ),
+                    extra={
+                        'mainfile': mainfile_basename,
+                        'first_file': os.path.basename(traj_files[0]),
+                    },
                 )
                 matching_files = [traj_files[0]]
 
@@ -628,9 +638,9 @@ class LogParser(TextParser):
         if dump is None:
             self.logger.warning(self._file_scan_warning.format('Trajectory'))
             traj_files = []
-            for ext in self.SUPPORTED_TRAJ_EXTENSIONS:
+            for ext in self._supported_traj_extensions:
                 found_files = search_files(
-                    pattern=f'*{ext}*',
+                    pattern=f'*.{ext}',
                     basedir=self.maindir,
                     deep=False,  # Only search current directory
                 )
@@ -673,7 +683,7 @@ class LogParser(TextParser):
         #         pass
         if read_data is None or 'CPU' in read_data:
             self.logger.warning(self._file_scan_warning.format('Data'))
-            for ext in self.DATA_FILE_PATTERNS:
+            for ext in self._data_file_patterns:
                 data_files = search_files(
                     pattern=f'*{ext}*',
                     basedir=self.maindir,
@@ -717,6 +727,8 @@ class LogParser(TextParser):
 
     def get_thermostat_settings(self) -> dict:
         fix = self.get('fix', [[]])[0]
+        # TODO: check which items in <fix> need conversion to float
+        fix = [float(x) if re.fullmatch(RE_FLOAT, str(x)) else x for x in fix]
 
         try:
             fix_style = fix[2]
@@ -730,31 +742,31 @@ class LogParser(TextParser):
         res = dict()
         if fix_style.lower() == 'nvt':
             try:
-                res['target_T'] = float(fix[5]) * temp_unit
-                res['thermostat_tau'] = float(fix[6]) * time_unit
+                res['target_T'] = fix[5] * temp_unit
+                res['thermostat_tau'] = fix[6] * time_unit
             except Exception:
                 pass
 
         elif fix_style.lower() == 'npt':
             try:
-                res['target_T'] = float(fix[5]) * temp_unit
-                res['thermostat_tau'] = float(fix[6]) * time_unit
-                res['target_P'] = float(fix[9]) * press_unit
-                res['barostat_tau'] = float(fix[10]) * time_unit
+                res['target_T'] = fix[5] * temp_unit
+                res['thermostat_tau'] = fix[6] * time_unit
+                res['target_P'] = fix[9] * press_unit
+                res['barostat_tau'] = fix[10] * time_unit
             except Exception:
                 pass
 
         elif fix_style.lower() == 'nph':
             try:
-                res['target_P'] = float(fix[5]) * press_unit
-                res['barostat_tau'] = float(fix[6]) * time_unit
+                res['target_P'] = fix[5] * press_unit
+                res['barostat_tau'] = fix[6] * time_unit
             except Exception:
                 pass
 
         elif fix_style.lower() == 'langevin':
             try:
-                res['target_T'] = float(fix[4]) * temp_unit
-                res['langevin_gamma'] = float(fix[5]) * time_unit
+                res['target_T'] = fix[4] * temp_unit
+                res['langevin_gamma'] = fix[5] * time_unit
             except Exception:
                 pass
 
