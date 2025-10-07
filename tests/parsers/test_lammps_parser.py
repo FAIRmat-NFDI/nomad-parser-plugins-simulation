@@ -16,12 +16,12 @@
 # limitations under the License.
 #
 
-import pytest
 import numpy as np
-
+import pytest
 from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+
 from nomad_simulation_parsers.parsers.lammps.parser import (
     LammpsParser,
     TrajParser,
@@ -305,7 +305,7 @@ def test_system_hierarchy(parser) -> None:
     assert sec_particles_group[0].composition_formula == '0(54)'
     # ! Particle index is wrong when parsing 1_xyz LJ system!
     assert sec_particles_group[0].particle_indices[13] == 13
-    # ! Should this or shouldn't this be recognized as a molecule?
+    # ? Should this or shouldn't this be recognized as a molecule?
     assert sec_particles_group[0].is_molecule() is False
 
     sec_monomers = sec_particles_group[0].sub_systems
