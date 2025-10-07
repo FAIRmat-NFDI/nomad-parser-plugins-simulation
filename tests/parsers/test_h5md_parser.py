@@ -339,7 +339,9 @@ def assert_workflow(archive: EntryArchive) -> None:
 
 def test_md(parser):
     archive = EntryArchive()
-    parser.parse('tests/data/h5md/test_traj_openmm_5frames_08-08-25.h5', archive, None)
+    parser.parse(
+        'tests/data/h5md/test_traj_openmm_reduceSOL_5frames_07.10.25.h5', archive, None
+    )
     normalize_all(archive, logger=logger)
 
     assert_h5md_header(archive)
