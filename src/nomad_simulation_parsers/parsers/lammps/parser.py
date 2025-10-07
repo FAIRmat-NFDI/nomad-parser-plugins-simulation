@@ -206,7 +206,7 @@ class LammpsArchiveWriter(MDParser):
             self.parse_trajectory_step(particles_dict, simulation)
 
         # parse atomsgroup (moltypes --> molecules --> residues)
-        # ! Only information from first frame is used to date
+        # Only information from first frame is used to date
         first_frame = 0
         atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
         if atoms_info is None:
@@ -448,7 +448,7 @@ class LammpsArchiveWriter(MDParser):
         def _get_trajectory_file_type(traj_file: str, index: int) -> str:
             """Get trajectory file type from dump command or file extension."""
             dump_commands = self._log_parser.get('dump')
-
+            # ! Assumes the extension is always a valid lampps dump format
             if dump_commands:
                 return dump_commands[index][2]
             else:
@@ -458,9 +458,7 @@ class LammpsArchiveWriter(MDParser):
         # Determine file type from dump command or file extension
         file_type = _get_trajectory_file_type(traj_file, index)
 
-        # TODO: add support for other LAMMPS dump file formats
-        # (https://docs.lammps.org/dump.html)
-
+        # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:
             return self._create_formatted_parser(traj_file, data_file, file_type)
 
