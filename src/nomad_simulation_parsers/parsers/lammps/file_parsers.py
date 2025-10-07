@@ -642,7 +642,7 @@ class LogParser(TextParser):
             traj_files = []
             for ext in self._supported_traj_extensions:
                 found_files = search_files(
-                    pattern=f'*{ext}*',
+                    pattern=f'*.{ext}',
                     basedir=self.maindir,
                     deep=False,  # Only search current directory
                 )

@@ -108,7 +108,6 @@ class TrajParser(TextParser):
     def masses(self, val: Any) -> None:
         if not val:
             return
-        # TODO: Find better way to check for type and shape
         if not isinstance(val, np.ndarray):
             try:
                 val = np.asarray(val)
