@@ -272,7 +272,7 @@ class DataParser(TextParser):
 
                 try:
                     value.append(np.array(v, dtype=float))
-                # ? Should we append None here, instead of leaving value potentially an empty list?
+                # ? Should we append None here, instead of defaulting to an empty list?
                 except Exception:
                     break
 
@@ -431,6 +431,7 @@ class LogParser(TextParser):
             'kspace',
         ]
         self._units = None
+        self._file_scan_warning = '{} file not specified in directory, will scan.'
         super().__init__(None)
 
     def init_quantities(self) -> None:
@@ -444,9 +445,20 @@ class LogParser(TextParser):
         self._quantities = [
             Quantity(
                 name,
-                rf'\n\s*{name}\s+(?!.*\$\{{)([${{\}}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*',
-                # TODO: LB - Edited regex (added \b \b) - word boundaries
-                # rf'\n\s*\b{name}\b\s+(?!.*\$\{{)([${{\}}\w\. \/\#\-]+)(\&\n[\w\. \/\#\-]*)*',
+                (
+                    rf'\n\s*{name}\s+'  # Name with whitespace
+                    r'(?!.*\$\{)'  # No variable substitution
+                    r'([${}\w\. \/\#\-]+)'  # Command arguments
+                    r'(\&\n[\w\. \/\#\-]*)*'  # Line continuation with &
+                ),
+                # TODO: test!
+                # LB - Edited regex (added \b \b) - word boundaries
+                # (
+                #     rf'\n\s*\b{name}\b\s+'  # Name with whitespace and word boundaries
+                #     r'(?!.*\$\{)'  # No variable substitution
+                #     r'([${}\w\. \/\#\-]+)'  # Command arguments
+                #     r'(\&\n[\w\. \/\#\-]*)*'  # Line continuation with &
+                # ),
                 str_operation=str_op,
                 comment='#',
                 repeats=True,
@@ -458,7 +470,9 @@ class LogParser(TextParser):
             Quantity(
                 'program_version',
                 r'\s*LAMMPS\s*\(([\w ]+)\)\n',
-                # TODO: LB edit - Edited regex for '(2 Aug 2023 - Update 1)' searches for any character except ')' now, not just word chars
+                # TODO: test!
+                # LB edit - Edited regex for '(2 Aug 2023 - Update 1)' searches for any
+                # character except ')' now, not just word chars
                 # r'\s*LAMMPS\s*\(([^)]+)\)\n',
                 dtype=str,
                 repeats=False,
@@ -599,7 +613,6 @@ class LogParser(TextParser):
                 ]
                 matching_files = get_best_from_scores(sequence_scores, 0.3)
 
-            # ? Looking for the biggest file size/keywords (result/final/dry ...) could make more sense?
             # Fallback: Use first file
             if not matching_files:
                 self.logger.warning(
@@ -613,7 +626,7 @@ class LogParser(TextParser):
     def get_traj_files(self) -> list[str]:
         dump = self.get('dump', None)
         if dump is None:
-            self.logger.warning('Trajectory not specified in directory, will scan.')
+            self.logger.warning(self._file_scan_warning.format('Trajectory'))
             traj_files = []
             for ext in self.SUPPORTED_TRAJ_EXTENSIONS:
                 found_files = search_files(
@@ -635,6 +648,9 @@ class LogParser(TextParser):
         return [os.path.join(self.maindir, f) for f in traj_files]
 
     def get_data_files(self) -> list[str]:
+        """Get the data files either from the input script or by searching the main
+        directory for files with LAMMPS data file extensions or header patterns."""
+
         def check_file_header(file_path: str, regex_pattern: str) -> None:
             header_size = 1024
             if not os.path.isabs(file_path):
@@ -656,7 +672,7 @@ class LogParser(TextParser):
         #     except Exception:
         #         pass
         if read_data is None or 'CPU' in read_data:
-            self.logger.warning('Data file not specified in directory, will scan.')
+            self.logger.warning(self._file_scan_warning.format('Data'))
             for ext in self.DATA_FILE_PATTERNS:
                 data_files = search_files(
                     pattern=f'*{ext}*',
@@ -763,7 +779,7 @@ class LogParser(TextParser):
                     style = styles[i][0]
 
                 else:
-                    coeff = self.get('%s_coeff' % interaction)
+                    coeff = self.get(f'{interaction}_coeff')
                     style = ' '.join([str(si) for si in styles[i]])
 
                 styles_coeffs.append((style.strip(), coeff))
