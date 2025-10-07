@@ -290,31 +290,6 @@ class H5MDH5Parser(HDF5Parser):
             self.logger.warning(f'Could not extract output data list from source: {e}')
             return []
 
-    def _get_output_data_list(
-        self, source: dict[str, Any], **kwargs
-    ) -> list[dict[str, Any]]:
-        """Extract multiple objects from observables group (e.g., RDFs, MSDs)."""
-        try:
-            results = []
-
-            # Get the source data from the HDF5 path
-            source_data = self.get_source(self.data, kwargs['path'])
-
-            if not source_data:
-                return []
-
-            # Iterate through each item in the group (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
-            for item_name, item_data in source_data.items():
-                # Create entry with label and all the data from the item
-                entry = {'label': item_name, **item_data}
-                results.append(entry)
-
-            return results
-
-        except Exception as e:
-            self.logger.warning(f'Could not extract output data list: {e}')
-            return []
-
     def get_custom_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
