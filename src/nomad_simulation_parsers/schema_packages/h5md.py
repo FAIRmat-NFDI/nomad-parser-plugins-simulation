@@ -349,7 +349,7 @@ properties.TotalEnergy.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
         mapper=(
             'get_output_data',
             ['.@'],
-            dict(path='observables.energies.total', observable_type='configurational'),
+            dict(path='observables.energies.total'),
         )
     )
 )
@@ -383,7 +383,7 @@ properties.TotalForce.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
         mapper=(
             'get_output_data',
             ['.@'],
-            dict(path='observables.forces.total', observable_type='configurational'),
+            dict(path='observables.forces.total'),
         )
     )
 )
@@ -409,7 +409,7 @@ properties.Temperature.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
         mapper=(
             'get_output_data',
             ['.@'],
-            dict(path='observables.temperatures', observable_type='configurational'),
+            dict(path='observables.temperatures'),
         )
     )
 )
@@ -468,8 +468,11 @@ TrajectoryOutputs.custom_outputs.m_annotations.setdefault('mapping', {})['hdf5']
                     'energies',
                     'temperatures',
                     'custom_forces',
+                    'forces',
+                    'radial_distribution_functions',
+                    'mean_squared_displacements',
+                    'diffusion_constants',
                 ],  # TODO get the exclusion list automatically
-                observable_type='configurational',
             ),
         )
     )
@@ -1141,23 +1144,6 @@ class CorrelationFunction(molecular_dynamics.CorrelationFunction):
     )
 
 
-# ! Should be something like this but first need to
-# TODO flatten property structures in MD schema
-# TODO implement observable_type to be passed in the annotation
-molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
-        'get_output_data',
-        ['.@'],
-        dict(
-            path='observables.radial_distribution_functions',
-            observable_type='ensemble_average',
-        ),
-    )
-)
-
-
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
     ensemble_properties = SubSection(sub_section=EnsembleProperty.m_def, repeats=True)
 
@@ -1204,7 +1190,10 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
 MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
-    mapper=('get_output_data', ['observables.radial_distribution_functions'])
+    mapper=(
+        'get_output_data',
+        ['observables.radial_distribution_functions'],
+    )
 )
 
 # Individual field mappings for RadialDistributionFunction
@@ -1228,7 +1217,10 @@ MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping
 MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(
-    mapper=('get_output_data', ['observables.mean_squared_displacements'])
+    mapper=(
+        'get_output_data',
+        ['observables.mean_squared_displacements'],
+    )
 )
 
 # Individual field mappings for MeanSquaredDisplacement

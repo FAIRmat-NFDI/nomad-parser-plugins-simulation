@@ -252,38 +252,19 @@ class H5MDH5Parser(HDF5Parser):
     def get_output_data(
         self, source: dict[str, Any], **kwargs
     ) -> pint.Quantity | list[dict[str, Any]] | None:
+        """Router function that delegates to appropriate output extraction method."""
         if source.get('value') is not None:
             return source['value']
-        if source.get('step') is None:
-            # Check if source contains multiple items that look like RDF/MSD data
-            # (i.e., each item is a dict with bins/value structure)
-            if source and all(isinstance(v, dict) for v in source.values()):
-                # Check if items have RDF-like structure (bins, value, etc.)
-                sample_item = next(iter(source.values()))
-                if any(key in sample_item for key in ['bins', 'value', 'frame_start']):
-                    return self._get_output_data_list_from_source(source, **kwargs)
-            return
 
-        observable_type = kwargs.get('observable_type')
-        if observable_type is None or observable_type not in [
-            'configurational',
-            'ensemble_average',
-            'correlation_function',
-        ]:
-            self.logger.warning(
-                'Invalid or no obervable type defined in the schema annotation, '
-                'skipping this observable.'
-            )
-            return
+        # Route based on whether this is step-based (configurational) or stepless data
+        if source.get('step') is not None:
+            # Step-based: configurational outputs (energies, forces, temperatures)
+            return self.get_trajectory_output(source, **kwargs)
+        else:
+            # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
+            return self.get_ensemble_output(source, **kwargs)
 
-        source_data = self.get_source(self.data, kwargs['path'])
-        if source_data.get('@type') != observable_type:
-            return
-
-        data = self.get_step_data(source_data, source['step']).get('value')
-
-        return data
-
+    # TODO reassess the necessity of this function
     def _get_output_data_list_from_source(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
@@ -329,15 +310,10 @@ class H5MDH5Parser(HDF5Parser):
         source_data = self.get_source(self.data, kwargs['path'])
         include = kwargs.get('include')
         exclude = kwargs.get('exclude')
-        observable_type = kwargs.get('observable_type')
         custom_outputs = []
         for key, val in source_data.items():
             if include and key not in include or exclude and key in exclude:
                 continue
-            if observable_type is not None:
-                source_type = val.get('@type')
-                if source_type != observable_type:
-                    continue
             step_data = self.get_step_data(val, source['step'])
             if step_data.get('value') is not None:
                 if isinstance(step_data['value'], pint.Quantity):
@@ -346,46 +322,61 @@ class H5MDH5Parser(HDF5Parser):
             custom_outputs.append({'name': key, **step_data})
         return custom_outputs
 
-    # TODO: Remove this commented function after verifying get_output_data works
-    # def get_rdf_data(self, source: dict[str, Any], **kwargs) -> list[dict[str, Any]]:
-    #     """Extract radial distribution function data from h5md observables."""
-    #     try:
-    #         rdf_results = []
-    #
-    #         # source should contain the RDF group data
-    #         if not source:
-    #             return []
-    #
-    #         # Iterate through different RDF types (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
-    #         for rdf_name, rdf_data in source.items():
-    #             # Extract bins and values
-    #             bins_data = rdf_data.get('bins', {})
-    #             values_data = rdf_data.get('value', [])
-    #
-    #             # Get the actual bins array from the nested structure
-    #             if isinstance(bins_data, dict) and '__value' in bins_data:
-    #                 bins = bins_data['__value']
-    #                 # Convert bins from nanometers to meters (NOMAD standard unit)
-    #                 bins_m = [b * 1e-9 for b in bins]  # nm to m
-    #             else:
-    #                 # If bins is already a list
-    #                 bins = bins_data if isinstance(bins_data, list) else []
-    #                 bins_m = [b * 1e-9 for b in bins]  # nm to m
-    #
-    #             rdf_entry = {
-    #                 'bins': bins_m,
-    #                 'value': values_data,
-    #                 'label': rdf_name,  # Add the label for the RDF pair type
-    #                 'error_type': 'ensemble_average',  # Set error type as expected by test
-    #             }
-    #
-    #             rdf_results.append(rdf_entry)
-    #
-    #         return rdf_results
-    #
-    #     except Exception as e:
-    #         self.logger.warning(f"Could not extract RDF data: {e}")
-    #         return []
+    def get_trajectory_output(
+        self, source: dict[str, Any], **kwargs
+    ) -> pint.Quantity | None:
+        """Extract trajectory-based configurational outputs (energies, forces,
+        temperatures)."""
+        if source.get('value') is not None:
+            return source['value']
+
+        # This function is only for step-based (configurational) outputs
+        if source.get('step') is None:
+            return None
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        if not source_data:
+            self.logger.warning(
+                'No data found at specified path for observable extraction.'
+            )
+            return None
+
+        # For trajectory outputs, we can optionally validate @type if present
+        actual_type = source_data.get('@type')
+        if actual_type is not None and actual_type != 'configurational':
+            self.logger.warning(
+                'Expected configurational output but found different type. '
+                'Skipping this observable.'
+            )
+            return None
+        elif actual_type is None:
+            self.logger.debug(
+                'No type defined in source data, proceeding with extraction.'
+            )
+
+        step_data = self.get_step_data(source_data, source['step'])
+        return step_data.get('value')
+
+    def get_ensemble_output(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]] | None:
+        """Extract ensemble/correlation outputs (RDFs, MSDs) - stepless data."""
+        if source.get('value') is not None:
+            return source['value']
+
+        # This function is only for stepless outputs (ensemble_average,
+        # correlation_function)
+        if source.get('step') is not None:
+            return None
+
+        # Check if source contains multiple items that look like RDF/MSD data
+        if source and all(isinstance(v, dict) for v in source.values()):
+            # Check if items have RDF-like structure (bins, value, etc.)
+            sample_item = next(iter(source.values()))
+            if any(key in sample_item for key in ['bins', 'value', 'frame_start']):
+                return self._get_output_data_list_from_source(source, **kwargs)
+
+        return None
 
 
 class H5MDArchiveWriter(MDParser):
