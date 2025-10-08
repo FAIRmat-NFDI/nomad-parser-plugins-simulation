@@ -26,6 +26,7 @@ from nomad_simulations.schema_packages import (
     general,
     model_system,
     outputs,
+    physical_property,
     properties,
 )
 
@@ -278,24 +279,13 @@ ModelSystem.branch_label.m_annotations.setdefault('mapping', {})['hdf5'] = (
 # SIMULATION.OUTPUTS --> archive.data.outputs
 
 
-class CustomProperty(ArchiveSection):
+class CustomProperty(physical_property.PhysicalProperty):
     """
-    Section describing a general type of calculation.
+    Section describing a general type of ouput property.
     """
-
-    name = Quantity(
-        type=str,
-        shape=[],
-        description="""
-        Name of the parameter.
-        """,
-    )
-    name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='.name'
-    )
 
     value = Quantity(
-        type=m_float64(dtype=np.float64).no_shape_check(),
+        type=np.dtype(np.float64),
         shape=[],
         description="""
         Value **magnitude** of the property.
@@ -327,6 +317,27 @@ class CustomProperty(ArchiveSection):
     description.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
         mapper='.description'
     )
+
+    def normalize(self, *args, **kwargs) -> None:
+        """
+        Let parent do all the work, but prevent it from overwriting parsed names.
+        This is more surgical than overriding the whole method.
+        """
+        # Temporarily hide the class name to prevent overwrite
+        original_name = self.m_def.name
+        self.m_def.name = None
+
+        # Call parent normalization
+        super().normalize(*args, **kwargs)
+
+        # Restore the class name for future use
+        self.m_def.name = original_name
+
+
+# Add mapping annotation for the inherited name field
+CustomProperty.name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
+    mapper='.name'
+)
 
 
 ## class BaseEnergy(properties.energies.BaseEnergy):
