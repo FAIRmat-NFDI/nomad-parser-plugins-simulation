@@ -420,7 +420,10 @@ class XYZTrajParser(TrajParser):
                     if v[0] not in symbols:
                         symbols.append(v[0])
                     v[0] = symbols.index(v[0]) + 1
-            val = np.transpose(np.array([v for v in val if len(v) == 4], dtype=float))
+            N_VALS = 4
+            val = np.transpose(
+                np.array([v for v in val if len(v) == N_VALS], dtype=float)
+            )
             # val[0] is the atomic number
             val[0] = [list(set(val[0])).index(v) + 1 for v in val[0]]
             return dict(type=val[0], x=val[1], y=val[2], z=val[3])
@@ -1127,37 +1130,38 @@ class LammpsArchiveWriter(MDParser):
         ]
         return True
 
-    def _get_quantity_with_units(
-        self, traj_n: int, quantity: str, unit: str
-    ) -> np.ndarray | None:
-        """Get lattice vectors, velocities with units applied."""
-        data = self.traj_parsers.eval(f'get_{quantity}', traj_n)
-        if data is not None:
-            return self.apply_unit(data, unit)
-        return None
-
-    def _extract_bond_list(self) -> None:
-        """Extract bond list from data parser if not already set."""
-        if self._bond_list is not None:
-            return
-
-        bonds = self._data_parser.get('Bonds', None)
-        if bonds is None or bonds[0][1].size == 0:
-            self._bond_list = None
-        else:
-            # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
-            self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
-
     def _parse_trajectory_frames(self, simulation: Simulation) -> None:
         """Parse all trajectory frames and create model systems."""
+
+        def _get_quantity_with_units(
+            traj_n: int, quantity: str, unit: str
+        ) -> np.ndarray | None:
+            """Get lattice vectors, velocities with units applied."""
+            data = self.traj_parsers.eval(f'get_{quantity}', traj_n)
+            if data is not None:
+                return self.apply_unit(data, unit)
+            return None
+
+        def _extract_bond_list() -> None:
+            """Extract bond list from data parser if not already set."""
+            if self._bond_list is not None:
+                return
+
+            bonds = self._data_parser.get('Bonds', None)
+            if bonds is None or bonds[0][1].size == 0:
+                self._bond_list = None
+            else:
+                # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
+                self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
+
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
 
             # Extract and apply units to trajectory data
-            lattice_vectors = self._get_quantity_with_units(
+            lattice_vectors = _get_quantity_with_units(
                 traj_n, 'lattice_vectors', 'distance'
             )
-            velocities = self._get_quantity_with_units(traj_n, 'velocities', 'velocity')
+            velocities = _get_quantity_with_units(traj_n, 'velocities', 'velocity')
             # The 'dimension' command "must be used" to specify 2D simulations (https://docs.lammps.org/Howto_2d.html).
             # LAMMPS default is 3D.
             dimension = self._log_parser.get('dimension', 3)
@@ -1165,7 +1169,7 @@ class LammpsArchiveWriter(MDParser):
             # Extract bond list for first frame only
             # TODO: add link to this in other frames
             if traj_n == 0:
-                self._extract_bond_list()
+                _extract_bond_list()
 
             particles_dict = {
                 'cell': {
@@ -1184,53 +1188,6 @@ class LammpsArchiveWriter(MDParser):
                 'dimensions': dimension,
             }
             self.parse_trajectory_step(particles_dict, simulation)
-
-    def _get_particles_info(self) -> dict | None:
-        """Get particle information from the first frame."""
-        first_frame = 0
-        particles_info = self._mdanalysistraj_parser.get('atoms_info', None)
-
-        if particles_info is None:
-            particles_info = self.traj_parsers.eval('atoms_info')
-            if isinstance(particles_info, list):
-                particles_info = (
-                    particles_info[first_frame]
-                    if len(particles_info) > first_frame
-                    else None
-                )
-
-        return particles_info
-
-    def _extract_particle_arrays(
-        self, particles_info: dict, simulation: Simulation
-    ) -> dict:
-        """Extract and process particle information arrays."""
-        first_frame = 0
-
-        particle_labels = [
-            ps.label for ps in simulation.model_system[first_frame].particle_states
-        ]
-
-        particles_elements = np.array(
-            particles_info.get('elements', ['CGX'] * self.n_atoms)
-        )
-        particles_types = np.array(particles_info.get('types', []))
-
-        # Replace CGX placeholder elements if better labels available
-        if 'CGX' in particles_elements:
-            if particle_labels and 'CGX' not in particle_labels:
-                particles_elements = np.array(particle_labels)
-            else:
-                particles_elements = particles_types
-
-        return {
-            'moltypes': np.array(particles_info.get('moltypes', [])),
-            'molnums': np.array(particles_info.get('molnums', [])),
-            'resids': np.array(particles_info.get('resids', [])),
-            'resnames': np.array(particles_info.get('resnames', [])),
-            'elements': particles_elements,
-            'types': particles_types,
-        }
 
     def _create_system_node(
         self, name: str | int, branch_label: str, particle_indices: np.ndarray, **kwargs
@@ -1255,54 +1212,70 @@ class LammpsArchiveWriter(MDParser):
 
         return system
 
-    def _create_residue(
-        self,
-        res_id: int,
-        restype: str,
-        parent_system: ModelSystem,
-        particle_arrays: dict,
-    ) -> ModelSystem:
-        """Create a single residue."""
-        particle_indices = np.where(particle_arrays['resids'] == res_id)[0]
-        particle_indices = np.intersect1d(
-            particle_indices, parent_system.particle_indices
-        )
-
-        return self._create_system_node(
-            name=restype, branch_label='monomer', particle_indices=particle_indices
-        )
-
-    def _create_monomer_group(
-        self, restype: str, parent_system: ModelSystem, particle_arrays: dict
-    ) -> ModelSystem:
-        """Create a monomer group with its constituent residues."""
-        restype_indices = np.where(particle_arrays['resnames'] == restype)[0]
-        particle_indices = np.intersect1d(
-            restype_indices, parent_system.particle_indices
-        )
-
-        monomer_group = self._create_system_node(
-            name=f'group_{restype}',
-            branch_label='monomer_group',
-            particle_indices=particle_indices,
-        )
-
-        # Add individual residues
-        restype_resids = np.unique(
-            particle_arrays['resids'][monomer_group.particle_indices]
-        )
-        for res_id in restype_resids:
-            residue = self._create_residue(
-                res_id, restype, monomer_group, particle_arrays
-            )
-            monomer_group.sub_systems.append(residue)
-
-        return monomer_group
-
     def _create_molecule(
         self, molecule: int, i_molecule: int, particle_arrays: dict
     ) -> ModelSystem:
         """Create a single molecule with its residues."""
+
+        def _create_residue(
+            res_id: int,
+            restype: str,
+            parent_system: ModelSystem,
+            particle_arrays: dict,
+        ) -> ModelSystem:
+            """Create a single residue."""
+            particle_indices = np.where(particle_arrays['resids'] == res_id)[0]
+            particle_indices = np.intersect1d(
+                particle_indices, parent_system.particle_indices
+            )
+
+            return self._create_system_node(
+                name=restype,
+                branch_label='monomer',
+                particle_indices=particle_indices,
+            )
+
+        def _create_monomer_group(
+            restype: str, parent_system: ModelSystem, particle_arrays: dict
+        ) -> ModelSystem:
+            """Create a monomer group with its constituent residues."""
+
+            restype_indices = np.where(particle_arrays['resnames'] == restype)[0]
+            particle_indices = np.intersect1d(
+                restype_indices, parent_system.particle_indices
+            )
+
+            monomer_group = self._create_system_node(
+                name=f'group_{restype}',
+                branch_label='monomer_group',
+                particle_indices=particle_indices,
+            )
+
+            # Add individual residues
+            restype_resids = np.unique(
+                particle_arrays['resids'][monomer_group.particle_indices]
+            )
+            for res_id in restype_resids:
+                residue = _create_residue(
+                    res_id, restype, monomer_group, particle_arrays
+                )
+                monomer_group.sub_systems.append(residue)
+
+            return monomer_group
+
+        def _add_residue_hierarchy(
+            sec_molecule: ModelSystem, particle_arrays: dict
+        ) -> None:
+            """Add residue/monomer hierarchy to a molecule."""
+            mol_resnames = particle_arrays['resnames'][sec_molecule.particle_indices]
+            restypes = np.unique(mol_resnames)
+
+            for restype in restypes:
+                sec_monomer_group = _create_monomer_group(
+                    restype, sec_molecule, particle_arrays
+                )
+                sec_molecule.sub_systems.append(sec_monomer_group)
+
         particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
 
         mol_system = self._create_system_node(
@@ -1315,49 +1288,95 @@ class LammpsArchiveWriter(MDParser):
         # Check if molecule has multiple residues
         mol_resids = np.unique(particle_arrays['resids'][mol_system.particle_indices])
         if len(mol_resids) > 1:
-            self._add_residue_hierarchy(mol_system, particle_arrays)
+            _add_residue_hierarchy(mol_system, particle_arrays)
 
         return mol_system
 
-    def _create_molecule_group(
-        self, moltype: str, particle_arrays: dict
-    ) -> ModelSystem:
-        """Create a molecule group with its constituent molecules."""
-        particle_indices = np.where(particle_arrays['moltypes'] == moltype)[0]
-
-        # Calculate composition formula
-        mol_nums = particle_arrays['molnums'][particle_indices]
-        moltype_count = np.unique(mol_nums).shape[0]
-
-        molecule_group = self._create_system_node(
-            name=f'group_{moltype}',
-            branch_label='molecule_group',
-            particle_indices=particle_indices,
-            composition_formula=f'{moltype}({moltype_count})',
-        )
-
-        # Add individual molecules
-        molecules = particle_arrays['molnums']
-        for i_molecule, molecule in enumerate(
-            np.unique(molecules[molecule_group.particle_indices])
-        ):
-            mol = self._create_molecule(molecule, i_molecule, particle_arrays)
-            molecule_group.sub_systems.append(mol)
-
-        return molecule_group
-
     def _parse_molecular_hierarchy(self, simulation: Simulation) -> None:
         """Parse molecular hierarchy (molecule groups, molecules, residues)."""
-        particles_info = self._get_particles_info()
+
+        def _get_particles_info() -> dict | None:
+            """Get particle information from the first frame."""
+            first_frame = 0
+            particles_info = self._mdanalysistraj_parser.get('atoms_info', None)
+
+            if particles_info is None:
+                particles_info = self.traj_parsers.eval('atoms_info')
+                if isinstance(particles_info, list):
+                    particles_info = (
+                        particles_info[first_frame]
+                        if len(particles_info) > first_frame
+                        else None
+                    )
+
+            return particles_info
+
+        def _extract_particle_arrays(
+            particles_info: dict, simulation: Simulation
+        ) -> dict:
+            """Extract and process particle information arrays."""
+            first_frame = 0
+
+            particle_labels = [
+                ps.label for ps in simulation.model_system[first_frame].particle_states
+            ]
+
+            particles_elements = np.array(
+                particles_info.get('elements', ['CGX'] * self.n_atoms)
+            )
+            particles_types = np.array(particles_info.get('types', []))
+
+            # Replace CGX placeholder elements if better labels available
+            if 'CGX' in particles_elements:
+                if particle_labels and 'CGX' not in particle_labels:
+                    particles_elements = np.array(particle_labels)
+                else:
+                    particles_elements = particles_types
+
+            return {
+                'moltypes': np.array(particles_info.get('moltypes', [])),
+                'molnums': np.array(particles_info.get('molnums', [])),
+                'resids': np.array(particles_info.get('resids', [])),
+                'resnames': np.array(particles_info.get('resnames', [])),
+                'elements': particles_elements,
+                'types': particles_types,
+            }
+
+        def _create_molecule_group(moltype: str, particle_arrays: dict) -> ModelSystem:
+            """Create a molecule group with its constituent molecules."""
+            particle_indices = np.where(particle_arrays['moltypes'] == moltype)[0]
+
+            # Calculate composition formula
+            mol_nums = particle_arrays['molnums'][particle_indices]
+            moltype_count = np.unique(mol_nums).shape[0]
+
+            molecule_group = self._create_system_node(
+                name=f'group_{moltype}',
+                branch_label='molecule_group',
+                particle_indices=particle_indices,
+                composition_formula=f'{moltype}({moltype_count})',
+            )
+
+            # Add individual molecules
+            molecules = particle_arrays['molnums']
+            for i_molecule, molecule in enumerate(
+                np.unique(molecules[molecule_group.particle_indices])
+            ):
+                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+                molecule_group.sub_systems.append(mol)
+
+            return molecule_group
+
+        particles_info = _get_particles_info()
         if particles_info is None:
             return
 
-        particle_arrays = self._extract_particle_arrays(particles_info, simulation)
+        particle_arrays = _extract_particle_arrays(particles_info, simulation)
 
         # Build molecular hierarchy
         moltypes = np.unique(particle_arrays['moltypes'])
         for moltype in moltypes:
-            molecule_group = self._create_molecule_group(moltype, particle_arrays)
+            molecule_group = _create_molecule_group(moltype, particle_arrays)
             simulation.model_system[0].sub_systems.append(molecule_group)
 
     def parse_system(self, simulation):
