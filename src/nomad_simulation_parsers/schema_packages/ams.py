@@ -35,16 +35,20 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomicCell.m_def, OUT_KEY, '.lattice_vectors')
 
 
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.@')
+
+
 class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, OUT_KEY, '.@')
-
-
-class DFT(model_method.DFT):
     add_mapping_annotation(
-        model_method.DFT.xc_functionals,
+        model_method.XCFunctional.components,
         OUT_KEY,
         ('get_xc_functionals', ['.model_parameters.dft_potential']),
     )
+
+
+class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc.m_annotations, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):

@@ -40,12 +40,18 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomsState.m_def, GPW_KEY, '.labels')
 
 
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, GPW_KEY, '.@')
+
+
 class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, GPW_KEY, '.@')
+    add_mapping_annotation(
+        model_method.XCFunctional.components, GPW_KEY, '.xcfunctional'
+    )
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc_functionals, GPW_KEY, '.xcfunctional')
+    add_mapping_annotation(model_method.DFT.xc.m_annotations, GPW_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
