@@ -397,7 +397,8 @@ def assert_workflow(archive: EntryArchive) -> None:
     # assert ensemble_property_1.type == 'molecular'
     # assert len(ensemble_property_1.radial_distribution_function_values) == 3
     # assert (
-    #     ensemble_property_1.radial_distribution_function_values[1].label == 'MOL1-MOL2'
+    #     ensemble_property_1.radial_distribution_function_values[1].label
+    # == 'MOL1-MOL2'
     # )
     # assert ensemble_property_1.radial_distribution_function_values[1].n_bins == 651
     # assert ensemble_property_1.radial_distribution_function_values[1].frame_start == 0
