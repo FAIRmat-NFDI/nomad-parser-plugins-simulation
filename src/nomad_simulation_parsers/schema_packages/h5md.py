@@ -30,8 +30,7 @@ from nomad_simulations.schema_packages import (
 )
 
 # from simulationworkflowschema import molecular_dynamics
-from nomad_simulations.schema_packages.workflow import trajectory
-from nomad_simulations.schema_packages.workflow import molecular_dynamics
+from nomad_simulations.schema_packages.workflow import molecular_dynamics, trajectory
 
 m_package = SchemaPackage()
 
@@ -866,7 +865,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
     )
 )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.atom_indices.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.atom_indices.m_annotations.\
+#     setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -876,7 +876,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw.m_annotations.\
+#     setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -886,7 +887,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw.m_annotations.\
+#     setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -896,7 +898,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb.\
+#     m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -906,7 +909,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb.\
+#     m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -916,7 +920,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded.\
+#     m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(
@@ -926,7 +931,8 @@ molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index.m_annota
 #     )
 # )
 
-# molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded.m_annotations.setdefault(
+# molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded.\
+#     m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(
 #     mapper=(

@@ -33,12 +33,12 @@ from typing import Any, NamedTuple, Optional
 
 from nomad.parsing.file_parser import FileParser
 from nomad.units import ureg
-from scipy import sparse
-from scipy.stats import linregress
 from nomad_simulations.schema_packages.utils.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
 )
+from scipy import sparse
+from scipy.stats import linregress
 
 MOL = 6.022140857e23
 
