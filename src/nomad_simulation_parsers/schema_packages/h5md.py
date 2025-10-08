@@ -317,6 +317,27 @@ class CustomProperty(physical_property.PhysicalProperty):
 # Add mapping annotation for the inherited name field
 add_mapping_annotation(CustomProperty.name, HDF5_KEY, '.name')
 
+    def normalize(self, *args, **kwargs) -> None:
+        """
+        Let parent do all the work, but prevent it from overwriting parsed names.
+        This is more surgical than overriding the whole method.
+        """
+        # Temporarily hide the class name to prevent overwrite
+        original_name = self.m_def.name
+        self.m_def.name = None
+
+        # Call parent normalization
+        super().normalize(*args, **kwargs)
+
+        # Restore the class name for future use
+        self.m_def.name = original_name
+
+
+# Add mapping annotation for the inherited name field
+CustomProperty.name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
+    mapper='.name'
+)
+
 
 ## class BaseEnergy(properties.energies.BaseEnergy):
 
