@@ -1265,6 +1265,25 @@ molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(mapper='.errors')
 
+# Diffusion Constants mapping using get_output_data
+MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(
+    mapper=(
+        'get_output_data',
+        ['observables.diffusion_constants'],
+    )
+)
+
+# Individual field mappings for DiffusionConstant
+molecular_dynamics.DiffusionConstant.label.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.value')
+
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
 MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[
     'hdf5'

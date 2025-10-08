@@ -284,6 +284,19 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert msd_1.direction == 'xyz'
     assert msd_1.n_times == 51
 
+    # MD results - Diffusion Constants
+    assert len(sec_workflow_results.diffusion_constants) == 2
+
+    # Check first diffusion constant (MOL1)
+    diff_0 = sec_workflow_results.diffusion_constants[0]
+    assert diff_0.label == 'MOL1'
+    assert diff_0.value.to('nm**2/ps').magnitude == approx(1.0)
+
+    # Check second diffusion constant (MOL2)
+    diff_1 = sec_workflow_results.diffusion_constants[1]
+    assert diff_1.label == 'MOL2'
+    assert diff_1.value.to('nm**2/ps').magnitude == approx(2.0)
+
     # MD RESULTS OLD -- SAVE FOR REF
     # sec_workflow_results = sec_workflow.results
     # assert len(sec_workflow_results.ensemble_properties) == 1
