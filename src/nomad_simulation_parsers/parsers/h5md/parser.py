@@ -264,43 +264,6 @@ class H5MDH5Parser(HDF5Parser):
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
             return self.get_ensemble_output(source, **kwargs)
 
-    # TODO reassess the necessity of this function
-    def _get_output_data_list_from_source(
-        self, source: dict[str, Any], **kwargs
-    ) -> list[dict[str, Any]]:
-        """Extract multiple objects directly from source (e.g., RDFs, MSDs)."""
-        try:
-            results = []
-
-            # Iterate through each item in the source (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
-            for item_name, item_data in source.items():
-                # Create entry with label and extract specific values using get_value
-                entry = {'label': item_name}
-
-                # Extract common quantities - extended for MSDs
-                quantities = [
-                    'bins',
-                    'value',
-                    'times',
-                    'errors',
-                    'direction',
-                    'error_type',
-                    'type',
-                    'n_times',
-                ]
-                for quantity in quantities:
-                    value = self.get_value(quantity, item_data)
-                    if value is not None:
-                        entry[quantity] = value
-
-                results.append(entry)
-
-            return results
-
-        except Exception as e:
-            self.logger.warning(f'Could not extract output data list from source: {e}')
-            return []
-
     def get_custom_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
@@ -364,17 +327,20 @@ class H5MDH5Parser(HDF5Parser):
         if source.get('value') is not None:
             return source['value']
 
-        # This function is only for stepless outputs (ensemble_average,
-        # correlation_function)
-        if source.get('step') is not None:
-            return None
-
-        # Check if source contains multiple items that look like RDF/MSD data
+        # For stepless data, convert to list format if it contains multiple items
         if source and all(isinstance(v, dict) for v in source.values()):
-            # Check if items have RDF-like structure (bins, value, etc.)
-            sample_item = next(iter(source.values()))
-            if any(key in sample_item for key in ['bins', 'value', 'frame_start']):
-                return self._get_output_data_list_from_source(source, **kwargs)
+            results = []
+            # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
+            # where dict_x* = dict_x + {label: label_x}
+            for label, data_dict in source.items():
+                result_dict = {'label': label}
+                # Process all keys using get_value to handle H5MD format
+                for key in data_dict.keys():
+                    value = self.get_value(key, data_dict)
+                    if value is not None:
+                        result_dict[key] = value
+                results.append(result_dict)
+            return results
 
         return None
 
