@@ -25,6 +25,10 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
+from nomad_simulation_parsers.schema_packages.h5md import (
+    MolecularDynamics,
+    MolecularDynamicsResults,
+)
 
 logger = utils.get_logger(__name__)
 
@@ -297,62 +301,58 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert diff_1.label == 'MOL2'
     assert diff_1.value.to('nm**2/ps').magnitude == approx(2.0)
 
-    # Test for custom ensemble properties
-    ens_props = getattr(sec_workflow_results, 'ensemble_properties', None)
-    corr_funcs = getattr(sec_workflow_results, 'correlation_functions', None)
-    print(f'DEBUG: ensemble_properties length: {len(ens_props) if ens_props else 0}')
-    print(
-        f'DEBUG: correlation_functions length: {len(corr_funcs) if corr_funcs else 0}'
-    )
+    # Test for custom ensemble properties - these should be populated by the parser
+    # assert hasattr(sec_workflow_results, 'ensemble_properties')
+    # assert hasattr(sec_workflow_results, 'correlation_functions')
 
-    # MD RESULTS OLD -- SAVE FOR REF
-    # sec_workflow_results = sec_workflow.results
-    # assert len(sec_workflow_results.ensemble_properties) == 1
-    # ensemble_property_0 = sec_workflow_results.ensemble_properties[0]
-    # assert ensemble_property_0.label == 'diffusion_constants'
-    # assert ensemble_property_0.error_type == 'Pearson_correlation_coefficient'
-    # assert len(ensemble_property_0.ensemble_property_values) == 2
-    # assert ensemble_property_0.ensemble_property_values[1].label == 'MOL2'
-    # assert ensemble_property_0.ensemble_property_values[1].errors == 0.95
-    # assert ensemble_property_0.ensemble_property_values[1].value_magnitude == 2.0
-    # assert (
-    #     ensemble_property_0.ensemble_property_values[1].value_unit
-    #     == 'nanometer ** 2 / picosecond'
+    # Test bond length histogram (ensemble_average)
+    # ens_props = sec_workflow_results.ensemble_properties
+    # assert ens_props is not None
+    # assert len(ens_props) >= 1
+
+    # bond_hist = ens_props[0]
+    # assert bond_hist.label == 'bond_length_histogram'
+    # assert len(bond_hist.bins) == 10
+    # assert len(bond_hist.value) == 9
+    # assert bond_hist.bins[0].to('angstrom').magnitude == approx(0.8)
+    # assert bond_hist.value[1] == approx(0.03076923)
+
+    # Test velocity autocorrelation function
+    # corr_funcs = sec_workflow_results.correlation_functions
+    # assert corr_funcs is not None
+    # assert len(corr_funcs) >= 1
+
+    # vacf = corr_funcs[0]
+    # assert vacf.label == 'velocity_autocorrelation'
+    # assert len(vacf.times) == 11
+    # assert len(vacf.value) == 11
+    # assert vacf.times[1].to('ps').magnitude == approx(0.1)
+    # assert vacf.value[0].magnitude == approx(1.03528105)
+
+    # # Test free energy ensemble properties - these should be populated
+    # free_energy_props = [
+    #     prop for prop in ens_props if 'free_energy' in prop.label.lower()
+    # ]
+    # assert len(free_energy_props) >= 3
+
+    # # Test individual free energy states
+    # bound_prop = next(
+    #     (prop for prop in free_energy_props if 'bound' in prop.label), None
     # )
-    # ensemble_property_1 = sec_workflow_results.radial_distribution_functions[0]
-    # assert ensemble_property_1.label == 'radial_distribution_functions'
-    # assert ensemble_property_1.type == 'molecular'
-    # assert len(ensemble_property_1.radial_distribution_function_values) == 3
-    # assert (
-    #     ensemble_property_1.radial_distribution_function_values[1].label
-    # == 'MOL1-MOL2'
+    # assert bound_prop is not None
+    # assert bound_prop.value_magnitude == approx(-12.7)
+
+    # intermediate_prop = next(
+    #     (prop for prop in free_energy_props if 'intermediate' in prop.label), None
     # )
-    # assert ensemble_property_1.radial_distribution_function_values[1].n_bins == 651
-    # assert ensemble_property_1.radial_distribution_function_values[1].frame_start == 0
-    # assert ensemble_property_1.radial_distribution_function_values[1].frame_end == 4
-    # assert ensemble_property_1.radial_distribution_function_values[1].bins[51].to(
-    #     'nm'
-    # ).magnitude == approx(0.255)
-    # assert ensemble_property_1.radial_distribution_function_values[1].value[
-    #     51
-    # ] == approx(0.284764)
-    # correlation_function_0 = sec_workflow_results.mean_squared_displacements[0]
-    # assert correlation_function_0.type == 'molecular'
-    # assert correlation_function_0.label == 'mean_squared_displacements'
-    # assert correlation_function_0.direction == 'xyz'
-    # assert correlation_function_0.error_type == 'standard_deviation'
-    # assert len(correlation_function_0.mean_squared_displacement_values) == 2
-    # assert correlation_function_0.mean_squared_displacement_values[0].label == 'MOL1'
-    # assert correlation_function_0.mean_squared_displacement_values[0].n_times == 51
-    # assert correlation_function_0.mean_squared_displacement_values[0].times[10].to(
-    #     'ps'
-    # ).magnitude == approx(20.0)
-    # assert correlation_function_0.mean_squared_displacement_values[0].value[10].to(
-    #     'nm**2'
-    # ).magnitude == approx(0.679723)
-    # assert correlation_function_0.mean_squared_displacement_values[0].errors[
-    #     10
-    # ] == approx(0.0)
+    # assert intermediate_prop is not None
+    # assert intermediate_prop.value_magnitude == approx(-5.2)
+
+    # unbound_prop = next(
+    #     (prop for prop in free_energy_props if 'unbound' in prop.label), None
+    # )
+    # assert unbound_prop is not None
+    # assert unbound_prop.value_magnitude == approx(0.0)
 
 
 def test_md(parser):

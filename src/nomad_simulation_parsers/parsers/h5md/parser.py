@@ -7,17 +7,15 @@ from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser,
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-
-# from simulationworkflowschema.molecular_dynamics import MolecularDynamics
-from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
-    MolecularDynamics,
-)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import Simulation
+from nomad_simulation_parsers.schema_packages.h5md import (
+    MolecularDynamics,
+    Simulation,
+)
 
 LOGGER = get_logger(__name__)
 
@@ -267,51 +265,104 @@ class H5MDH5Parser(HDF5Parser):
     def get_custom_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
-        if source.get('step') is None:
+        """Extract custom configurational outputs (step-based data)."""
+
+        stepless_only = kwargs.get('stepless_only', False)
+        
+        if stepless_only:
+            # For ensemble properties: only process stepless data
+            if source.get('step') is not None:
+                return []
+            # Delegate to ensemble outputs function
+            return self.get_custom_ensemble_outputs(source, **kwargs)
+        elif source.get('step') is None:
+            # Original behavior: only process step-based (configurational) data
             return []
 
         source_data = self.get_source(self.data, kwargs['path'])
         include = kwargs.get('include')
-        exclude = kwargs.get('exclude')
+        exclude = kwargs.get('exclude', [])
+
         custom_outputs = []
         for key, val in source_data.items():
-            if include and key not in include or exclude and key in exclude:
+            # Skip standard observables
+            if exclude and key in exclude:
                 continue
-            step_data = self.get_step_data(val, source['step'])
-            if step_data.get('value') is not None:
-                if isinstance(step_data['value'], pint.Quantity):
-                    step_data['unit'] = str(step_data['value'].units)
-                    step_data['value'] = step_data['value'].magnitude
-            custom_outputs.append({'name': key, **step_data})
+
+            # Only include step-based data (configurational custom outputs)
+            if val.get('step') is not None:
+                if include is None or key in include:
+                    step_data = self.get_step_data(val, source['step'])
+                    if step_data.get('value') is not None:
+                        if isinstance(step_data['value'], pint.Quantity):
+                            step_data['unit'] = str(step_data['value'].units)
+                            step_data['value'] = step_data['value'].magnitude
+                    custom_outputs.append({'name': key, **step_data})
+
         return custom_outputs
 
     def get_custom_ensemble_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
-        """Extract custom ensemble outputs (stepless data like custom RDFs, MSDs)."""
-        if source.get('step') is not None:
-            return []
-
-        source_data = self.get_source(self.data, kwargs['path'])
-        if not source_data:
-            return []
+        """
+        Get custom ensemble observables following the same pattern as get_ensemble_output.
+        Filters for observables with type 'ensemble_average' or 'correlation_function'.
+        Returns list of dicts for mapper auto-generation of subsection members.
+        """
+        # Use EXACT same logic as get_ensemble_output but with type filtering
+        if source.get('value') is not None:
+            return source['value']
 
         # For stepless data, convert to list format if it contains multiple items
-        if source_data and all(isinstance(v, dict) for v in source_data.values()):
-            results = []
-            # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
-            # where dict_x* = dict_x + {label: label_x}
-            for label, data_dict in source_data.items():
+        if not source or not all(isinstance(v, dict) for v in source.values()):
+            return []
+
+        results = []
+        exclude_list = kwargs.get('exclude', [])
+        custom_types = ['ensemble_average', 'correlation_function']
+        
+        # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
+        # where dict_x* = dict_x + {label: label_x}
+        for label, data_dict in source.items():
+            # Skip standard properties listed in exclude list
+            if label in exclude_list:
+                continue
+
+            # Get observable type
+            data_type = self._get_observable_type(label, data_dict)
+            
+            # Only process custom ensemble data (ensemble/correlation types)
+            if data_type in custom_types:
                 result_dict = {'label': label}
                 # Process all keys using get_value to handle H5MD format
                 for key in data_dict.keys():
-                    value = self.get_value(key, data_dict)
-                    if value is not None:
-                        result_dict[key] = value
+                    if key != '@type':  # Skip type metadata
+                        value = self.get_value(key, data_dict)
+                        if value is not None:
+                            result_dict[key] = value
                 results.append(result_dict)
-            return results
 
-        return []
+        return results
+
+    def _get_observable_type(self, label: str, data_dict: dict) -> str | None:
+        """Get the type of an observable from H5MD file or parsed data."""
+        # Try to get type from raw H5MD file attributes
+        if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
+            try:
+                h5_file = self.h5_parser.h5_archive
+                if 'observables' in h5_file and label in h5_file['observables']:
+                    obs_group = h5_file[f'observables/{label}']
+                    if (hasattr(obs_group, 'attrs') and 
+                            'type' in obs_group.attrs):
+                        return obs_group.attrs['type']
+            except Exception:
+                pass
+        
+        # Fallback to parsed data structure
+        return (
+            data_dict.get('@type') or 
+            data_dict.get('attrs', {}).get('type')
+        )
 
     def get_trajectory_output(
         self, source: dict[str, Any], **kwargs
@@ -371,6 +422,16 @@ class H5MDH5Parser(HDF5Parser):
             return results
 
         return None
+
+    def _is_custom_ensemble_structure(self, data_dict: dict) -> bool:
+        """Check if data has ensemble-like structure (bins/times + values)."""
+        has_axis = 'bins' in data_dict or 'times' in data_dict
+        has_values = 'value' in data_dict
+        return has_axis and has_values
+
+    def _detect_ensemble_type(self, data_dict: dict) -> str:
+        """Determine ensemble type based on data structure."""
+        return 'correlation_function' if 'times' in data_dict else 'ensemble_average'
 
 
 class H5MDArchiveWriter(MDParser):

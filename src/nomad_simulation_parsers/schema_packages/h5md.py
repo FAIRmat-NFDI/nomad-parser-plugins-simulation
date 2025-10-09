@@ -36,6 +36,18 @@ from nomad_simulations.schema_packages.workflow import molecular_dynamics, traje
 m_package = SchemaPackage()
 
 
+# Global list of standard H5MD observables to exclude from custom outputs
+STANDARD_H5MD_OBSERVABLES = [
+    'energies',
+    'temperatures', 
+    'forces',
+    'custom_forces',
+    'radial_distribution_functions',
+    'mean_squared_displacements',
+    'diffusion_constants',
+]
+
+
 # SIMULATION --> archive.data
 
 
@@ -474,15 +486,7 @@ TrajectoryOutputs.custom_outputs.m_annotations.setdefault('mapping', {})['hdf5']
             ['.@'],
             dict(
                 path='observables',
-                exclude=[
-                    'energies',
-                    'temperatures',
-                    'custom_forces',
-                    'forces',
-                    'radial_distribution_functions',
-                    'mean_squared_displacements',
-                    'diffusion_constants',
-                ],  # TODO get the exclusion list automatically
+                exclude=STANDARD_H5MD_OBSERVABLES,
             ),
         )
     )
@@ -1169,6 +1173,10 @@ class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
     )
 
 
+class MolecularDynamics(molecular_dynamics.MolecularDynamics):
+    results = SubSection(sub_section=MolecularDynamicsResults.m_def)
+
+
 # MolecularDynamicsOutputs.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
 #     MapperAnnotation(mapper=('get_output_data', ['observables']))
 # )
@@ -1205,14 +1213,10 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
 ] = MapperAnnotation(
     mapper=(
         'get_custom_ensemble_outputs',
-        ['.@'],
+        ['observables'],
         dict(
-            path='observables',
-            exclude=[
-                'energies',
-                'temperatures',
-            ],
-        )
+            exclude=STANDARD_H5MD_OBSERVABLES,
+        ),
     )
 )
 
@@ -1260,25 +1264,6 @@ molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.value')
 
-# Custom Ensemble Properties mapping using get_custom_ensemble_outputs
-MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
-        'get_custom_ensemble_outputs',
-        ['.@'],
-        dict(
-            path='observables',
-            exclude=[
-                'energies',
-                'temperatures',
-                'custom_forces',
-                'forces',
-            ],
-        )
-    )
-)
-
 # Individual field mappings for custom EnsembleProperty
 EnsembleProperty.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
     MapperAnnotation(mapper='.label')
@@ -1306,16 +1291,10 @@ MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping
 ] = MapperAnnotation(
     mapper=(
         'get_custom_ensemble_outputs',
-        ['.@'],
+        ['observables'],
         dict(
-            path='observables',
-            exclude=[
-                'energies',
-                'temperatures',
-                'custom_forces',
-                'forces',
-            ],
-        )
+            exclude=STANDARD_H5MD_OBSERVABLES,
+        ),
     )
 )
 
@@ -1380,9 +1359,9 @@ molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
 # )['hdf5'] = MapperAnnotation(mapper='.errors')
 
 # Diffusion Constants mapping using get_output_data
-MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
+MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(
     mapper=(
         'get_output_data',
         ['observables.diffusion_constants'],
@@ -1390,13 +1369,13 @@ MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault(
 )
 
 # Individual field mappings for DiffusionConstant
-molecular_dynamics.DiffusionConstant.label.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.label')
+molecular_dynamics.DiffusionConstant.label.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.label')
 
-molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.value')
+molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.value')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
 MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[
@@ -1409,19 +1388,18 @@ MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
 )['hdf5'] = MapperAnnotation(mapper='.@')
 
 
-# class MolecularDynamics(molecular_dynamics.MolecularDynamics):
+# Use our custom MolecularDynamics class with custom results
+MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
 
-molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
+MolecularDynamics.method.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
 
-molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
-
-molecular_dynamics.MolecularDynamics.results.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
+MolecularDynamics.results.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
 
 # ? Needed?
 molecular_dynamics.MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})[
