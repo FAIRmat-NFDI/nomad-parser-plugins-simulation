@@ -339,7 +339,12 @@ class H5MDH5Parser(HDF5Parser):
                     if key != '@type':  # Skip type metadata
                         value = self.get_value(key, data_dict)
                         if value is not None:
-                            result_dict[key] = value
+                            # Handle pint Quantities by separating magnitude and unit
+                            if hasattr(value, 'magnitude') and hasattr(value, 'units'):
+                                result_dict[key] = value.magnitude
+                                result_dict[f'{key}_unit'] = str(value.units)
+                            else:
+                                result_dict[key] = value
                 results.append(result_dict)
 
         return results

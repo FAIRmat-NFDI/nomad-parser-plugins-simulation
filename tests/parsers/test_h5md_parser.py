@@ -310,12 +310,14 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert ens_props is not None
     assert len(ens_props) >= 1
 
+    # TODO check the application of unit factor for all of the custom obs
     bond_hist = ens_props[0]
     print(bond_hist.__dict__)
     assert bond_hist.label == 'bond_length_histogram'
     assert len(bond_hist.bins_magnitude) == 10
     assert len(bond_hist.value_magnitude) == 9
     assert bond_hist.bins_magnitude[0] == approx(0.8)
+    assert bond_hist.bins_unit == 'angstrom'
     assert bond_hist.value_magnitude[1] == approx(0.03076923)
 
     # Test velocity autocorrelation function
