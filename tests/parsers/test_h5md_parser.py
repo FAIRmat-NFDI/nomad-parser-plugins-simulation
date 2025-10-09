@@ -297,6 +297,14 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert diff_1.label == 'MOL2'
     assert diff_1.value.to('nm**2/ps').magnitude == approx(2.0)
 
+    # Test for custom ensemble properties
+    ens_props = getattr(sec_workflow_results, 'ensemble_properties', None)
+    corr_funcs = getattr(sec_workflow_results, 'correlation_functions', None)
+    print(f'DEBUG: ensemble_properties length: {len(ens_props) if ens_props else 0}')
+    print(
+        f'DEBUG: correlation_functions length: {len(corr_funcs) if corr_funcs else 0}'
+    )
+
     # MD RESULTS OLD -- SAVE FOR REF
     # sec_workflow_results = sec_workflow.results
     # assert len(sec_workflow_results.ensemble_properties) == 1

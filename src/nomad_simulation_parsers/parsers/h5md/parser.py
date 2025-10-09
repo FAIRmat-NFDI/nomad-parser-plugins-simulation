@@ -285,6 +285,34 @@ class H5MDH5Parser(HDF5Parser):
             custom_outputs.append({'name': key, **step_data})
         return custom_outputs
 
+    def get_custom_ensemble_outputs(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """Extract custom ensemble outputs (stepless data like custom RDFs, MSDs)."""
+        if source.get('step') is not None:
+            return []
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        if not source_data:
+            return []
+
+        # For stepless data, convert to list format if it contains multiple items
+        if source_data and all(isinstance(v, dict) for v in source_data.values()):
+            results = []
+            # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
+            # where dict_x* = dict_x + {label: label_x}
+            for label, data_dict in source_data.items():
+                result_dict = {'label': label}
+                # Process all keys using get_value to handle H5MD format
+                for key in data_dict.keys():
+                    value = self.get_value(key, data_dict)
+                    if value is not None:
+                        result_dict[key] = value
+                results.append(result_dict)
+            return results
+
+        return []
+
     def get_trajectory_output(
         self, source: dict[str, Any], **kwargs
     ) -> pint.Quantity | None:
