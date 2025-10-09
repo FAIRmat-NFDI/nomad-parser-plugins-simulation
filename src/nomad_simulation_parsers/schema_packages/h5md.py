@@ -50,6 +50,18 @@ STANDARD_H5MD_OBSERVABLES = [
 ]
 
 
+# Global list of standard H5MD observables to exclude from custom outputs
+STANDARD_H5MD_OBSERVABLES = [
+    'energies',
+    'temperatures',
+    'forces',
+    'custom_forces',
+    'radial_distribution_functions',
+    'mean_squared_displacements',
+    'diffusion_constants',
+]
+
+
 # SIMULATION --> archive.data
 
 
