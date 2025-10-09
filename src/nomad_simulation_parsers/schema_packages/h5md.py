@@ -1235,7 +1235,7 @@ EnsembleProperty.bins_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
 )
 
 EnsembleProperty.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value')
+    MapperAnnotation(mapper='.value_magnitude')
 )
 
 EnsembleProperty.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
@@ -1265,27 +1265,6 @@ molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.value')
 
-# Individual field mappings for custom EnsembleProperty
-EnsembleProperty.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.label')
-)
-
-EnsembleProperty.bins_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.bins')
-)
-
-EnsembleProperty.bins_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.bins_unit')
-)
-
-EnsembleProperty.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value')
-)
-
-EnsembleProperty.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value_unit')
-)
-
 # Custom Correlation Functions mapping using get_custom_ensemble_outputs
 MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping', {})[
     'hdf5'
@@ -1310,7 +1289,7 @@ CorrelationFunction.times.m_annotations.setdefault('mapping', {})['hdf5'] = (
 )
 
 CorrelationFunction.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value')
+    MapperAnnotation(mapper='.value_magnitude')
 )
 
 CorrelationFunction.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (

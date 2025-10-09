@@ -308,10 +308,11 @@ def assert_workflow(archive: EntryArchive) -> None:
     # Test bond length histogram (ensemble_average)
     ens_props = sec_workflow_results.ensemble_properties
     assert ens_props is not None
-    assert len(ens_props) >= 1
+    assert len(ens_props) == 4
 
     # TODO check the application of unit factor for all of the custom obs
     bond_hist = ens_props[0]
+    print(bond_hist.__dict__)
     assert bond_hist.label == 'bond_length_histogram'
     assert len(bond_hist.bins_magnitude) == 10
     assert len(bond_hist.value_magnitude) == 9
@@ -319,43 +320,38 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert bond_hist.bins_unit == 'angstrom'
     assert bond_hist.value_magnitude[1] == approx(0.03076923)
 
+    # Test individual free energy states
+    bound_prop = ens_props[1]
+    print(bound_prop.__dict__)
+    assert bound_prop is not None
+    assert bound_prop.value_magnitude == approx(-12.7)
+    assert bound_prop.value_unit == 'kilojoule / mole'
+
+    intermediate_prop = ens_props[2]
+    print(intermediate_prop.__dict__)
+    assert intermediate_prop is not None
+    assert intermediate_prop.value_magnitude == approx(-5.2)
+    assert bound_prop.value_unit == 'kilojoule / mole'
+
+    unbound_prop = ens_props[3]
+    print(unbound_prop.__dict__)
+    assert unbound_prop is not None
+    assert unbound_prop.value_magnitude == approx(0.0)
+    assert bound_prop.value_unit == 'kilojoule / mole'
+
     # Test velocity autocorrelation function
     corr_funcs = sec_workflow_results.correlation_functions
     assert corr_funcs is not None
-    assert len(corr_funcs) >= 1
+    assert len(corr_funcs) == 1
 
     vacf = corr_funcs[0]
+    print(vacf.__dict__)
     assert vacf.label == 'velocity_autocorrelation'
     assert len(vacf.times) == 11
     assert len(vacf.value_magnitude) == 11
     assert vacf.times[1].to('ps').magnitude == approx(0.1)
     assert vacf.value_magnitude[0] == approx(1.03528105)
     assert vacf.value_unit == 'nanometer ** 2 / picosecond ** 2'
-
-    # # Test free energy ensemble properties - these should be populated
-    # free_energy_props = [
-    #     prop for prop in ens_props if 'free_energy' in prop.label.lower()
-    # ]
-    # assert len(free_energy_props) >= 3
-
-    # # Test individual free energy states
-    # bound_prop = next(
-    #     (prop for prop in free_energy_props if 'bound' in prop.label), None
-    # )
-    # assert bound_prop is not None
-    # assert bound_prop.value_magnitude == approx(-12.7)
-
-    # intermediate_prop = next(
-    #     (prop for prop in free_energy_props if 'intermediate' in prop.label), None
-    # )
-    # assert intermediate_prop is not None
-    # assert intermediate_prop.value_magnitude == approx(-5.2)
-
-    # unbound_prop = next(
-    #     (prop for prop in free_energy_props if 'unbound' in prop.label), None
-    # )
-    # assert unbound_prop is not None
-    # assert unbound_prop.value_magnitude == approx(0.0)
 
 
 def test_md(parser):

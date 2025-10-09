@@ -330,31 +330,76 @@ class H5MDH5Parser(HDF5Parser):
             if label in exclude_list:
                 continue
 
-            # Get observable type
-            data_type = self._get_observable_type(label, data_dict)
+            # First check for nested structures (like free_energies with individual states)
+            nested_observables_found = False
+            if isinstance(data_dict, dict):
+                for nested_label, nested_data in data_dict.items():
+                    if isinstance(nested_data, dict):
+                        nested_type = self._get_observable_type(
+                            f'{label}/{nested_label}', nested_data
+                        )
+                        if nested_type in type_filter:
+                            nested_observables_found = True
+                            result_dict = {'label': f'{label}_{nested_label}'}
+                            # Process nested data with consistent logic
+                            self._process_observable_data(
+                                result_dict, nested_data, nested_type, type_filter
+                            )
+                            results.append(result_dict)
 
-            # Only process observables that match the type filter
-            if data_type in type_filter:
-                result_dict = {'label': label}
-                # Process all keys using get_value to handle H5MD format
-                for key in data_dict.keys():
-                    if key != '@type':  # Skip type metadata
-                        value = self.get_value(key, data_dict)
-                        if value is not None:
-                            # Handle 'times' field as normal Quantity
-                            if key == 'times':
-                                result_dict[key] = value
-                            # Handle other Quantities by separating magnitude and unit
-                            elif hasattr(value, 'magnitude') and hasattr(
-                                value, 'units'
-                            ):
-                                result_dict[key] = value.magnitude
-                                result_dict[f'{key}_unit'] = str(value.units)
-                            else:
-                                result_dict[key] = value
-                results.append(result_dict)
-
+            # If no nested observables found, process this level directly
+            if not nested_observables_found:
+                data_type = self._get_observable_type(label, data_dict)
+                if data_type in type_filter:
+                    result_dict = {'label': label}
+                    # Process data with consistent logic
+                    self._process_observable_data(
+                        result_dict, data_dict, data_type, type_filter
+                    )
+                    results.append(result_dict)
+        print(results)
         return results
+
+    def _process_observable_data(
+        self, result_dict: dict, data_dict: dict, data_type: str, type_filter: list
+    ) -> None:
+        """Helper method to consistently process observable data."""
+        for key in data_dict.keys():
+            if key != '@type':  # Skip type metadata
+                value = self.get_value(key, data_dict)
+                if value is not None:
+                    # Handle 'times' field only for correlation functions
+                    if key == 'times' and data_type != 'correlation_function':
+                        continue
+                    self._add_value_to_result(result_dict, key, value)
+
+    def _add_value_to_result(self, result_dict: dict, key: str, value) -> None:
+        """Helper method to add a value to result dict with proper unit handling."""
+        # Handle 'times' field as normal Quantity
+        if key == 'times':
+            result_dict[key] = value
+        # Handle 'value' field specially - always use schema-mapped field names
+        elif key == 'value':
+            if hasattr(value, 'magnitude') and hasattr(value, 'units'):
+                # Quantity with units
+                magnitude = value.magnitude
+                # Convert scalars to 1-element arrays for schema consistency
+                if not hasattr(magnitude, '__len__') or isinstance(magnitude, str):
+                    magnitude = [magnitude]
+                result_dict['value_magnitude'] = magnitude
+                result_dict['value_unit'] = str(value.units)
+            else:
+                # Raw value (list, float, etc.) - still use mapped field name
+                # Convert scalars to 1-element arrays for schema consistency
+                if not hasattr(value, '__len__') or isinstance(value, str):
+                    value = [value]
+                result_dict['value_magnitude'] = value
+        # Handle other Quantities by separating magnitude and unit
+        elif hasattr(value, 'magnitude') and hasattr(value, 'units'):
+            result_dict[key] = value.magnitude
+            result_dict[f'{key}_unit'] = str(value.units)
+        else:
+            result_dict[key] = value
 
     def _get_observable_type(self, label: str, data_dict: dict) -> str | None:
         """Get the type of an observable from H5MD file or parsed data."""
@@ -362,10 +407,12 @@ class H5MDH5Parser(HDF5Parser):
         if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
             try:
                 h5_file = self.h5_parser.h5_archive
-                if 'observables' in h5_file and label in h5_file['observables']:
-                    obs_group = h5_file[f'observables/{label}']
-                    if hasattr(obs_group, 'attrs') and 'type' in obs_group.attrs:
-                        return obs_group.attrs['type']
+                if 'observables' in h5_file:
+                    obs_path = f'observables/{label}'
+                    if obs_path in h5_file:
+                        obs_group = h5_file[obs_path]
+                        if hasattr(obs_group, 'attrs') and 'type' in obs_group.attrs:
+                            return obs_group.attrs['type']
             except Exception:
                 pass
 
