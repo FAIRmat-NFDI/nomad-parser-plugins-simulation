@@ -302,20 +302,21 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert diff_1.value.to('nm**2/ps').magnitude == approx(2.0)
 
     # Test for custom ensemble properties - these should be populated by the parser
-    # assert hasattr(sec_workflow_results, 'ensemble_properties')
-    # assert hasattr(sec_workflow_results, 'correlation_functions')
+    assert hasattr(sec_workflow_results, 'ensemble_properties')
+    assert hasattr(sec_workflow_results, 'correlation_functions')
 
     # Test bond length histogram (ensemble_average)
-    # ens_props = sec_workflow_results.ensemble_properties
-    # assert ens_props is not None
-    # assert len(ens_props) >= 1
+    ens_props = sec_workflow_results.ensemble_properties
+    assert ens_props is not None
+    assert len(ens_props) >= 1
 
-    # bond_hist = ens_props[0]
-    # assert bond_hist.label == 'bond_length_histogram'
-    # assert len(bond_hist.bins) == 10
-    # assert len(bond_hist.value) == 9
-    # assert bond_hist.bins[0].to('angstrom').magnitude == approx(0.8)
-    # assert bond_hist.value[1] == approx(0.03076923)
+    bond_hist = ens_props[0]
+    print(bond_hist.__dict__)
+    assert bond_hist.label == 'bond_length_histogram'
+    assert len(bond_hist.bins_magnitude) == 10
+    assert len(bond_hist.value_magnitude) == 9
+    assert bond_hist.bins_magnitude[0] == approx(0.8)
+    assert bond_hist.value_magnitude[1] == approx(0.03076923)
 
     # Test velocity autocorrelation function
     # corr_funcs = sec_workflow_results.correlation_functions
