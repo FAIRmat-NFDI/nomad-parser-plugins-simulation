@@ -25,6 +25,10 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
+from nomad_simulation_parsers.schema_packages.h5md import (
+    MolecularDynamics,
+    MolecularDynamicsResults,
+)
 
 logger = utils.get_logger(__name__)
 
@@ -390,40 +394,20 @@ def assert_workflow(archive: EntryArchive) -> None:
     #     ensemble_property_0.ensemble_property_values[1].value_unit
     #     == 'nanometer ** 2 / picosecond'
     # )
-    # ensemble_property_1 = sec_workflow_results.radial_distribution_functions[0]
-    # assert ensemble_property_1.label == 'radial_distribution_functions'
-    # assert ensemble_property_1.type == 'molecular'
-    # assert len(ensemble_property_1.radial_distribution_function_values) == 3
-    # assert (
-    #     ensemble_property_1.radial_distribution_function_values[1].label
-    # == 'MOL1-MOL2'
+    # assert bound_prop is not None
+    # assert bound_prop.value_magnitude == approx(-12.7)
+
+    # intermediate_prop = next(
+    #     (prop for prop in free_energy_props if 'intermediate' in prop.label), None
     # )
-    # assert ensemble_property_1.radial_distribution_function_values[1].n_bins == 651
-    # assert ensemble_property_1.radial_distribution_function_values[1].frame_start == 0
-    # assert ensemble_property_1.radial_distribution_function_values[1].frame_end == 4
-    # assert ensemble_property_1.radial_distribution_function_values[1].bins[51].to(
-    #     'nm'
-    # ).magnitude == approx(0.255)
-    # assert ensemble_property_1.radial_distribution_function_values[1].value[
-    #     51
-    # ] == approx(0.284764)
-    # correlation_function_0 = sec_workflow_results.mean_squared_displacements[0]
-    # assert correlation_function_0.type == 'molecular'
-    # assert correlation_function_0.label == 'mean_squared_displacements'
-    # assert correlation_function_0.direction == 'xyz'
-    # assert correlation_function_0.error_type == 'standard_deviation'
-    # assert len(correlation_function_0.mean_squared_displacement_values) == 2
-    # assert correlation_function_0.mean_squared_displacement_values[0].label == 'MOL1'
-    # assert correlation_function_0.mean_squared_displacement_values[0].n_times == 51
-    # assert correlation_function_0.mean_squared_displacement_values[0].times[10].to(
-    #     'ps'
-    # ).magnitude == approx(20.0)
-    # assert correlation_function_0.mean_squared_displacement_values[0].value[10].to(
-    #     'nm**2'
-    # ).magnitude == approx(0.679723)
-    # assert correlation_function_0.mean_squared_displacement_values[0].errors[
-    #     10
-    # ] == approx(0.0)
+    # assert intermediate_prop is not None
+    # assert intermediate_prop.value_magnitude == approx(-5.2)
+
+    # unbound_prop = next(
+    #     (prop for prop in free_energy_props if 'unbound' in prop.label), None
+    # )
+    # assert unbound_prop is not None
+    # assert unbound_prop.value_magnitude == approx(0.0)
 
 
 def test_md(parser):

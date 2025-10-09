@@ -504,6 +504,16 @@ class H5MDH5Parser(HDF5Parser):
 
         return None
 
+    def _is_custom_ensemble_structure(self, data_dict: dict) -> bool:
+        """Check if data has ensemble-like structure (bins/times + values)."""
+        has_axis = 'bins' in data_dict or 'times' in data_dict
+        has_values = 'value' in data_dict
+        return has_axis and has_values
+
+    def _detect_ensemble_type(self, data_dict: dict) -> str:
+        """Determine ensemble type based on data structure."""
+        return 'correlation_function' if 'times' in data_dict else 'ensemble_average'
+
 
 class H5MDArchiveWriter(MDParser):
     def __init__(self, **kwargs):
