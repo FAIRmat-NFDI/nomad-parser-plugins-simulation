@@ -39,7 +39,7 @@ m_package = SchemaPackage()
 # Global list of standard H5MD observables to exclude from custom outputs
 STANDARD_H5MD_OBSERVABLES = [
     'energies',
-    'temperatures', 
+    'temperatures',
     'forces',
     'custom_forces',
     'radial_distribution_functions',
@@ -1216,6 +1216,7 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
         ['observables'],
         dict(
             exclude=STANDARD_H5MD_OBSERVABLES,
+            type_filter=['ensemble_average'],
         ),
     )
 )
@@ -1294,6 +1295,7 @@ MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping
         ['observables'],
         dict(
             exclude=STANDARD_H5MD_OBSERVABLES,
+            type_filter=['correlation_function'],
         ),
     )
 )

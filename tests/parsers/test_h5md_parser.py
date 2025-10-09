@@ -312,7 +312,6 @@ def assert_workflow(archive: EntryArchive) -> None:
 
     # TODO check the application of unit factor for all of the custom obs
     bond_hist = ens_props[0]
-    print(bond_hist.__dict__)
     assert bond_hist.label == 'bond_length_histogram'
     assert len(bond_hist.bins_magnitude) == 10
     assert len(bond_hist.value_magnitude) == 9
@@ -321,16 +320,17 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert bond_hist.value_magnitude[1] == approx(0.03076923)
 
     # Test velocity autocorrelation function
-    # corr_funcs = sec_workflow_results.correlation_functions
-    # assert corr_funcs is not None
-    # assert len(corr_funcs) >= 1
+    corr_funcs = sec_workflow_results.correlation_functions
+    assert corr_funcs is not None
+    assert len(corr_funcs) >= 1
 
-    # vacf = corr_funcs[0]
-    # assert vacf.label == 'velocity_autocorrelation'
-    # assert len(vacf.times) == 11
-    # assert len(vacf.value) == 11
-    # assert vacf.times[1].to('ps').magnitude == approx(0.1)
-    # assert vacf.value[0].magnitude == approx(1.03528105)
+    vacf = corr_funcs[0]
+    assert vacf.label == 'velocity_autocorrelation'
+    assert len(vacf.times) == 11
+    assert len(vacf.value_magnitude) == 11
+    assert vacf.times[1].to('ps').magnitude == approx(0.1)
+    assert vacf.value_magnitude[0] == approx(1.03528105)
+    assert vacf.value_unit == 'nanometer ** 2 / picosecond ** 2'
 
     # # Test free energy ensemble properties - these should be populated
     # free_energy_props = [

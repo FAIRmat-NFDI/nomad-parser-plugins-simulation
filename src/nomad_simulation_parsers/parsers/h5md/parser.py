@@ -319,7 +319,9 @@ class H5MDH5Parser(HDF5Parser):
 
         results = []
         exclude_list = kwargs.get('exclude', [])
-        custom_types = ['ensemble_average', 'correlation_function']
+        type_filter = kwargs.get(
+            'type_filter', ['ensemble_average', 'correlation_function']
+        )
 
         # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
         # where dict_x* = dict_x + {label: label_x}
@@ -331,16 +333,21 @@ class H5MDH5Parser(HDF5Parser):
             # Get observable type
             data_type = self._get_observable_type(label, data_dict)
 
-            # Only process custom ensemble data (ensemble/correlation types)
-            if data_type in custom_types:
+            # Only process observables that match the type filter
+            if data_type in type_filter:
                 result_dict = {'label': label}
                 # Process all keys using get_value to handle H5MD format
                 for key in data_dict.keys():
                     if key != '@type':  # Skip type metadata
                         value = self.get_value(key, data_dict)
                         if value is not None:
-                            # Handle pint Quantities by separating magnitude and unit
-                            if hasattr(value, 'magnitude') and hasattr(value, 'units'):
+                            # Handle 'times' field as normal Quantity
+                            if key == 'times':
+                                result_dict[key] = value
+                            # Handle other Quantities by separating magnitude and unit
+                            elif hasattr(value, 'magnitude') and hasattr(
+                                value, 'units'
+                            ):
                                 result_dict[key] = value.magnitude
                                 result_dict[f'{key}_unit'] = str(value.units)
                             else:
