@@ -25,10 +25,6 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
-from nomad_simulation_parsers.schema_packages.h5md import (
-    MolecularDynamics,
-    MolecularDynamicsResults,
-)
 
 logger = utils.get_logger(__name__)
 
@@ -181,9 +177,8 @@ def assert_outputs(archive: EntryArchive) -> None:
     assert sec_outputs[1].custom_outputs[0].unit == 'newton / angstrom ** 2'
 
 
-def assert_workflow(archive: EntryArchive) -> None:
-    sec_workflow = archive.workflow2
-
+def assert_md_method(sec_workflow) -> None:
+    """Test MD method parameters."""
     # MD method
     assert sec_workflow.method.integrator_type == 'langevin_leap_frog'
     assert sec_workflow.method.thermodynamic_ensemble == 'NPT'
@@ -196,6 +191,9 @@ def assert_workflow(archive: EntryArchive) -> None:
     # assert sec_workflow.method.force_save_frequency is None
     # assert sec_workflow.method.thermodynamics_save_frequency is None
 
+
+def assert_thermostats_barostats_shear(sec_workflow) -> None:
+    """Test thermostat, barostat, and shear parameters."""
     # Thermostat
     sec_thermostat = sec_workflow.method.thermostat_parameters
     assert sec_thermostat[0].thermostat_type == 'langevin_leap_frog'
@@ -241,8 +239,10 @@ def assert_workflow(archive: EntryArchive) -> None:
     # assert sec_free_energy[0].initial_state_bonded is True
     # assert sec_free_energy[0].final_state_bonded is True
 
+
+def assert_radial_distribution_functions(sec_workflow_results) -> None:
+    """Test radial distribution function results."""
     # MD results - RDF
-    sec_workflow_results = sec_workflow.results
     assert len(sec_workflow_results.radial_distribution_functions) == 3
 
     # Check first RDF (MOL1-MOL1)
@@ -266,6 +266,9 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert rdf_2.label == 'MOL2-MOL2'
     # assert rdf_2.error_type == 'ensemble_average'
 
+
+def assert_mean_squared_displacements(sec_workflow_results) -> None:
+    """Test mean squared displacement results."""
     # MD results - MSD
     assert len(sec_workflow_results.mean_squared_displacements) == 2
 
@@ -288,6 +291,9 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert msd_1.direction == 'xyz'
     assert msd_1.n_times == 51
 
+
+def assert_diffusion_constants(sec_workflow_results) -> None:
+    """Test diffusion constant results."""
     # MD results - Diffusion Constants
     assert len(sec_workflow_results.diffusion_constants) == 2
 
@@ -301,9 +307,11 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert diff_1.label == 'MOL2'
     assert diff_1.value.to('nm**2/ps').magnitude == approx(2.0)
 
+
+def assert_ensemble_properties(sec_workflow_results) -> None:
+    """Test custom ensemble properties."""
     # Test for custom ensemble properties - these should be populated by the parser
     assert hasattr(sec_workflow_results, 'ensemble_properties')
-    assert hasattr(sec_workflow_results, 'correlation_functions')
 
     # Test bond length histogram (ensemble_average)
     ens_props = sec_workflow_results.ensemble_properties
@@ -339,6 +347,12 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert unbound_prop.value_magnitude == approx(0.0)
     assert bound_prop.value_unit == 'kilojoule / mole'
 
+
+def assert_correlation_functions(sec_workflow_results) -> None:
+    """Test correlation function results."""
+    # Test for custom correlation functions
+    assert hasattr(sec_workflow_results, 'correlation_functions')
+
     # Test velocity autocorrelation function
     corr_funcs = sec_workflow_results.correlation_functions
     assert corr_funcs is not None
@@ -354,6 +368,20 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert vacf.value_unit == 'nanometer ** 2 / picosecond ** 2'
 
     # TODO Add Rg tests
+
+
+def assert_workflow(archive: EntryArchive) -> None:
+    """Test workflow data by delegating to specialized assertion functions."""
+    sec_workflow = archive.workflow2
+    sec_workflow_results = sec_workflow.results
+
+    assert_md_method(sec_workflow)
+    assert_thermostats_barostats_shear(sec_workflow)
+    assert_radial_distribution_functions(sec_workflow_results)
+    assert_mean_squared_displacements(sec_workflow_results)
+    assert_diffusion_constants(sec_workflow_results)
+    assert_ensemble_properties(sec_workflow_results)
+    assert_correlation_functions(sec_workflow_results)
 
 
 def test_md(parser):

@@ -295,15 +295,14 @@ class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResu
 
 
 workflow.molecular_dynamics.MolecularDynamicsResults.temperatures.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            md_workflow=Mapper(
-                mapper='molecular_dynamics[*].md_calculation_info.'
-                '"Temperature (nuclei)"'
-            )
+    MAPPING_ANNOTATION_KEY, {}
+).update(
+    dict(
+        md_workflow=Mapper(
+            mapper='molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"'
         )
     )
+)
 
 
 try:

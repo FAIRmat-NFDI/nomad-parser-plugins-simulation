@@ -20,7 +20,6 @@ import numpy as np
 from nomad.datamodel.data import ArchiveSection
 from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 from nomad.metainfo import Quantity, SchemaPackage, Section, SubSection
-from nomad.metainfo.data_type import m_float64
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
