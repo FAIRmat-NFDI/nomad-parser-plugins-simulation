@@ -25,10 +25,6 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
-from nomad_simulation_parsers.schema_packages.h5md import (
-    MolecularDynamics,
-    MolecularDynamicsResults,
-)
 
 logger = utils.get_logger(__name__)
 
