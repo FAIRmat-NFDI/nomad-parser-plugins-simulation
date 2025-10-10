@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 from nomad.parsing.file_parser import Quantity, TextParser
 
-from nomad_simulation_parsers.parsers.utils.constants_definitions import (
+from nomad_simulation_parsers.parsers.utils.constants import (
     CHEMICAL_SYMBOLS,
     REFERENCE_MASSES,
 )
@@ -11,6 +11,13 @@ from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisPa
 
 
 class TrajParser(TextParser):
+    """
+    Parser for LAMMPS trajectory dump files.
+
+    Extracts positions, velocities, forces, and cell information from file
+    specified by LAMMPS 'dump' command.
+    """
+
     def __init__(self) -> None:
         self._masses = None
         self._chemical_symbols = None
@@ -143,11 +150,11 @@ class TrajParser(TextParser):
 
         return [label for label in atom_labels if label is not None]
 
-    def _get_frame_atoms_info(self, idx: int) -> dict | None:
+    def _get_frame_atoms_info(self, idx: int) -> dict:
         """Helper to get atoms_info for a specific frame."""
         atoms_info = self.get('atoms_info')
         if atoms_info is None or idx >= len(atoms_info):
-            return None
+            return {}
         return atoms_info[idx]
 
     def _extract_vector_components(
@@ -160,9 +167,6 @@ class TrajParser(TextParser):
 
     def get_positions(self, idx: int) -> np.ndarray | None:
         frame_atoms_info = self._get_frame_atoms_info(idx)
-        if frame_atoms_info is None:
-            return None
-
         positions = None
 
         def has_coords(*keys):
@@ -173,20 +177,17 @@ class TrajParser(TextParser):
 
         # Cell required
         if cell is not None:
-            if has_coords('xs', 'ys', 'zs'):
-                positions = self._extract_vector_components(
-                    frame_atoms_info, 'xs', 'ys', 'zs'
-                )
-                positions = positions * np.linalg.norm(cell, axis=1) + np.amin(
-                    cell, axis=1
-                )
-            elif has_coords('xsu', 'ysu', 'zsu'):
-                positions = self._extract_vector_components(
-                    frame_atoms_info, 'xsu', 'ysu', 'zsu'
-                )
-                positions = positions * np.linalg.norm(cell, axis=1) + np.amin(
-                    cell, axis=1
-                )
+            for coord_set in [('xs', 'ys', 'zs'), ('xsu', 'ysu', 'zsu')]:
+                if has_coords(*coord_set):
+                    positions = self._extract_vector_components(
+                        frame_atoms_info, *coord_set
+                    )
+                    if positions is not None:
+                        # Apply cell scaling transformation
+                        positions = positions * np.linalg.norm(cell, axis=1) + np.amin(
+                            cell, axis=1
+                        )
+                        break
 
         # Unwrapped
         if positions is None and has_coords('xu', 'yu', 'zu'):
@@ -197,24 +198,25 @@ class TrajParser(TextParser):
         # Absolute positions with optional image correction
         if positions is None and has_coords('x', 'y', 'z'):
             positions = self._extract_vector_components(frame_atoms_info, 'x', 'y', 'z')
-            if cell is not None and has_coords('ix', 'iy', 'iz'):
+            if (
+                cell is not None
+                and positions is not None
+                and has_coords('ix', 'iy', 'iz')
+            ):
                 positions_img = self._extract_vector_components(
                     frame_atoms_info, 'ix', 'iy', 'iz'
                 )
-                positions += positions_img * np.linalg.norm(cell, axis=1)
+                if positions_img is not None:
+                    positions += positions_img * np.linalg.norm(cell, axis=1)
 
         return positions
 
     def get_velocities(self, idx: int) -> np.ndarray | None:
         frame_atoms_info = self._get_frame_atoms_info(idx)
-        if frame_atoms_info is None:
-            return None
         return self._extract_vector_components(frame_atoms_info, 'vx', 'vy', 'vz')
 
     def get_forces(self, idx: int) -> np.ndarray | None:
         frame_atoms_info = self._get_frame_atoms_info(idx)
-        if frame_atoms_info is None:
-            return None
         return self._extract_vector_components(frame_atoms_info, 'fx', 'fy', 'fz')
 
     def _get_cell_component(
@@ -256,6 +258,10 @@ class TrajParser(TextParser):
 
 
 class XYZTrajParser(TrajParser):
+    """
+    Parser for XYZ trajectory files.
+    """
+
     def init_quantities(self) -> None:
         def get_atoms_info(val_in: str) -> dict[str, int | float]:
             val = [v.split('#')[0].split() for v in val_in.strip().splitlines()]
@@ -285,6 +291,13 @@ class XYZTrajParser(TrajParser):
 
 
 class TrajParsers:
+    """
+    Container for multiple trajectory parsers.
+
+    Provides a unified interface to access trajectory data from multiple parser
+    instances, with automatic fallback between parsers.
+    """
+
     def __init__(
         self, parsers: list[TrajParser | XYZTrajParser | MDAnalysisParser]
     ) -> None:
@@ -292,10 +305,14 @@ class TrajParsers:
         for parser in parsers:
             parser.parse()
 
-    def __getitem__(self, index: int) -> TrajParser | XYZTrajParser | MDAnalysisParser:
-        if self._parsers is None or not self._parsers:
-            raise IndexError('No parsers available')
-        return self._parsers[index]
+    def __getitem__(
+        self, index: int
+    ) -> TrajParser | XYZTrajParser | MDAnalysisParser | None:
+        try:
+            return self._parsers[index]
+        except (IndexError, TypeError):
+            self.logger.warning('No parsers available or invalid index: %d', index)
+            return None
 
     def eval(self, key: str, *args, **kwargs) -> Any | None:
         """
@@ -325,18 +342,21 @@ class TrajParsers:
                     # It's a property/attribute - only return if no args expected
                     if args or kwargs:
                         self.logger.warning(
-                            f"Arguments provided for non-callable attribute '{key}'"
+                            "Arguments provided for non-callable attribute '%s'", key
                         )
                         continue
                     val = parser_attr
 
             except Exception as e:
                 self.logger.debug(
-                    f"Error evaluating '{key}' on {parser.__class__.__name__}: {e}"
+                    "Error evaluating '%s' on %s",
+                    key,
+                    parser.__class__.__name__,
+                    exc_info=e,
                 )
                 continue
 
         if not found_attribute:
-            raise AttributeError(f"Attribute '{key}' not found in parsers")
+            raise AttributeError("Attribute '%s' not found in parsers", key)
 
         return val
