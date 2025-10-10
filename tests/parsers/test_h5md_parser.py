@@ -320,7 +320,6 @@ def assert_ensemble_properties(sec_workflow_results) -> None:
 
     # TODO check the application of unit factor for all of the custom obs
     bond_hist = ens_props[0]
-    print(bond_hist.__dict__)
     assert bond_hist.label == 'bond_length_histogram'
     assert len(bond_hist.bins_magnitude) == 10
     assert len(bond_hist.value_magnitude) == 9
@@ -330,19 +329,16 @@ def assert_ensemble_properties(sec_workflow_results) -> None:
 
     # Test individual free energy states
     bound_prop = ens_props[1]
-    print(bound_prop.__dict__)
     assert bound_prop is not None
     assert bound_prop.value_magnitude == approx(-12.7)
     assert bound_prop.value_unit == 'kilojoule / mole'
 
     intermediate_prop = ens_props[2]
-    print(intermediate_prop.__dict__)
     assert intermediate_prop is not None
     assert intermediate_prop.value_magnitude == approx(-5.2)
     assert bound_prop.value_unit == 'kilojoule / mole'
 
     unbound_prop = ens_props[3]
-    print(unbound_prop.__dict__)
     assert unbound_prop is not None
     assert unbound_prop.value_magnitude == approx(0.0)
     assert bound_prop.value_unit == 'kilojoule / mole'
@@ -359,7 +355,6 @@ def assert_correlation_functions(sec_workflow_results) -> None:
     assert len(corr_funcs) == 1
 
     vacf = corr_funcs[0]
-    print(vacf.__dict__)
     assert vacf.label == 'velocity_autocorrelation'
     assert len(vacf.times) == 11
     assert len(vacf.value_magnitude) == 11
