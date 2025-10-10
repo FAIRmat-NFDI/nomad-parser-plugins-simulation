@@ -41,7 +41,7 @@ from simulationworkflowschema.molecular_dynamics import (
     shifted_correlation_average,
 )
 
-from nomad_simulation_parsers.parsers.utils.constants_definitions import MOLE
+from nomad_simulation_parsers.parsers.utils.constants import MOLE
 
 
 class MDAnalysisParser(FileParser):
