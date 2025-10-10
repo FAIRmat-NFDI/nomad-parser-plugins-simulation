@@ -453,6 +453,21 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
     return sorted_files
 
 
+def get_program_types(filename: str, multiple=False) -> list[str]:
+    """
+    Determine type of program(s) in file. If multiple will read all programs.
+    """
+    programs = []
+    with open(filename) as f:
+        for line in f:
+            match = PROGRAM_NAME_RE.search(line)
+            if match:
+                programs.append(match.group(1) or match.group(2))
+                if not multiple:
+                    break
+    return programs
+
+
 class QuantumEspressoParser(MatchingParser):
     """
     Common parser for Quantum Espresso mainfiles including
@@ -460,6 +475,7 @@ class QuantumEspressoParser(MatchingParser):
     """
 
     archive_writer = QuantumEspressoArchiveWriter()
+    _supported_exts = ['out', 'xml']
 
     def is_mainfile(
         self,
@@ -474,26 +490,31 @@ class QuantumEspressoParser(MatchingParser):
         )
         if is_mainfile:
             children = []
-            programs = []
-            with open(filename) as f:
-                for line in f:
-                    match = PROGRAM_NAME_RE.search(line)
-                    if not match:
-                        continue
-                    programs.append(
-                        f'{len(programs)} {match.group(1) or match.group(2)}'
-                    )
+            programs = get_program_types(filename, multiple=True)
             if not programs:
                 return True
             if 'pwscf' in programs[0].lower():
                 # search all qe mainfiles in the directory and sub directories
-                ext = filename.split('.')[-1]
-                qe_files = search_files(
-                    f'*.{ext}', os.path.dirname(filename), include_all=True
-                )
+                qe_files = []
+                basenames = []
+                for ext in self._supported_exts:
+                    for f in search_files(
+                        f'*.{ext}', os.path.dirname(filename), include_all=True
+                    ):
+                        basename = os.path.basename(f).rsplit('.', 1)[1]
+                        if basename not in basenames:
+                            qe_files.append(f)
                 if len(qe_files) > 1:
-                    sorted_files = sort_qe_files(qe_files)
-                    if sorted_files and sorted_files[0][0] == filename:
+                    # generate workflow only if there is one scf file
+                    qe_files = []
+                    other_programs = []
+                    for f in qe_files:
+                        other_programs.extend([p.lower() for p in get_program_types(f)])
+                    if other_programs.count('pwscf') > 1:
+                        LOGGER.warning(
+                            """Found multiple PWSCF files. Not generating workflow"""
+                        )
+                    else:
                         children.append('workflow_generic')
 
             if len(programs) > 1:
