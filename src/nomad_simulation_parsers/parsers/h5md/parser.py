@@ -29,8 +29,6 @@ class H5MDMetainfoParser(MetainfoParser):
 
 class H5MDH5Parser(HDF5Parser):
     trajectory_steps: list[int] = []
-    output_steps: list[int] = []
-    observables: dict[str, Any] = {}
 
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -188,7 +186,7 @@ class H5MDH5Parser(HDF5Parser):
                 )
                 return []
 
-        return self.get_source(self.data, kwargs['path'])
+        return source_data
 
     def get_output_steps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         output_steps = {}
@@ -241,7 +239,11 @@ class H5MDH5Parser(HDF5Parser):
         exclude = kwargs.get('exclude')
         contributions = []
         for key, val in source_data.items():
-            if include and key not in include or exclude and key in exclude:
+            # Skip if key is specifically excluded
+            if exclude and key in exclude:
+                continue
+            # Skip if include list is provided but key is not in it
+            if include and key not in include:
                 continue
             step_data = self.get_step_data(val, source['step'])
             contributions.append({'name': key, **step_data})
@@ -257,7 +259,7 @@ class H5MDH5Parser(HDF5Parser):
         # Route based on whether this is step-based (configurational) or stepless data
         if source.get('step') is not None:
             # Step-based: configurational outputs (energies, forces, temperatures)
-            return self.get_trajectory_output(source, **kwargs)
+            return self.get_configurational_output(source, **kwargs)
         else:
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
             return self.get_ensemble_output(source, **kwargs)
@@ -351,7 +353,6 @@ class H5MDH5Parser(HDF5Parser):
                         result_dict, data_dict, data_type, type_filter
                     )
                     results.append(result_dict)
-        print(results)
         return results
 
     def _process_observable_data(
@@ -413,11 +414,10 @@ class H5MDH5Parser(HDF5Parser):
         # Fallback to parsed data structure
         return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
 
-    def get_trajectory_output(
+    def get_configurational_output(
         self, source: dict[str, Any], **kwargs
     ) -> pint.Quantity | None:
-        """Extract trajectory-based configurational outputs (energies, forces,
-        temperatures)."""
+        """Extract configurational outputs (energies, forces, temperatures)."""
         if source.get('value') is not None:
             return source['value']
 
@@ -432,7 +432,7 @@ class H5MDH5Parser(HDF5Parser):
             )
             return None
 
-        # For trajectory outputs, we can optionally validate @type if present
+        # For configurational outputs, we can optionally validate @type if present
         actual_type = source_data.get('@type')
         if actual_type is not None and actual_type != 'configurational':
             self.logger.warning(
@@ -471,16 +471,6 @@ class H5MDH5Parser(HDF5Parser):
             return results
 
         return None
-
-    def _is_custom_ensemble_structure(self, data_dict: dict) -> bool:
-        """Check if data has ensemble-like structure (bins/times + values)."""
-        has_axis = 'bins' in data_dict or 'times' in data_dict
-        has_values = 'value' in data_dict
-        return has_axis and has_values
-
-    def _detect_ensemble_type(self, data_dict: dict) -> str:
-        """Determine ensemble type based on data structure."""
-        return 'correlation_function' if 'times' in data_dict else 'ensemble_average'
 
 
 class H5MDArchiveWriter(MDParser):

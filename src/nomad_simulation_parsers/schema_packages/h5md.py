@@ -1358,7 +1358,8 @@ molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {
     'hdf5'
 ] = MapperAnnotation(mapper='.value')
 
-# ? Needed? It just points to the trajectory properties? I guess it collects data here?
+# ? Needed? It just points to the configurational properties?
+# I guess it collects data here?
 MolecularDynamicsResults.radii_of_gyration.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
