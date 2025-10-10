@@ -267,16 +267,8 @@ class H5MDH5Parser(HDF5Parser):
     ) -> list[dict[str, Any]]:
         """Extract custom configurational outputs (step-based data)."""
 
-        stepless_only = kwargs.get('stepless_only', False)
-
-        if stepless_only:
-            # For ensemble properties: only process stepless data
-            if source.get('step') is not None:
-                return []
-            # Delegate to ensemble outputs function
-            return self.get_custom_ensemble_outputs(source, **kwargs)
-        elif source.get('step') is None:
-            # Original behavior: only process step-based (configurational) data
+        # Only process step-based (configurational) data
+        if source.get('step') is None:
             return []
 
         source_data = self.get_source(self.data, kwargs['path'])
@@ -305,9 +297,10 @@ class H5MDH5Parser(HDF5Parser):
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
         """
-        Get custom ensemble observables following the same pattern as get_ensemble_output.
-        Filters for observables with type 'ensemble_average' or 'correlation_function'.
-        Returns list of dicts for mapper auto-generation of subsection members.
+        Get custom ensemble observables following the same pattern as
+        get_ensemble_output. Filters for observables with type 'ensemble_average'
+        or 'correlation_function'. Returns list of dicts for mapper auto-generation
+        of subsection members.
         """
         # Use EXACT same logic as get_ensemble_output but with type filtering
         if source.get('value') is not None:
@@ -330,7 +323,8 @@ class H5MDH5Parser(HDF5Parser):
             if label in exclude_list:
                 continue
 
-            # First check for nested structures (like free_energies with individual states)
+            # First check for nested structures (like free_energies with
+            # individual states)
             nested_observables_found = False
             if isinstance(data_dict, dict):
                 for nested_label, nested_data in data_dict.items():
