@@ -8,7 +8,7 @@ import pint
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
 
-from nomad_simulation_parsers.parsers.utils.constants_definitions import (
+from nomad_simulation_parsers.parsers.utils.constants import (
     MOLE,
     RE_FLOAT,
     RE_N,
