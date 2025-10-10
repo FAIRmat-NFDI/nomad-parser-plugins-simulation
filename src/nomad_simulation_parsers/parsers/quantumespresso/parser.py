@@ -37,7 +37,9 @@ from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
 
 LOGGER = get_logger(__name__)
-PROGRAM_NAME_RE = re.compile(r'(?:Program +(\w+))|(?:<creator NAME=\"(\w+))')
+PROGRAM_NAME_RE = re.compile(
+    r'(?:Program +(\w+) +v\.([\d\.]+))|(?:<creator NAME=\"(\w+?)\" VERSION=\"([\d\.]+))'
+)
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -78,6 +80,17 @@ class XCFunctionalParser:
         return out
 
 
+def get_program_name_version(header: str) -> tuple[str, tuple[int]]:
+    match = PROGRAM_NAME_RE.search(header)
+    if not match:
+        return ('', ())
+    name = (match.group(1) or match.group(3)).lower()
+    version = tuple(
+        [int(v) for v in (match.group(2) or match.group(4)).split('.') if v.isdecimal()]
+    )
+    return name, version
+
+
 def load_writer(header: str) -> QuantumEspressoArchiveWriter:
     from .epw.parser import EPWArchiveWriter  # noqa
     from .gipaw.parser import GIPAWArchiveWriter  # noqa
@@ -92,9 +105,8 @@ def load_writer(header: str) -> QuantumEspressoArchiveWriter:
         'xspectra': XSpectraArchiveWriter(),
         'gipaw': GIPAWArchiveWriter(),
     }
-
-    match = PROGRAM_NAME_RE.match(header)
-    return _writers.get(match.group(1).lower() if match else header)
+    name = get_program_name_version(header)
+    return _writers.get(name[0] if name[0] else header)
 
 
 class MainfileTextParser(TextParser):
@@ -399,9 +411,31 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     @property
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
-        ext = self.mainfile.split('.')[-1]
-        parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
+        basename, ext = self.mainfile.rsplit('.', 1)
         self.simulation_parser.annotation_key = ext
+        parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
+        if ext == 'xml':
+            return parser
+
+        # special handling for GIPAW to parse xml if available for version >= 7.4.1
+        # check version
+        parser.filepath = self.mainfile
+        program = parser.data.get('program')
+        if not program:
+            return parser
+
+        name_version = get_program_name_version(program[0][:30])
+        if name_version[0] != 'gipaw':
+            return parser
+
+        ref_version = (7, 4, 0)
+        if name_version[1] >= ref_version:
+            # check if xml file exists
+            xml_file = f'{basename}.xml'
+            if os.path.isfile(xml_file):
+                self.simulation_parser.annotation_key = 'xml'
+                parser = self._xml_parser
+                parser.filepath = xml_file
         return parser
 
     def write_to_archive(self) -> None:
@@ -460,9 +494,9 @@ def get_program_types(filename: str, multiple=False) -> list[str]:
     programs = []
     with open(filename) as f:
         for line in f:
-            match = PROGRAM_NAME_RE.search(line)
-            if match:
-                programs.append(match.group(1) or match.group(2))
+            name_version = get_program_name_version(line)
+            if name_version[0]:
+                programs.append(name_version[0])
                 if not multiple:
                     break
     return programs
