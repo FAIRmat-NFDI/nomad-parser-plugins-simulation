@@ -1095,7 +1095,7 @@ molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters.m_
 # WORKFLOW.RESULTS --> archive.workflow2.results
 
 
-class TrajectoryProperty(trajectory.TrajectoryProperty):
+class ConfigurationalProperty(trajectory.ConfigurationalProperty):
     value_magnitude = Quantity(
         type=np.float64,
         shape=['n_frames'],
@@ -1359,7 +1359,7 @@ molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {
 ] = MapperAnnotation(mapper='.value')
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
-MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault('mapping', {})[
+MolecularDynamicsResults.radii_of_gyration.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
 

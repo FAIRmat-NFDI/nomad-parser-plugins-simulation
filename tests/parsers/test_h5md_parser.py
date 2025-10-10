@@ -353,6 +353,8 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert vacf.value_magnitude[0] == approx(1.03528105)
     assert vacf.value_unit == 'nanometer ** 2 / picosecond ** 2'
 
+    # TODO Add Rg tests
+
 
 def test_md(parser):
     archive = EntryArchive()
