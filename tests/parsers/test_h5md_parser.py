@@ -320,7 +320,6 @@ def assert_ensemble_properties(sec_workflow_results) -> None:
 
     # TODO check the application of unit factor for all of the custom obs
     bond_hist = ens_props[0]
-    print(bond_hist.__dict__)
     assert bond_hist.label == 'bond_length_histogram'
     assert len(bond_hist.bins_magnitude) == 10
     assert len(bond_hist.value_magnitude) == 9
@@ -356,7 +355,6 @@ def assert_correlation_functions(sec_workflow_results) -> None:
     assert len(corr_funcs) == 1
 
     vacf = corr_funcs[0]
-    print(vacf.__dict__)
     assert vacf.label == 'velocity_autocorrelation'
     assert len(vacf.times) == 11
     assert len(vacf.value_magnitude) == 11
