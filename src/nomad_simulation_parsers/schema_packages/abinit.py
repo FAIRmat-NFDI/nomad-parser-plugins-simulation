@@ -11,13 +11,10 @@ from nomad_simulations.schema_packages import (
 
 m_package = SchemaPackage()
 
-
-class GeometryOptimizationModel(
+# TODO Implement for new model
+"""class GeometryOptimizationModel(
     workflow.geometry_optimization.GeometryOptimizationModel
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
     workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
@@ -46,7 +43,9 @@ class GeometryOptimizationModel(
             )
         )
     )
+"""
 
+# Geometry Optimization
 
 workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
@@ -55,6 +54,14 @@ workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.set
 workflow.GeometryOptimization.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
 ).update(dict(out=Mapper(mapper='@')))
+
+workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
+
+workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_geometry_convergence_thresholds', []))))
 
 
 class Program(general.Program):
