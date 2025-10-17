@@ -578,6 +578,18 @@ class MainfileParser(TextParser):
                 bandstructures[n]['occupations'] = occ
 
         return bandstructures
+    
+    def get_geometry_convergence_thresholds(self):
+        geometry_convergence_thresholds = []
+        for input_var in ['tolmxde', 'tolmxf']:
+            threshold = self.get_input_var(input_var, n_dataset=1,default=0.0)
+            geometry_convergence_thresholds.append({
+                'convergence_parameter_name': 'energy',
+                'threshold_type' : 'relative',
+                'convergence_threshold_unit' : 'hartree',
+                'convergence_threshold' : threshold
+            })        
+        return geometry_convergence_thresholds
 
 
 class DosParser(TextParser):

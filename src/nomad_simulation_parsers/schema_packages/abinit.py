@@ -11,17 +11,23 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'abinit_out'
-DOS_KEY = 'abinit_dos'
-
-
-class GeometryOptimizationMethod(
-    workflow.geometry_optimization.GeometryOptimizationMethod
+# TODO Implement for new model
+"""class GeometryOptimizationModel(
+    workflow.geometry_optimization.GeometryOptimizationModel
 ):
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
-        OUT_KEY,
-        ('get_workflow_method', []),
+    workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            out=Mapper(
+                mapper=(
+                    'get_input_var',
+                    [],
+                    dict(name='tolmxde', n_dataset=1, default=0.0),
+                ),
+                unit='hartree',
+            )
+        )
     )
     add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
@@ -35,12 +41,22 @@ class GeometryOptimizationMethod(
         ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
         unit='hartree/bohr',
     )
+"""
 
+# Geometry Optimization
 
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.m_def, OUT_KEY, '@'
 )
 add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
+
+workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
+
+workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_geometry_convergence_thresholds', []))))
 
 
 class Program(general.Program):
