@@ -211,7 +211,7 @@ class CrystalArchiveWriter(ArchiveWriter):
         reload(crystal)
 
         # main output file
-        self.archive_parser.annotation_key = 'out'
+        self.archive_parser.annotation_key = crystal.OUT_KEY
         self.archive_parser.data_object = Simulation(program=Program(name='Crystal'))
 
         self.output_parser.filepath = self.mainfile
@@ -224,7 +224,7 @@ class CrystalArchiveWriter(ArchiveWriter):
         )
         if f25_filepath:
             # parser f25 file
-            self.archive_parser.annotation_key = 'f25'
+            self.archive_parser.annotation_key = crystal.F25_KEY
 
             self.f25_parser.filepath = os.path.join(
                 os.path.dirname(self.mainfile), os.path.basename(f25_filepath)
