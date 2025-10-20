@@ -44,7 +44,7 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
     _remove(property)
 
 
-def add_mapping_annotations(
+def add_mapping_annotation(
     property: Section | Quantity | SubSection,
     annotation_key: str,
     mapper: str | tuple[str, list[str] | tuple[str, list[str], dict[str, Any]]],

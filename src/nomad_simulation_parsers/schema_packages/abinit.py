@@ -7,7 +7,7 @@ from nomad_simulations.schema_packages import (
     workflow,
 )
 
-from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
@@ -18,18 +18,18 @@ DOS_KEY = 'dos'
 class GeometryOptimizationModel(
     workflow.geometry_optimization.GeometryOptimizationModel
 ):
-    add_mapping_annotations(
+    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationModel.optimization_method,
         OUT_KEY,
         ('get_workflow_method', []),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference,
         OUT_KEY,
         ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
         unit='hartree',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_force_maximum,
         OUT_KEY,
         ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
@@ -37,22 +37,22 @@ class GeometryOptimizationModel(
     )
 
 
-add_mapping_annotations(
+add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationModel.m_def, OUT_KEY, '@'
 )
-add_mapping_annotations(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
+add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
 
 
 class Program(general.Program):
-    add_mapping_annotations(general.Program.version, OUT_KEY, '.program_version')
+    add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
 
 
 class AtomsState(model_system.AtomsState):
-    add_mapping_annotations(model_system.AtomsState.chemical_symbol, OUT_KEY, '.label')
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.label')
 
 
 class AtomicCell(model_system.AtomicCell):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_system.AtomicCell.lattice_vectors,
         OUT_KEY,
         'dataset[0].x_abinit_vprim',
@@ -61,11 +61,11 @@ class AtomicCell(model_system.AtomicCell):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotations(model_system.AtomicCell.m_def, OUT_KEY, '.@')
-    add_mapping_annotations(
+    add_mapping_annotation(model_system.AtomicCell.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(
         model_system.AtomsState.m_def, OUT_KEY, ('get_atoms', []), cache=True
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_system.ModelSystem.positions,
         OUT_KEY,
         '.cartesian_coordinates',
@@ -74,50 +74,50 @@ class ModelSystem(model_system.ModelSystem):
 
 
 class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.XCFunctional.libxc_name, OUT_KEY, '.XC_functional_name'
     )
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.DFT.xc_functionals, OUT_KEY, ('get_xc_functionals', [])
     )
 
 
 class TotalEnergy(outputs.TotalEnergy):
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total'
     )
-    add_mapping_annotations(outputs.TotalEnergy.name, OUT_KEY, '.name')
-    add_mapping_annotations(
+    add_mapping_annotation(outputs.TotalEnergy.name, OUT_KEY, '.name')
+    add_mapping_annotation(
         outputs.TotalEnergy.contributions, OUT_KEY, ('get_energy_contributions', ['.@'])
     )
 
 
 class TotalForce(outputs.TotalForce):
-    add_mapping_annotations(outputs.TotalForce.value, OUT_KEY, '.cartesian_forces')
+    add_mapping_annotation(outputs.TotalForce.value, OUT_KEY, '.cartesian_forces')
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
     )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicBandStructure.value, OUT_KEY, '.energies', unit='hartree'
     )
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotations(outputs.Outputs.total_energies, OUT_KEY, '.@')
-    add_mapping_annotations(outputs.Outputs.total_forces, OUT_KEY, '.@')
-    add_mapping_annotations(
+    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(
         outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.Outputs.electronic_band_structures,
         OUT_KEY,
         ('get_bandstructures', ['.eigenvalues', '.occupation_numbers']),
@@ -125,22 +125,22 @@ class Outputs(outputs.Outputs):
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotations(general.Simulation.program, OUT_KEY, '.@')
-    add_mapping_annotations(
+    add_mapping_annotation(general.Simulation.program, OUT_KEY, '.@')
+    add_mapping_annotation(
         general.Simulation.datetime,
         OUT_KEY,
         ('get_datetime', ['x_abinit_start_date', 'x_abinit_start_time']),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         general.Simulation.model_system, OUT_KEY, ('get_systems', [])
     )
-    add_mapping_annotations(model_method.DFT.m_def, OUT_KEY, '.@')
-    add_mapping_annotations(general.Simulation.outputs, OUT_KEY, ('get_outputs', []))
-    add_mapping_annotations(general.Simulation.outputs, DOS_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', []))
+    add_mapping_annotation(general.Simulation.outputs, DOS_KEY, '.@')
 
 
-add_mapping_annotations(general.Simulation.m_def, OUT_KEY, '@')
-add_mapping_annotations(general.Simulation.m_def, DOS_KEY, '.@')
+add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '.@')
 
 
 try:

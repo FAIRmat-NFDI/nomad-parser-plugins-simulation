@@ -13,7 +13,7 @@ from nomad_simulations.schema_packages import (
     properties,
 )
 
-from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
@@ -22,39 +22,39 @@ XML2_KEY = 'xml2'
 OUTCAR_KEY = 'outcar'
 
 
-add_mapping_annotations(general.Simulation.m_def, XML_KEY, 'modeling')
-add_mapping_annotations(general.Simulation.m_def, XML2_KEY, 'modeling')
-add_mapping_annotations(general.Simulation.m_def, OUTCAR_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotations(general.Simulation.program, XML_KEY, '.generator')
-    add_mapping_annotations(general.Simulation.program, OUTCAR_KEY, '.header')
+    add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
+    add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     # dft method
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
         '.parameters.separator[?"@name"==\'electronic\']',
     )
-    add_mapping_annotations(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    add_mapping_annotations(general.Simulation.model_system, XML_KEY, '.calculation')
-    add_mapping_annotations(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
-    add_mapping_annotations(general.Simulation.outputs, XML_KEY, '.calculation')
-    add_mapping_annotations(general.Simulation.outputs, XML2_KEY, '.calculation')
-    add_mapping_annotations(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
+    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
+    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
 
 
 class Program(general.Program):
-    add_mapping_annotations(
+    add_mapping_annotation(
         general.Program.name, XML_KEY, '.i[?"@name"==\'program\'] | [0].__value'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         general.Program.version, XML_KEY, '.i[?"@name"==\'version\'] | [0].__value'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         general.Program.version, OUTCAR_KEY, ('get_version', ['.@'])
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         general.Program.compilation_host,
         XML_KEY,
         '.i[?"@name"==\'platform\'] | [0].__value',
@@ -62,15 +62,15 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.DFT.xc_functionals,
         XML_KEY,
         '.separator[?"@name"==\'electronic exchange-correlation\']',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.DFT.xc_functionals, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.DFT.exact_exchange_mixing_factor,
         XML_KEY,
         (
@@ -84,37 +84,37 @@ class DFT(model_method.DFT):
 
 
 class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_method.XCFunctional.libxc_name,
         XML_KEY,
         '.i[?"@name"==\'GGA\'] | [0].__value',
     )
-    add_mapping_annotations(model_method.XCFunctional.libxc_name, OUTCAR_KEY, '.name')
+    add_mapping_annotation(model_method.XCFunctional.libxc_name, OUTCAR_KEY, '.name')
 
 
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
-    add_mapping_annotations(
+    add_mapping_annotation(
         numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints'
     )
 
 
 class KSpace(numerical_settings.KSpace):
-    add_mapping_annotations(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
 
 
 class KMesh(numerical_settings.KMesh):
-    add_mapping_annotations(
+    add_mapping_annotation(
         numerical_settings.KMesh.grid,
         XML_KEY,
         '.generation.v[?"@name"==\'divisions\'] | [0].__value',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         numerical_settings.KMesh.offset,
         XML_KEY,
         '.generation.v[?"@name"==\'shift\'] | [0].__value',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         numerical_settings.KMesh.points,
         XML_KEY,
         (
@@ -123,7 +123,7 @@ class KMesh(numerical_settings.KMesh):
             dict(shape_rest=(3)),
         ),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         numerical_settings.KMesh.weights,
         XML_KEY,
         (
@@ -136,9 +136,9 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotations(model_system.AtomicCell.m_def, XML_KEY, '.structure')
-    add_mapping_annotations(model_system.AtomicCell.m_def, OUTCAR_KEY, '.@')
-    add_mapping_annotations(
+    add_mapping_annotation(model_system.AtomicCell.m_def, XML_KEY, '.structure')
+    add_mapping_annotation(model_system.AtomicCell.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
         (
@@ -148,7 +148,7 @@ class ModelSystem(model_system.ModelSystem):
         ),
         unit='angstrom',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_system.ModelSystem.positions,
         OUTCAR_KEY,
         '.positions_forces',
@@ -158,13 +158,13 @@ class ModelSystem(model_system.ModelSystem):
 
 
 class AtomicCell(model_system.AtomicCell):
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_system.AtomicCell.lattice_vectors,
         XML_KEY,
         '.structure.varray[?"@name"==\'basis\'] | [0].v',
         unit='angstrom',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         model_system.AtomicCell.lattice_vectors,
         OUTCAR_KEY,
         '.lattice_vectors',
@@ -174,25 +174,25 @@ class AtomicCell(model_system.AtomicCell):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotations(outputs.Outputs.total_energies, XML_KEY, '.energy')
-    add_mapping_annotations(outputs.Outputs.total_energies, OUTCAR_KEY, '.energies')
-    add_mapping_annotations(
+    add_mapping_annotation(outputs.Outputs.total_energies, XML_KEY, '.energy')
+    add_mapping_annotation(outputs.Outputs.total_energies, OUTCAR_KEY, '.energies')
+    add_mapping_annotation(
         outputs.Outputs.total_forces, XML_KEY, ('get_forces', ['.@'])
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.Outputs.total_forces, OUTCAR_KEY, ('get_forces', ['.@'])
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML_KEY,
         ('get_eigenvalues', ['eigenvalues']),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML2_KEY,
         ('get_eigenvalues', ['eigenvalues']),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         OUTCAR_KEY,
         ('get_eigenvalues', ['.eigenvalues', 'parameters']),
@@ -202,7 +202,7 @@ class Outputs(outputs.Outputs):
 class TotalEnergy(properties.energies.TotalEnergy):
     # value is already defined in TotalEnergy since they use the same def
     # get_energy function should be able to handle extraction from both sources
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.energies.TotalEnergy.value,
         XML_KEY,
         (
@@ -212,13 +212,13 @@ class TotalEnergy(properties.energies.TotalEnergy):
         ),
         unit='eV',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.energies.TotalEnergy.value,
         OUTCAR_KEY,
         ('get_data', ['.@'], dict(path='.energy_total')),
         unit='eV',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.energies.TotalEnergy.contributions,
         XML_KEY,
         (
@@ -227,7 +227,7 @@ class TotalEnergy(properties.energies.TotalEnergy):
             dict(exclude=['e_fr_energy']),
         ),
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.energies.TotalEnergy.contributions,
         OUTCAR_KEY,
         (
@@ -239,45 +239,45 @@ class TotalEnergy(properties.energies.TotalEnergy):
 
 
 class BaseEnergy(properties.energies.BaseEnergy):
-    add_mapping_annotations(properties.energies.BaseEnergy.name, XML_KEY, '.@name')
-    add_mapping_annotations(properties.energies.BaseEnergy.name, OUTCAR_KEY, '.name')
+    add_mapping_annotation(properties.energies.BaseEnergy.name, XML_KEY, '.@name')
+    add_mapping_annotation(properties.energies.BaseEnergy.name, OUTCAR_KEY, '.name')
 
 
 class TotalForce(properties.forces.TotalForce):
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.forces.TotalForce.value, XML_KEY, '.forces', unit='eV/angstrom'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         properties.forces.TotalForce.value, OUTCAR_KEY, '.forces', unit='eV/angstrom'
     )
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.n_bands,
         XML_KEY,
         'length(.array.set.set.set[0].r)',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.n_bands,
         XML2_KEY,
         'length(.array.set.set.set[0].r)',
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.n_bands, OUTCAR_KEY, '.n_bands'
     )
 
     # TODO This only works for non-spin pol
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupations'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupations'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.eigenvalues'
     )
-    add_mapping_annotations(
+    add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
     )
 
