@@ -195,7 +195,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         info_parser.filepath = self.mainfile
 
         data_parser = ExcitingMetainfoParser(data_object=Simulation())
-        data_parser.annotation_key = 'info'
+        data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
 
@@ -207,7 +207,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         )
         if input_xml_files:
             input_xml_parser = InputXMLParser(filepath=input_xml_files[0])
-            data_parser.annotation_key = 'input_xml'
+            data_parser.annotation_key = exciting.INPUT_XML_KEY
             input_xml_parser.convert(data_parser)
             input_xml_parser.close()
 
@@ -217,7 +217,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             eigval_parser = EigvalParser(
                 filepath=eigval_files[0], text_parser=EigvalFileParser()
             )
-            data_parser.annotation_key = 'eigval'
+            data_parser.annotation_key = exciting.EIGVAL_KEY
             eigval_parser.convert(data_parser, update_mode='merge@-1')
             eigval_parser.close()
 
@@ -230,7 +230,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=bandstructure_files[0]
             )
             # TODO set n_spin from info
-            data_parser.annotation_key = 'bandstructure_xml'
+            data_parser.annotation_key = exciting.BANDSTRUCTURE_XML_KEY
             bandstructure_parser.convert(data_parser, update_mode='merge@-1')
             bandstructure_parser.close()
 
@@ -238,7 +238,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         dos_files = search_files('dos.xml', maindir, re_pattern=mainbase)
         if dos_files:
             dos_parser = DosXMLParser(filepath=dos_files[0])
-            data_parser.annotation_key = 'dos_xml'
+            data_parser.annotation_key = exciting.DOS_XML_KEY
             dos_parser.convert(data_parser, update_mode='merge@-1')
             dos_parser.close()
 
