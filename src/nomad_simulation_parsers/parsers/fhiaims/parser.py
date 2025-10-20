@@ -327,7 +327,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
 
 class FHIAimsArchiveWriter(ArchiveWriter):
-    annotation_key: str = 'text'
+    annotation_key: str = fhiaims.TEXT_KEY
     geometry_parser = GeometryParser()
     control_parser = ControlParser()
 
@@ -463,7 +463,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
-        archive_handler.annotation_key = 'text_dos'
+        archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
         out_parser.convert(archive_handler, remove=False)
 
         # workflow
@@ -487,7 +487,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
             # GW single point
             parser = FHIAimsArchiveWriter()
-            parser.annotation_key = 'text_gw'
+            parser.annotation_key = fhiaims.TEXT_GW_KEY
             parser.write(self.mainfile, gw_archive, self.logger)
             gw_archive.workflow2.name = 'GW'
 
