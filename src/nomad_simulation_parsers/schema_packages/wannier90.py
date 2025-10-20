@@ -1,6 +1,4 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -11,6 +9,7 @@ from nomad_simulations.schema_packages import (
     properties,
     variables,
 )
+
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
@@ -20,6 +19,7 @@ WIN_KEY = 'win'
 BAND_KEY = 'band'
 WHR_KEY = 'whr'
 DOS_KEY = 'dos'
+
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, WOUT_KEY, '.version')
@@ -32,59 +32,97 @@ class OrbitalsState(atoms_state.OrbitalsState):
 
 class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, WOUT_KEY, '.@')
-    add_mapping_annotation(model_system.AtomsState.orbitals_state, WIN_KEY, ('get_orbitals_state', ['.projection[1]']))
+    add_mapping_annotation(
+        model_system.AtomsState.orbitals_state,
+        WIN_KEY,
+        ('get_orbitals_state', ['.projection[1]']),
+    )
 
 
 class AtomicCell(model_system.AtomicCell):
-    add_mapping_annotation(model_system.AtomicCell.lattice_vectors, WOUT_KEY, ('get_lattice_vectors', ['lattice_vectors']), unit='angstrom')
-    add_mapping_annotation(model_system.AtomicCell.periodic_boundary_conditions, WOUT_KEY, ('get_pbc', ['lattice_vectors']))
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors,
+        WOUT_KEY,
+        ('get_lattice_vectors', ['lattice_vectors']),
+        unit='angstrom',
+    )
+    add_mapping_annotation(
+        model_system.AtomicCell.periodic_boundary_conditions,
+        WOUT_KEY,
+        ('get_pbc', ['lattice_vectors']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomicCell.m_def, WOUT_KEY, '.@')
     add_mapping_annotation(model_system.ModelSystem.cell, WIN_KEY, '.@')
-    add_mapping_annotation(model_system.ModelSystem.sub_systems, WIN_KEY, ('get_projections', ['.projections']))
-    add_mapping_annotation(model_system.ModelSystem.branch_label, WIN_KEY, (
-                    'get_branch_label_indices',
-                    [
-                        '.projection[0]',
-                        'structure.positions',
-                        'structure.labels',
-                        'lattice_vectors',
-                    ],
-                ),
-                search='label',
-                cache=True,)
-    add_mapping_annotation(model_system.ModelSystem.particle_indices, WIN_KEY, (
-                    'get_branch_label_indices',
-                    [
-                        '.projection[0]',
-                        'structure.positions',
-                        'structure.labels',
-                        'lattice_vectors',
-                    ],
-                ),
-                search='indices',
-                cache=True,)
+    add_mapping_annotation(
+        model_system.ModelSystem.sub_systems,
+        WIN_KEY,
+        ('get_projections', ['.projections']),
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.branch_label,
+        WIN_KEY,
+        (
+            'get_branch_label_indices',
+            [
+                '.projection[0]',
+                'structure.positions',
+                'structure.labels',
+                'lattice_vectors',
+            ],
+        ),
+        search='label',
+        cache=True,
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.particle_indices,
+        WIN_KEY,
+        (
+            'get_branch_label_indices',
+            [
+                '.projection[0]',
+                'structure.positions',
+                'structure.labels',
+                'lattice_vectors',
+            ],
+        ),
+        search='indices',
+        cache=True,
+    )
     add_mapping_annotation(model_system.AtomsState.m_def, WOUT_KEY, '.labels')
     add_mapping_annotation(model_system.AtomsState.m_def, WIN_KEY, '.@')
-    add_mapping_annotation(model_system.ModelSystem.positions, WOUT_KEY, '.positions', unit='angstrom')
+    add_mapping_annotation(
+        model_system.ModelSystem.positions, WOUT_KEY, '.positions', unit='angstrom'
+    )
 
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(numerical_settings.KMesh.n_points, WOUT_KEY, '.n_points')
     add_mapping_annotation(numerical_settings.KMesh.grid, WOUT_KEY, '.grid')
-    add_mapping_annotation(numerical_settings.KMesh.points, WOUT_KEY, ('get_kpoints', ['.k_points']))
+    add_mapping_annotation(
+        numerical_settings.KMesh.points, WOUT_KEY, ('get_kpoints', ['.k_points'])
+    )
 
 
 class KLinePath(numerical_settings.KLinePath):
-    add_mapping_annotation(numerical_settings.KLinePath.high_symmetry_path_names, WOUT_KEY, '.names')
-    add_mapping_annotation(numerical_settings.KLinePath.high_symmetry_path_values, WOUT_KEY, '.values')
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_names, WOUT_KEY, '.names'
+    )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_values, WOUT_KEY, '.values'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, WOUT_KEY, '.k_mesh')
-    add_mapping_annotation(numerical_settings.KSpace.k_line_path, WOUT_KEY, ('get_k_line_path', ['.k_line_path']), cache=True)
+    add_mapping_annotation(
+        numerical_settings.KSpace.k_line_path,
+        WOUT_KEY,
+        ('get_k_line_path', ['.k_line_path']),
+        cache=True,
+    )
 
 
 class ModelMethod(model_method.ModelMethod):
@@ -92,15 +130,27 @@ class ModelMethod(model_method.ModelMethod):
 
 
 class Wannier(model_method.Wannier):
-    add_mapping_annotation(model_method.Wannier.is_maximally_localized, WOUT_KEY, ('is_maximally_localized', ['.Niter'], dict(default=0)))
-    add_mapping_annotation(model_method.Wannier.energy_window_outer, WOUT_KEY, '.energy_windows.outer')
-    add_mapping_annotation(model_method.Wannier.energy_window_inner, WOUT_KEY, '.energy_windows.inner')
+    add_mapping_annotation(
+        model_method.Wannier.is_maximally_localized,
+        WOUT_KEY,
+        ('is_maximally_localized', ['.Niter'], dict(default=0)),
+    )
+    add_mapping_annotation(
+        model_method.Wannier.energy_window_outer, WOUT_KEY, '.energy_windows.outer'
+    )
+    add_mapping_annotation(
+        model_method.Wannier.energy_window_inner, WOUT_KEY, '.energy_windows.inner'
+    )
     # add_mapping_annotations(model_method.Wannier.n_orbitals, WOUT_KEY, '.Nwannier')
 
 
 class ElectronicBandStructure(properties.ElectronicBandStructure):
-    add_mapping_annotation(properties.ElectronicBandStructure.n_bands, WOUT_KEY, '.Nwannier')
-    add_mapping_annotation(properties.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data']))
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.n_bands, WOUT_KEY, '.Nwannier'
+    )
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
+    )
 
 
 class WignerSeitz(variables.WignerSeitz):
@@ -110,17 +160,25 @@ class WignerSeitz(variables.WignerSeitz):
 
 class HoppingMatrix(properties.HoppingMatrix):
     add_mapping_annotation(properties.HoppingMatrix.n_orbitals, WHR_KEY, '.n_orbitals')
-    add_mapping_annotation(properties.HoppingMatrix.degeneracy_factors, WHR_KEY, '.degeneracy_factors')
+    add_mapping_annotation(
+        properties.HoppingMatrix.degeneracy_factors, WHR_KEY, '.degeneracy_factors'
+    )
 
     # TODO shape mismatch
-    # add_mapping_annotations(properties.HoppingMatrix.value, WHR_KEY, '.hoppings', unit='eV')
+    # add_mapping_annotation(
+    #     properties.HoppingMatrix.value, WHR_KEY, '.hoppings', unit='eV'
+    # )
 
     add_mapping_annotation(variables.WignerSeitz.m_def, WHR_KEY, '.@')
 
 
 class CrystalFieldSplitting(properties.CrystalFieldSplitting):
-    add_mapping_annotation(properties.CrystalFieldSplitting.n_orbitals, WHR_KEY, 'n_orbitals')
-    add_mapping_annotation(properties.CrystalFieldSplitting.value, WHR_KEY, '.crystal_fields', unit='eV')
+    add_mapping_annotation(
+        properties.CrystalFieldSplitting.n_orbitals, WHR_KEY, 'n_orbitals'
+    )
+    add_mapping_annotation(
+        properties.CrystalFieldSplitting.value, WHR_KEY, '.crystal_fields', unit='eV'
+    )
 
 
 class Energy2(variables.Energy2):
@@ -128,16 +186,26 @@ class Energy2(variables.Energy2):
 
 
 class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
-    add_mapping_annotation(properties.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1/eV')
+    add_mapping_annotation(
+        properties.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1/eV'
+    )
     add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.electronic_band_structures, WOUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.electronic_band_structures, BAND_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.hopping_matrices, WHR_KEY, ('get_hoppings', ['.@'], dict(ws=True)))
-    add_mapping_annotation(outputs.Outputs.crystal_field_splittings, WHR_KEY, ('get_hoppings', ['.@']))
-    add_mapping_annotation(outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data']))
+    add_mapping_annotation(
+        outputs.Outputs.hopping_matrices,
+        WHR_KEY,
+        ('get_hoppings', ['.@'], dict(ws=True)),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.crystal_field_splittings, WHR_KEY, ('get_hoppings', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
+    )
 
 
 class Simulation(general.Simulation):
