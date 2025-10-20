@@ -288,7 +288,7 @@ class WannierArchiveWriter(ArchiveWriter):
         # need data from out
         for key in ['structure', 'lattice_vectors']:
             win_parser.data[key] = self.wout_parser.data.get(key)
-        self.data_parser.annotation_key = 'win'
+        self.data_parser.annotation_key = wannier90.WIN_KEY
         self.data_parser.data_object = self.archive.data
         win_parser.convert(self.data_parser)
         win_parser.close()
@@ -307,7 +307,7 @@ class WannierArchiveWriter(ArchiveWriter):
             whr_parser.filepath = hr_file
             # need data from out
             whr_parser.data['n_orbitals'] = self.wout_parser.data.get('Nwannier')
-            self.data_parser.annotation_key = 'whr'
+            self.data_parser.annotation_key = wannier90.WHR_KEY
             self.data_parser.data_object = self.archive.data
             whr_parser.convert(self.data_parser)
         whr_parser.close()
@@ -325,7 +325,7 @@ class WannierArchiveWriter(ArchiveWriter):
         for dos_file in dos_files:
             wdos_parser.filepath = dos_file
             wdos_parser.data_object.parse('data')
-            self.data_parser.annotation_key = 'dos'
+            self.data_parser.annotation_key = wannier90.DOS_KEY
             self.data_parser.data_object = self.archive.data
             wdos_parser.convert(self.data_parser)
         wdos_parser.close()
@@ -342,7 +342,7 @@ class WannierArchiveWriter(ArchiveWriter):
         for band_file in band_files:
             wband_parser.filepath = band_file
             wband_parser.data_object.parse('data')
-            self.data_parser.annotation_key = 'band'
+            self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
             wband_parser.convert(self.data_parser)
         wband_parser.close()
@@ -360,7 +360,7 @@ class WannierArchiveWriter(ArchiveWriter):
         # construct metainfo parser
         data = Simulation()
         self.data_parser = Wannier90MetainfoParser()
-        self.data_parser.annotation_key = 'wout'
+        self.data_parser.annotation_key = wannier90.WOUT_KEY
         self.data_parser.data_object = data
         self.archive.data = data
 
