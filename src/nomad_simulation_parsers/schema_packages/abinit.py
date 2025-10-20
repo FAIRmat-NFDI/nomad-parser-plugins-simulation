@@ -1,6 +1,4 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -8,6 +6,7 @@ from nomad_simulations.schema_packages import (
     outputs,
     workflow,
 )
+
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
 
 m_package = SchemaPackage()
@@ -45,7 +44,7 @@ add_mapping_annotations(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
 
 
 class Program(general.Program):
-    add_mapping_annotations(general.Program.name, OUT_KEY, '.program_name')
+    add_mapping_annotations(general.Program.version, OUT_KEY, '.program_version')
 
 
 class AtomsState(model_system.AtomsState):
