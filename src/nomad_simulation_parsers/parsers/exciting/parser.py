@@ -21,10 +21,10 @@ from structlog.stdlib import (
 )
 
 from nomad_simulation_parsers.parsers.utils.general import (
-    remove_mapping_annotations,
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import exciting
+from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser

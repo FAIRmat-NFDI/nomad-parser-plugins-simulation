@@ -38,10 +38,10 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import (
-    remove_mapping_annotations,
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import fhiaims
+from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .common import ControlParser, GeometryParser
 
