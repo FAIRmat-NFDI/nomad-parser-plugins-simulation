@@ -10,6 +10,8 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
+from nomad_simulation_parsers.schema_packages import vasp
+
 LOGGER = get_logger(__name__)
 
 
@@ -75,10 +77,10 @@ class XMLArchiveWriter(ArchiveWriter):
 
         xml_parser = VasprunParser(filepath=self.mainfile)
 
-        data_parser.annotation_key = 'xml'
+        data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 
-        data_parser.annotation_key = 'xml2'
+        data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
 
         self.archive.data = data_parser.data_object
