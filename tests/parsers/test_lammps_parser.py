@@ -297,6 +297,87 @@ def test_data_file_header_priority():
     assert check_file_header_in_memory(alt_file, 'LAMMPS Description') is not None
 
 
+def test_data_file_header_matching():
+    """Test LAMMPS data file header pattern matching using in-memory StringIO"""
+
+    # Simulate what check_file_header does: read first 1024 bytes and match pattern
+    def check_file_header_in_memory(file_obj, pattern):
+        """Mimic check_file_header behavior using StringIO"""
+        file_obj.seek(0)
+        header = file_obj.read(1024)
+        if isinstance(header, str):
+            header_str = header
+        else:
+            header_str = header.decode(errors='ignore')
+        return re.search(pattern, header_str)
+
+    # Test 1: Valid LAMMPS data file header
+    valid_data_file = StringIO("""LAMMPS data file via write_data, version 12 Dec 2018
+
+1000 atoms
+10 atom types
+0.0 50.0 xlo xhi
+0.0 50.0 ylo yhi
+0.0 50.0 zlo zhi
+""")
+    assert check_file_header_in_memory(valid_data_file, 'LAMMPS data file') is not None
+
+    # Test 2: Alternative valid header
+    alt_valid_file = StringIO("""LAMMPS Description
+
+500 atoms
+5 atom types
+""")
+    assert check_file_header_in_memory(alt_valid_file, 'LAMMPS Description') is not None
+
+    # Test 3: Invalid file (no LAMMPS header)
+    invalid_file = StringIO("""Random text file
+This is not a relevant file.
+Just some random content
+""")
+    assert check_file_header_in_memory(invalid_file, 'LAMMPS data file') is None
+    assert check_file_header_in_memory(invalid_file, 'LAMMPS Description') is None
+
+    # Test 4: Binary data with valid header
+    binary_with_header = BytesIO(
+        b'LAMMPS data file\n1000 atoms\n' + b'\x00\xff\xfe\xfd' * 100
+    )
+    assert (
+        check_file_header_in_memory(binary_with_header, 'LAMMPS data file') is not None
+    )
+
+    # Test 5: Binary data without valid header (use predictable low bytes)
+    pure_binary = BytesIO(b'\x00\x01\x02\x03' * 256)
+    assert check_file_header_in_memory(pure_binary, 'LAMMPS data file') is None
+    assert check_file_header_in_memory(pure_binary, 'LAMMPS Description') is None
+
+
+def test_data_file_header_priority():
+    """Test header pattern matching priority (LAMMPS data file vs LAMMPS Description)"""
+
+    def check_file_header_in_memory(file_obj, pattern):
+        file_obj.seek(0)
+        header = file_obj.read(1024)
+        if isinstance(header, str):
+            header_str = header
+        else:
+            header_str = header.decode(errors='ignore')
+        return re.search(pattern, header_str)
+
+    # File with standard header should match primary pattern
+    standard_file = StringIO("""LAMMPS data file
+1000 atoms
+""")
+    assert check_file_header_in_memory(standard_file, 'LAMMPS data file') is not None
+
+    # File with alternative header should only match alternative pattern
+    alt_file = StringIO("""LAMMPS Description
+500 atoms
+""")
+    assert check_file_header_in_memory(alt_file, 'LAMMPS data file') is None
+    assert check_file_header_in_memory(alt_file, 'LAMMPS Description') is not None
+
+
 # Tests for TrajParser, XYZTrajParser, TrajParsers classes
 # TODO: Extend test to cover all relevant LAMMPS box styles
 @pytest.mark.parametrize(
