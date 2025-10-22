@@ -9,9 +9,12 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    workflow,
 )
 
 m_package = SchemaPackage()
+
+#TODO Bring back the function that sets these annotations. Implement it as a class with a call method to be able to set defaults.  # noqa: E501
 
 
 # simulation
@@ -22,6 +25,45 @@ general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     bandstructure_xml=Mapper(mapper='@'),
     dos_xml=Mapper(mapper='@'),
 )
+
+# geometry optimization
+
+workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(info=Mapper(mapper='@')))
+
+workflow.GeometryOptimization.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(info=Mapper(mapper='@')))
+"""
+workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
+
+workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_geometry_convergence', []))))
+
+workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.convergence_parameter_name')))
+"""
+workflow.general.WorkflowConvergenceTarget.convergence_threshold.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(info=Mapper(mapper='.convergence_threshold')))
+
+workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(info=Mapper(mapper='.threshold_type')))
+
+workflow.general.WorkflowConvergenceTarget.convergence_threshold_unit.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(info=Mapper(mapper='.convergence_threshold_unit')))
+
+workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(info=Mapper(mapper='.is_reached')))
+
 
 
 class Simulation(general.Simulation):

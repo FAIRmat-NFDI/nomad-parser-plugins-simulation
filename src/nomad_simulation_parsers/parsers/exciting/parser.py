@@ -16,6 +16,10 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+    GeometryOptimizationModel,
+)
 from structlog.stdlib import (
     BoundLogger,
 )
@@ -107,7 +111,19 @@ class InfoParser(TextParser):
             atoms=atoms,
             lattice_vectors=lattice_vectors,
         )
-
+    
+    def get_geometry_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
+        return [
+            {
+                'convergence_parameter_name': 'force',
+                'threshold_type' : 'maximum',
+                'convergence_threshold_unit' : 'hartree/bohr',
+                'convergence_threshold' : source.get(''),
+                'is_reached' : source.get('structure_optimization')
+                                     .get('target_reached')
+            }
+        ]
+    
 
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -242,6 +258,17 @@ class ExcitingArchiveWriter(ArchiveWriter):
             dos_parser.convert(data_parser, update_mode='merge@-1')
             dos_parser.close()
 
+        # populate geometry optimization if present
+        if info_parser.text_parser.has_geometry_optimization():
+            # create workflow section
+            self.archive.workflow2 = GeometryOptimization(
+                model=GeometryOptimizationModel()
+            )
+            data_parser.annotation_key = 'info'
+            data_parser.data_object = self.archive.workflow2
+            info_parser.convert(data_parser)
+
+
         self.archive.data = data_parser.data_object
 
         # close parsers
@@ -250,6 +277,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         # remove annotations
         remove_mapping_annotations(exciting.general.Simulation.m_def)
+        remove_mapping_annotations(exciting.workflow.GeometryOptimization.m_def)
 
 
 class ExcitingParser(MatchingParser):
