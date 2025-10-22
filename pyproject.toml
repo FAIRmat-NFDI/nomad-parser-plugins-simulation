@@ -36,6 +36,9 @@ dependencies = [
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
+    "mdanalysis>=2.8.0,<3.0.0 ; python_full_version >= '3.10'",
+    "mdanalysis<2.8 ; python_full_version < '3.10'",
+    "panedr>=0.2",
 ]
 
 [project.urls]
@@ -143,6 +146,8 @@ fhiaims_parser = "nomad_simulation_parsers.parsers:fhiaims_parser"
 fhiaims_schema_package = "nomad_simulation_parsers.schema_packages:fhiaims_schema_package"
 gpaw_parser = "nomad_simulation_parsers.parsers:gpaw_parser"
 gpaw_schema_package = "nomad_simulation_parsers.schema_packages:gpaw_schema_package"
+gromacs_parser = "nomad_simulation_parsers.parsers:gromacs_parser"
+gromacs_schema_package = "nomad_simulation_parsers.schema_packages:gromacs_schema_package"
 h5md_parser = "nomad_simulation_parsers.parsers:h5md_parser"
 h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_package"
 lammps_parser = "nomad_simulation_parsers.parsers:lammps_parser"
