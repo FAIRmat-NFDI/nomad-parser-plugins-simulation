@@ -43,8 +43,18 @@ def parser():
     return LammpsParser()
 
 
+@pytest.fixture
+def tmp_dir():
+    """Create temporary directory for tests."""
+    parent_directory = '.volumes'
+    if not os.path.isdir(parent_directory):
+        os.makedirs(parent_directory, exist_ok=True)
+    directory = tempfile.TemporaryDirectory(dir=parent_directory, prefix='test_tmp')
+    yield directory.name
+    directory.cleanup()
+
+
 # TODO: add tests for file_parsers functions
-# Tests for get_unit() function with different unit types
 # Tests for DataParser: regex patterns and section parsing
 # Tests for LogParser: command extraction and thermodynamic data parsing
 # Tests for file discovery methods (get_traj_files, get_data_files)
@@ -115,7 +125,7 @@ class TestLogParser(LogParser):
             super().parse(key, **kwargs)
 
 
-def test_get_traj_files():
+def test_get_traj_files(tmp_dir):
     """Test trajectory file discovery and matching"""
 
     # Test 1: With dump command specified
@@ -152,25 +162,23 @@ def test_get_traj_files():
     assert os.path.isabs(traj_files[0])
 
     # Test 2: Scan directory (no dump command)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Create test files
-        open(os.path.join(tmpdir, 'hexane_nvt.lammpstrj'), 'w').close()
-        open(os.path.join(tmpdir, 'water.xyz'), 'w').close()
-        open(os.path.join(tmpdir, 'readme.txt'), 'w').close()
+    open(os.path.join(tmp_dir, 'hexane_nvt.lammpstrj'), 'w').close()
+    open(os.path.join(tmp_dir, 'water.xyz'), 'w').close()
+    open(os.path.join(tmp_dir, 'readme.txt'), 'w').close()
 
-        mainfile = os.path.join(tmpdir, 'log.hexane_nvt')
-        open(mainfile, 'w').close()
+    mainfile = os.path.join(tmp_dir, 'log.hexane_nvt')
+    open(mainfile, 'w').close()
 
-        parser = TestLogParser(mock_data={'dump': None})
-        parser.logger = LOGGER
-        parser.mainfile = mainfile
+    parser = TestLogParser(mock_data={'dump': None})
+    parser.logger = LOGGER
+    parser.mainfile = mainfile
 
-        traj_files = parser.get_traj_files()
+    traj_files = parser.get_traj_files()
 
-        # Should find trajectory files and return best match to mainfile
-        assert len(traj_files) == 1
-        assert os.path.basename(traj_files[0]) == 'hexane_nvt.lammpstrj'
-        assert all(os.path.isabs(f) for f in traj_files)
+    # Should find trajectory files and return best match to mainfile
+    assert len(traj_files) == 1
+    assert os.path.basename(traj_files[0]) == 'hexane_nvt.lammpstrj'
+    assert all(os.path.isabs(f) for f in traj_files)
 
     # Test 3: Multiple dump commands, remove duplicates
     parser = TestLogParser(
@@ -189,22 +197,21 @@ def test_get_traj_files():
     assert os.path.basename(traj_files[0]) == 'traj.lammpstrj'
 
 
-def test_no_data_file():
+def test_no_data_file(tmp_dir):
     """Test behavior when no data files are found"""
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Only non-data files
-        open(os.path.join(tmpdir, 'log.test'), 'w').close()
-        open(os.path.join(tmpdir, 'output.txt'), 'w').close()
+    # Create new mainfile to prevent cached results being used
+    mainfile_path = os.path.join(tmp_dir, 'log.test')
+    open(mainfile_path, 'w').close()
 
-        parser = TestLogParser(mock_data={'read_data': None})
-        parser.logger = LOGGER
-        parser.mainfile = os.path.join(tmpdir, 'log.test')
+    parser = TestLogParser(mock_data={'read_data': []})
+    parser.logger = LOGGER
+    parser.mainfile = mainfile_path
 
-        data_files = parser.get_data_files()
+    data_files = parser.get_data_files()
 
-        assert isinstance(data_files, list)
-        assert len(data_files) == 0
+    assert isinstance(data_files, list)
+    assert len(data_files) == 0
 
 
 def test_data_file_header_matching():

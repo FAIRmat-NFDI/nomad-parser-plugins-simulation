@@ -35,7 +35,6 @@ class TrajParser(TextParser):
         # https://docs.lammps.org/Howto_triclinic.html
         val = val.split()
         cell = np.zeros((3, 3))
-        # ! LB edit, untested!
         if 'xy' == val[0]:
             pbc = [v == 'pp' for v in val[3:6]]
             tilt_factors = np.zeros(3)
@@ -320,9 +319,6 @@ class TrajParsers:
 
         Returns:
             First non-None result from the parsers, or None if all return None
-
-        Raises:
-            AttributeError: If none of the parsers have the requested attribute
         """
         found_attribute = False
         val = None
@@ -342,21 +338,19 @@ class TrajParsers:
                     # It's a property/attribute - only return if no args expected
                     if args or kwargs:
                         self.logger.warning(
-                            "Arguments provided for non-callable attribute '%s'", key
+                            'Arguments provided for non-callable attribute'
                         )
                         continue
                     val = parser_attr
 
             except Exception as e:
                 self.logger.debug(
-                    "Error evaluating '%s' on %s",
-                    key,
-                    parser.__class__.__name__,
+                    'Error evaluating input.',
                     exc_info=e,
                 )
                 continue
 
         if not found_attribute:
-            raise AttributeError("Attribute '%s' not found in parsers", key)
+            self.logger.warning("Attribute '%s' not found in parsers", key)
 
         return val

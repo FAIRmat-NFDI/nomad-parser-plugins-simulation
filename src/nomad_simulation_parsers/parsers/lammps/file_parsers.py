@@ -556,6 +556,7 @@ class LogParser(TextParser):
 
         return data
 
+    # TODO: move to utils
     def find_best_matching_file(
         self, traj_files: list[str], mainfile_basename: str
     ) -> list[str]:
