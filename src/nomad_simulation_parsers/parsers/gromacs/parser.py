@@ -21,6 +21,26 @@ from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
     MolecularDynamics,
 )
 from structlog.stdlib import BoundLogger
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad.parsing.file_parser.mapping_parser import MetainfoParser
+from nomad.utils import get_logger
+from nomad.units import ureg
+from nomad.parsing.file_parser.mapping_parser import MappingParser, TextParser
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
+from typing import Any
+from .log_parser import GromacsLogParser as GromacsLogTextParser
+from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
+from nomad_simulations.schema_packages.general import Simulation
+from importlib import reload
+from nomad_simulation_parsers.schema_packages import gromacs
+import os
+import numpy as np
+from ase.symbols import symbols2numbers
+
+LOGGER = get_logger(__name__)
+
+# TODO put this in utils
+MOL = 6.022140857e23
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import gromacs
@@ -536,6 +556,70 @@ class GromacsArchiveWriter(MDParser):
         ]:
             parser.close()
 
+        self.archive.data = Simulation(program=Program(name='GROMACS'))
+        self._simulation_parser.data_object = self.archive.data
+
+        # set up source parsers
+        self._log_parser.filepath = self.mainfile
+        self._edr_parser.filepath = self.get_gromacs_file('edr')
+        self._mdanalysis_parser.filepath = self.get_gromacs_file('tpr')
+        # determine auxiliary file order: trr, xtc
+        for ext in ['trr', 'xtc']:
+            aux_file = self.get_gromacs_file(ext)
+            if not aux_file:
+                continue
+            self._mdanalysis_parser.aux_files = [aux_file]
+            # check if positions are parsed
+            positions = self._mdanalysis_parser.data_object.get_positions(0)
+            if positions is not None:
+                break
+
+        # determine sampled trajectory steps
+        n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
+        traj_sampling_rate = self._log_parser.input_parameters.get('nstxout', 1)
+        self.n_atoms = [
+            self._mdanalysis_parser.data_object.get_n_atoms(n) for n in range(n_frames)
+        ]
+        traj_steps = [n * traj_sampling_rate for n in range(n_frames)]
+        self.trajectory_steps = traj_steps
+
+        # determine sampled thermodynamic steps
+        calculation_times = self._edr_parser.data.get('Time', [])
+        time_step = self._log_parser.input_parameters.get('dt')
+        if time_step is None and len(calculation_times) > 1:
+            time_step = calculation_times[1] - calculation_times[0]
+        self.thermodynamics_steps = [
+            int(time / time_step if time_step else 1) for time in calculation_times
+        ]
+
+        # pass sampled steps to parsers
+        self._log_parser._trajectory_steps_sampled = self.trajectory_steps
+        self._log_parser._trajectory_steps = traj_steps
+        self._mdanalysis_parser._trajectory_steps_sampled = self.trajectory_steps
+        self._mdanalysis_parser._trajectory_steps = traj_steps
+        self._mdanalysis_parser._thermodynamic_steps = self.thermodynamics_steps
+        self._edr_parser._thermodynamic_steps = self.thermodynamics_steps
+        self._edr_parser._trajectory_steps = traj_steps
+
+        # parse main log file
+        self._simulation_parser.annotation_key = 'log'
+        self._log_parser.convert(self._simulation_parser)
+
+
+        # parse edr file
+        self._simulation_parser.annotation_key = 'edr'
+        self._edr_parser.log_parser = self._log_parser
+        self._edr_parser.convert(self._simulation_parser)
+
+        # parse mdanalysis trajectory files
+        self._simulation_parser.annotation_key = 'tpr'
+        self._mdanalysis_parser.log_parser = self._log_parser
+        self._mdanalysis_parser.convert(self._simulation_parser)
+
+        self._simulation_parser.close()
+        self._log_parser.close()
+        self._mdanalysis_parser.close()
+        self._edr_parser.close()
 
 class GromacsParser(MatchingParser):
     """
