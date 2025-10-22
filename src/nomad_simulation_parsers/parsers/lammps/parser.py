@@ -29,11 +29,9 @@ class LammpsArchiveWriter(MDParser):
         )
         self._data_parser = DataParser()
 
-        self.units = self._log_parser.units
-
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
-            value = value * self.units.get(unit, 1)
+            value = value * self._log_parser.units.get(unit, 1)
         return value
 
     def parse_method(self, simulation: Simulation) -> None:
@@ -314,6 +312,9 @@ class LammpsArchiveWriter(MDParser):
 
         # Close all parser instances
         self._mdanalysistraj_parser.close()
+        self._log_parser.close()
+        self._aux_log_parser.close()
+        self._data_parser.close()
         for parser in parsers:
             parser.close()
 
