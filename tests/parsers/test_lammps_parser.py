@@ -97,17 +97,29 @@ def test_find_best_matching_file(mainfile, traj_files, expected_match):
     assert result[0] == expected_match
 
 
+class TestLogParser(LogParser):
+    """Test double for LogParser that allows injecting mock data."""
+
+    def __init__(self, mock_data=None):
+        super().__init__()
+        self.mock_data = mock_data or {}
+
+    def parse(self, key, **kwargs):
+        if self._results is None:
+            self._results = {}
+        if key in self.mock_data:
+            self._results[key] = self.mock_data[key]
+        else:
+            super().parse(key, **kwargs)
+
+
 def test_get_traj_files():
     """Test trajectory file discovery and matching"""
-    parser = LogParser()
-    parser.logger = LOGGER
 
     # Test 1: With dump command specified
-    parser.mainfile = 'tests/data/lammps/1_xyz_files/log.test'
-
-    def mock_get_with_dump(key, default=None):
-        if key == 'dump':
-            return [
+    parser = TestLogParser(
+        mock_data={
+            'dump': [
                 [
                     '2',
                     'all',
@@ -127,9 +139,10 @@ def test_get_traj_files():
                     'vz',
                 ]
             ]
-        return default
-
-    parser.get = mock_get_with_dump
+        }
+    )
+    parser.logger = LOGGER
+    parser.mainfile = 'tests/data/lammps/1_xyz_files/log.test'
     traj_files = parser.get_traj_files()
 
     assert len(traj_files) == 1
@@ -146,8 +159,9 @@ def test_get_traj_files():
         mainfile = os.path.join(tmpdir, 'log.hexane_nvt')
         open(mainfile, 'w').close()
 
+        parser = TestLogParser(mock_data={'dump': None})
+        parser.logger = LOGGER
         parser.mainfile = mainfile
-        parser.get = lambda key, default=None: None if key == 'dump' else default
 
         traj_files = parser.get_traj_files()
 
@@ -156,16 +170,17 @@ def test_get_traj_files():
         assert os.path.basename(traj_files[0]) == 'hexane_nvt.lammpstrj'
         assert all(os.path.isabs(f) for f in traj_files)
 
-    # Test 3: Remove duplicates
-    def mock_get_with_duplicates(key, default=None):
-        if key == 'dump':
-            return [
+    # Test 3: Multiple dump commands, remove duplicates
+    parser = TestLogParser(
+        mock_data={
+            'dump': [
                 ['id1', 'all', 'custom', '100', 'traj.lammpstrj', 'x', 'y', 'z'],
                 ['id2', 'all', 'custom', '200', 'traj.lammpstrj', 'x', 'y', 'z'],
             ]
-        return default
-
-    parser.get = mock_get_with_duplicates
+        }
+    )
+    parser.logger = LOGGER
+    parser.mainfile = 'tests/data/lammps/2_xyz_files/log.lammps'
     traj_files = parser.get_traj_files()
 
     assert len(traj_files) == 1
@@ -174,18 +189,11 @@ def test_get_traj_files():
 
 def test_get_data_files():
     """Test data file discovery and header checking"""
-    parser = LogParser()
-    parser.logger = LOGGER
 
     # Test 1: With read_data command specified
+    parser = TestLogParser(mock_data={'read_data': ['data.64xmethane_from_restart']})
+    parser.logger = LOGGER
     parser.mainfile = 'tests/data/lammps/methane_dcd/log.test'
-
-    def mock_get_with_read_data(key, default=None):
-        if key == 'read_data':
-            return ['data.64xmethane_from_restart']
-        return default
-
-    parser.get = mock_get_with_read_data
     data_files = parser.get_data_files()
 
     assert len(data_files) == 1
@@ -212,8 +220,9 @@ def test_get_data_files():
         # Non-data file
         open(os.path.join(tmpdir, 'readme.txt'), 'w').close()
 
+        parser = TestLogParser(mock_data={'read_data': None})
+        parser.logger = LOGGER
         parser.mainfile = os.path.join(tmpdir, 'log.polymer')
-        parser.get = lambda key, default=None: None if key == 'read_data' else default
 
         data_files = parser.get_data_files()
 
@@ -228,8 +237,9 @@ def test_get_data_files():
             f.write('LAMMPS data file via write_data\n')
             f.write('500 atoms\n')
 
+        parser = TestLogParser(mock_data={'read_data': None})
+        parser.logger = LOGGER
         parser.mainfile = os.path.join(tmpdir, 'log.test')
-        parser.get = lambda key, default=None: None if key == 'read_data' else default
 
         data_files = parser.get_data_files()
 
@@ -248,8 +258,9 @@ def test_get_data_files():
             f.write('LAMMPS Description\n')  # Different header
             f.write('50 atoms\n')
 
+        parser = TestLogParser(mock_data={'read_data': None})
+        parser.logger = LOGGER
         parser.mainfile = os.path.join(tmpdir, 'log.test')
-        parser.get = lambda key, default=None: None if key == 'read_data' else default
 
         data_files = parser.get_data_files()
 
@@ -258,15 +269,15 @@ def test_get_data_files():
 
 def test_no_data_file():
     """Test behavior when no data files are found"""
-    parser = LogParser()
-    parser.logger = LOGGER
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # Only non-data files
         open(os.path.join(tmpdir, 'log.test'), 'w').close()
         open(os.path.join(tmpdir, 'output.txt'), 'w').close()
 
+        parser = TestLogParser(mock_data={'read_data': None})
+        parser.logger = LOGGER
         parser.mainfile = os.path.join(tmpdir, 'log.test')
-        parser.get = lambda key, default=None: None if key == 'read_data' else default
 
         data_files = parser.get_data_files()
 
