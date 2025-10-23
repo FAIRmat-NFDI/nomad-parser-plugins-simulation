@@ -66,6 +66,37 @@ workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
     ).update(dict(info=Mapper(mapper='.is_reached')))
 
 
+# outputs
+general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='@')
+)
+outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='.@')
+)
+outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('get_forces', ['.@']))
+)
+outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
+)
+outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
+    dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
+)
+outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
+)
+outputs.Outputs.scf_steps.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('get_scf_steps', ['@']))
+)
+
+# output quantities
+outputs.SCFStep.duration.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.duration'))
+)
+outputs.SCFStep.energy_total.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.energy_total'))
+)
+
 
 class Simulation(general.Simulation):
     general.Simulation.program.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
@@ -153,24 +184,6 @@ class AtomicCell(model_system.AtomicCell):
 class AtomsState(atoms_state.AtomsState):
     atoms_state.AtomsState.chemical_symbol.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         info=Mapper(mapper='.symbol')
-    )
-
-
-class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.@')
-    )
-    outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_forces', ['.@']))
-    )
-    outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
-    )
-    outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
-    )
-    outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
     )
 
 
