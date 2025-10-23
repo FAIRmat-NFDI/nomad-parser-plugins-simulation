@@ -118,7 +118,8 @@ class InfoParser(TextParser):
                 'convergence_parameter_name': 'force',
                 'threshold_type' : 'maximum',
                 'convergence_threshold_unit' : 'hartree/bohr',
-                'convergence_threshold' : source.get(''),
+                'convergence_threshold' : source.get('structure_optimization')
+                                                .get('force_target'),
                 'is_reached' : source.get('structure_optimization')
                                      .get('target_reached')
             }
@@ -258,18 +259,16 @@ class ExcitingArchiveWriter(ArchiveWriter):
             dos_parser.convert(data_parser, update_mode='merge@-1')
             dos_parser.close()
 
+        self.archive.data = data_parser.data_object
+
         # populate geometry optimization if present
-        if info_parser.text_parser.has_geometry_optimization():
-            # create workflow section
-            self.archive.workflow2 = GeometryOptimization(
+        if info_parser.text_parser.has_geometry_optimization():            
+            data_parser.data_object = GeometryOptimization(
                 model=GeometryOptimizationModel()
             )
             data_parser.annotation_key = 'info'
-            data_parser.data_object = self.archive.workflow2
             info_parser.convert(data_parser)
-
-
-        self.archive.data = data_parser.data_object
+            self.archive.workflow2 = data_parser.data_object
 
         # close parsers
         info_parser.close()

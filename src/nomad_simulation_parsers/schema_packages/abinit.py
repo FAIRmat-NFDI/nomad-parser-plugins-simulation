@@ -61,7 +61,27 @@ workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_a
 
 workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_geometry_convergence_thresholds', []))))
+    ).update(dict(out=Mapper(mapper=('get_geometry_convergence', []))))
+
+workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.convergence_parameter_name')))
+
+workflow.general.WorkflowConvergenceTarget.convergence_threshold.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.convergence_threshold')))
+
+workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.threshold_type')))
+
+workflow.general.WorkflowConvergenceTarget.convergence_threshold_unit.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.convergence_threshold_unit')))
+
+workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.is_reached')))
 
 
 class Program(general.Program):

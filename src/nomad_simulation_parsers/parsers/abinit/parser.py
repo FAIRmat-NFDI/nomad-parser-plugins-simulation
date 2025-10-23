@@ -580,17 +580,29 @@ class MainfileParser(TextParser):
 
         return bandstructures
     
-    def get_geometry_convergence_thresholds(self):
-        geometry_convergence_thresholds = []
-        for input_var in ['tolmxde', 'tolmxf']:
-            threshold = self.get_input_var(input_var, n_dataset=1,default=0.0)
-            geometry_convergence_thresholds.append({
+    def get_geometry_convergence(self):
+        # TODO Add `is_reached` when it is parsed correctly
+        # TODO consider to do this for each dataset and not only the first one
+        return [
+            {
                 'convergence_parameter_name': 'energy',
                 'threshold_type' : 'relative',
                 'convergence_threshold_unit' : 'hartree',
-                'convergence_threshold' : threshold
-            })        
-        return geometry_convergence_thresholds
+                'convergence_threshold' : self.get_input_var('tolmxde', 
+                                                             n_dataset=1, 
+                                                             default=0.0, 
+                                                             scalar=True),
+            },
+            {
+                'convergence_parameter_name': 'force',
+                'threshold_type' : 'maximum',
+                'convergence_threshold_unit' : 'hartree/bohr',
+                'convergence_threshold' : self.get_input_var(name='tolmxf', 
+                                                             n_dataset=1, 
+                                                             default=0.0, 
+                                                             scalar=True),
+            }
+        ]
 
 
 class DosParser(TextParser):

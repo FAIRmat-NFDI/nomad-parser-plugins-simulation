@@ -39,15 +39,16 @@ workflow.GeometryOptimization.m_def.m_annotations.setdefault(
 workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
+"""
 
 workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_geometry_convergence', []))))
+    ).update(dict(info=Mapper(mapper=('get_geometry_convergence', ['.@']))))
 
 workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.convergence_parameter_name')))
-"""
+    ).update(dict(info=Mapper(mapper='.convergence_parameter_name')))
+
 workflow.general.WorkflowConvergenceTarget.convergence_threshold.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(info=Mapper(mapper='.convergence_threshold')))
