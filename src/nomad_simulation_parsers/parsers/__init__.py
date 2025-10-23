@@ -110,10 +110,11 @@ gpaw_parser = EntryPoint(
     aliases=['parsers/gpaw'],
     description='NOMAD parser for GPAW.',
     python_package='nomad_simulation_parsers',
-    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
-    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
-    code_name='LAMMPS',
-    code_homepage='https://lammps.sandia.gov/',
+    mainfile_mime_re='application/(x-tar|octet-stream)',
+    mainfile_name_re=r'^.*\.(gpw2|gpw)$',
+    parser_class_name='nomad_simulation_parsers.parsers.gpaw.parser.GPAWParser',
+    code_name='GPAW',
+    code_homepage='https://wiki.fysik.dtu.dk/gpaw/',
     code_category='Atomistic code',
 )
 
