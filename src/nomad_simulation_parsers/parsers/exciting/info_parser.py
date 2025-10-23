@@ -558,7 +558,14 @@ class InfoFileParser(TextParser):
                             r'(?:Required\s)?[fF]orce\sconvergence\s(?:target\sachieved|has\snot\sbeen\sreached!)',
                             repeats=False,
                             str_operation=convert_convergence_target_reached,
-                            dtype=bool
+                            dtype=bool,
+                        ),
+                        Quantity(
+                            'force_target',
+                            r'Maximum\sforce\smagnitude\s*\(target\)\s*:\s*[.\d]+\s*\(\s*([.\d]+)\)',
+                            repeats=False,
+                            dtype=float,
+                            unit=ureg.hartree / ureg.bohr,
                         )
                     ]
                 ),
