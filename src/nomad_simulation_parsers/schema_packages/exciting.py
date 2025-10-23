@@ -64,6 +64,37 @@ workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
     ).update(dict(info=Mapper(mapper='.is_reached')))
 
 
+# outputs
+general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='@')
+)
+outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='.@')
+)
+outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('get_forces', ['.@']))
+)
+outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
+)
+outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
+    dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
+)
+outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
+)
+outputs.Outputs.scf_steps.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('get_scf_steps', ['@']))
+)
+
+# output quantities
+outputs.SCFStep.duration.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.duration'))
+)
+outputs.SCFStep.energy_total.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.energy_total'))
+)
+
 
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
@@ -153,24 +184,6 @@ class Representation(model_system.Representation):
 
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotation(atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol')
-
-
-class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, INFO_KEY, '.@')
-    add_mapping_annotation(
-        outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        BANDSTRUCTURE_XML_KEY,
-        ('get_bandstructures', ['.@']),
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos, DOS_XML_KEY, 'dos.totaldos.diagram'
-    )
 
 
 class TotalEnergy(properties.TotalEnergy):

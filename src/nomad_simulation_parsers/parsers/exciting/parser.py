@@ -119,6 +119,25 @@ class InfoParser(TextParser):
             }
         ]
     
+    def get_scf_steps(self, source : dict[str, Any]) -> dict[str, Any]:
+        scf_steps = source.get('groundstate').get('scf_iteration')
+        energies = []
+        wall_times = []
+        for step in scf_steps:
+            energies.append(step.get('energy_total').to('joule').magnitude)
+            wall_times.append(step.get('time_physical').to('seconds').magnitude)
+        durations = []
+        # compute duration by subtracting previous step from cumulative time
+        for idx, time in enumerate(wall_times):
+            if idx == 0:
+                duration = time
+            else:
+                duration = time - wall_times[idx-1]
+            durations.append(duration)
+        return [
+            {'energy_total': energy, 'duration' : duration} 
+            for energy, duration in zip(energies, durations)
+        ]
 
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
