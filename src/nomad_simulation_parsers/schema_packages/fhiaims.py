@@ -3,10 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.datamodel import EntryArchive
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -16,290 +13,261 @@ from nomad_simulations.schema_packages import (
     workflow,
 )
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
 
-EntryArchive.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        text=Mapper(mapper='@'),
-        text_dos=Mapper(mapper='@'),
-        text_gw=Mapper(mapper='@'),
-        single_point=Mapper(mapper='@'),
-        geo_opt_workflow=Mapper(mapper='@'),
-        md_workflow=Mapper(mapper='@'),
-    )
-)
+TEXT_KEY = 'text'
+TEXT_DOS_KEY = 'text_dos'
+TEXT_GW_KEY = 'text_gw'
+SINGLE_POINT_KEY = 'single_point'
+GEO_OPT_WORKFLOW_KEY = 'geo_opt_workflow'
+MD_WORKFLOW_KEY = 'md_workflow'
 
-general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        text=Mapper(mapper='@'),
-        text_dos=Mapper(mapper='@'),
-        text_gw=Mapper(mapper='@'),
-    )
-)
+# add_mapping_annotations(EntryArchive.m_def, TEXT_KEY, '@')
+# add_mapping_annotations(EntryArchive.m_def, TEXT_DOS_KEY, '@')
+# add_mapping_annotations(EntryArchive.m_def, TEXT_GW_KEY, '@')
+# add_mapping_annotations(EntryArchive.m_def, SINGLE_POINT_KEY, '@')
+# add_mapping_annotations(EntryArchive.m_def, GEO_OPT_WORKFLOW_KEY, '@')
+# add_mapping_annotations(EntryArchive.m_def, MD_WORKFLOW_KEY, '@')
+
+add_mapping_annotation(general.Simulation.m_def, TEXT_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, TEXT_DOS_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, TEXT_GW_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.@')))
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text=Mapper(
-                mapper=(
-                    'get_sections',
-                    ['.@'],
-                    dict(include=['lattice_vectors', 'structure', 'sub_structure']),
-                )
-            )
-        )
+    add_mapping_annotation(general.Simulation.program, TEXT_KEY, '.@')
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        TEXT_KEY,
+        (
+            'get_sections',
+            ['.@'],
+            dict(include=['lattice_vectors', 'structure', 'sub_structure']),
+        ),
     )
     # DFT method
-    model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(text=Mapper(mapper='.@'))
-    )
+    add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
-    model_method.GW.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(text_gw=Mapper(mapper='.@'))
-    )
+    add_mapping_annotation(model_method.GW.m_def, TEXT_GW_KEY, '.@')
     # electronic structure outputs
-    outputs.Outputs.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(
-            text=Mapper(
-                mapper=(
-                    'get_sections',
-                    ['.@'],
-                    dict(
-                        include=[
-                            'energy',
-                            'energy_components',
-                            'forces',
-                            'eigenvalues',
-                        ]
-                    ),
-                )
-            ),
-            text_dos=Mapper(
-                mapper=(
-                    'get_sections',
-                    ['.@'],
-                    dict(
-                        include=[
-                            'total_dos_files',
-                            'species_projected_dos_files',
-                        ]
-                    ),
-                )
-            ),
-        )
+    add_mapping_annotation(
+        outputs.Outputs.m_def,
+        TEXT_KEY,
+        (
+            'get_sections',
+            ['.@'],
+            dict(include=['energy', 'energy_components', 'forces', 'eigenvalues']),
+        ),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.m_def,
+        TEXT_DOS_KEY,
+        (
+            'get_sections',
+            ['.@'],
+            dict(include=['total_dos_files', 'species_projected_dos_files']),
+        ),
     )
 
 
 class Program(general.Program):
-    general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(text=Mapper(mapper='.version'))
-    )
+    add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
 
 
 class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
+    add_mapping_annotation(
+        model_method.DFT.xc_functionals,
+        TEXT_KEY,
+        ('get_xc_functionals', ['.controlInOut_xc']),
+    )
 
 
 class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.name')))
+    add_mapping_annotation(model_method.XCFunctional.libxc_name, TEXT_KEY, '.name')
 
 
 class GW(model_method.GW):
-    model_method.GW.type.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(text_gw=Mapper(mapper=('get_gw_flag', ['.gw_flag'])))
+    add_mapping_annotation(
+        model_method.GW.type, TEXT_GW_KEY, ('get_gw_flag', ['.gw_flag'])
     )
 
 
 class ModelSystem(model_system.ModelSystem):
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.@')))
-    model_system.ModelSystem.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.structure.positions', unit='angstrom')))
-    model_system.AtomsState.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.structure.labels')))
+    add_mapping_annotation(model_system.AtomicCell.m_def, TEXT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        TEXT_KEY,
+        '.structure.positions',
+        unit='angstrom',
+    )
+    add_mapping_annotation(
+        model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels'
+    )
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.lattice_vectors')))
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors, TEXT_KEY, '.lattice_vectors'
+    )
 
 
 class AtomsState(model_system.AtomsState):
-    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.@')))
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, TEXT_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text=Mapper(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
-            )
-        )
+    add_mapping_annotation(
+        outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
     )
-    outputs.Outputs.electronic_dos.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text_dos=Mapper(
-                mapper=(
-                    'get_dos',
-                    [
-                        '.total_dos_files',
-                        '.atom_projected_dos_files',
-                        '.species_projected_dos_files',
-                    ],
-                )
-            )
-        )
+    add_mapping_annotation(
+        outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues,
+        TEXT_KEY,
+        ('get_eigenvalues', ['.eigenvalues', 'array_size_parameters']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        TEXT_DOS_KEY,
+        (
+            'get_dos',
+            [
+                '.total_dos_files',
+                '.atom_projected_dos_files',
+                '.species_projected_dos_files',
+            ],
+        ),
     )
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
-    properties.energies.TotalEnergy.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.value')))
-    properties.energies.TotalEnergy.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.components')))
+    add_mapping_annotation(properties.energies.TotalEnergy.value, TEXT_KEY, '.value')
+    add_mapping_annotation(
+        properties.energies.TotalEnergy.contributions, TEXT_KEY, '.components'
+    )
 
 
 class BaseEnergy(properties.energies.BaseEnergy):
-    properties.energies.BaseEnergy.name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.name')))
+    add_mapping_annotation(properties.energies.BaseEnergy.name, TEXT_KEY, '.name')
 
 
 class TotalForce(properties.forces.TotalForce):
-    properties.forces.TotalForce.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.forces')))
+    add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.nbands')))
-    properties.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.eigenvalues')))
-    properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.occupations')))
+    add_mapping_annotation(
+        properties.ElectronicEigenvalues.n_bands, TEXT_KEY, '.nbands'
+    )
+    add_mapping_annotation(
+        properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        properties.ElectronicEigenvalues.occupation, TEXT_KEY, '.occupations'
+    )
 
 
 class DOSProfile(properties.spectral_profile.DOSProfile):
     ### dos quantities
-    properties.spectral_profile.DOSProfile.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text_dos=Mapper(mapper='.values')))
+    add_mapping_annotation(
+        properties.spectral_profile.DOSProfile.value, TEXT_DOS_KEY, '.values'
+    )
 
 
 class ElectronicDensityOfStates(properties.spectral_profile.ElectronicDensityOfStates):
-    properties.spectral_profile.ElectronicDensityOfStates.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text_dos=Mapper(mapper='.values')))
+    add_mapping_annotation(
+        properties.spectral_profile.ElectronicDensityOfStates.value,
+        TEXT_DOS_KEY,
+        '.values',
+    )
     ### projected dos
-    properties.spectral_profile.ElectronicDensityOfStates.projected_dos.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text_dos=Mapper(mapper='.projected_dos')))
+    add_mapping_annotation(
+        properties.spectral_profile.ElectronicDensityOfStates.projected_dos,
+        TEXT_DOS_KEY,
+        '.projected_dos',
+    )
 
 
 class SimulationWorkflow(workflow.general.SimulationWorkflow):
     # TODO find a more elegant fix to not parse tasks recursively, this will be filled
     # in by workflow normalizer from outputs
-    workflow.general.SimulationWorkflow.tasks.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            geo_opt_workflow=Mapper(mapper='.tasks'),
-            md_workflow=Mapper(mapper='.tasks'),
-        )
+    add_mapping_annotation(
+        workflow.general.SimulationWorkflow.tasks, GEO_OPT_WORKFLOW_KEY, '.tasks'
+    )
+    add_mapping_annotation(
+        workflow.general.SimulationWorkflow.tasks, MD_WORKFLOW_KEY, '.tasks'
     )
 
 
 # workflow
-workflow.single_point.SinglePoint.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(single_point=Mapper(mapper='.@')))
+add_mapping_annotation(workflow.single_point.SinglePoint.m_def, SINGLE_POINT_KEY, '.@')
 # geometry optimization workflow
-workflow.geometry_optimization.GeometryOptimization.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimization.m_def,
+    GEO_OPT_WORKFLOW_KEY,
+    '.@',
+)
 # molecular dynamics workflow
-workflow.molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(md_workflow=Mapper(mapper='.@')))
+add_mapping_annotation(
+    workflow.molecular_dynamics.MolecularDynamics.m_def, MD_WORKFLOW_KEY, '.@'
+)
 
 
 class MolecularDynamics(workflow.MolecularDynamics):
-    workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.@')))
-    workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.@')))
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsModel.m_def, MD_WORKFLOW_KEY, '.@'
+    )
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsResults.m_def,
+        MD_WORKFLOW_KEY,
+        '.@',
+    )
 
 
 class GeometryOptimization(workflow.GeometryOptimization):
-    workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
-    workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
+    add_mapping_annotation(
+        workflow.geometry_optimization.GeometryOptimizationModel.m_def,
+        GEO_OPT_WORKFLOW_KEY,
+        '.@',
+    )
+    add_mapping_annotation(
+        workflow.geometry_optimization.GeometryOptimizationResults.m_def,
+        GEO_OPT_WORKFLOW_KEY,
+        '.@',
+    )
 
 
 class GeometryOptimizationModel(
     workflow.geometry_optimization.GeometryOptimizationModel
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
+    add_mapping_annotation(
+        workflow.geometry_optimization.GeometryOptimizationModel.optimization_method,
+        GEO_OPT_WORKFLOW_KEY,
+        '.geometry_relaxation_method',
+    )
 
 
 class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
-    workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
-    workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep,
+        MD_WORKFLOW_KEY,
+        '.control_inout.md_timestep',
+    )
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble,
+        MD_WORKFLOW_KEY,
+        '.control_inout.md_run[0].ensemble',
+    )
 
 
 class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-    workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            md_workflow=Mapper(
-                mapper='molecular_dynamics[*].md_calculation_info.'
-                '"Temperature (nuclei)"'
-            )
-        )
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsResults.temperature,
+        MD_WORKFLOW_KEY,
+        'molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"',
     )
 
 

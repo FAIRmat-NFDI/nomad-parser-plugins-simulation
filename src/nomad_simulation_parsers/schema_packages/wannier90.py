@@ -1,6 +1,4 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -12,293 +10,220 @@ from nomad_simulations.schema_packages import (
     variables,
 )
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
+
+WOUT_KEY = 'wout'
+WIN_KEY = 'win'
+BAND_KEY = 'band'
+WHR_KEY = 'whr'
+DOS_KEY = 'dos'
 
 
 class Program(general.Program):
-    general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(wout=Mapper(mapper='.version'))
-    )
+    add_mapping_annotation(general.Program.version, WOUT_KEY, '.version')
 
 
 class OrbitalsState(atoms_state.OrbitalsState):
-    atoms_state.OrbitalsState.l_quantum_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.l')))
-
-    atoms_state.OrbitalsState.ml_quantum_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.m')))
+    add_mapping_annotation(atoms_state.OrbitalsState.l_quantum_symbol, WIN_KEY, '.l')
+    add_mapping_annotation(atoms_state.OrbitalsState.ml_quantum_symbol, WIN_KEY, '.m')
 
 
 class AtomsState(model_system.AtomsState):
-    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@')))
-
-    model_system.AtomsState.orbitals_state.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper=('get_orbitals_state', ['.projection[1]']))))
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, WOUT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.AtomsState.orbitals_state,
+        WIN_KEY,
+        ('get_orbitals_state', ['.projection[1]']),
+    )
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            wout=Mapper(
-                mapper=('get_lattice_vectors', ['lattice_vectors']), unit='angstrom'
-            )
-        )
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors,
+        WOUT_KEY,
+        ('get_lattice_vectors', ['lattice_vectors']),
+        unit='angstrom',
     )
-
-    model_system.AtomicCell.periodic_boundary_conditions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper=('get_pbc', ['lattice_vectors']))))
+    add_mapping_annotation(
+        model_system.AtomicCell.periodic_boundary_conditions,
+        WOUT_KEY,
+        ('get_pbc', ['lattice_vectors']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@')))
-
-    model_system.ModelSystem.cell.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.@')))
-
-    model_system.ModelSystem.sub_systems.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper=('get_projections', ['.projections']))))
-
-    model_system.ModelSystem.branch_label.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            win=Mapper(
-                mapper=(
-                    'get_branch_label_indices',
-                    [
-                        '.projection[0]',
-                        'structure.positions',
-                        'structure.labels',
-                        'lattice_vectors',
-                    ],
-                ),
-                search='label',
-                cache=True,
-            )
-        )
+    add_mapping_annotation(model_system.AtomicCell.m_def, WOUT_KEY, '.@')
+    add_mapping_annotation(model_system.ModelSystem.cell, WIN_KEY, '.@')
+    add_mapping_annotation(
+        model_system.ModelSystem.sub_systems,
+        WIN_KEY,
+        ('get_projections', ['.projections']),
     )
-
-    model_system.ModelSystem.particle_indices.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            win=Mapper(
-                mapper=(
-                    'get_branch_label_indices',
-                    [
-                        '.projection[0]',
-                        'structure.positions',
-                        'structure.labels',
-                        'lattice_vectors',
-                    ],
-                ),
-                search='indices',
-                cache=True,
-            )
-        )
+    add_mapping_annotation(
+        model_system.ModelSystem.branch_label,
+        WIN_KEY,
+        (
+            'get_branch_label_indices',
+            [
+                '.projection[0]',
+                'structure.positions',
+                'structure.labels',
+                'lattice_vectors',
+            ],
+        ),
+        search='label',
+        cache=True,
     )
-    model_system.AtomsState.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.labels'), win=Mapper(mapper='.@')))
-
-    model_system.ModelSystem.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.positions', unit='angstrom')))
+    add_mapping_annotation(
+        model_system.ModelSystem.particle_indices,
+        WIN_KEY,
+        (
+            'get_branch_label_indices',
+            [
+                '.projection[0]',
+                'structure.positions',
+                'structure.labels',
+                'lattice_vectors',
+            ],
+        ),
+        search='indices',
+        cache=True,
+    )
+    add_mapping_annotation(model_system.AtomsState.m_def, WOUT_KEY, '.labels')
+    add_mapping_annotation(model_system.AtomsState.m_def, WIN_KEY, '.@')
+    add_mapping_annotation(
+        model_system.ModelSystem.positions, WOUT_KEY, '.positions', unit='angstrom'
+    )
 
 
 class KMesh(numerical_settings.KMesh):
-    numerical_settings.KMesh.n_points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.n_points')))
-
-    numerical_settings.KMesh.grid.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.grid')))
-
-    numerical_settings.KMesh.points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper=('get_kpoints', ['.k_points']))))
+    add_mapping_annotation(numerical_settings.KMesh.n_points, WOUT_KEY, '.n_points')
+    add_mapping_annotation(numerical_settings.KMesh.grid, WOUT_KEY, '.grid')
+    add_mapping_annotation(
+        numerical_settings.KMesh.points, WOUT_KEY, ('get_kpoints', ['.k_points'])
+    )
 
 
 class KLinePath(numerical_settings.KLinePath):
-    numerical_settings.KLinePath.high_symmetry_path_names.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.names')))
-
-    numerical_settings.KLinePath.high_symmetry_path_values.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.values')))
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_names, WOUT_KEY, '.names'
+    )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_values, WOUT_KEY, '.values'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
-    numerical_settings.KSpace.k_mesh.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.k_mesh')))
-
-    numerical_settings.KSpace.k_line_path.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(wout=Mapper(mapper=('get_k_line_path', ['.k_line_path']), cache=True))
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, WOUT_KEY, '.k_mesh')
+    add_mapping_annotation(
+        numerical_settings.KSpace.k_line_path,
+        WOUT_KEY,
+        ('get_k_line_path', ['.k_line_path']),
+        cache=True,
     )
 
 
 class ModelMethod(model_method.ModelMethod):
-    numerical_settings.KSpace.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@')))
+    add_mapping_annotation(numerical_settings.KSpace.m_def, WOUT_KEY, '.@')
 
 
 class Wannier(model_method.Wannier):
-    model_method.Wannier.is_maximally_localized.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            wout=Mapper(mapper=('is_maximally_localized', ['.Niter'], dict(default=0)))
-        )
+    add_mapping_annotation(
+        model_method.Wannier.is_maximally_localized,
+        WOUT_KEY,
+        ('is_maximally_localized', ['.Niter'], dict(default=0)),
     )
-
-    model_method.Wannier.energy_window_outer.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.energy_windows.outer')))
-
-    model_method.Wannier.energy_window_inner.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.energy_windows.inner')))
-
-    # model_method.Wannier.n_orbitals.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(wout=Mapper(mapper='.Nwannier')))
+    add_mapping_annotation(
+        model_method.Wannier.energy_window_outer, WOUT_KEY, '.energy_windows.outer'
+    )
+    add_mapping_annotation(
+        model_method.Wannier.energy_window_inner, WOUT_KEY, '.energy_windows.inner'
+    )
+    # add_mapping_annotations(model_method.Wannier.n_orbitals, WOUT_KEY, '.Nwannier')
 
 
 class ElectronicBandStructure(properties.ElectronicBandStructure):
-    properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.Nwannier')))
-
-    properties.ElectronicBandStructure.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(band=Mapper(mapper=('get_data', ['.data']))))
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.n_bands, WOUT_KEY, '.Nwannier'
+    )
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
+    )
 
 
 class WignerSeitz(variables.WignerSeitz):
-    variables.WignerSeitz.n_points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='.n_ws_points')))
-
-    variables.WignerSeitz.points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='.ws_points')))
+    add_mapping_annotation(variables.WignerSeitz.n_points, WHR_KEY, '.n_ws_points')
+    add_mapping_annotation(variables.WignerSeitz.points, WHR_KEY, '.ws_points')
 
 
 class HoppingMatrix(properties.HoppingMatrix):
-    properties.HoppingMatrix.n_orbitals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='n_orbitals')))
-
-    properties.HoppingMatrix.degeneracy_factors.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='.degeneracy_factors')))
+    add_mapping_annotation(properties.HoppingMatrix.n_orbitals, WHR_KEY, '.n_orbitals')
+    add_mapping_annotation(
+        properties.HoppingMatrix.degeneracy_factors, WHR_KEY, '.degeneracy_factors'
+    )
 
     # TODO shape mismatch
-    # properties.HoppingMatrix.value.m_annotations.setdefault(
-    # MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(whr=Mapper(mapper='.hoppings', unit='eV')))
+    # add_mapping_annotation(
+    #     properties.HoppingMatrix.value, WHR_KEY, '.hoppings', unit='eV'
+    # )
 
-    variables.WignerSeitz.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='.@')))
+    add_mapping_annotation(variables.WignerSeitz.m_def, WHR_KEY, '.@')
 
 
 class CrystalFieldSplitting(properties.CrystalFieldSplitting):
-    properties.CrystalFieldSplitting.n_orbitals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='n_orbitals')))
-
-    properties.CrystalFieldSplitting.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper='.crystal_fields', unit='eV')))
+    add_mapping_annotation(
+        properties.CrystalFieldSplitting.n_orbitals, WHR_KEY, 'n_orbitals'
+    )
+    add_mapping_annotation(
+        properties.CrystalFieldSplitting.value, WHR_KEY, '.crystal_fields', unit='eV'
+    )
 
 
 class Energy2(variables.Energy2):
-    variables.Energy2.points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(dos=Mapper(mapper='.energies', unit='eV')))
+    add_mapping_annotation(variables.Energy2.points, DOS_KEY, '.energies', unit='eV')
 
 
 class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
-    properties.ElectronicDensityOfStates.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(dos=Mapper(mapper='.value', unit='1/eV')))
-
-    variables.Energy2.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(dos=Mapper(mapper='.@'))
+    add_mapping_annotation(
+        properties.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1/eV'
     )
+    add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.electronic_band_structures.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@'), band=Mapper(mapper='.@')))
-
-    outputs.Outputs.hopping_matrices.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper=('get_hoppings', ['.@'], dict(ws=True)))))
-
-    outputs.Outputs.crystal_field_splittings.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(whr=Mapper(mapper=('get_hoppings', ['.@']))))
-
-    outputs.Outputs.electronic_dos.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(dos=Mapper(mapper=('get_dos', ['.data']))))
+    add_mapping_annotation(outputs.Outputs.electronic_band_structures, WOUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.electronic_band_structures, BAND_KEY, '.@')
+    add_mapping_annotation(
+        outputs.Outputs.hopping_matrices,
+        WHR_KEY,
+        ('get_hoppings', ['.@'], dict(ws=True)),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.crystal_field_splittings, WHR_KEY, ('get_hoppings', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
+    )
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@')))
-
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.@'), wout=Mapper(mapper='.structure')))
-
-    model_method.Wannier.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.@')))
-
-    general.Simulation.outputs.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            wout=Mapper(mapper='.@'),
-            band=Mapper(mapper='.@'),
-            whr=Mapper(mapper='.@'),
-            dos=Mapper(mapper='.@'),
-        )
-    )
+    add_mapping_annotation(general.Simulation.program, WOUT_KEY, '.@')
+    add_mapping_annotation(general.Simulation.model_system, WIN_KEY, '.@')
+    add_mapping_annotation(general.Simulation.model_system, WOUT_KEY, '.structure')
+    add_mapping_annotation(model_method.Wannier.m_def, WOUT_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, WOUT_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, BAND_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, WHR_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, DOS_KEY, '.@')
 
 
-general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        win=Mapper(mapper='@'),
-        wout=Mapper(mapper='@'),
-        band=Mapper(mapper='@'),
-        whr=Mapper(mapper='@'),
-        dos=Mapper(mapper='@'),
-    )
-)
+add_mapping_annotation(general.Simulation.m_def, WIN_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, WOUT_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, BAND_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, WHR_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '@')
 
 
 try:

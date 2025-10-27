@@ -94,7 +94,7 @@ class GPAWArchiveWriter(ArchiveWriter):
         reload(gpaw)
 
         self.mainfile_parser.filepath = self.mainfile
-        self.archive_parser.annotation_key = 'gpw'
+        self.archive_parser.annotation_key = gpaw.GPW_KEY
         self.archive_parser.data_object = Simulation()
 
         self.mainfile_parser.convert(self.archive_parser)
