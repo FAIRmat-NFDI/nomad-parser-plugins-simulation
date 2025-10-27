@@ -432,15 +432,15 @@ class GromacsArchiveWriter(MDParser):
         self._edr_parser._trajectory_steps = traj_steps
 
         # parse main log file
-        self._simulation_parser.annotation_key = 'log'
+        self._simulation_parser.annotation_key = gromacs.LOG_KEY
         self._log_parser.convert(self._simulation_parser)
 
         # parse edr file
-        self._simulation_parser.annotation_key = 'edr'
+        self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
 
         # parse mdanalysis trajectory files
-        self._simulation_parser.annotation_key = 'tpr'
+        self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser)
 
         self._simulation_parser.close()
