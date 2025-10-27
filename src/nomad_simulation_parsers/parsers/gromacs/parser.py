@@ -21,7 +21,7 @@ from nomad_simulation_parsers.schema_packages import gromacs
 
 from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
 from .log_parser import GromacsLogParser as GromacsLogTextParser
-from .mdanalysis_parser import GromacsMDAnalysisParser as MDAnalysisParser
+from .mdanalysis_parser import GromacsMDAnalysisParser as GromacsMDAnalysisFileParser
 from .mdp_parser import GromacsMdpParser as GromacsMDPTextParser
 from .xvg_parser import GromacsXvgParser as GromacsXVGTextParser
 
@@ -233,7 +233,7 @@ class GromacsXVGParser(TextParser):
 
 class GromacsMDAnalysisParser(MappingParser):
     aux_files: list[str] = []
-    mdanalysis_parser: MDAnalysisParser = None
+    mdanalysis_parser: GromacsMDAnalysisFileParser = None
     _trajectory_steps_sampled: list[int] = []
     _trajectory_steps: list[int] = []
     _thermodynamic_steps: list[int] = []
@@ -252,7 +252,7 @@ class GromacsMDAnalysisParser(MappingParser):
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
 
-    def load_file(self) -> MDAnalysisParser:
+    def load_file(self) -> GromacsMDAnalysisFileParser:
         if self.filepath:
             self.mdanalysis_parser.mainfile = self.filepath
             if self.aux_files:
@@ -298,7 +298,7 @@ class GromacsArchiveWriter(MDParser):
         self._mdp_parser = GromacsMDPParser(text_parser=GromacsMDPTextParser())
         self._edr_parser = GromacsEDRParser(edr_parser=GromacsEDRFileParser())
         self._mdanalysis_parser = GromacsMDAnalysisParser(
-            mdanalysis_parser=MDAnalysisParser()
+            mdanalysis_parser=GromacsMDAnalysisFileParser()
         )
         self._xvg_parser = GromacsXVGParser(text_parser=GromacsXVGTextParser())
         self.mdp_ext = 'mdp'
