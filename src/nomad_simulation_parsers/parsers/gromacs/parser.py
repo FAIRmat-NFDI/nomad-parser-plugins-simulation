@@ -16,12 +16,12 @@ from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import gromacs
 
 from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
 from .log_parser import GromacsLogParser as GromacsLogTextParser
+from .mdanalysis_parser import GromacsMDAnalysisParser as MDAnalysisParser
 from .mdp_parser import GromacsMdpParser as GromacsMDPTextParser
 from .xvg_parser import GromacsXvgParser as GromacsXVGTextParser
 
