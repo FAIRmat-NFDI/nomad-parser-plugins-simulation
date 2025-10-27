@@ -22,8 +22,11 @@ from nomad_simulation_parsers.schema_packages import gromacs
 
 from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
 from .log_parser import GromacsLogParser as GromacsLogTextParser
+from .mdp_parser import GromacsMdpParser as GromacsMDPTextParser
+from .xvg_parser import GromacsXvgParser as GromacsXVGTextParser
 
 LOGGER = get_logger(__name__)
+ENERGY_UNIT = ureg.kilojoule / ureg.avogadro_number
 
 
 class GromacsMetainfoParser(MetainfoParser):
@@ -36,14 +39,13 @@ class GromacsMetainfoParser(MetainfoParser):
 class GromacsThermodynamicsParser(MappingParser):
     _trajectory_steps: list[int] = []
     _thermodynamic_steps: list[int] = []
-    _energy_unit = ureg.kilojoule / ureg.avogadro_number
     _base_calc_unit_map = {
         'Temperature': ureg.kelvin,
         'Volume': ureg.nm**3,
         'Density': ureg.kilogram / ureg.m**3,
         'Pressure (bar)': ureg.bar,
         'Pressure': ureg.bar,
-        'Enthalpy': _energy_unit,
+        'Enthalpy': ENERGY_UNIT,
     }
     _energy_label_map = {
         'Potential': 'potential',
@@ -66,7 +68,7 @@ class GromacsThermodynamicsParser(MappingParser):
                 if val is None or val[n] is None:
                     continue
                 if key in self._energy_label_map:
-                    val_n = val[n] * self._energy_unit
+                    val_n = val[n] * ENERGY_UNIT
                     if key == 'Total Energy':
                         data.setdefault('energy', {})['value'] = val_n
                     else:
@@ -139,6 +141,38 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return outputs
 
 
+class GromacsMDPParser(TextParser):
+    # TODO: temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+    def load_file(self):
+        data_object = super().load_file()
+
+        def check_input_parameters_dict_recursive(self, input_dict: dict, key: str):
+            if key in input_dict:
+                return True
+            for _, v in input_dict.items():
+                if isinstance(v, dict):
+                    if check_input_parameters_dict_recursive(v, key):
+                        return True
+            return False
+
+        input_parameters = data_object.get('input_parameters', {})
+        # parameters that are unique to the mdp file
+        input_parameters['mdp_unique_params'] = {}
+        for key, param in input_parameters.items():
+            new_key = key.replace('_', '-')
+            if not check_input_parameters_dict_recursive(input_parameters, new_key):
+                input_parameters['mdp_unique_params'][new_key] = (
+                    param.lower() if isinstance(param, str) else param
+                )
+
+        self.input_parameters = input_parameters
+        return data_object
+
+
 class GromacsEDRParser(GromacsThermodynamicsParser):
     # Fallback parser
     edr_parser: GromacsEDRFileParser = None
@@ -161,6 +195,40 @@ class GromacsEDRParser(GromacsThermodynamicsParser):
         if self.filepath:
             self.edr_parser.mainfile = self.filepath
         return self.edr_parser
+
+
+class GromacsXVGParser(TextParser):
+    input_parameters = {}
+
+    # TODO: temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+    def get_results(self) -> dict[str, Any]:
+        title = self.data.get('title', '')
+        # TODO incorporate x and y axis labels into the checks
+        if not (r'dH/d\xl\f{}' in title and r'\xD\f{}H' in title):
+            return {}
+        results = {}
+
+        free_energy = results.setdefault('free_energy_calculations', {})
+        columns = self.data.get('column_vals')
+        free_energy['n_frames'] = len(columns)
+        free_energy['value_unit'] = str(ENERGY_UNIT.units)
+        # TODO get n_states from input_parameters
+        free_energy['n_states'] = self.input_parameters.get('n_states')
+        xaxis = self.data.get('xaxis', '').lower()
+        # The expected columns of the xvg file are:
+        # Total Energy
+        # dH/dlambda current lambda
+        # Delta H between each lambda and current lambda (n_lambda columns)
+        # PV Energy
+        if 'time' in xaxis and columns[:, 3:-1].shape[1] == free_energy['n_states']:
+            free_energy['times'] = columns[:, 0] * ureg.ps
+            columns = columns[:, 1:] * ENERGY_UNIT.magnitude
+
+        return results
 
 
 class GromacsMDAnalysisParser(MappingParser):
@@ -227,11 +295,46 @@ class GromacsArchiveWriter(MDParser):
     def __init__(self, **kwargs):
         self._simulation_parser = GromacsMetainfoParser()
         self._log_parser = GromacsLogParser(text_parser=GromacsLogTextParser())
+        self._mdp_parser = GromacsMDPParser(text_parser=GromacsMDPTextParser())
         self._edr_parser = GromacsEDRParser(edr_parser=GromacsEDRFileParser())
         self._mdanalysis_parser = GromacsMDAnalysisParser(
             mdanalysis_parser=MDAnalysisParser()
         )
+        self._xvg_parser = GromacsXVGParser(text_parser=GromacsXVGTextParser())
+        self.mdp_ext = 'mdp'
+        self.mdp_std_filename = 'mdout'
         super().__init__(**kwargs)
+
+    def get_mdp_file(self):
+        """
+        Tries to find the mdp input parameters (ext = mdp) that match the mainfile
+        calculation.
+        Priority is as follows:
+            1. output mdp file containing both the matching mainfile name and the
+            standard gromacs name `mdout`
+            2. file containing the standard gromacs name `mdout`
+            3. input mdp file matching the mainfile name (as usual)
+            4. any `.mdp` file within the directory (as usual)
+        """
+        files = [d for d in self._gromacs_files if d.endswith(self.mdp_ext)]
+
+        if len(files) == 0:
+            return ''
+
+        if len(files) == 1:
+            return os.path.join(self._maindir, files[0])
+
+        for f in files:
+            filename = f.rsplit('.', 1)[0]
+            if self._basename in filename and self.mdp_std_filename in filename:
+                return os.path.join(self._maindir, f)
+
+        for f in files:
+            filename = f.rsplit('.', 1)[0]
+            if self.mdp_std_filename in filename:
+                return os.path.join(self._maindir, f)
+
+        return self.get_gromacs_file(self.mdp_ext)
 
     def get_gromacs_file(self, ext: str) -> str:
         files = [d for d in self._gromacs_files if d.endswith(ext)]
@@ -286,6 +389,9 @@ class GromacsArchiveWriter(MDParser):
         self._log_parser.filepath = self.mainfile
         self._edr_parser.filepath = self.get_gromacs_file('edr')
         self._mdanalysis_parser.filepath = self.get_gromacs_file('tpr')
+        # TODO include input parameters read from mdp parser
+        self._mdp_parser.filepath = self.get_mdp_file()
+        self._xvg_parser.filepath = self.get_gromacs_file('xvg')
         # determine auxiliary file order: trr, xtc
         for ext in ['trr', 'xtc']:
             aux_file = self.get_gromacs_file(ext)
@@ -341,6 +447,8 @@ class GromacsArchiveWriter(MDParser):
         self._log_parser.close()
         self._mdanalysis_parser.close()
         self._edr_parser.close()
+        self._mdp_parser.close()
+        self._xvg_parser.close()
 
 
 class GromacsParser(MatchingParser):
