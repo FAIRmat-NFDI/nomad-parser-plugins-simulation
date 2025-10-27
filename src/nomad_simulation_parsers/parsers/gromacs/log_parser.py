@@ -3,7 +3,7 @@ from typing import Any
 
 from nomad.parsing.file_parser.text_parser import Quantity, TextParser
 
-from .common import RE_N, to_float
+from .common import to_float
 
 
 def str_to_header(block: str) -> dict[str, Any]:
@@ -115,7 +115,7 @@ class GromacsLogParser(TextParser):
             ),
             Quantity(
                 'step_info',
-                rf'{RE_N}\s*(Step.+\n[\d\.\- ]+)',
+                r'(Step.+\n[\d\.\- ]+)',
                 str_operation=str_to_step_info,
                 convert=False,
             ),
@@ -125,7 +125,8 @@ class GromacsLogParser(TextParser):
             Quantity('time_start', r'Log file opened on (.+)', flatten=False),
             Quantity(
                 'host_info',
-                r'Host:\s*(\S+)\s*pid:\s*(\d+)\s*rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
+                r'Host:\s*(\S+)\s*pid:\s*(\d+)\s*rank ID:\s*(\d+)\s*number of ranks:'
+                r'\s*(\d*)',
             ),
             Quantity(
                 'module_version', r'GROMACS:\s*(.+?),\s*VERSION\s*(\S+)', flatten=False

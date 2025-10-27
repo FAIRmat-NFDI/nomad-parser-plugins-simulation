@@ -1,27 +1,29 @@
-from nomad.datamodel import EntryArchive
-from nomad.parsing.parser import MatchingParser
-from nomad_simulations.schema_packages.general import Program, Simulation
-from structlog.stdlib import BoundLogger
-from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser
-from nomad.utils import get_logger
-from nomad.units import ureg
-from nomad.parsing.file_parser.mapping_parser import MappingParser, TextParser
-from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
-from typing import Any
-from .log_parser import GromacsLogParser as GromacsLogTextParser
-from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
-from nomad_simulations.schema_packages.general import Simulation
-from importlib import reload
-from nomad_simulation_parsers.schema_packages import gromacs
 import os
+from importlib import reload
+from typing import Any
+
 import numpy as np
 from ase.symbols import symbols2numbers
+from nomad.datamodel import EntryArchive
+from nomad.parsing.file_parser.mapping_parser import (
+    MappingParser,
+    MetainfoParser,
+    TextParser,
+)
+from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Program, Simulation
+from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad_simulation_parsers.schema_packages import gromacs
+
+from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
+from .log_parser import GromacsLogParser as GromacsLogTextParser
 
 LOGGER = get_logger(__name__)
-
-# TODO put this in utils
-MOL = 6.022140857e23
 
 
 class GromacsMetainfoParser(MetainfoParser):
@@ -31,9 +33,58 @@ class GromacsMetainfoParser(MetainfoParser):
         return LOGGER
 
 
-class GromacsLogParser(TextParser):
-    _trajectory_steps_sampled: list[int] = []
+class GromacsThermodynamicsParser(MappingParser):
     _trajectory_steps: list[int] = []
+    _thermodynamic_steps: list[int] = []
+    _energy_unit = ureg.kilojoule / ureg.avogadro_number
+    _base_calc_unit_map = {
+        'Temperature': ureg.kelvin,
+        'Volume': ureg.nm**3,
+        'Density': ureg.kilogram / ureg.m**3,
+        'Pressure (bar)': ureg.bar,
+        'Pressure': ureg.bar,
+        'Enthalpy': _energy_unit,
+    }
+    _energy_label_map = {
+        'Potential': 'potential',
+        'Kinetic En.': 'kinetic',
+        'Total Energy': 'total',
+        'pV': 'pressure_volume_work',
+    }
+
+    def get_outputs(self, source: dict[str, Any] = {}) -> list[dict[str, Any]]:
+        outputs = []
+        times = source.get('Time', [])
+        outputs = []
+        for n, step in enumerate(self._thermodynamic_steps):
+            data = dict(
+                step=step,
+                time=times[n] * ureg.picosecond if times[n] is not None else None,
+            )
+            for key in source.keys():
+                val = source.get(key)
+                if val is None or val[n] is None:
+                    continue
+                if key in self._energy_label_map:
+                    val_n = val[n] * self._energy_unit
+                    if key == 'Total Energy':
+                        data.setdefault('energy', {})['value'] = val_n
+                    else:
+                        data.setdefault('energy', {}).setdefault(
+                            'contributions', []
+                        ).append(dict(value=val_n, label=self._energy_label_map[key]))
+                elif key in self._base_calc_unit_map:
+                    data[key] = val[n] * self._base_calc_unit_map[key]
+            if step in self._trajectory_steps:
+                data['system_ref'] = (
+                    f'/data/model_system/{self._trajectory_steps.index(step)}'
+                )
+            outputs.append(data)
+        return outputs
+
+
+class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
+    _trajectory_steps_sampled: list[int] = []
     input_parameters: dict[str, Any] = {}
 
     # TODO: temporary fix for structlog unable to propagate logger
@@ -62,13 +113,35 @@ class GromacsLogParser(TextParser):
     def get_version(self, source: str) -> str:
         return (source or 'unknown').lstrip('VERSION')
 
+    def get_configurations(self):
+        pbc = [k in self.input_parameters.get('pbc', 'xyz') for k in 'xyz']
+        return [dict(pbc=pbc) for _ in self._trajectory_steps_sampled]
 
-class GromacsEDRParser(MappingParser):
+    def get_outputs(self) -> list[dict[str, Any]]:
+        data = {}
+        steps = self.data.get('step', [])
+        n_steps = len(self._thermodynamic_steps)
+        for n, step in enumerate(steps):
+            energies = step.get('energies')
+            info = step.get('step_info')
+            if energies is None or info is None:
+                continue
+            step_n = int(info.get('Step'))
+            if step_n not in self._thermodynamic_steps:
+                continue
+            index = self._thermodynamic_steps.index(step_n)
+            for key in energies.keys():
+                data.setdefault(key, [None] * n_steps)
+                data[key][index] = energies.get(key)
+            data.setdefault('Time', [None] * n_steps)
+            data['Time'][index] = info.get('Time', 1)
+        outputs = super().get_outputs(data)
+        return outputs
+
+
+class GromacsEDRParser(GromacsThermodynamicsParser):
     # Fallback parser
-    log_parser: GromacsLogParser = None
     edr_parser: GromacsEDRFileParser = None
-    _trajectory_steps: list[int] = []
-    _thermodynamic_steps: list[int] = []
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -77,23 +150,9 @@ class GromacsEDRParser(MappingParser):
 
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
-            # Read data from log if cannot be parsed from edr
             for key in self.data_object.keys():
                 self.data_object.parse(key)
-            if not self.data_object.keys() and self.log_parser:
-                data = {}
-                steps = self.log_parser.input_parameters.get('step', [])
-                for n, step in enumerate(steps):
-                    energies = step.get('energies')
-                    if energies is None:
-                        continue
-                    index = int(step.get('step_info', {}).get('Step', n))
-                    for key in energies.keys():
-                        data.setdefault(key, [None] * len(steps))
-                        data[key][index] = step.energies.get(key)
-                self.data_object._results = data
-            return self.data_object._results
-        return {}
+        return self.data_object._results
 
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
@@ -103,40 +162,9 @@ class GromacsEDRParser(MappingParser):
             self.edr_parser.mainfile = self.filepath
         return self.edr_parser
 
-    def get_outputs(self) -> list[dict[str, Any]]:
-        outputs = []
-        calculation_times = self.data.get('Time', [])
-        energy_map = {
-            'Total Energy': 'total',
-            'Potential': 'potential',
-            'Kinetic En.': 'kinetic',
-            'pV': 'pressure_volume_work',
-        }
-        outputs = []
-        for n, step in enumerate(self._thermodynamic_steps):
-            data = dict(step=step, time=calculation_times[n] * ureg.picosecond)
-            for key in self.data.keys():
-                val = self.data.get(key)
-                if val is None:
-                    continue
-                if key in energy_map:
-                    val_n = val[n] * ureg.kilojoule / MOL
-                    if key == 'Total Energy':
-                        data.setdefault('energy', {})['value'] = val_n
-                    else:
-                        data.setdefault('energy', {}).setdefault(
-                            'contributions', []
-                        ).append(dict(value=val_n, label=energy_map[key]))
-            if step in self._trajectory_steps:
-                data['system_ref'] = f'/data/model_system/{self._trajectory_steps.index(step)}'
-            outputs.append(data)
-        return outputs
-
 
 class GromacsMDAnalysisParser(MappingParser):
     aux_files: list[str] = []
-    # parse pbc from log file
-    log_parser: GromacsLogParser = None
     mdanalysis_parser: MDAnalysisParser = None
     _trajectory_steps_sampled: list[int] = []
     _trajectory_steps: list[int] = []
@@ -177,26 +205,21 @@ class GromacsMDAnalysisParser(MappingParser):
             if step not in self._trajectory_steps:
                 continue
             n = self._trajectory_steps.index(step)
-            data = dict(
-                forces=self.data_object.get_forces(n)
-            )
+            data = dict(forces=self.data_object.get_forces(n))
             outputs.append(data)
         return outputs
 
     def get_configurations(self) -> list[dict[str, Any]]:
         configurations = []
-        for step in self._trajectory_steps_sampled:
-            n = self._trajectory_steps.index(step)
-            data = dict(
-                labels=self.get_atom_labels(n),
-                positions=self.data_object.get_positions(n),
-                velocities=self.data_object.get_velocities(n),
-                lattice_vectors=self.data_object.get_lattice_vectors(n),
+        for n, _ in enumerate(self._trajectory_steps_sampled):
+            configurations.append(
+                dict(
+                    labels=self.get_atom_labels(n),
+                    positions=self.data_object.get_positions(n),
+                    velocities=self.data_object.get_velocities(n),
+                    lattice_vectors=self.data_object.get_lattice_vectors(n),
+                )
             )
-            if self.log_parser is not None:
-                pbc = self.log_parser.input_parameters.get('pbc', 'xyz')
-                data['pbc'] = ['x' in pbc, 'y' in pbc, 'z' in pbc]
-            configurations.append(data)
         return configurations
 
 
@@ -205,7 +228,9 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser = GromacsMetainfoParser()
         self._log_parser = GromacsLogParser(text_parser=GromacsLogTextParser())
         self._edr_parser = GromacsEDRParser(edr_parser=GromacsEDRFileParser())
-        self._mdanalysis_parser = GromacsMDAnalysisParser(mdanalysis_parser=MDAnalysisParser())
+        self._mdanalysis_parser = GromacsMDAnalysisParser(
+            mdanalysis_parser=MDAnalysisParser()
+        )
         super().__init__(**kwargs)
 
     def get_gromacs_file(self, ext: str) -> str:
@@ -293,6 +318,7 @@ class GromacsArchiveWriter(MDParser):
         # pass sampled steps to parsers
         self._log_parser._trajectory_steps_sampled = self.trajectory_steps
         self._log_parser._trajectory_steps = traj_steps
+        self._log_parser._thermodynamic_steps = self.thermodynamics_steps
         self._mdanalysis_parser._trajectory_steps_sampled = self.trajectory_steps
         self._mdanalysis_parser._trajectory_steps = traj_steps
         self._mdanalysis_parser._thermodynamic_steps = self.thermodynamics_steps
@@ -303,21 +329,19 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = 'log'
         self._log_parser.convert(self._simulation_parser)
 
-
         # parse edr file
         self._simulation_parser.annotation_key = 'edr'
-        self._edr_parser.log_parser = self._log_parser
         self._edr_parser.convert(self._simulation_parser)
 
         # parse mdanalysis trajectory files
         self._simulation_parser.annotation_key = 'tpr'
-        self._mdanalysis_parser.log_parser = self._log_parser
         self._mdanalysis_parser.convert(self._simulation_parser)
 
         self._simulation_parser.close()
         self._log_parser.close()
         self._mdanalysis_parser.close()
         self._edr_parser.close()
+
 
 class GromacsParser(MatchingParser):
     """
