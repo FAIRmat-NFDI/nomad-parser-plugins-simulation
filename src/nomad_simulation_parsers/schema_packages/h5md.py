@@ -18,7 +18,6 @@
 #
 import numpy as np
 from nomad.datamodel.data import ArchiveSection
-from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 from nomad.metainfo import Quantity, SchemaPackage, Section, SubSection
 from nomad.metainfo.data_type import m_float64
 from nomad_simulations.schema_packages import (
@@ -30,8 +29,11 @@ from nomad_simulations.schema_packages import (
 )
 from simulationworkflowschema import molecular_dynamics
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
 
+HDF5_KEY = 'hdf5'
 
 # SIMULATION --> archive.data
 
@@ -87,9 +89,7 @@ class Author(ArchiveSection):
         """,
     )
 
-    name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='."@name"'
-    )
+    add_mapping_annotation(name, HDF5_KEY, '."@name"')
 
     email = Quantity(
         type=str,
@@ -99,53 +99,39 @@ class Author(ArchiveSection):
         """,
     )
 
-    email.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='."@email"'
-    )
+    add_mapping_annotation(email, HDF5_KEY, '."@email"')
 
 
 ## class Program(general.Program):
 
-
-general.Program.name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-    mapper='."@name"',
-)
-
-general.Program.version.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper='."@version"',
-    )
-)
+add_mapping_annotation(general.Program.name, HDF5_KEY, '."@name"')
+add_mapping_annotation(general.Program.version, HDF5_KEY, '."@version"')
 
 # SIMULATION.MODEL_SYSTEM --> archive.data.model_system
 
 # ! Only use generic ParticleState
 # ! ModelSystem normalizer takes care of assigning to AtomState or CGBeadState
 ### class ParticleState(atoms_state.ParticleState):
-
-atoms_state.ParticleState.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=('to_species_labels', ['.@'], dict(path='particles.all.species_label'))
-    )
+add_mapping_annotation(
+    atoms_state.ParticleState.m_def,
+    HDF5_KEY,
+    ('to_species_labels', ['.@'], dict(path='particles.all.species_label')),
 )
-
-atoms_state.ParticleState.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.label')
-)
+add_mapping_annotation(atoms_state.ParticleState.label, HDF5_KEY, '.label')
 
 ### class AtomicCell(model_system.AtomicCell):
 
-model_system.AtomicCell.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper=('get_cell_data', ['.@']))
+add_mapping_annotation(
+    model_system.AtomicCell.m_def, HDF5_KEY, ('get_cell_data', ['.@'])
 )
 
-model_system.AtomicCell.lattice_vectors.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='.lattice_vectors')
+add_mapping_annotation(
+    model_system.AtomicCell.lattice_vectors, HDF5_KEY, '.lattice_vectors'
+)
 
-model_system.AtomicCell.periodic_boundary_conditions.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.boundary')
+add_mapping_annotation(
+    model_system.AtomicCell.periodic_boundary_conditions, HDF5_KEY, '.boundary'
+)
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -169,68 +155,47 @@ class ModelSystem(model_system.ModelSystem):
 
 
 # TODO add annotaiton for custom_system_attributes
-# ModelSystem.custom_system_attributes.m_annotations.setdefault('mapping', {})[
-#     'hdf5'
-# ] = MapperAnnotation(
-#     mapper=(
+# add_mapping_annotations(ModelSystem.custom_system_attributes, HDF5_KEY, (
 #         'get_custom_system_attributes',
 #         ['.@'],
 #         dict(path=''),
 #     )
 # )
 
-ModelSystem.n_particles.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.n_particles')
+add_mapping_annotation(ModelSystem.n_particles, HDF5_KEY, '.n_particles')
+
+add_mapping_annotation(
+    ModelSystem.bond_list,
+    HDF5_KEY,
+    ('get_top_system_quantity', ['.@'], dict(path='connectivity.bonds')),
 )
 
-
-ModelSystem.bond_list.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=('get_top_system_quantity', ['.@'], dict(path='connectivity.bonds'))
-    )
+add_mapping_annotation(
+    ModelSystem.dimensionality,
+    HDF5_KEY,
+    ('get_top_system_quantity', ['.@'], dict(path='particles.all.box.@dimension')),
 )
 
-ModelSystem.dimensionality.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_top_system_quantity',
-            ['.@'],
-            dict(path='particles.all.box.@dimension'),
-        )
-    )
+add_mapping_annotation(ModelSystem.positions, HDF5_KEY, '.positions')
+
+add_mapping_annotation(ModelSystem.velocities, HDF5_KEY, '.velocities')
+
+add_mapping_annotation(
+    ModelSystem.sub_systems,
+    HDF5_KEY,
+    ('get_sub_systems', ['.@'], dict(path='connectivity')),
 )
 
-ModelSystem.positions.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.positions')
-)
+add_mapping_annotation(ModelSystem.name, HDF5_KEY, '.label')
 
-ModelSystem.velocities.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.velocities')
-)
+add_mapping_annotation(ModelSystem.composition_formula, HDF5_KEY, '.formula')
 
-ModelSystem.sub_systems.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper=('get_sub_systems', ['.@'], dict(path='connectivity')))
-)
+add_mapping_annotation(ModelSystem.particle_indices, HDF5_KEY, '.indices')
 
-ModelSystem.name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-    mapper='.label'
-)
+add_mapping_annotation(ModelSystem.branch_label, HDF5_KEY, '.type')
 
-ModelSystem.composition_formula.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.formula')
-)
-
-ModelSystem.particle_indices.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.indices')
-)
-
-ModelSystem.branch_label.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.type')
-)
-
-# ModelSystem.type.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-#     mapper='.type'
-# ) # TODO add function to filter out valid Enums
+# TODO add function to filter out valid Enums
+# add_mapping_annotations(ModelSystem.type, HDF5_KEY, '.type')
 
 
 ### SUBSECTIONS
@@ -288,9 +253,7 @@ class CustomProperty(ArchiveSection):
         Name of the parameter.
         """,
     )
-    name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='.name'
-    )
+    add_mapping_annotation(name, HDF5_KEY, '.name')
 
     value = Quantity(
         type=m_float64(dtype=np.float64).no_shape_check(),
@@ -300,9 +263,7 @@ class CustomProperty(ArchiveSection):
         The unit is defined in the `unit` attribute.
         """,
     )
-    value.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='.value'
-    )
+    add_mapping_annotation(value, HDF5_KEY, '.value')
 
     unit = Quantity(
         type=str,
@@ -311,9 +272,7 @@ class CustomProperty(ArchiveSection):
         Unit of the parameter as a string consistent with the UnitRegistry.pint module.
         """,
     )
-    unit.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='.unit'
-    )
+    add_mapping_annotation(unit, HDF5_KEY, '.unit')
 
     description = Quantity(
         type=str,
@@ -322,9 +281,7 @@ class CustomProperty(ArchiveSection):
         Further description of the property.
         """,
     )
-    description.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='.description'
-    )
+    add_mapping_annotation(description, HDF5_KEY, '.description')
 
 
 ## class BaseEnergy(properties.energies.BaseEnergy):
@@ -333,82 +290,82 @@ class CustomProperty(ArchiveSection):
 # value annotation defined in TotalEnergy.value since they refer to the same quantity
 # in this case, we make sure to return the corresponding value from
 # the get_contributions function in the TotalEnergy.contributions annotation
-properties.energies.BaseEnergy.contribution_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.name')
+add_mapping_annotation(
+    properties.energies.BaseEnergy.contribution_type, HDF5_KEY, '.name'
+)
 
 
 ## class TotalEnergy(properties.TotalEnergy):
 
 
-properties.TotalEnergy.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_output_data',
-            ['.@'],
-            dict(path='observables.energies.total', observable_type='configurational'),
-        )
-    )
+add_mapping_annotation(
+    properties.TotalEnergy.value,
+    HDF5_KEY,
+    (
+        'get_output_data',
+        ['.@'],
+        dict(path='observables.energies.total', observable_type='configurational'),
+    ),
 )
 
 ### SUBSECTIONS
 
-properties.TotalEnergy.contributions.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_contributions',
-            ['.@'],
-            dict(path='observables.energies', exclude=['total']),
-        )
-    )
+add_mapping_annotation(
+    properties.TotalEnergy.contributions,
+    HDF5_KEY,
+    (
+        'get_contributions',
+        ['.@'],
+        dict(path='observables.energies', exclude=['total']),
+    ),
 )
 
 
 ## class BaseForce(properties.forces.BaseForce):
 
 
-properties.forces.BaseForce.contribution_type.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='.name')
+add_mapping_annotation(
+    properties.forces.BaseForce.contribution_type, HDF5_KEY, '.name'
+)
 
 
 ## class TotalForce(properties.TotalForce):
 
 
-properties.TotalForce.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_output_data',
-            ['.@'],
-            dict(path='observables.forces.total', observable_type='configurational'),
-        )
-    )
+add_mapping_annotation(
+    properties.TotalForce.value,
+    HDF5_KEY,
+    (
+        'get_output_data',
+        ['.@'],
+        dict(path='observables.forces.total', observable_type='configurational'),
+    ),
 )
 
 ### SUBSECTIONS
 
-properties.TotalForce.contributions.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_contributions',
-            ['.@'],
-            dict(path='observables.forces', exclude=['total']),
-        )
-    )
+add_mapping_annotation(
+    properties.TotalForce.contributions,
+    HDF5_KEY,
+    (
+        'get_contributions',
+        ['.@'],
+        dict(path='observables.forces', exclude=['total']),
+    ),
 )
 
 
 ## class Temperature(properties.Temperature):
 
 
-properties.Temperature.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_output_data',
-            ['.@'],
-            dict(path='observables.temperatures', observable_type='configurational'),
-        )
-    )
+add_mapping_annotation(
+    properties.Temperature.value,
+    HDF5_KEY,
+    (
+        'get_output_data',
+        ['.@'],
+        dict(path='observables.temperatures', observable_type='configurational'),
+    ),
 )
 
 
@@ -428,48 +385,38 @@ class TrajectoryOutputs(outputs.TrajectoryOutputs):
     total_forces = SubSection(sub_section=properties.TotalForce.m_def, repeats=True)
 
 
-TrajectoryOutputs.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper=('get_output_steps', ['observables']))
+add_mapping_annotation(
+    TrajectoryOutputs.m_def, HDF5_KEY, ('get_output_steps', ['observables'])
 )
 
-TrajectoryOutputs.step.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.step')
-)
+add_mapping_annotation(TrajectoryOutputs.step, HDF5_KEY, '.step')
 
-TrajectoryOutputs.time.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.time')
-)
+add_mapping_annotation(TrajectoryOutputs.time, HDF5_KEY, '.time')
 
 ### SUBSECTIONS
 
-TrajectoryOutputs.total_energies.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.@')
-)
+add_mapping_annotation(TrajectoryOutputs.total_energies, HDF5_KEY, '.@')
 
-TrajectoryOutputs.total_forces.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.@')
-)
+add_mapping_annotation(TrajectoryOutputs.total_forces, HDF5_KEY, '.@')
 
-TrajectoryOutputs.temperatures.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.@')
-)
+add_mapping_annotation(TrajectoryOutputs.temperatures, HDF5_KEY, '.@')
 
-TrajectoryOutputs.custom_outputs.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'get_custom_outputs',
-            ['.@'],
-            dict(
-                path='observables',
-                exclude=[
-                    'energies',
-                    'temperatures',
-                    'custom_forces',
-                ],  # TODO get the exclusion list automatically
-                observable_type='configurational',
-            ),
-        )
-    )
+add_mapping_annotation(
+    TrajectoryOutputs.custom_outputs,
+    HDF5_KEY,
+    (
+        'get_custom_outputs',
+        ['.@'],
+        dict(
+            path='observables',
+            exclude=[
+                'energies',
+                'temperatures',
+                'custom_forces',
+            ],  # TODO get the exclusion list automatically
+            observable_type='configurational',
+        ),
+    ),
 )
 
 
@@ -486,35 +433,25 @@ class Simulation(general.Simulation):
         Specifies the version of the h5md schema being followed.
         """,
     )
-    x_h5md_version.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='h5md."@version"',
-    )
+    add_mapping_annotation(x_h5md_version, HDF5_KEY, 'h5md."@version"')
 
     x_h5md_author = SubSection(sub_section=Author.m_def)
 
-    x_h5md_author.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='h5md.author'
-    )
+    add_mapping_annotation(x_h5md_author, HDF5_KEY, 'h5md.author')
 
     x_h5md_creator = SubSection(sub_section=general.Program.m_def)
 
-    x_h5md_creator.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-        mapper='h5md.creator'
-    )
+    add_mapping_annotation(x_h5md_creator, HDF5_KEY, 'h5md.creator')
 
     model_system = SubSection(sub_section=ModelSystem.m_def, repeats=True)
 
 
-Simulation.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-    mapper='@'
-)
+add_mapping_annotation(Simulation.m_def, HDF5_KEY, '@')
 
-Simulation.program.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-    mapper='h5md.program'
-)
+add_mapping_annotation(Simulation.program, HDF5_KEY, 'h5md.program')
 
-Simulation.model_system.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper=('get_traj_data', ['particles.all']))
+add_mapping_annotation(
+    Simulation.model_system, HDF5_KEY, ('get_traj_data', ['particles.all'])
 )
 
 
@@ -529,124 +466,124 @@ h5md_path_md = 'parameters.workflow.molecular_dynamics'
 
 h5md_path_thermostat = f'{h5md_path_md}.thermostat_parameters'
 
-molecular_dynamics.ThermostatParameters.thermostat_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.thermostat_type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='thermostat_type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.reference_temperature.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.reference_temperature,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='reference_temperature'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.coupling_constant.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.coupling_constant,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='coupling_constant'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.effective_mass.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.effective_mass,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='effective_mass'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.temperature_profile.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.temperature_profile,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='temperature_profile', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.reference_temperature_start.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.reference_temperature_start,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='reference_temperature_start'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.reference_temperature_end.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.reference_temperature_end,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='reference_temperature_end'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.temperature_update_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.temperature_update_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='temperature_update_frequency'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.temperature_update_delta.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.temperature_update_delta,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='temperature_update_delta'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.temperature_update_factor.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.temperature_update_factor,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='temperature_update_factor'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.step_start.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.step_start,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='step_start'),
-    )
+    ),
 )
 
-molecular_dynamics.ThermostatParameters.step_end.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.step_end,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_thermostat],
         dict(key='step_end'),
-    )
+    ),
 )
 
 
@@ -655,134 +592,134 @@ molecular_dynamics.ThermostatParameters.step_end.m_annotations.setdefault(
 
 h5md_path_barostat = f'{h5md_path_md}.barostat_parameters'
 
-molecular_dynamics.BarostatParameters.barostat_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.barostat_type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='barostat_type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.coupling_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.coupling_type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='coupling_type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.reference_pressure.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.reference_pressure,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='reference_pressure'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.coupling_constant.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.coupling_constant,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='coupling_constant'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.compressibility.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.compressibility,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='compressibility'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.pressure_profile.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.pressure_profile,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='pressure_profile', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.reference_pressure_start.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.reference_pressure_start,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='reference_pressure_start'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.reference_pressure_end.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.reference_pressure_end,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='reference_pressure_end'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.pressure_update_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.pressure_update_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='pressure_update_frequency'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.pressure_update_delta.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.pressure_update_delta,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='pressure_update_delta'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.pressure_update_factor.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.pressure_update_factor,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='pressure_update_factor'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.step_start.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.step_start,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='step_start'),
-    )
+    ),
 )
 
-molecular_dynamics.BarostatParameters.step_end.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.step_end,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_barostat],
         dict(key='step_end'),
-    )
+    ),
 )
 
 
@@ -791,44 +728,44 @@ molecular_dynamics.BarostatParameters.step_end.m_annotations.setdefault('mapping
 
 h5md_path_shear = f'{h5md_path_md}.shear_parameters'
 
-molecular_dynamics.ShearParameters.shear_type.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ShearParameters.shear_type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_shear],
         dict(key='shear_type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.ShearParameters.shear_rate.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ShearParameters.shear_rate,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_shear],
         dict(key='shear_rate'),
-    )
+    ),
 )
 
-molecular_dynamics.ShearParameters.step_start.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ShearParameters.step_start,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_shear],
         dict(key='step_start'),
-    )
+    ),
 )
 
-molecular_dynamics.ShearParameters.step_end.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.ShearParameters.step_end,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_shear],
         dict(key='step_end'),
-    )
+    ),
 )
 
 
@@ -840,101 +777,101 @@ molecular_dynamics.ShearParameters.step_end.m_annotations.setdefault('mapping', 
 h5md_path_FEC = f'{h5md_path_md}.free_energy_calculation_parameters'
 
 # TODO Change this to fec_type in the schema
-molecular_dynamics.FreeEnergyCalculationParameters.type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.lambda_index.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.lambda_index,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='lambda_index'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.atom_indices.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.atom_indices,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='atom_indices'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='initial_state_vdw'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='final_state_vdw'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='initial_state_coloumb'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='final_state_coloumb'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='initial_state_bonded'),
-    )
+    ),
 )
 
-molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_FEC],
         dict(key='final_state_bonded'),
-    )
+    ),
 )
 
 ### SUBSECTIONS
 
-molecular_dynamics.FreeEnergyCalculationParameters.lambdas.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='@')
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.lambdas, HDF5_KEY, '@'
+)
 
 
 ## class Lambdas(molecular_dynamics.Lambdas):
@@ -943,127 +880,129 @@ molecular_dynamics.FreeEnergyCalculationParameters.lambdas.m_annotations.setdefa
 # ? Not sure about where this info is going in h5md
 h5md_path_lambdas = f'{h5md_path_FEC}.lambdas'
 
-molecular_dynamics.Lambdas.type.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'map_value',
-            [h5md_path_lambdas],
-            dict(key='type', enum_spec='lower'),
-        )
-    )
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.type,
+    HDF5_KEY,
+    (
+        'map_value',
+        [h5md_path_lambdas],
+        dict(key='type', enum_spec='lower'),
+    ),
 )
 
-molecular_dynamics.Lambdas.value.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(
-        mapper=(
-            'map_value',
-            [h5md_path_lambdas],
-            dict(key='value'),
-        )
-    )
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.value,
+    HDF5_KEY,
+    (
+        'map_value',
+        [h5md_path_lambdas],
+        dict(key='value'),
+    ),
 )
 
 
 ## class MolecularDynamicsMethod(molecular_dynamics.MolecularDynamicsMethod):
 
 
-molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='thermodynamic_ensemble', enum_spec='upper'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.integrator_type.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.integrator_type,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='integrator_type', enum_spec='lower'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.integration_timestep.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.integration_timestep,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='integration_timestep'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.n_steps.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.n_steps,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='n_steps'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.coordinate_save_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.coordinate_save_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='coordinate_save_frequency'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.velocity_save_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.velocity_save_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='velocity_save_frequency'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.force_save_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.force_save_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='force_save_frequency'),
-    )
+    ),
 )
 
-molecular_dynamics.MolecularDynamicsMethod.thermodynamics_save_frequency.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.thermodynamics_save_frequency,
+    HDF5_KEY,
+    (
         'map_value',
         [h5md_path_md],
         dict(key='thermodynamics_save_frequency'),
-    )
+    ),
 )
 
 ### SUBSECTIONS
 
-molecular_dynamics.MolecularDynamicsMethod.thermostat_parameters.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.thermostat_parameters, HDF5_KEY, '@'
+)
 
-molecular_dynamics.MolecularDynamicsMethod.barostat_parameters.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.barostat_parameters, HDF5_KEY, '@'
+)
 
-molecular_dynamics.MolecularDynamicsMethod.shear_parameters.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.shear_parameters, HDF5_KEY, '@'
+)
 
-molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
+    HDF5_KEY,
+    '@',
+)
 
 # WORKFLOW.RESULTS --> archive.workflow2.results
 
@@ -1076,25 +1015,25 @@ molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters.m_
 # ! Should be something like this but first need to
 # TODO flatten property structures in MD schema
 # TODO implement observable_type to be passed in the annotation
-molecular_dynamics.RadialDistributionFunctionValues.value.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(
-    mapper=(
+add_mapping_annotation(
+    molecular_dynamics.RadialDistributionFunctionValues.value,
+    HDF5_KEY,
+    (
         'get_output_data',
         ['.@'],
         dict(
             path='observables.radial_distribution_functions',
             observable_type='ensemble_average',
         ),
-    )
+    ),
 )
 
 
 ## class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
 
 
-# MolecularDynamicsResults.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-#     MapperAnnotation(mapper=('get_output_data', ['observables']))
+# add_mapping_annotations(
+#     MolecularDynamicsResults.m_def, HDF5_KEY, ('get_output_data', ['observables'])
 # )
 
 # ? These quantities from normalization?
@@ -1125,56 +1064,51 @@ molecular_dynamics.RadialDistributionFunctionValues.value.m_annotations.setdefau
 
 
 # ? Add Custom? OR maybe pull custom out of general schema and put here?
-molecular_dynamics.MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
+)
 
 # TODO This subsection is repeated in the schema
-molecular_dynamics.MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.radial_distribution_functions,
+    HDF5_KEY,
+    '.@',
+)
 
-molecular_dynamics.MolecularDynamicsResults.correlation_functions.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
+)
 
-molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements,
+    HDF5_KEY,
+    '.@',
+)
 
 # ? Needed? It just points to the trajectory properties? I guess it collects data here?
-molecular_dynamics.MolecularDynamicsResults.radius_of_gyration.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
+)
 
 # ! multi-ensemble property!
-molecular_dynamics.MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
-    'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+add_mapping_annotation(
+    molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
+)
 
 
 # class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 
 
-molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
+add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
 
-molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
-
-molecular_dynamics.MolecularDynamics.method.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
+add_mapping_annotation(molecular_dynamics.MolecularDynamics.method, HDF5_KEY, '@')
 
 # ? Needed?
-molecular_dynamics.MolecularDynamics.results.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
-# MolecularDynamics.results.m_annotations.setdefault('mapping', {})['hdf5'] = (
-#     MapperAnnotation(mapper=('get_output_data', ['observables']))
+add_mapping_annotation(molecular_dynamics.MolecularDynamics.results, HDF5_KEY, '@')
+# add_mapping_annotations(
+#     MolecularDynamics.results, HDF5_KEY, ('get_output_data', ['observables'])
 # )
+
 
 try:
     m_package.__init_metainfo__()

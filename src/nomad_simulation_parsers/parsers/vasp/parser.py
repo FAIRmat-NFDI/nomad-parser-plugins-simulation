@@ -12,8 +12,8 @@ from importlib import reload
 
 from nomad.parsing import MatchingParser
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.schema_packages import vasp
+from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .outcar_parser import OutcarArchiveWriter
 from .xml_parser import XMLArchiveWriter

@@ -12,6 +12,8 @@ from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
+from nomad_simulation_parsers.schema_packages import vasp
+
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 
@@ -470,7 +472,7 @@ class OutcarArchiveWriter(ArchiveWriter):
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
         archive_data_parser.data_object = archive_data
-        archive_data_parser.annotation_key = 'outcar'
+        archive_data_parser.annotation_key = vasp.OUTCAR_KEY
 
         # set up outcar parser
         source_parser = OutcarParser()
