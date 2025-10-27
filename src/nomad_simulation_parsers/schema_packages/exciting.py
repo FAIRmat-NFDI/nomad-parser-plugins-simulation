@@ -1,6 +1,4 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -11,170 +9,171 @@ from nomad_simulations.schema_packages import (
     properties,
 )
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
 
+INFO_KEY = 'info'
+INPUT_XML_KEY = 'input_xml'
+EIGVAL_KEY = 'eigval'
+BANDSTRUCTURE_XML_KEY = 'bandstructure_xml'
+DOS_XML_KEY = 'dos_xml'
 
 # simulation
-general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='@'),
-    input_xml=Mapper(mapper='@'),
-    eigval=Mapper(mapper='@'),
-    bandstructure_xml=Mapper(mapper='@'),
-    dos_xml=Mapper(mapper='@'),
-)
+add_mapping_annotation(general.Simulation.m_def, INFO_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, INPUT_XML_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, EIGVAL_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, DOS_XML_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.@')
-    )
+    add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
     # DFT method
-    model_method.DFT.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.initialization.xc_functional'),
-        input_xml=Mapper(mapper='.input.groundstate'),
-        bandstructure_xml=Mapper(mapper='.@'),
+    add_mapping_annotation(
+        model_method.DFT.m_def, INFO_KEY, '.initialization.xc_functional'
     )
-    general.Simulation.model_system.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_configurations', ['.@']), cache=True)
+    add_mapping_annotation(model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate')
+    add_mapping_annotation(model_method.DFT.m_def, BANDSTRUCTURE_XML_KEY, '.@')
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        INFO_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
     )
-    general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_configurations', ['.@'])),
-        eigval=Mapper(mapper='.@'),
-        bandstructure_xml=Mapper(mapper='.@'),
-        dos_xml=Mapper(mapper='.@'),
+    add_mapping_annotation(
+        general.Simulation.outputs, INFO_KEY, ('get_configurations', ['.@'])
     )
+    add_mapping_annotation(general.Simulation.outputs, EIGVAL_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, BANDSTRUCTURE_XML_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, DOS_XML_KEY, '.@')
 
 
 class Program(general.Program):
-    general.Program.version.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.program_version')
-    )
+    add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
 
 
 class ModelMethod(model_method.ModelMethod):
-    numerical_settings.KSpace.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        bandstructure_xml=Mapper(mapper='.@')
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'
     )
 
 
 class KSpace(numerical_settings.KSpace):
-    numerical_settings.KSpace.k_line_path.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        bandstructure_xml=Mapper(mapper='.@')
+    add_mapping_annotation(
+        numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY, '.@'
     )
 
 
 class KLinePath(numerical_settings.KLinePath):
-    numerical_settings.KLinePath.high_symmetry_path_names.m_annotations[
-        MAPPING_ANNOTATION_KEY
-    ] = dict(bandstructure_xml=Mapper(mapper=r'bandstructure.vertex[*]."@label"'))
-    numerical_settings.KLinePath.high_symmetry_path_values.m_annotations[
-        MAPPING_ANNOTATION_KEY
-    ] = dict(
-        bandstructure_xml=Mapper(
-            mapper=('reshape_coords', [r'bandstructure.vertex[*]."@coord"'])
-        )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_names,
+        BANDSTRUCTURE_XML_KEY,
+        r'bandstructure.vertex[*]."@label"',
+    )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_values,
+        BANDSTRUCTURE_XML_KEY,
+        ('reshape_coords', [r'bandstructure.vertex[*]."@coord"']),
     )
 
 
 class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_xc_functionals', ['.type'])),
-        input_xml=Mapper(mapper=('get_xc_functionals', ['.libxc'])),
+    add_mapping_annotation(
+        model_method.DFT.xc_functionals, INFO_KEY, ('get_xc_functionals', ['.type'])
+    )
+    add_mapping_annotation(
+        model_method.DFT.xc_functionals,
+        INPUT_XML_KEY,
+        ('get_xc_functionals', ['.libxc']),
     )
 
 
 class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.libxc'), input_xml=Mapper(mapper='.libxc')
+    add_mapping_annotation(model_method.XCFunctional.libxc_name, INFO_KEY, '.libxc')
+    add_mapping_annotation(
+        model_method.XCFunctional.libxc_name, INPUT_XML_KEY, '.libxc'
     )
 
 
 class ModelSystem(model_system.ModelSystem):
-    model_system.AtomicCell.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.@')
-    )
-    model_system.ModelSystem.positions.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.positions')
-    )
-    model_system.AtomsState.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.atoms')
-    )
+    add_mapping_annotation(model_system.AtomicCell.m_def, INFO_KEY, '.@')
+    add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
+    add_mapping_annotation(model_system.AtomsState.m_def, INFO_KEY, '.atoms')
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(info=Mapper(mapper='.lattice_vectors'))
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors, INFO_KEY, '.lattice_vectors'
     )
 
 
 class AtomsState(atoms_state.AtomsState):
-    atoms_state.AtomsState.chemical_symbol.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.symbol')
-    )
+    add_mapping_annotation(atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.@')
+    add_mapping_annotation(outputs.Outputs.total_energies, INFO_KEY, '.@')
+    add_mapping_annotation(
+        outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])
     )
-    outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper=('get_forces', ['.@']))
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])
     )
-    outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        BANDSTRUCTURE_XML_KEY,
+        ('get_bandstructures', ['.@']),
     )
-    outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
-    )
-    outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos, DOS_XML_KEY, 'dos.totaldos.diagram'
     )
 
 
 class TotalEnergy(properties.TotalEnergy):
-    properties.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.final.energy_total || energy_total')
+    add_mapping_annotation(
+        properties.TotalEnergy.value, INFO_KEY, '.final.energy_total || energy_total'
     )
 
 
 class TotalForce(properties.forces.TotalForce):
-    properties.forces.TotalForce.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        info=Mapper(mapper='.forces')
-    )
+    add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.n_bands.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        eigval=Mapper(mapper='.n_states')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.n_bands, EIGVAL_KEY, '.n_states'
     )
-    # we need to use setdefault when annot was defined previously
-    outputs.ElectronicEigenvalues.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        eigval=Mapper(mapper='.eigenvalues'),
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'
     )
-    outputs.ElectronicEigenvalues.occupation.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(eigval=Mapper(mapper='.occupancies'))
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, EIGVAL_KEY, '.occupancies'
     )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    outputs.ElectronicBandStructure.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(bandstructure_xml=Mapper(mapper='.n_states')))
-    outputs.ElectronicBandStructure.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(bandstructure_xml=Mapper(mapper='.energies')))
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.n_bands, BANDSTRUCTURE_XML_KEY, '.n_states'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'
+    )
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     ###### TODO read unit from axis
-    outputs.ElectronicDensityOfStates.value.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(
-            dos_xml=Mapper(mapper=('to_float', [r'.point[*]."@dos"']), unit='1/hartree')
-        )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value,
+        DOS_XML_KEY,
+        ('to_float', [r'.point[*]."@dos"']),
+        unit='1/hartree',
     )
-    outputs.ElectronicDensityOfStates.projected_dos.m_annotations[
-        MAPPING_ANNOTATION_KEY
-    ] = dict(dos_xml=Mapper(mapper='dos.partialdos.diagram'))
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.projected_dos,
+        DOS_XML_KEY,
+        'dos.partialdos.diagram',
+    )
 
 
 try:
