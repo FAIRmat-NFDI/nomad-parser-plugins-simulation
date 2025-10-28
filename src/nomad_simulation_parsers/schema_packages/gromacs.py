@@ -4,6 +4,10 @@ from nomad_simulations.schema_packages import (
     model_system,
     outputs,
 )
+from nomad_simulations.schema_packages.workflow import (
+    geometry_optimization,
+    molecular_dynamics,
+)
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
@@ -79,6 +83,87 @@ class Simulation(general.Simulation):
 add_mapping_annotation(general.Simulation.m_def, LOG_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, TPR_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, EDR_KEY, '@')
+
+
+class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationModel.optimization_method,
+        LOG_KEY,
+        ('get_integrator_type', ['.input_parameters.integrator']),
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationModel.n_steps_maximum,
+        LOG_KEY,
+        '.input_parameters.nsteps',
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationModel.convergence_tolerance_force_maximum,
+        LOG_KEY,
+        '.input_parameters.emtol',
+        unit='kilojoule/avogadro_number/nanometer',
+    )
+
+
+class GeometryOptimizationResults(geometry_optimization.GeometryOptimizationResults):
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationResults.energies,
+        LOG_KEY,
+        ('get_energies', []),
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationResults.energies,
+        EDR_KEY,
+        ('get_energies', []),
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationResults.final_force_maximum,
+        LOG_KEY,
+        'maximum_force',
+        unit='kilojoule/avogadro_number/nanometer',
+    )
+
+
+class GeometryOptimization(geometry_optimization.GeometryOptimization):
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationModel.m_def, LOG_KEY, '.@'
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationResults.m_def, LOG_KEY, '.@'
+    )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationResults.m_def, EDR_KEY, '.@'
+    )
+
+
+class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsModel):
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsModel.integrator_type,
+        LOG_KEY,
+        ('get_integrator_type', ['.input_parameters.integrator']),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsModel.integration_timestep,
+        LOG_KEY,
+        '.input_parameters.dt',
+        unit='picosecond',
+    )
+
+
+class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
+    # parse from xvg
+    pass
+
+
+class MolecularDynamics(molecular_dynamics.MolecularDynamics):
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsModel.m_def, LOG_KEY, '.@'
+    )
+
+
+# Workflow
+add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, LOG_KEY, '@')
+add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, EDR_KEY, '@')
+add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 
 
 try:

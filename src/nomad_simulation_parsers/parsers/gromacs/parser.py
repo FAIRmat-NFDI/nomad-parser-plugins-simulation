@@ -14,6 +14,12 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+)
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamics,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
@@ -56,6 +62,8 @@ class GromacsThermodynamicsParser(MappingParser):
 
     def get_outputs(self, source: dict[str, Any] = {}) -> list[dict[str, Any]]:
         outputs = []
+        if not source:
+            source = self.data
         times = source.get('Time', [])
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
@@ -84,10 +92,25 @@ class GromacsThermodynamicsParser(MappingParser):
             outputs.append(data)
         return outputs
 
+    def get_energies(self) -> list[float] | None:
+        energies = []
+        outputs = self.get_outputs()
+        for output in outputs:
+            energy = output.get('energy', {}).get('value')
+            if energy is None:
+                for contribution in output.get('energy', {}).get('contributions', []):
+                    if contribution.get('label') == 'potential':
+                        energy = contribution.get('value')
+                        break
+            if energy is not None:
+                energies.append(energy)
+        if len(energies) != len(self._thermodynamic_steps):
+            return None
+        return energies
+
 
 class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
     _trajectory_steps_sampled: list[int] = []
-    input_parameters: dict[str, Any] = {}
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -107,8 +130,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                     if abs(val) == np.inf:
                         input_dict[key] = 'inf' if val > 0 else '-inf'
 
-        self.input_parameters = data_object.get('input_parameters', {})
-        normalize(self.input_parameters)
+        input_parameters = data_object.get('input_parameters', {})
+        normalize(input_parameters)
+        data_object._results['input_parameters'] = input_parameters
 
         return data_object
 
@@ -116,7 +140,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return (source or 'unknown').lstrip('VERSION')
 
     def get_configurations(self):
-        pbc = [k in self.input_parameters.get('pbc', 'xyz') for k in 'xyz']
+        pbc = [
+            k in self.data.get('input_parameters', {}).get('pbc', 'xyz') for k in 'xyz'
+        ]
         return [dict(pbc=pbc) for _ in self._trajectory_steps_sampled]
 
     def get_outputs(self) -> list[dict[str, Any]]:
@@ -140,6 +166,29 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         outputs = super().get_outputs(data)
         return outputs
 
+    def get_integrator_type(self, integrator: str) -> str:
+        integrator = (integrator or 'md').lower()
+        integrator_map = {
+            'steep': 'steepest_descent',
+            'cg': 'conjugant_gradient',
+            'l-bfgs': 'low_memory_broyden_fletcher_goldfarb_shanno',
+            'md': 'leap_frog',
+            'md-vv': 'velocity_verlet',
+            'sd': 'langevin_goga',
+            'bd': 'brownian',
+        }
+        value = integrator_map.get(
+            integrator,
+            [val for key, val in integrator_map.items() if key in integrator],
+        )
+        return (
+            value
+            if not isinstance(value, list)
+            else value[0]
+            if len(value) != 0
+            else None
+        )
+
 
 class GromacsMDPParser(TextParser):
     # TODO: temporary fix for structlog unable to propagate logger
@@ -150,7 +199,7 @@ class GromacsMDPParser(TextParser):
     def load_file(self):
         data_object = super().load_file()
 
-        def check_input_parameters_dict_recursive(self, input_dict: dict, key: str):
+        def check_input_parameters_dict_recursive(input_dict: dict, key: str):
             if key in input_dict:
                 return True
             for _, v in input_dict.items():
@@ -169,7 +218,7 @@ class GromacsMDPParser(TextParser):
                     param.lower() if isinstance(param, str) else param
                 )
 
-        self.input_parameters = input_parameters
+        data_object._results['input_parameters'] = input_parameters
         return data_object
 
 
@@ -301,8 +350,9 @@ class GromacsArchiveWriter(MDParser):
             mdanalysis_parser=GromacsMDAnalysisFileParser()
         )
         self._xvg_parser = GromacsXVGParser(text_parser=GromacsXVGTextParser())
-        self.mdp_ext = 'mdp'
-        self.mdp_std_filename = 'mdout'
+        self._mdp_ext = 'mdp'
+        self._mdp_std_filename = 'mdout'
+        self.input_parameters = {}
         super().__init__(**kwargs)
 
     def get_mdp_file(self):
@@ -316,7 +366,7 @@ class GromacsArchiveWriter(MDParser):
             3. input mdp file matching the mainfile name (as usual)
             4. any `.mdp` file within the directory (as usual)
         """
-        files = [d for d in self._gromacs_files if d.endswith(self.mdp_ext)]
+        files = [d for d in self._gromacs_files if d.endswith(self._mdp_ext)]
 
         if len(files) == 0:
             return ''
@@ -326,15 +376,15 @@ class GromacsArchiveWriter(MDParser):
 
         for f in files:
             filename = f.rsplit('.', 1)[0]
-            if self._basename in filename and self.mdp_std_filename in filename:
+            if self._basename in filename and self._mdp_std_filename in filename:
                 return os.path.join(self._maindir, f)
 
         for f in files:
             filename = f.rsplit('.', 1)[0]
-            if self.mdp_std_filename in filename:
+            if self._mdp_std_filename in filename:
                 return os.path.join(self._maindir, f)
 
-        return self.get_gromacs_file(self.mdp_ext)
+        return self.get_gromacs_file(self._mdp_ext)
 
     def get_gromacs_file(self, ext: str) -> str:
         files = [d for d in self._gromacs_files if d.endswith(ext)]
@@ -374,6 +424,44 @@ class GromacsArchiveWriter(MDParser):
 
         return os.path.join(self._maindir, files[counts.index(min(counts))])
 
+    def _parse_workflow_section(self):
+        integrator = self.input_parameters.get('integrator', 'md').lower()
+        workflow2 = None
+        if integrator in ['l-bfgs', 'cg', 'steep']:
+            workflow2 = GeometryOptimization()
+        else:
+            workflow2 = MolecularDynamics()
+
+        if workflow2 is None:
+            return
+        self._simulation_parser.data_object = workflow2
+
+        # parse main log file
+        self._simulation_parser.annotation_key = gromacs.LOG_KEY
+        self._log_parser.convert(self._simulation_parser)
+
+        # parse edr file
+        self._simulation_parser.annotation_key = gromacs.EDR_KEY
+        self._edr_parser.convert(self._simulation_parser)
+
+        self.archive.workflow2 = workflow2
+
+    def _parse_data_section(self):
+        self.archive.data = Simulation(program=Program(name='GROMACS'))
+        self._simulation_parser.data_object = self.archive.data
+
+        # parse main log file
+        self._simulation_parser.annotation_key = gromacs.LOG_KEY
+        self._log_parser.convert(self._simulation_parser)
+
+        # parse edr file
+        self._simulation_parser.annotation_key = gromacs.EDR_KEY
+        self._edr_parser.convert(self._simulation_parser)
+
+        # parse mdanalysis trajectory files
+        self._simulation_parser.annotation_key = gromacs.TPR_KEY
+        self._mdanalysis_parser.convert(self._simulation_parser)
+
     def write_to_archive(self):
         # intitialize variables
         self._maindir = os.path.dirname(self.mainfile)
@@ -381,9 +469,6 @@ class GromacsArchiveWriter(MDParser):
         self._basename = os.path.basename(self.mainfile).rsplit('.', 1)[0]
         # reload the schema annotations
         reload(gromacs)
-
-        self.archive.data = Simulation(program=Program(name='GROMACS'))
-        self._simulation_parser.data_object = self.archive.data
 
         # set up source parsers
         self._log_parser.filepath = self.mainfile
@@ -403,9 +488,15 @@ class GromacsArchiveWriter(MDParser):
             if positions is not None:
                 break
 
+        # build input parameters from log and mdp
+        self.input_parameters = {
+            **self._log_parser.data_object.get('input_parameters', {}),
+            **self._mdp_parser.data_object.get('input_parameters', {}),
+        }
+
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
-        traj_sampling_rate = self._log_parser.input_parameters.get('nstxout', 1)
+        traj_sampling_rate = self.input_parameters.get('nstxout', 1)
         self.n_atoms = [
             self._mdanalysis_parser.data_object.get_n_atoms(n) for n in range(n_frames)
         ]
@@ -414,7 +505,7 @@ class GromacsArchiveWriter(MDParser):
 
         # determine sampled thermodynamic steps
         calculation_times = self._edr_parser.data.get('Time', [])
-        time_step = self._log_parser.input_parameters.get('dt')
+        time_step = self.input_parameters.get('dt')
         if time_step is None and len(calculation_times) > 1:
             time_step = calculation_times[1] - calculation_times[0]
         self.thermodynamics_steps = [
@@ -431,24 +522,19 @@ class GromacsArchiveWriter(MDParser):
         self._edr_parser._thermodynamic_steps = self.thermodynamics_steps
         self._edr_parser._trajectory_steps = traj_steps
 
-        # parse main log file
-        self._simulation_parser.annotation_key = gromacs.LOG_KEY
-        self._log_parser.convert(self._simulation_parser)
+        # self._parse_data_section()
 
-        # parse edr file
-        self._simulation_parser.annotation_key = gromacs.EDR_KEY
-        self._edr_parser.convert(self._simulation_parser)
+        self._parse_workflow_section()
 
-        # parse mdanalysis trajectory files
-        self._simulation_parser.annotation_key = gromacs.TPR_KEY
-        self._mdanalysis_parser.convert(self._simulation_parser)
-
-        self._simulation_parser.close()
-        self._log_parser.close()
-        self._mdanalysis_parser.close()
-        self._edr_parser.close()
-        self._mdp_parser.close()
-        self._xvg_parser.close()
+        for parser in [
+            self._simulation_parser,
+            self._log_parser,
+            self._mdanalysis_parser,
+            self._edr_parser,
+            self._mdp_parser,
+            self._xvg_parser,
+        ]:
+            parser.close()
 
 
 class GromacsParser(MatchingParser):

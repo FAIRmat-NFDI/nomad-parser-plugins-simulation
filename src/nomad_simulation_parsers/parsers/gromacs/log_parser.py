@@ -149,7 +149,9 @@ class GromacsLogParser(TextParser):
                 r'Input Parameters:\s*\n([\s\S]+?)\n\n',
                 str_operation=str_to_input_parameters,
             ),
-            Quantity('maximum_force', r'Norm of force\s*([\s\S]+?)\n\n', flatten=False),
+            Quantity(
+                'maximum_force', r'Norm of force\s*=*\s*([\s\S]+?)\n\n', flatten=False
+            ),
             Quantity(
                 'step',
                 r'(Step\s*Time[\s\S]+?Energies[\s\S]+?\n\n)',
