@@ -18,15 +18,24 @@
 #
 
 import os
-
 import numpy as np
 
 try:
     import MDAnalysis
     import MDAnalysis.analysis.rdf as MDA_RDF
     from MDAnalysis.topology.guessers import guess_atom_element
-except Exception:
-    MDAnalysis = None
+
+    _HAS_MDA = True
+except ImportError:
+    _HAS_MDA = False
+
+if not _HAS_MDA:
+    raise ImportError(
+        'MDAnalysis is required for this functionality. '
+        'Please re-install the plugin with `pip install nomad-simulation-parsers[md]`.'
+    )
+
+
 from array import array
 from collections import namedtuple
 from typing import Any, NamedTuple, Optional

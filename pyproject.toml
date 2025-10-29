@@ -42,6 +42,10 @@ dependencies = [
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.optional-dependencies]
+md = [
+    "nomad-simulations[md]",
+    "MDAnalysis>=2.4.0",
+]
 dev = ["ruff", "pytest", "structlog"]
 
 [tool.ruff]
