@@ -34,3 +34,25 @@ def test_xspectra():
         archive,
         LOGGER,
     )
+
+from devtools import debug
+def test_gipaw_nmr():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/quartz-nmr/quartz-nmr.out',
+        archive,
+        LOGGER,
+    )
+    debug(archive.data.outputs)
+
+
+def test_gipaw_scf():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/quartz-nmr/quartz-scf.out',
+        archive,
+        LOGGER,
+    )
+    debug(archive.data.outputs)

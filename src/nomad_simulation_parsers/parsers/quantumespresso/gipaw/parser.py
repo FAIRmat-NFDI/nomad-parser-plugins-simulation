@@ -1,5 +1,9 @@
+from typing import Any
+
+import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+from nomad.units import ureg
 
 from nomad_simulation_parsers.schema_packages.quantumespresso import gipaw
 
@@ -14,6 +18,20 @@ class GIPAWMainfileTextParser(MainfileTextParser):
     @property
     def logger(self):
         return LOGGER
+    
+    def get_magnetic_shieldings(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        from devtools import debug
+        debug("sto facendo qualcosa di nuovo")
+        data = source.get('ms_list', [])
+
+        magnetic_shieldings = []
+        for atom_data in data:
+            values = np.reshape(atom_data[2:], (3, 3))
+            FACTOR = 1e-6
+            magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
+        return [dict(magnetic_shieldings=magnetic_shieldings)]
+        
+
 
 
 class GIPAWMainfileXMLParser(MainfileXMLParser):
