@@ -1,7 +1,7 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import general
 
-from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations, remove_mapping_annotations
 
 from .common import OUT_KEY, XML_KEY
 
@@ -17,11 +17,13 @@ class MagneticShielding(schema_package.MagneticShielding):
 
 
 class Outputs(schema_package.Outputs):
+    remove_mapping_annotations(general.Simulation.outputs)
     add_mapping_annotations(
         schema_package.Outputs.m_def,
         OUT_KEY,
         ('get_magnetic_shieldings', ['.@']),
     )
+    add_mapping_annotations(schema_package.Outputs.magnetic_shieldings, OUT_KEY, '.@')
 
 
 class Simulation(general.Simulation):

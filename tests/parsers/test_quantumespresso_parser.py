@@ -44,7 +44,9 @@ def test_gipaw_nmr():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
+    debug(archive.data.outputs[0])
+    debug(archive.data.outputs[0].magnetic_shieldings)
+
 
 
 def test_gipaw_scf():
@@ -55,4 +57,4 @@ def test_gipaw_scf():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
+    debug(archive.data.outputs[0])
