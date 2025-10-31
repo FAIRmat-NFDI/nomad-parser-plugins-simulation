@@ -24,14 +24,13 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         debug("sto facendo qualcosa di nuovo")
         data = source.get('ms_list', [])
 
-        tensors = np.array(
-            [np.array(row[2:], dtype=np.float64).reshape(3, 3) for row in data],
-            dtype=np.float64,
-        )
-        FACTOR = 1e-6
-        magnetic_shieldings = (tensors * FACTOR) * ureg("dimensionless")
-        result = [dict(magnetic_shieldings=magnetic_shieldings)]
-        return result
+        magnetic_shieldings = []
+        for atom_data in data:
+            values = np.reshape(atom_data[2:], (3, 3))
+            FACTOR = 1e-6
+            magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
+        return [dict(magnetic_shieldings=[dict(values=m) for m in magnetic_shieldings ])]
+
         
 
 
