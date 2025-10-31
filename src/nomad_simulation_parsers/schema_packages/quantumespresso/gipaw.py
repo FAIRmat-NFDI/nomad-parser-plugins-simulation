@@ -23,7 +23,7 @@ class Outputs(schema_package.Outputs):
         OUT_KEY,
         ('get_magnetic_shieldings', ['.@']),
     )
-    add_mapping_annotations(schema_package.Outputs.magnetic_shieldings, OUT_KEY, '.@')
+    add_mapping_annotations(schema_package.Outputs.magnetic_shieldings, OUT_KEY, '.magnetic_shieldings')
 
 
 class Simulation(general.Simulation):
