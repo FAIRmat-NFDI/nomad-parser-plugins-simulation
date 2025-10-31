@@ -20,8 +20,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         return LOGGER
     
     def get_magnetic_shieldings(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        from devtools import debug
-        debug("sto facendo qualcosa di nuovo")
+
         data = source.get('ms_list', [])
 
         magnetic_shieldings = []
@@ -29,7 +28,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             values = np.reshape(atom_data[2:], (3, 3))
             FACTOR = 1e-6
             magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
-        return [dict(magnetic_shieldings=[dict(values=m) for m in magnetic_shieldings ])]
+        return [dict(magnetic_shieldings=[dict(value=m) for m in magnetic_shieldings ])]
 
         
 

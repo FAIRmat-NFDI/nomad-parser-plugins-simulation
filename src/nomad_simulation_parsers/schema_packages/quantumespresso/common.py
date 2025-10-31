@@ -12,6 +12,9 @@ m_package = SchemaPackage()
 
 OUT_KEY = 'out'
 XML_KEY = 'xml'
+GPAW_OUT_KEY = 'gipaw_out'
+GPAW_XML_KEY = 'gipaw_xml'
+
 
 
 class Program(general.Program):
