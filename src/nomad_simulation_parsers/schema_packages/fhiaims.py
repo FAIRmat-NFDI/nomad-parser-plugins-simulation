@@ -272,7 +272,6 @@ add_mapping_annotation(
     MD_WORKFLOW_KEY,
     'molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"',
 )
-)
 
 
 try:

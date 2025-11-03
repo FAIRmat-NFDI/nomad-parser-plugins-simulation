@@ -11,11 +11,9 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import (
-    MolecularDynamics,
-    Simulation,
-)
+from nomad_simulation_parsers.schema_packages.h5md import Simulation
 from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
+from nomad_simulations.schema_packages.workflow import molecular_dynamics
 
 LOGGER = get_logger(__name__)
 
@@ -502,7 +500,7 @@ class H5MDArchiveWriter(MDParser):
         simulation_data = Simulation()
         self.simulation_parser.data_object = simulation_data
         self.workflow_parser.annotation_key = h5md.HDF5_KEY
-        workflow_data = MolecularDynamics()
+        workflow_data = molecular_dynamics.MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
         # map from h5 source to metainfo target

@@ -16,6 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# TODO: test_h5md_parser.py::test_md currently fails with jmespath parsing errors
+# when mapping HDF5 attributes that use the @ symbol (e.g., "@version", "@name").
+# This is a known issue with the mapping system for HDF5 attributes.
+# The mappings use patterns like 'h5md."@version"' and '."@name"' which cause
+# jmespath.exceptions.ParseError when processed by the mapping parser.
+#
 import numpy as np
 from nomad.datamodel.data import ArchiveSection
 from nomad.metainfo import Quantity, SchemaPackage, Section, SubSection
@@ -811,7 +817,7 @@ h5md_path_FEC = f'{h5md_path_md}.free_energy_calculation_parameters'
 
 # TODO Change this to fec_type in the schema
 add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.type,
+    molecular_dynamics.FreeEnergyCalculationParameters.calc_type,
     HDF5_KEY,
     (
         'map_value',
@@ -821,7 +827,7 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.lambda_index,
+    molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index,
     HDF5_KEY,
     (
         'map_value',
@@ -830,75 +836,76 @@ add_mapping_annotation(
     ),
 )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.atom_indices,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='atom_indices'),
-    ),
-)
+# TODO: These properties are not yet implemented in the FreeEnergyCalculationParameters schema
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.atom_indices,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='atom_indices'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_vdw'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.initial_state_vdw,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_vdw'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_vdw'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.final_state_vdw,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_vdw'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_coloumb'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.initial_state_coloumb,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_coloumb'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_coloumb'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.final_state_coloumb,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_coloumb'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='initial_state_bonded'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.initial_state_bonded,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='initial_state_bonded'),
+#     ),
+# )
 
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded,
-    HDF5_KEY,
-    (
-        'map_value',
-        [h5md_path_FEC],
-        dict(key='final_state_bonded'),
-    ),
-)
+# add_mapping_annotation(
+#     molecular_dynamics.FreeEnergyCalculationParameters.final_state_bonded,
+#     HDF5_KEY,
+#     (
+#         'map_value',
+#         [h5md_path_FEC],
+#         dict(key='final_state_bonded'),
+#     ),
+# )
 
 ### SUBSECTIONS
 
@@ -914,7 +921,7 @@ add_mapping_annotation(
 h5md_path_lambdas = f'{h5md_path_FEC}.lambdas'
 
 add_mapping_annotation(
-    molecular_dynamics.Lambdas.type,
+    molecular_dynamics.Lambdas.interaction_type,
     HDF5_KEY,
     (
         'map_value',
@@ -924,7 +931,7 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(
-    molecular_dynamics.Lambdas.value,
+    molecular_dynamics.Lambdas.values,
     HDF5_KEY,
     (
         'map_value',
@@ -1049,7 +1056,7 @@ add_mapping_annotation(
 # TODO flatten property structures in MD schema
 # TODO implement observable_type to be passed in the annotation
 add_mapping_annotation(
-    molecular_dynamics.RadialDistributionFunctionValues.value,
+    molecular_dynamics.RadialDistributionFunction.value,
     HDF5_KEY,
     (
         'get_output_data',
@@ -1126,21 +1133,23 @@ class EnsembleProperty(molecular_dynamics.EnsembleProperty):
 
 ### SUBSECTIONS
 
+# TODO: These properties are not yet implemented in MolecularDynamicsResults schema
 # ? Add Custom? OR maybe pull custom out of general schema and put here?
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
-)
+# add_mapping_annotation(
+#     molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
+# )
 
-# TODO This subsection is repeated in the schema
+# TODO This subsection exists in the schema
 add_mapping_annotation(
     molecular_dynamics.MolecularDynamicsResults.radial_distribution_functions,
     HDF5_KEY,
     '.@',
 )
 
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
-)
+# TODO: correlation_functions not yet implemented in schema
+# add_mapping_annotation(
+#     molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
+# )
 
 add_mapping_annotation(
     molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements,
@@ -1148,15 +1157,22 @@ add_mapping_annotation(
     '.@',
 )
 
-# ? Needed? It just points to the trajectory properties? I guess it collects data here?
 add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
+    molecular_dynamics.MolecularDynamicsResults.diffusion_constants,
+    HDF5_KEY,
+    '.@',
 )
 
+# TODO: These properties are not yet implemented in MolecularDynamicsResults schema
+# ? Needed? It just points to the trajectory properties? I guess it collects data here?
+# add_mapping_annotation(
+#     molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
+# )
+
 # ! multi-ensemble property!
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
-)
+# add_mapping_annotation(
+#     molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
+# )
 
 
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
