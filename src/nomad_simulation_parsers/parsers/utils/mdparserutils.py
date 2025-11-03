@@ -21,8 +21,6 @@ from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
-
-# from nomad.metainfo import MSection
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.atoms_state import ParticleState
@@ -152,9 +150,8 @@ class MDParser(ArchiveWriter):
         """
         Create a system section and write the provided data.
         """
-        # ? How to handle a missing archive now?
-        # if self.archive is None:
-        #     return
+        if simulation is None:
+            return
 
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return

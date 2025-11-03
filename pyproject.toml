@@ -145,6 +145,7 @@ gpaw_parser = "nomad_simulation_parsers.parsers:gpaw_parser"
 gpaw_schema_package = "nomad_simulation_parsers.schema_packages:gpaw_schema_package"
 h5md_parser = "nomad_simulation_parsers.parsers:h5md_parser"
 h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_package"
+lammps_parser = "nomad_simulation_parsers.parsers:lammps_parser"
 octopus_parser = "nomad_simulation_parsers.parsers:octopus_parser"
 octopus_schema_package = "nomad_simulation_parsers.schema_packages:octopus_schema_package"
 phonopy_parser = "nomad_simulation_parsers.parsers:phonopy_parser"
@@ -155,7 +156,6 @@ vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
 wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
 wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
-
 
 
 [tool.cruft]

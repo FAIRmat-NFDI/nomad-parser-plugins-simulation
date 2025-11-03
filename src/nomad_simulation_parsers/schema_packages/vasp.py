@@ -3,9 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -15,348 +13,272 @@ from nomad_simulations.schema_packages import (
     properties,
 )
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
 
+XML_KEY = 'xml'
+XML2_KEY = 'xml2'
+OUTCAR_KEY = 'outcar'
 
-general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(
-        xml=MapperAnnotation(mapper='modeling'),
-        xml2=MapperAnnotation(mapper='modeling'),
-        outcar=MapperAnnotation(mapper='@'),
-    )
-)
+
+add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.generator'),
-            outcar=MapperAnnotation(mapper='.header'),
-        )
-    )
+    add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
+    add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     # dft method
-    model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.parameters.separator[?"@name"==\'electronic\']'
-            ),
-            outcar=MapperAnnotation(mapper='parameters'),
-        )
+    add_mapping_annotation(
+        model_method.DFT.m_def,
+        XML_KEY,
+        '.parameters.separator[?"@name"==\'electronic\']',
     )
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.calculation'),
-            outcar=MapperAnnotation(mapper='.calculation'),
-        )
-    )
-    general.Simulation.outputs.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.calculation'),
-            xml2=MapperAnnotation(mapper='.calculation'),
-            outcar=MapperAnnotation(mapper='.calculation'),
-        )
-    )
+    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
+    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
 
 
 class Program(general.Program):
-    general.Program.name.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.i[?"@name"==\'program\'] | [0].__value',
-            )
-        )
+    add_mapping_annotation(
+        general.Program.name, XML_KEY, '.i[?"@name"==\'program\'] | [0].__value'
     )
-    general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.i[?"@name"==\'version\'] | [0].__value',
-            ),
-            outcar=MapperAnnotation(
-                mapper=('get_version', ['.@']),
-            ),
-        )
+    add_mapping_annotation(
+        general.Program.version, XML_KEY, '.i[?"@name"==\'version\'] | [0].__value'
     )
-    general.Program.compilation_host.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(xml=MapperAnnotation(mapper='.i[?"@name"==\'platform\'] | [0].__value'))
+    add_mapping_annotation(
+        general.Program.version, OUTCAR_KEY, ('get_version', ['.@'])
+    )
+    add_mapping_annotation(
+        general.Program.compilation_host,
+        XML_KEY,
+        '.i[?"@name"==\'platform\'] | [0].__value',
     )
 
 
 class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
-            ),
-            outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
-        )
+    add_mapping_annotation(
+        model_method.DFT.xc_functionals,
+        XML_KEY,
+        '.separator[?"@name"==\'electronic exchange-correlation\']',
     )
-    model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'mix_alpha',
-                    [
-                        '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-                        '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-                    ],
-                )
-            )
-        )
-    )  # TODO convert vasp bool
+    add_mapping_annotation(
+        model_method.DFT.xc_functionals, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+    )
+    add_mapping_annotation(
+        model_method.DFT.exact_exchange_mixing_factor,
+        XML_KEY,
+        (
+            'mix_alpha',
+            [
+                '.i[?"@name"==\'HFALPHA\'] | [0].__value',
+                '.i[?"@name"==\'LHFCALC\'] | [0].__value',
+            ],
+        ),
+    )
 
 
 class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                # TODO add LDA & mGGA, convert_xc
-                mapper='.i[?"@name"==\'GGA\'] | [0].__value'
-            ),
-            outcar=MapperAnnotation(mapper='.name'),
-        )
+    add_mapping_annotation(
+        model_method.XCFunctional.libxc_name,
+        XML_KEY,
+        '.i[?"@name"==\'GGA\'] | [0].__value',
     )
+    add_mapping_annotation(model_method.XCFunctional.libxc_name, OUTCAR_KEY, '.name')
 
 
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
-    numerical_settings.KSpace.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(xml=MapperAnnotation(mapper='modeling.kpoints')))
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
-    numerical_settings.KSpace.k_mesh.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(xml=MapperAnnotation(mapper='.@')))
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
 
 
 class KMesh(numerical_settings.KMesh):
-    numerical_settings.KMesh.grid.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.generation.v[?"@name"==\'divisions\'] | [0].__value'
-            )
-        )
+    add_mapping_annotation(
+        numerical_settings.KMesh.grid,
+        XML_KEY,
+        '.generation.v[?"@name"==\'divisions\'] | [0].__value',
     )
-    numerical_settings.KMesh.offset.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.generation.v[?"@name"==\'shift\'] | [0].__value'
-            )
-        )
+    add_mapping_annotation(
+        numerical_settings.KMesh.offset,
+        XML_KEY,
+        '.generation.v[?"@name"==\'shift\'] | [0].__value',
     )
-    numerical_settings.KMesh.points.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'reshape_array',
-                    ['.varray[?"@name"==\'kpointlist\'].v | [0]'],
-                    dict(shape_rest=(3)),
-                )
-            )
-        )
+    add_mapping_annotation(
+        numerical_settings.KMesh.points,
+        XML_KEY,
+        (
+            'reshape_array',
+            ['.varray[?"@name"==\'kpointlist\'].v | [0]'],
+            dict(shape_rest=(3)),
+        ),
     )
-
-    numerical_settings.KMesh.weights.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'reshape_array',
-                    ['.varray[?"@name"==\'weights\'].v | [0]'],
-                    dict(shape_rest=()),
-                )
-            )
-        )
+    add_mapping_annotation(
+        numerical_settings.KMesh.weights,
+        XML_KEY,
+        (
+            'reshape_array',
+            ['.varray[?"@name"==\'weights\'].v | [0]'],
+            dict(shape_rest=()),
+        ),
     )
 
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.structure'),
-            outcar=MapperAnnotation(mapper='.@'),
-        )
+    add_mapping_annotation(model_system.AtomicCell.m_def, XML_KEY, '.structure')
+    add_mapping_annotation(model_system.AtomicCell.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        XML_KEY,
+        (
+            'reshape_array',
+            ['.structure.varray.v'],
+            dict(shape_rest=(3,)),
+        ),
+        unit='angstrom',
     )
-    model_system.ModelSystem.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'reshape_array',
-                    ['.structure.varray.v'],
-                    dict(shape_rest=(3,)),
-                ),
-                unit='angstrom',
-            ),
-            outcar=MapperAnnotation(
-                mapper='.positions_forces', unit='angstrom', search='@ | [0]'
-            ),
-        )
+    add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        OUTCAR_KEY,
+        '.positions_forces',
+        unit='angstrom',
+        search='@ | [0]',
     )
 
 
 class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.crystal.varray[?"@name"==\'basis\'] | [0].v', unit='angstrom'
-            ),
-            outcar=MapperAnnotation(
-                mapper='.lattice_vectors', unit='angstrom', search='@ | [0]'
-            ),
-        )
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors,
+        XML_KEY,
+        '.structure.varray[?"@name"==\'basis\'] | [0].v',
+        unit='angstrom',
+    )
+    add_mapping_annotation(
+        model_system.AtomicCell.lattice_vectors,
+        OUTCAR_KEY,
+        '.lattice_vectors',
+        unit='angstrom',
+        search='@ | [0]',
     )
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.energy'),
-            outcar=MapperAnnotation(mapper='.energies'),
-        )
+    add_mapping_annotation(outputs.Outputs.total_energies, XML_KEY, '.energy')
+    add_mapping_annotation(outputs.Outputs.total_energies, OUTCAR_KEY, '.energies')
+    add_mapping_annotation(
+        outputs.Outputs.total_forces, XML_KEY, ('get_forces', ['.@'])
     )
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper=('get_forces', ['.@'])),
-            outcar=MapperAnnotation(mapper=('get_forces', ['.@'])),
-        )
+    add_mapping_annotation(
+        outputs.Outputs.total_forces, OUTCAR_KEY, ('get_forces', ['.@'])
     )
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
-            xml2=MapperAnnotation(mapper=('get_eigenvalues', ['eigenvalues'])),
-            outcar=MapperAnnotation(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'parameters'])
-            ),
-        )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues,
+        XML_KEY,
+        ('get_eigenvalues', ['eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues,
+        XML2_KEY,
+        ('get_eigenvalues', ['eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues,
+        OUTCAR_KEY,
+        ('get_eigenvalues', ['.eigenvalues', 'parameters']),
     )
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
     # value is already defined in TotalEnergy since they use the same def
     # get_energy function should be able to handle extraction from both sources
-    properties.energies.TotalEnergy.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'get_data',
-                    ['.@'],
-                    dict(path='.i[?"@name"==\'e_fr_energy\'] | [0].__value'),
-                ),
-                unit='eV',
-            ),
-            outcar=MapperAnnotation(
-                mapper=('get_data', ['.@'], dict(path='.energy_total')), unit='eV'
-            ),
-        )
+    add_mapping_annotation(
+        properties.energies.TotalEnergy.value,
+        XML_KEY,
+        (
+            'get_data',
+            ['.@'],
+            dict(path='.i[?"@name"==\'e_fr_energy\'] | [0].__value'),
+        ),
+        unit='eV',
     )
-    properties.energies.TotalEnergy.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'get_energy_contributions',
-                    ['.i'],
-                    dict(exclude=['e_fr_energy']),
-                )
-            ),
-            outcar=MapperAnnotation(
-                mapper=(
-                    'get_energy_contributions',
-                    ['.@'],
-                    dict(exclude=['energy_total']),
-                )
-            ),
-        )
+    add_mapping_annotation(
+        properties.energies.TotalEnergy.value,
+        OUTCAR_KEY,
+        ('get_data', ['.@'], dict(path='.energy_total')),
+        unit='eV',
+    )
+    add_mapping_annotation(
+        properties.energies.TotalEnergy.contributions,
+        XML_KEY,
+        (
+            'get_energy_contributions',
+            ['.i'],
+            dict(exclude=['e_fr_energy']),
+        ),
+    )
+    add_mapping_annotation(
+        properties.energies.TotalEnergy.contributions,
+        OUTCAR_KEY,
+        (
+            'get_energy_contributions',
+            ['.@'],
+            dict(exclude=['energy_total']),
+        ),
     )
 
 
 class BaseEnergy(properties.energies.BaseEnergy):
-    properties.energies.BaseEnergy.name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='."@name"'),
-            outcar=MapperAnnotation(mapper='.name'),
-        )
-    )
+    add_mapping_annotation(properties.energies.BaseEnergy.name, XML_KEY, '.@name')
+    add_mapping_annotation(properties.energies.BaseEnergy.name, OUTCAR_KEY, '.name')
 
 
 class TotalForce(properties.forces.TotalForce):
-    properties.forces.TotalForce.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='.forces', unit='eV/angstrom'),
-            outcar=MapperAnnotation(mapper='.forces', unit='eV/angstrom'),
-        )
+    add_mapping_annotation(
+        properties.forces.TotalForce.value, XML_KEY, '.forces', unit='eV/angstrom'
+    )
+    add_mapping_annotation(
+        properties.forces.TotalForce.value, OUTCAR_KEY, '.forces', unit='eV/angstrom'
     )
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            outcar=MapperAnnotation(mapper='.n_bands'),
-        )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.n_bands,
+        XML_KEY,
+        'length(.array.set.set.set[0].r)',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.n_bands,
+        XML2_KEY,
+        'length(.array.set.set.set[0].r)',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.n_bands, OUTCAR_KEY, '.n_bands'
     )
 
     # TODO This only works for non-spin pol
-    outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            outcar=MapperAnnotation(mapper='.occupations'),
-            xml2=MapperAnnotation(mapper='.occupations'),
-        )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupations'
     )
-    outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            outcar=MapperAnnotation(mapper='.eigenvalues'),
-            xml2=MapperAnnotation(mapper='.eigenvalues'),
-        )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupations'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
     )
 
 

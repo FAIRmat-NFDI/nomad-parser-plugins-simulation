@@ -50,7 +50,7 @@ from nomad_simulations.schema_packages.utils.molecular_dynamics import (
 from scipy import sparse
 from scipy.stats import linregress
 
-MOL = 6.022140857e23
+from nomad_simulation_parsers.parsers.utils.constants import MOLE
 
 
 class MDAnalysisParser(FileParser):
@@ -143,7 +143,7 @@ class MDAnalysisParser(FileParser):
 
         # Fallbacks/substitutions for missing atom info
         substitutions = [
-            ('names', lambda: ['X'] * self.universe.atoms.n_atoms),
+            ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
                 lambda: self.get_fragtypes()
@@ -366,7 +366,6 @@ class MDAnalysisParser(FileParser):
                 )[int(n_smooth / 2) : -int(n_smooth / 2)]
             )
         return rdf_results_tmp
-        return rdf_results_tmp
 
     def _get_rdf_avg(
         self, rdf_results_tmp, rdf_results, interval_indices, n_frames_split
@@ -498,7 +497,9 @@ class MDAnalysisParser(FileParser):
         """
         frame = self.get_frame(frame_index)
         return (
-            frame.forces * ureg.kJ / (MOL * ureg.angstrom) if frame.has_forces else None
+            frame.forces * ureg.kJ / (MOLE * ureg.angstrom)
+            if frame.has_forces
+            else None
         )
 
     def get_interactions(self):
