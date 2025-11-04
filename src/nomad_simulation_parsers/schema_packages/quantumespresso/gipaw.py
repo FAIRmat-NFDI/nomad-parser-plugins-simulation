@@ -16,13 +16,26 @@ class MagneticShielding(schema_package.MagneticShielding):
     )
 
 
+class MagneticSusceptibility(schema_package.MagneticSusceptibility):
+    add_mapping_annotations(
+        schema_package.MagneticSusceptibility.value, GPAW_OUT_KEY, '.value'
+    )
+    add_mapping_annotations(
+        schema_package.MagneticSusceptibility.value_vgv_approx, GPAW_OUT_KEY, '.value_vgv_approx'
+    )
+    add_mapping_annotations(
+        schema_package.MagneticSusceptibility.value_pgv_approx, GPAW_OUT_KEY, '.value_pgv_approx'
+    )
+
+
 class Outputs(schema_package.Outputs):
     add_mapping_annotations(
         schema_package.Outputs.m_def,
         GPAW_OUT_KEY,
-        ('get_magnetic_shieldings', ['.@']),
+        ('get_nmr', ['.@']),
     )
     add_mapping_annotations(schema_package.Outputs.magnetic_shieldings, GPAW_OUT_KEY, '.magnetic_shieldings')
+    add_mapping_annotations(schema_package.Outputs.magnetic_susceptibilities, GPAW_OUT_KEY, '.magnetic_susceptibilities')
 
 add_mapping_annotations(general.Simulation.m_def, GPAW_OUT_KEY, '@')
 

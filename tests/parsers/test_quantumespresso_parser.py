@@ -35,7 +35,7 @@ def test_xspectra():
         LOGGER,
     )
 
-from devtools import debug
+
 def test_gipaw_nmr():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
@@ -44,9 +44,6 @@ def test_gipaw_nmr():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].magnetic_shieldings)
-
 
 
 def test_gipaw_scf():
@@ -57,4 +54,3 @@ def test_gipaw_scf():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
