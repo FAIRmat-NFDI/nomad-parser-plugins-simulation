@@ -16,12 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# TODO: test_h5md_parser.py::test_md currently fails with jmespath parsing errors
-# when mapping HDF5 attributes that use the @ symbol (e.g., "@version", "@name").
-# This is a known issue with the mapping system for HDF5 attributes.
-# The mappings use patterns like 'h5md."@version"' and '."@name"' which cause
-# jmespath.exceptions.ParseError when processed by the mapping parser.
-#
 import numpy as np
 from nomad.datamodel.data import ArchiveSection
 from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
