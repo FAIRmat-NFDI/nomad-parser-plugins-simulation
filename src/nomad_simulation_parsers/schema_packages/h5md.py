@@ -16,12 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# TODO: test_h5md_parser.py::test_md currently fails with jmespath parsing errors
-# when mapping HDF5 attributes that use the @ symbol (e.g., "@version", "@name").
-# This is a known issue with the mapping system for HDF5 attributes.
-# The mappings use patterns like 'h5md."@version"' and '."@name"' which cause
-# jmespath.exceptions.ParseError when processed by the mapping parser.
-#
 import numpy as np
 from nomad.datamodel.data import ArchiveSection
 from nomad.metainfo import Quantity, SchemaPackage, Section, SubSection
@@ -109,7 +103,7 @@ class Author(ArchiveSection):
         """,
     )
 
-    add_mapping_annotation(name, HDF5_KEY, '."@name"')
+    add_mapping_annotation(name, HDF5_KEY, r'."@name"')
 
     email = Quantity(
         type=str,
@@ -119,13 +113,13 @@ class Author(ArchiveSection):
         """,
     )
 
-    add_mapping_annotation(email, HDF5_KEY, '."@email"')
+    add_mapping_annotation(email, HDF5_KEY, r'."@email"')
 
 
 ## class Program(general.Program):
 
-add_mapping_annotation(general.Program.name, HDF5_KEY, '."@name"')
-add_mapping_annotation(general.Program.version, HDF5_KEY, '."@version"')
+add_mapping_annotation(general.Program.name, HDF5_KEY, r'."@name"')
+add_mapping_annotation(general.Program.version, HDF5_KEY, r'."@version"')
 
 # SIMULATION.MODEL_SYSTEM --> archive.data.model_system
 
@@ -470,7 +464,7 @@ class Simulation(general.Simulation):
         Specifies the version of the h5md schema being followed.
         """,
     )
-    add_mapping_annotation(x_h5md_version, HDF5_KEY, 'h5md."@version"')
+    add_mapping_annotation(x_h5md_version, HDF5_KEY, r'h5md."@version"')
 
     x_h5md_author = SubSection(sub_section=Author.m_def)
 
