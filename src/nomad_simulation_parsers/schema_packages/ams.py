@@ -59,18 +59,14 @@ class TotalEnergy(outputs.TotalEnergy):
 
 
 class TotalForce(outputs.TotalForce):
-    add_mapping_annotation(
-        outputs.TotalForce.value, OUT_KEY, '.value || .forces_total'
-    )
+    add_mapping_annotation(outputs.TotalForce.value, OUT_KEY, '.value || .forces_total')
     add_mapping_annotation(
         outputs.TotalForce.contributions, OUT_KEY, ('get_contributions', ['.forces'])
     )
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, OUT_KEY, '.eigenvalues'
-    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.eigenvalues')
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
     )

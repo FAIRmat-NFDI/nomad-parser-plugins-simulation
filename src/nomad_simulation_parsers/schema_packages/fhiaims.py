@@ -102,9 +102,7 @@ class ModelSystem(model_system.ModelSystem):
         '.structure.positions',
         unit='angstrom',
     )
-    add_mapping_annotation(
-        model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels'
-    )
+    add_mapping_annotation(model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels')
 
 
 class AtomicCell(model_system.AtomicCell):

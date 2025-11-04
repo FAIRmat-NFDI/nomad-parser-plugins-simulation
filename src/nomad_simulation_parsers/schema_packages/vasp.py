@@ -51,9 +51,7 @@ class Program(general.Program):
     add_mapping_annotation(
         general.Program.version, XML_KEY, '.i[?"@name"==\'version\'] | [0].__value'
     )
-    add_mapping_annotation(
-        general.Program.version, OUTCAR_KEY, ('get_version', ['.@'])
-    )
+    add_mapping_annotation(general.Program.version, OUTCAR_KEY, ('get_version', ['.@']))
     add_mapping_annotation(
         general.Program.compilation_host,
         XML_KEY,
@@ -94,9 +92,7 @@ class XCFunctional(model_method.XCFunctional):
 
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints'
-    )
+    add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
 
 
 class KSpace(numerical_settings.KSpace):

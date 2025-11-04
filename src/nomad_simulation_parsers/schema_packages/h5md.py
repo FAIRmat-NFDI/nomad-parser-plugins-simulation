@@ -363,9 +363,7 @@ add_mapping_annotation(
 ## class BaseForce(properties.forces.BaseForce):
 
 
-add_mapping_annotation(
-    properties.forces.BaseForce.contribution_type, HDF5_KEY, '.name'
-)
+add_mapping_annotation(properties.forces.BaseForce.contribution_type, HDF5_KEY, '.name')
 
 
 ## class TotalForce(properties.TotalForce):
