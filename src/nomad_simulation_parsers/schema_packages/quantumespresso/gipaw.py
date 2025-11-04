@@ -32,7 +32,7 @@ class Outputs(schema_package.Outputs):
     add_mapping_annotations(
         schema_package.Outputs.m_def,
         GPAW_OUT_KEY,
-        ('get_nmr', ['.@']),
+        ('get_nmr_text', ['.@']),
     )
     add_mapping_annotations(schema_package.Outputs.magnetic_shieldings, GPAW_OUT_KEY, '.magnetic_shieldings')
     add_mapping_annotations(schema_package.Outputs.magnetic_susceptibilities, GPAW_OUT_KEY, '.magnetic_susceptibilities')
