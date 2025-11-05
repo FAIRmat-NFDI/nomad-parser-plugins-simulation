@@ -829,7 +829,7 @@ add_mapping_annotation(
     ),
 )
 
-# TODO: These properties are not yet implemented in the FreeEnergyCalculationParameters schema
+# TODO: These properties are not yet implemented in FreeEnergyCalculationParameters
 # add_mapping_annotation(
 #     molecular_dynamics.FreeEnergyCalculationParameters.atom_indices,
 #     HDF5_KEY,
