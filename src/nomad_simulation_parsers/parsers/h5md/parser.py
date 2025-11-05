@@ -400,8 +400,10 @@ class H5MDH5Parser(HDF5Parser):
         # Try to get type from raw H5MD file attributes
         if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
             try:
+                # Access h5_archive directly (already opened by h5_parser)
+                # Will be closed via h5_parser.close()
                 h5_file = self.h5_parser.h5_archive
-                if 'observables' in h5_file:
+                if h5_file and 'observables' in h5_file:
                     obs_path = f'observables/{label}'
                     if obs_path in h5_file:
                         obs_group = h5_file[obs_path]
@@ -474,7 +476,7 @@ class H5MDH5Parser(HDF5Parser):
 
 class H5MDArchiveWriter(MDParser):
     def __init__(self, **kwargs):
-        self.h5_parser = H5MDH5Parser()
+        self.h5_parser: H5MDH5Parser = H5MDH5Parser()
         self.simulation_parser = H5MDMetainfoParser()
         self.simulation_parser.max_nested_level = 10
         self.workflow_parser = H5MDMetainfoParser()
