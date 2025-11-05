@@ -1159,22 +1159,15 @@ class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
 #         type=bool,
 #         shape=[],
 #         description="""
-#         Indicates if calculation terminated normally.
+#         Values of the variable along which the property is calculated.
 #         """,
 #     )
 
-#     n_steps = Quantity(
-#         type=np.int32,
+#     bins_unit = Quantity(
+#         type=str,
 #         shape=[],
 #         description="""
-#         Number of trajectory steps""",
-#     )
-
-#     trajectory = Quantity(
-#         type=Reference(System),
-#         shape=['n_steps'],
-#         description="""
-#         Reference to the system of each step in the trajectory.
+#         Unit of the given bins, using UnitRegistry() notation.
 #         """,
 #     )
 
