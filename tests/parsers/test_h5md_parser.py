@@ -241,6 +241,7 @@ def assert_thermostats_barostats_shear(sec_workflow) -> None:
 def assert_radial_distribution_functions(sec_workflow_results) -> None:
     """Test radial distribution function results."""
     # MD results - RDF
+    print(sec_workflow_results.radial_distribution_functions)
     assert len(sec_workflow_results.radial_distribution_functions) == 3
 
     # Check first RDF (MOL1-MOL1)
