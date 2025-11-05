@@ -1044,9 +1044,6 @@ add_mapping_annotation(
 ## ):
 
 
-# ! Should be something like this but first need to
-# TODO flatten property structures in MD schema
-# TODO implement observable_type to be passed in the annotation
 add_mapping_annotation(
     molecular_dynamics.RadialDistributionFunction.value,
     HDF5_KEY,
@@ -1061,75 +1058,75 @@ add_mapping_annotation(
 )
 
 
-class EnsembleProperty(molecular_dynamics.EnsembleProperty):
-    bins_magnitude = Quantity(
-        type=np.float64,
-        shape=['n_bins'],
-        description="""
-        Values of the variable along which the property is calculated.
-        """,
-    )
-
-    bins_unit = Quantity(
-        type=str,
-        shape=[],
-        description="""
-        Unit of the given bins, using UnitRegistry() notation.
-        """,
-    )
-
-    value_magnitude = Quantity(
-        type=np.float64,
-        shape=['n_bins'],
-        description="""
-        Values of the property.
-        """,
-    )
-
-    value_unit = Quantity(
-        type=str,
-        shape=[],
-        description="""
-        Unit of the property, using UnitRegistry() notation.
-        """,
-    )
-
-
-# add_mapping_annotations(
-#     MolecularDynamicsResults.m_def, HDF5_KEY, ('get_output_data', ['observables'])
-# )
-
-# ? These quantities from normalization?
-#     finished_normally = Quantity(
-#         type=bool,
-#         shape=[],
+# class EnsembleProperty(molecular_dynamics.EnsembleProperty):
+#     bins_magnitude = Quantity(
+#         type=np.float64,
+#         shape=['n_bins'],
 #         description="""
-#         Indicates if calculation terminated normally.
+#         Values of the variable along which the property is calculated.
 #         """,
 #     )
 
-#     n_steps = Quantity(
-#         type=np.int32,
+#     bins_unit = Quantity(
+#         type=str,
 #         shape=[],
 #         description="""
-#         Number of trajectory steps""",
-#     )
-
-#     trajectory = Quantity(
-#         type=Reference(System),
-#         shape=['n_steps'],
-#         description="""
-#         Reference to the system of each step in the trajectory.
+#         Unit of the given bins, using UnitRegistry() notation.
 #         """,
 #     )
 
-### SUBSECTIONS
+#     value_magnitude = Quantity(
+#         type=np.float64,
+#         shape=['n_bins'],
+#         description="""
+#         Values of the property.
+#         """,
+#     )
 
-# TODO: These properties are not yet implemented in MolecularDynamicsResults schema
-# ? Add Custom? OR maybe pull custom out of general schema and put here?
-# add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
-# )
+#     value_unit = Quantity(
+#         type=str,
+#         shape=[],
+#         description="""
+#         Unit of the property, using UnitRegistry() notation.
+#         """,
+#     )
+
+
+# # add_mapping_annotations(
+# #     MolecularDynamicsResults.m_def, HDF5_KEY, ('get_output_data', ['observables'])
+# # )
+
+# # ? These quantities from normalization?
+# #     finished_normally = Quantity(
+# #         type=bool,
+# #         shape=[],
+# #         description="""
+# #         Indicates if calculation terminated normally.
+# #         """,
+# #     )
+
+# #     n_steps = Quantity(
+# #         type=np.int32,
+# #         shape=[],
+# #         description="""
+# #         Number of trajectory steps""",
+# #     )
+
+# #     trajectory = Quantity(
+# #         type=Reference(System),
+# #         shape=['n_steps'],
+# #         description="""
+# #         Reference to the system of each step in the trajectory.
+# #         """,
+# #     )
+
+# ### SUBSECTIONS
+
+# # TODO: These properties are not yet implemented in MolecularDynamicsResults schema
+# # ? Add Custom? OR maybe pull custom out of general schema and put here?
+# # add_mapping_annotation(
+# #     molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
+# # )
 
 # TODO This subsection exists in the schema
 add_mapping_annotation(
@@ -1138,33 +1135,33 @@ add_mapping_annotation(
     '.@',
 )
 
-# TODO: correlation_functions not yet implemented in schema
+# # TODO: correlation_functions not yet implemented in schema
+# # add_mapping_annotation(
+# #     molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
+# # )
+
 # add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
+#     molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements,
+#     HDF5_KEY,
+#     '.@',
 # )
 
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements,
-    HDF5_KEY,
-    '.@',
-)
-
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.diffusion_constants,
-    HDF5_KEY,
-    '.@',
-)
-
-# TODO: These properties are not yet implemented in MolecularDynamicsResults schema
-# ? Needed? It just points to the trajectory properties? I guess it collects data here?
 # add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
+#     molecular_dynamics.MolecularDynamicsResults.diffusion_constants,
+#     HDF5_KEY,
+#     '.@',
 # )
 
-# ! multi-ensemble property!
-# add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
-# )
+# # TODO: These properties are not yet implemented in MolecularDynamicsResults schema
+# # ? Needed? It just points to the trajectory properties? I guess it collects data here?
+# # add_mapping_annotation(
+# #     molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
+# # )
+
+# # ! multi-ensemble property!
+# # add_mapping_annotation(
+# #     molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
+# # )
 
 
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
