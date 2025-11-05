@@ -34,6 +34,8 @@ from nomad_simulations.schema_packages.workflow import molecular_dynamics, traje
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
+from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
+
 m_package = SchemaPackage()
 
 HDF5_KEY = 'h5md_hdf5'
