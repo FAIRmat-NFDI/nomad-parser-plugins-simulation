@@ -49,8 +49,6 @@ from nomad_simulations.schema_packages.utils.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
 )
-from scipy import sparse
-from scipy.stats import linregress
 
 from nomad_simulation_parsers.parsers.utils.constants import MOLE
 
