@@ -361,13 +361,14 @@ class H5MDH5Parser(HDF5Parser):
     ) -> None:
         """Helper method to consistently process observable data."""
         for key in data_dict.keys():
-            if key != '@type':  # Skip type metadata
-                value = self.get_value(key, data_dict)
-                if value is not None:
-                    # Handle 'times' field only for correlation functions
-                    if key == 'times' and data_type != 'correlation_function':
-                        continue
-                    self._add_value_to_result(result_dict, key, value)
+            # Skip @type, None values, and 'times' outside correlation functions
+            if (
+                key == '@type'
+                or (value := self.get_value(key, data_dict)) is None
+                or (key == 'times' and data_type != 'correlation_function')
+            ):
+                continue
+            self._add_value_to_result(result_dict, key, value)
 
     def _add_value_to_result(self, result_dict: dict, key: str, value) -> None:
         """Helper method to add a value to result dict with proper unit handling."""
