@@ -260,11 +260,9 @@ class H5MDH5Parser(HDF5Parser):
         # Route based on whether this is step-based (configurational) or stepless data
         if source.get('step') is not None:
             # Step-based: configurational outputs (energies, forces, temperatures)
-            print(source)
             return self.get_configurational_output(source, **kwargs)
         else:
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
-            # print(source)
             return self.get_ensemble_output(source, **kwargs)
 
     # TODO reassess the necessity of this function
@@ -502,9 +500,6 @@ class H5MDH5Parser(HDF5Parser):
                     value = self.get_value(key, data_dict)
                     if value is not None:
                         result_dict[key] = value
-                print(result_dict.get('label'))
-                # if result_dict.get('type') == 'radial_distribution_function':
-                #     print(result_dict.get('label'))
                 results.append(result_dict)
             return results
 
