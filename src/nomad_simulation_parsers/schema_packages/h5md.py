@@ -1168,25 +1168,15 @@ MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping',
 )
 
 # Individual field mappings for custom EnsembleProperty
-EnsembleProperty.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.label')
-)
+add_mapping_annotation(EnsembleProperty.label, HDF5_KEY, '.label')
 
-EnsembleProperty.bins_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.bins')
-)
+add_mapping_annotation(EnsembleProperty.bins_magnitude, HDF5_KEY, '.bins')
 
-EnsembleProperty.bins_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.bins_unit')
-)
+add_mapping_annotation(EnsembleProperty.bins_unit, HDF5_KEY, '.bins_unit')
 
-EnsembleProperty.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value_magnitude')
-)
+add_mapping_annotation(EnsembleProperty.value_magnitude, HDF5_KEY, '.value_magnitude')
 
-EnsembleProperty.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value_unit')
-)
+add_mapping_annotation(EnsembleProperty.value_unit, HDF5_KEY, '.value_unit')
 
 # Radial Distribution Functions mapping using get_output_data
 MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
@@ -1226,29 +1216,19 @@ MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping
 )
 
 # Individual field mappings for custom CorrelationFunction
-CorrelationFunction.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.label')
+add_mapping_annotation(CorrelationFunction.label, HDF5_KEY, '.label')
+
+add_mapping_annotation(CorrelationFunction.times, HDF5_KEY, '.times')
+
+add_mapping_annotation(
+    CorrelationFunction.value_magnitude, HDF5_KEY, '.value_magnitude'
 )
 
-CorrelationFunction.times.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.times')
-)
+add_mapping_annotation(CorrelationFunction.value_unit, HDF5_KEY, '.value_unit')
 
-CorrelationFunction.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value_magnitude')
-)
+add_mapping_annotation(CorrelationFunction.direction, HDF5_KEY, '.direction')
 
-CorrelationFunction.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.value_unit')
-)
-
-CorrelationFunction.direction.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.direction')
-)
-
-CorrelationFunction.n_times.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='.n_times')
-)
+add_mapping_annotation(CorrelationFunction.n_times, HDF5_KEY, '.n_times')
 
 # Mean Squared Displacements mapping using get_output_data
 MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
@@ -1317,22 +1297,14 @@ MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
 
 
 # Use our custom MolecularDynamics class with custom results
-MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='@')
-)
+add_mapping_annotation(MolecularDynamics.m_def, HDF5_KEY, '@')
 
-MolecularDynamics.method.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='@')
-)
+add_mapping_annotation(MolecularDynamics.method, HDF5_KEY, '@')
 
-MolecularDynamics.results.m_annotations.setdefault('mapping', {})['hdf5'] = (
-    MapperAnnotation(mapper='@')
-)
+add_mapping_annotation(MolecularDynamics.results, HDF5_KEY, '@')
 
 # ? Needed?
-molecular_dynamics.MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})[
-    'hdf5'
-] = MapperAnnotation(mapper='@')
+add_mapping_annotation(molecular_dynamics.MolecularDynamics.outputs, HDF5_KEY, '@')
 # MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})['hdf5'] = (
 #     MapperAnnotation(mapper=('get_output_data', ['observables']))
 # )
