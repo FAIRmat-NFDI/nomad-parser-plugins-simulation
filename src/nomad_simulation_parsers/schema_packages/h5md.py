@@ -29,9 +29,11 @@ from nomad_simulations.schema_packages import (
 )
 
 # from simulationworkflowschema import molecular_dynamics
-from nomad_simulations.schema_packages.workflow import molecular_dynamics
+from nomad_simulations.schema_packages.workflow import molecular_dynamics, trajectory
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
+from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 
 m_package = SchemaPackage()
 
@@ -1039,137 +1041,309 @@ add_mapping_annotation(
 # WORKFLOW.RESULTS --> archive.workflow2.results
 
 
-## class RadialDistributionFunctionValues(
-##     molecular_dynamics.RadialDistributionFunctionValues
-## ):
+class ConfigurationalProperty(trajectory.ConfigurationalProperty):
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_frames'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
 
 
-add_mapping_annotation(
-    molecular_dynamics.RadialDistributionFunction.value,
-    HDF5_KEY,
-    (
-        'get_output_data',
-        ['.@'],
+class EnsembleProperty(molecular_dynamics.EnsembleProperty):
+    bins_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_bins'],
+        description="""
+        Values of the variable along which the property is calculated.
+        """,
+    )
+
+    bins_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the given bins, using UnitRegistry() notation.
+        """,
+    )
+
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_bins'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
+
+
+class CorrelationFunction(molecular_dynamics.CorrelationFunction):
+    value_magnitude = Quantity(
+        type=np.float64,
+        shape=['n_times'],
+        description="""
+        Values of the property.
+        """,
+    )
+
+    value_unit = Quantity(
+        type=str,
+        shape=[],
+        description="""
+        Unit of the property, using UnitRegistry() notation.
+        """,
+    )
+
+
+class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
+    ensemble_properties = SubSection(sub_section=EnsembleProperty.m_def, repeats=True)
+
+    correlation_functions = SubSection(
+        sub_section=CorrelationFunction.m_def, repeats=True
+    )
+
+
+class MolecularDynamics(molecular_dynamics.MolecularDynamics):
+    results = SubSection(sub_section=MolecularDynamicsResults.m_def)
+
+
+# MolecularDynamicsOutputs.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
+#     MapperAnnotation(mapper=('get_output_data', ['observables']))
+# )
+
+# ? These quantities from normalization?
+#     finished_normally = Quantity(
+#         type=bool,
+#         shape=[],
+#         description="""
+#         Indicates if calculation terminated normally.
+#         """,
+#     )
+
+#     n_steps = Quantity(
+#         type=np.int32,
+#         shape=[],
+#         description="""
+#         Number of trajectory steps""",
+#     )
+
+#     trajectory = Quantity(
+#         type=Reference(System),
+#         shape=['n_steps'],
+#         description="""
+#         Reference to the system of each step in the trajectory.
+#         """,
+#     )
+
+### SUBSECTIONS
+
+# Custom Ensemble Properties mapping using get_custom_ensemble_outputs
+MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(
+    mapper=(
+        'get_custom_ensemble_outputs',
+        ['observables'],
         dict(
-            path='observables.radial_distribution_functions',
-            observable_type='ensemble_average',
+            exclude=STANDARD_H5MD_OBSERVABLES,
+            type_filter=['ensemble_average'],
         ),
-    ),
+    )
 )
 
-
-# class EnsembleProperty(molecular_dynamics.EnsembleProperty):
-#     bins_magnitude = Quantity(
-#         type=np.float64,
-#         shape=['n_bins'],
-#         description="""
-#         Values of the variable along which the property is calculated.
-#         """,
-#     )
-
-#     bins_unit = Quantity(
-#         type=str,
-#         shape=[],
-#         description="""
-#         Unit of the given bins, using UnitRegistry() notation.
-#         """,
-#     )
-
-#     value_magnitude = Quantity(
-#         type=np.float64,
-#         shape=['n_bins'],
-#         description="""
-#         Values of the property.
-#         """,
-#     )
-
-#     value_unit = Quantity(
-#         type=str,
-#         shape=[],
-#         description="""
-#         Unit of the property, using UnitRegistry() notation.
-#         """,
-#     )
-
-
-# # add_mapping_annotations(
-# #     MolecularDynamicsResults.m_def, HDF5_KEY, ('get_output_data', ['observables'])
-# # )
-
-# # ? These quantities from normalization?
-# #     finished_normally = Quantity(
-# #         type=bool,
-# #         shape=[],
-# #         description="""
-# #         Indicates if calculation terminated normally.
-# #         """,
-# #     )
-
-# #     n_steps = Quantity(
-# #         type=np.int32,
-# #         shape=[],
-# #         description="""
-# #         Number of trajectory steps""",
-# #     )
-
-# #     trajectory = Quantity(
-# #         type=Reference(System),
-# #         shape=['n_steps'],
-# #         description="""
-# #         Reference to the system of each step in the trajectory.
-# #         """,
-# #     )
-
-# ### SUBSECTIONS
-
-# # TODO: These properties are not yet implemented in MolecularDynamicsResults schema
-# # ? Add Custom? OR maybe pull custom out of general schema and put here?
-# # add_mapping_annotation(
-# #     molecular_dynamics.MolecularDynamicsResults.ensemble_properties, HDF5_KEY, '.@'
-# # )
-
-# TODO This subsection exists in the schema
-add_mapping_annotation(
-    molecular_dynamics.MolecularDynamicsResults.radial_distribution_functions,
-    HDF5_KEY,
-    '.@',
+# Individual field mappings for custom EnsembleProperty
+EnsembleProperty.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.label')
 )
 
-# # TODO: correlation_functions not yet implemented in schema
-# # add_mapping_annotation(
-# #     molecular_dynamics.MolecularDynamicsResults.correlation_functions, HDF5_KEY, '.@'
-# # )
+EnsembleProperty.bins_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.bins')
+)
 
-# add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.mean_squared_displacements,
-#     HDF5_KEY,
-#     '.@',
-# )
+EnsembleProperty.bins_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.bins_unit')
+)
 
-# add_mapping_annotation(
-#     molecular_dynamics.MolecularDynamicsResults.diffusion_constants,
-#     HDF5_KEY,
-#     '.@',
-# )
+EnsembleProperty.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.value_magnitude')
+)
 
-# # TODO: These properties are not yet implemented in MolecularDynamicsResults schema
-# # ? Needed? It just points to the trajectory properties? I guess it collects data here?
-# # add_mapping_annotation(
-# #     molecular_dynamics.MolecularDynamicsResults.radius_of_gyration, HDF5_KEY, '.@'
-# # )
+EnsembleProperty.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.value_unit')
+)
 
-# # ! multi-ensemble property!
-# # add_mapping_annotation(
-# #     molecular_dynamics.MolecularDynamicsResults.free_energy_calculations, HDF5_KEY, '.@'
-# # )
+# Radial Distribution Functions mapping using get_output_data
+MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(
+    mapper=(
+        'get_output_data',
+        ['observables.radial_distribution_functions'],
+    )
+)
+
+# Individual field mappings for RadialDistributionFunction
+molecular_dynamics.RadialDistributionFunction.label.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.RadialDistributionFunction.bins.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.bins')
+
+molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.value')
+
+# Custom Correlation Functions mapping using get_custom_ensemble_outputs
+MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(
+    mapper=(
+        'get_custom_ensemble_outputs',
+        ['observables'],
+        dict(
+            exclude=STANDARD_H5MD_OBSERVABLES,
+            type_filter=['correlation_function'],
+        ),
+    )
+)
+
+# Individual field mappings for custom CorrelationFunction
+CorrelationFunction.label.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.label')
+)
+
+CorrelationFunction.times.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.times')
+)
+
+CorrelationFunction.value_magnitude.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.value_magnitude')
+)
+
+CorrelationFunction.value_unit.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.value_unit')
+)
+
+CorrelationFunction.direction.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.direction')
+)
+
+CorrelationFunction.n_times.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='.n_times')
+)
+
+# Mean Squared Displacements mapping using get_output_data
+MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(
+    mapper=(
+        'get_output_data',
+        ['observables.mean_squared_displacements'],
+    )
+)
+
+# Individual field mappings for MeanSquaredDisplacement
+molecular_dynamics.MeanSquaredDisplacement.label.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.MeanSquaredDisplacement.times.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.times')
+
+molecular_dynamics.MeanSquaredDisplacement.value.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.value')
+
+molecular_dynamics.MeanSquaredDisplacement.direction.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.direction')
+
+molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.n_times')
+
+# molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
+#     'mapping', {}
+# )['hdf5'] = MapperAnnotation(mapper='.errors')
+
+# Diffusion Constants mapping using get_output_data
+MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(
+    mapper=(
+        'get_output_data',
+        ['observables.diffusion_constants'],
+    )
+)
+
+# Individual field mappings for DiffusionConstant
+molecular_dynamics.DiffusionConstant.label.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.label')
+
+molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.value')
+
+# ? Needed? It just points to the configurational properties?
+# I guess it collects data here?
+MolecularDynamicsResults.radii_of_gyration.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='.@')
+
+# ! multi-ensemble property!
+MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
+    'mapping', {}
+)['hdf5'] = MapperAnnotation(mapper='.@')
 
 
-add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
+# Use our custom MolecularDynamics class with custom results
+MolecularDynamics.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
 
-add_mapping_annotation(molecular_dynamics.MolecularDynamics.method, HDF5_KEY, '@')
+MolecularDynamics.method.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
+
+MolecularDynamics.results.m_annotations.setdefault('mapping', {})['hdf5'] = (
+    MapperAnnotation(mapper='@')
+)
 
 # ? Needed?
-add_mapping_annotation(molecular_dynamics.MolecularDynamics.results, HDF5_KEY, '@')
+molecular_dynamics.MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})[
+    'hdf5'
+] = MapperAnnotation(mapper='@')
+# MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})['hdf5'] = (
+#     MapperAnnotation(mapper=('get_output_data', ['observables']))
+# )
+
+
+# add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
+
+# add_mapping_annotation(molecular_dynamics.MolecularDynamics.method, HDF5_KEY, '@')
+
+# # ? Needed?
+# add_mapping_annotation(molecular_dynamics.MolecularDynamics.results, HDF5_KEY, '@')
 # add_mapping_annotations(
 #     MolecularDynamics.results, HDF5_KEY, ('get_output_data', ['observables'])
 # )

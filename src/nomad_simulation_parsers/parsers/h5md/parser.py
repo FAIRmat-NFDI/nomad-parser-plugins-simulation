@@ -7,12 +7,13 @@ from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser,
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.workflow import molecular_dynamics
+
+# from nomad_simulations.schema_packages.workflow import molecular_dynamics
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import Simulation
+from nomad_simulation_parsers.schema_packages.h5md import Simulation, MolecularDynamics
 from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
@@ -257,9 +258,11 @@ class H5MDH5Parser(HDF5Parser):
         # Route based on whether this is step-based (configurational) or stepless data
         if source.get('step') is not None:
             # Step-based: configurational outputs (energies, forces, temperatures)
+            print(source)
             return self.get_configurational_output(source, **kwargs)
         else:
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
+            # print(source)
             return self.get_ensemble_output(source, **kwargs)
 
     def get_custom_outputs(
@@ -465,6 +468,9 @@ class H5MDH5Parser(HDF5Parser):
                     value = self.get_value(key, data_dict)
                     if value is not None:
                         result_dict[key] = value
+                print(result_dict.get('label'))
+                # if result_dict.get('type') == 'radial_distribution_function':
+                #     print(result_dict.get('label'))
                 results.append(result_dict)
             return results
 
@@ -500,7 +506,7 @@ class H5MDArchiveWriter(MDParser):
         simulation_data = Simulation()
         self.simulation_parser.data_object = simulation_data
         self.workflow_parser.annotation_key = h5md.HDF5_KEY
-        workflow_data = molecular_dynamics.MolecularDynamics()
+        workflow_data = MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
         # map from h5 source to metainfo target
