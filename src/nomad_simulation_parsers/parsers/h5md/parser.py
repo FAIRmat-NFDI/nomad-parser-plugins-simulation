@@ -1,6 +1,8 @@
+from collections.abc import Sequence
 from importlib import reload
 from typing import Any
 
+import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
@@ -378,14 +380,14 @@ class H5MDH5Parser(HDF5Parser):
                 # Quantity with units
                 magnitude = value.magnitude
                 # Convert scalars to 1-element arrays for schema consistency
-                if not hasattr(magnitude, '__len__') or isinstance(magnitude, str):
+                if not isinstance(magnitude, (np.ndarray, Sequence)):
                     magnitude = [magnitude]
                 result_dict['value_magnitude'] = magnitude
                 result_dict['value_unit'] = str(value.units)
             else:
                 # Raw value (list, float, etc.) - still use mapped field name
                 # Convert scalars to 1-element arrays for schema consistency
-                if not hasattr(value, '__len__') or isinstance(value, str):
+                if not isinstance(value, (np.ndarray, Sequence)):
                     value = [value]
                 result_dict['value_magnitude'] = value
         # Handle other Quantities by separating magnitude and unit
