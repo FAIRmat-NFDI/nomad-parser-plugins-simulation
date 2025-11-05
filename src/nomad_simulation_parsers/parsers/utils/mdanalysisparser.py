@@ -17,9 +17,16 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+
 import os
+from array import array
+from collections import namedtuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
+from scipy import sparse
+from scipy.stats import linregress
 
 try:
     import MDAnalysis
@@ -29,28 +36,42 @@ try:
     _HAS_MDA = True
 except ImportError:
     _HAS_MDA = False
+    MDAnalysis = None  # type: ignore
 
-if not _HAS_MDA:
-    raise ImportError(
-        'MDAnalysis is required for this functionality. '
-        'Please re-install the plugin with `pip install nomad-simulation-parsers[md]`.'
-    )
-
-
-from array import array
-from collections import namedtuple
-from typing import Any, NamedTuple, Optional
+# Import types for type checking only (not at runtime)
+if TYPE_CHECKING:
+    from MDAnalysis import Universe as MDAUniverse
 
 from nomad.parsing.file_parser import FileParser
 from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_simulations.schema_packages.utils.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
 )
-from scipy import sparse
-from scipy.stats import linregress
 
 from nomad_simulation_parsers.parsers.utils.constants import MOLE
+
+LOGGER = get_logger(__name__)
+
+
+def _check_mda_dependency(function_name: str) -> bool:
+    """
+    Checks if MDAnalysis is available and logs an error if not.
+
+    Args:
+        function_name: The name of the function requiring MDAnalysis
+
+    Returns:
+        True if MDAnalysis is available, False otherwise
+    """
+    if not _HAS_MDA:
+        LOGGER.error(
+            f'{function_name} requires MDAnalysis. '
+            'Please install with `pip install nomad-simulation-parsers[md]`.'
+        )
+        return False
+    return True
 
 
 class MDAnalysisParser(FileParser):
@@ -79,7 +100,9 @@ class MDAnalysisParser(FileParser):
         self._kwargs = value
 
     @property
-    def universe(self):
+    def universe(self) -> MDAUniverse | None:
+        if not _check_mda_dependency('universe'):
+            return None
         if self._file_handler is None:
             try:
                 self._file_handler = MDAnalysis.Universe(
@@ -205,7 +228,7 @@ class MDAnalysisParser(FileParser):
         n_smooth: int = 2
         max_mols: int = 5000
 
-    def calc_molecular_rdf(self, params: Optional['RDFParams'] = None):
+    def calc_molecular_rdf(self, params: RDFParams | None = None):
         """
         Calculates the radial distribution functions between for each unique pair of
         molecule types as a function of their center of mass distance.
@@ -321,9 +344,7 @@ class MDAnalysisParser(FileParser):
         max_rdf_dist: float
         exclusion_block: Any
 
-    def _calculate_rdf_for_pair(
-        self, rdf_pair_params: 'MDAnalysisParser.RDFPairParams'
-    ):
+    def _calculate_rdf_for_pair(self, rdf_pair_params: MDAnalysisParser.RDFPairParams):
         bead_groups = rdf_pair_params.bead_groups
         moltype_i = rdf_pair_params.moltype_i
         moltype_j = rdf_pair_params.moltype_j
