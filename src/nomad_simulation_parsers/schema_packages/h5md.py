@@ -18,6 +18,7 @@
 #
 import numpy as np
 from nomad.datamodel.data import ArchiveSection
+from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 from nomad.metainfo import Quantity, SchemaPackage, Section, SubSection
 from nomad_simulations.schema_packages import (
     atoms_state,
@@ -32,8 +33,6 @@ from nomad_simulations.schema_packages import (
 from nomad_simulations.schema_packages.workflow import molecular_dynamics, trajectory
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
-
-from nomad.datamodel.metainfo.annotations import Mapper as MapperAnnotation
 
 m_package = SchemaPackage()
 
@@ -1119,14 +1118,6 @@ class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
     )
 
 
-class MolecularDynamics(molecular_dynamics.MolecularDynamics):
-    results = SubSection(sub_section=MolecularDynamicsResults.m_def)
-
-
-# MolecularDynamicsOutputs.m_def.m_annotations.setdefault('mapping', {})['hdf5'] = (
-#     MapperAnnotation(mapper=('get_output_data', ['observables']))
-# )
-
 # ? These quantities from normalization?
 #     finished_normally = Quantity(
 #         type=bool,
@@ -1150,6 +1141,11 @@ class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 #         Reference to the system of each step in the trajectory.
 #         """,
 #     )
+
+
+class MolecularDynamics(molecular_dynamics.MolecularDynamics):
+    results = SubSection(sub_section=MolecularDynamicsResults.m_def)
+
 
 ### SUBSECTIONS
 
@@ -1261,6 +1257,7 @@ molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
     'mapping', {}
 )['hdf5'] = MapperAnnotation(mapper='.n_times')
 
+# TODO add error quantities
 # molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
 #     'mapping', {}
 # )['hdf5'] = MapperAnnotation(mapper='.errors')
@@ -1284,8 +1281,6 @@ molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {
     'hdf5'
 ] = MapperAnnotation(mapper='.value')
 
-# ? Needed? It just points to the configurational properties?
-# I guess it collects data here?
 MolecularDynamicsResults.radii_of_gyration.m_annotations.setdefault('mapping', {})[
     'hdf5'
 ] = MapperAnnotation(mapper='.@')
@@ -1303,23 +1298,7 @@ add_mapping_annotation(MolecularDynamics.method, HDF5_KEY, '@')
 
 add_mapping_annotation(MolecularDynamics.results, HDF5_KEY, '@')
 
-# ? Needed?
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.outputs, HDF5_KEY, '@')
-# MolecularDynamics.outputs.m_annotations.setdefault('mapping', {})['hdf5'] = (
-#     MapperAnnotation(mapper=('get_output_data', ['observables']))
-# )
-
-
-# add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, HDF5_KEY, '@')
-
-# add_mapping_annotation(molecular_dynamics.MolecularDynamics.method, HDF5_KEY, '@')
-
-# # ? Needed?
-# add_mapping_annotation(molecular_dynamics.MolecularDynamics.results, HDF5_KEY, '@')
-# add_mapping_annotations(
-#     MolecularDynamics.results, HDF5_KEY, ('get_output_data', ['observables'])
-# )
-
 
 try:
     m_package.__init_metainfo__()
