@@ -28,7 +28,7 @@ from nomad.utils import get_logger
 
 # Check if MDAnalysis is available
 try:
-    import MDAnalysis
+    import MDAnalysis  # noqa: F401
 
     HAS_MDANALYSIS = True
 except ImportError:
