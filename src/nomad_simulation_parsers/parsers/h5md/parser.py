@@ -381,14 +381,14 @@ class H5MDH5Parser(HDF5Parser):
                 # Quantity with units
                 magnitude = value.magnitude
                 # Convert scalars to 1-element arrays for schema consistency
-                if not isinstance(magnitude, (np.ndarray, Sequence)):
+                if not isinstance(magnitude, np.ndarray | Sequence):
                     magnitude = [magnitude]
                 result_dict['value_magnitude'] = magnitude
                 result_dict['value_unit'] = str(value.units)
             else:
                 # Raw value (list, float, etc.) - still use mapped field name
                 # Convert scalars to 1-element arrays for schema consistency
-                if not isinstance(value, (np.ndarray, Sequence)):
+                if not isinstance(value, np.ndarray | Sequence):
                     value = [value]
                 result_dict['value_magnitude'] = value
         # Handle other Quantities by separating magnitude and unit

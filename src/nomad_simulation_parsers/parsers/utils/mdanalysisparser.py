@@ -445,6 +445,7 @@ class MDAnalysisParser(FileParser):
             return self.universe.trajectory[frame_index]
         except Exception as e:
             self.logger.warning('Error accessing frame.', exc_info=e)
+            return None
 
     def get_n_atoms(self, frame_index):
         """
@@ -501,6 +502,8 @@ class MDAnalysisParser(FileParser):
         Returns the positions of the atoms of the frame with index frame_index.
         """
         frame = self.get_frame(frame_index)
+        if frame is None:
+            return None
         return frame.positions * ureg.angstrom if frame.has_positions else None
 
     def get_velocities(self, frame_index):
@@ -508,6 +511,8 @@ class MDAnalysisParser(FileParser):
         Returns the velocities of the atoms of the frame with index frame_index.
         """
         frame = self.get_frame(frame_index)
+        if frame is None:
+            return None
         return (
             frame.velocities * ureg.angstrom / ureg.ps if frame.has_velocities else None
         )
@@ -517,6 +522,8 @@ class MDAnalysisParser(FileParser):
         Returns the forces on the atoms of the frame with index frame_index.
         """
         frame = self.get_frame(frame_index)
+        if frame is None:
+            return None
         return (
             frame.forces * ureg.kJ / (MOLE * ureg.angstrom)
             if frame.has_forces
