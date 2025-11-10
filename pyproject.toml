@@ -33,7 +33,7 @@ maintainers = [
 license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
-    "nomad-simulations",  # @git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "nomad-schema-plugin-simulation-workflow>=1.0.10",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
@@ -43,6 +43,10 @@ dependencies = [
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.optional-dependencies]
+md = [
+    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "MDAnalysis>=2.4.0",
+]
 dev = ["ruff", "pytest", "structlog"]
 
 [tool.ruff]

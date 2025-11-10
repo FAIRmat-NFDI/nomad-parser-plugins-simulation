@@ -35,7 +35,11 @@ from nomad_simulations.schema_packages.outputs import (
 )
 from nomad_simulations.schema_packages.properties.energies import BaseEnergy
 from nomad_simulations.schema_packages.properties.forces import BaseForce
-from simulationworkflowschema import MolecularDynamics
+
+# from runschema.method import Interaction, Model
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamics,
+)
 
 
 class MDParser(ArchiveWriter):

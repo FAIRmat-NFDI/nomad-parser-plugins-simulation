@@ -51,9 +51,7 @@ class DFT(model_method.DFT):
 class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(outputs.TotalEnergy.value, GPW_KEY, '.total || .value')
     add_mapping_annotation(outputs.TotalEnergy.name, GPW_KEY, '.name')
-    add_mapping_annotation(
-        outputs.TotalEnergy.contributions, GPW_KEY, '.contributions'
-    )
+    add_mapping_annotation(outputs.TotalEnergy.contributions, GPW_KEY, '.contributions')
 
 
 class TotalForce(outputs.TotalForce):
@@ -61,9 +59,7 @@ class TotalForce(outputs.TotalForce):
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, GPW_KEY, '.eigenvalues'
-    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.value, GPW_KEY, '.eigenvalues')
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupations'
     )
