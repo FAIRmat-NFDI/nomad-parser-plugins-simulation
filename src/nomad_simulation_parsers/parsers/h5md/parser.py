@@ -264,33 +264,6 @@ class H5MDH5Parser(HDF5Parser):
             # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
             return self.get_ensemble_output(source, **kwargs)
 
-    # TODO reassess the necessity of this function
-    def _get_output_data_list_from_source(
-        self, source: dict[str, Any], **kwargs
-    ) -> list[dict[str, Any]]:
-        """Extract multiple objects directly from source (e.g., RDFs, MSDs)."""
-        try:
-            results = []
-
-            # Iterate through each item in the source (e.g., MOL1-MOL1, MOL1-MOL2, etc.)
-            for item_name, item_data in source.items():
-                # Create entry with label and extract specific values using get_value
-                entry = {'label': item_name}
-
-                # Extract common RDF/MSD quantities
-                for quantity in ['bins', 'value']:
-                    value = self.get_value(quantity, item_data)
-                    if value is not None:
-                        entry[quantity] = value
-
-                results.append(entry)
-
-            return results
-
-        except Exception as e:
-            self.logger.warning(f'Could not extract output data list from source: {e}')
-            return []
-
     def get_custom_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:

@@ -376,35 +376,6 @@ def assert_workflow(archive: EntryArchive) -> None:
     assert_ensemble_properties(sec_workflow_results)
     assert_correlation_functions(sec_workflow_results)
 
-    # MD results
-    # sec_workflow_results = sec_workflow.results
-    # assert len(sec_workflow_results.ensemble_properties) == 1
-    # ensemble_property_0 = sec_workflow_results.ensemble_properties[0]
-    # assert ensemble_property_0.label == 'diffusion_constants'
-    # assert ensemble_property_0.error_type == 'Pearson_correlation_coefficient'
-    # assert len(ensemble_property_0.ensemble_property_values) == 2
-    # assert ensemble_property_0.ensemble_property_values[1].label == 'MOL2'
-    # assert ensemble_property_0.ensemble_property_values[1].errors == 0.95
-    # assert ensemble_property_0.ensemble_property_values[1].value_magnitude == 2.0
-    # assert (
-    #     ensemble_property_0.ensemble_property_values[1].value_unit
-    #     == 'nanometer ** 2 / picosecond'
-    # )
-    # assert bound_prop is not None
-    # assert bound_prop.value_magnitude == approx(-12.7)
-
-    # intermediate_prop = next(
-    #     (prop for prop in free_energy_props if 'intermediate' in prop.label), None
-    # )
-    # assert intermediate_prop is not None
-    # assert intermediate_prop.value_magnitude == approx(-5.2)
-
-    # unbound_prop = next(
-    #     (prop for prop in free_energy_props if 'unbound' in prop.label), None
-    # )
-    # assert unbound_prop is not None
-    # assert unbound_prop.value_magnitude == approx(0.0)
-
 
 def test_md(parser):
     archive = EntryArchive()
