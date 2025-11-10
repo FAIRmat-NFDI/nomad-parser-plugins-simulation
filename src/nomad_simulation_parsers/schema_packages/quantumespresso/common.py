@@ -49,9 +49,7 @@ class DFT(model_method.DFT):
 
 class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.@')
-    add_mapping_annotation(
-        model_system.AtomsState.chemical_symbol, XML_KEY, '."@name"'
-    )
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, XML_KEY, '."@name"')
 
 
 class Representation(model_system.Representation):
@@ -88,7 +86,7 @@ class ModelSystem(model_system.ModelSystem):
         ('get_value', ['.@'], dict(key='simulation_cell')),
     )
     add_mapping_annotation(
-        model_system.AtomicCell.m_def, XML_KEY, '.atomic_structure.cell'
+        model_system.Representation.m_def, XML_KEY, '.atomic_structure.cell'
     )
 
 
