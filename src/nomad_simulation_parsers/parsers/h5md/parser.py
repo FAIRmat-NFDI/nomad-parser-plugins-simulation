@@ -414,6 +414,8 @@ class H5MDH5Parser(HDF5Parser):
                             return obs_group.attrs['type']
             except Exception:
                 pass
+            finally:
+                self.h5_parser.h5_archive.close()
 
         # Fallback to parsed data structure
         return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
