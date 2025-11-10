@@ -50,18 +50,6 @@ STANDARD_H5MD_OBSERVABLES = [
 ]
 
 
-# Global list of standard H5MD observables to exclude from custom outputs
-STANDARD_H5MD_OBSERVABLES = [
-    'energies',
-    'temperatures',
-    'forces',
-    'custom_forces',
-    'radial_distribution_functions',
-    'mean_squared_displacements',
-    'diffusion_constants',
-]
-
-
 # SIMULATION --> archive.data
 
 
@@ -331,27 +319,6 @@ class CustomProperty(physical_property.PhysicalProperty):
 
 # Add mapping annotation for the inherited name field
 add_mapping_annotation(CustomProperty.name, HDF5_KEY, '.name')
-
-    def normalize(self, *args, **kwargs) -> None:
-        """
-        Let parent do all the work, but prevent it from overwriting parsed names.
-        This is more surgical than overriding the whole method.
-        """
-        # Temporarily hide the class name to prevent overwrite
-        original_name = self.m_def.name
-        self.m_def.name = None
-
-        # Call parent normalization
-        super().normalize(*args, **kwargs)
-
-        # Restore the class name for future use
-        self.m_def.name = original_name
-
-
-# Add mapping annotation for the inherited name field
-CustomProperty.name.m_annotations.setdefault('mapping', {})['hdf5'] = MapperAnnotation(
-    mapper='.name'
-)
 
 
 ## class BaseEnergy(properties.energies.BaseEnergy):
@@ -1159,15 +1126,22 @@ class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
 #         type=bool,
 #         shape=[],
 #         description="""
-#         Values of the variable along which the property is calculated.
+#         Indicates if calculation terminated normally.
 #         """,
 #     )
 
-#     bins_unit = Quantity(
-#         type=str,
+#     n_steps = Quantity(
+#         type=np.int32,
 #         shape=[],
 #         description="""
-#         Unit of the given bins, using UnitRegistry() notation.
+#         Number of trajectory steps""",
+#     )
+
+#     trajectory = Quantity(
+#         type=Reference(System),
+#         shape=['n_steps'],
+#         description="""
+#         Reference to the system of each step in the trajectory.
 #         """,
 #     )
 
