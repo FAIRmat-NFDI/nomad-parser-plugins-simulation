@@ -102,9 +102,7 @@ class ModelSystem(model_system.ModelSystem):
         '.structure.positions',
         unit='angstrom',
     )
-    add_mapping_annotation(
-        model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels'
-    )
+    add_mapping_annotation(model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels')
 
 
 class AtomicCell(model_system.AtomicCell):
@@ -218,7 +216,7 @@ add_mapping_annotation(
 
 class MolecularDynamics(workflow.MolecularDynamics):
     add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsModel.m_def, MD_WORKFLOW_KEY, '.@'
+        workflow.molecular_dynamics.MolecularDynamicsMethod.m_def, MD_WORKFLOW_KEY, '.@'
     )
     add_mapping_annotation(
         workflow.molecular_dynamics.MolecularDynamicsResults.m_def,
@@ -229,7 +227,7 @@ class MolecularDynamics(workflow.MolecularDynamics):
 
 class GeometryOptimization(workflow.GeometryOptimization):
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationModel.m_def,
+        workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
         GEO_OPT_WORKFLOW_KEY,
         '.@',
     )
@@ -240,35 +238,38 @@ class GeometryOptimization(workflow.GeometryOptimization):
     )
 
 
-class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationModel.optimization_method,
+        workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
         GEO_OPT_WORKFLOW_KEY,
         '.geometry_relaxation_method',
     )
 
 
-class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
+class MolecularDynamicsMethod(workflow.molecular_dynamics.MolecularDynamicsMethod):
     add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep,
+        workflow.molecular_dynamics.MolecularDynamicsMethod.integration_timestep,
         MD_WORKFLOW_KEY,
         '.control_inout.md_timestep',
     )
     add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble,
+        workflow.molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble,
         MD_WORKFLOW_KEY,
         '.control_inout.md_run[0].ensemble',
     )
 
 
 class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-    add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsResults.temperature,
-        MD_WORKFLOW_KEY,
-        'molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"',
-    )
+    pass
+
+
+add_mapping_annotation(
+    workflow.molecular_dynamics.MolecularDynamicsResults.temperatures,
+    MD_WORKFLOW_KEY,
+    'molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"',
+)
 
 
 try:

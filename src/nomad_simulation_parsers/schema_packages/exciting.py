@@ -54,9 +54,7 @@ class Program(general.Program):
 
 
 class ModelMethod(model_method.ModelMethod):
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'
-    )
+    add_mapping_annotation(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@')
 
 
 class KSpace(numerical_settings.KSpace):
