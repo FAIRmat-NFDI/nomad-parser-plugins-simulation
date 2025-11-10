@@ -1,13 +1,13 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import general
 
-from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotations
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotations(general.Simulation.model_system, 'out', '.calculation')
+    add_mapping_annotation(general.Simulation.model_system, 'out', '.calculation')
 
 
 try:
