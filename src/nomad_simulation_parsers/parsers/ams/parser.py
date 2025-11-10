@@ -81,7 +81,7 @@ class AMSArchiveWriter(ArchiveWriter):
         # reload schema package to use correct annotations
         reload(ams)
 
-        self.metainfo_parser.annotation_key = 'out'
+        self.metainfo_parser.annotation_key = ams.OUT_KEY
         self.archive.data = Simulation(program=Program(name='AMS'))
         self.metainfo_parser.data_object = self.archive.data
 

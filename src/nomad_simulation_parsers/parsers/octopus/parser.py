@@ -426,7 +426,7 @@ class OctopusArchiveWriter(ArchiveWriter):
         self.archive.data = Simulation(program=Program(name='Octopus'))
 
         self.archive_parser.data_object = self.archive.data
-        self.archive_parser.annotation_key = 'out'
+        self.archive_parser.annotation_key = octopus.OUT_KEY
 
         self.mainfile_parser.convert(self.archive_parser)
 
@@ -439,14 +439,14 @@ class OctopusArchiveWriter(ArchiveWriter):
             self.mainfile_parser.info.get('energyunit')
         )
         self.info_parser.unit = energy_unit
-        self.archive_parser.annotation_key = 'info'
+        self.archive_parser.annotation_key = octopus.INFO_KEY
         self.info_parser.convert(self.archive_parser, update_mode='merge@-1')
 
         # read eigenvalues from eigenvalues file
         self.eigenvalues_parser.filepath = os.path.join(maindir, 'static/eigenvalues')
         # pass the energy unit
         self.eigenvalues_parser.unit = energy_unit
-        self.archive_parser.annotation_key = 'eigenvalues'
+        self.archive_parser.annotation_key = octopus.EIGENVALUES_KEY
         self.eigenvalues_parser.convert(self.archive_parser, update_mode='merge@-1')
 
 

@@ -19,7 +19,7 @@ from nomad_simulations.schema_packages.workflow import (
 )
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
-    GeometryOptimizationModel,
+    GeometryOptimizationMethod,
 )
 from structlog.stdlib import BoundLogger
 
@@ -475,7 +475,7 @@ class MainfileParser(TextParser):
 
     def get_input_var(self, name, n_dataset=1, default=None, scalar=False) -> Any:
         val = self.data_object.input_vars.get(name)
-        if val is None or val[n_dataset - 1] is None:
+        if val is None or n_dataset > len(val) or val[n_dataset - 1] is None:
             val = [default] * n_dataset
         val = val[n_dataset - 1]
         if scalar and isinstance(val, np.ndarray | list):
@@ -605,14 +605,14 @@ class AbinitArchiveWriter(ArchiveWriter):
     metainfo_parser = AbinitMetainfoParser()
     dos_parser = DosParser()
     code_name = 'ABINIT'
-    annotation_key = 'out'
+    annotation_key = abinit.OUT_KEY
 
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             self.archive.workflow2 = GeometryOptimization(
-                model=GeometryOptimizationModel()
+                model=GeometryOptimizationMethod()
             )
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             self.archive.workflow2 = MolecularDynamics()
@@ -633,7 +633,7 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.mainfile_parser.convert(self.metainfo_parser)
 
         # parse dos from dos file
-        self.metainfo_parser.annotation_key = 'dos'
+        self.metainfo_parser.annotation_key = abinit.DOS_KEY
         # DS2_DOS files
         file_root = self.mainfile_parser.data_object.get('x_abinit_output_files_root')
         if file_root is None:

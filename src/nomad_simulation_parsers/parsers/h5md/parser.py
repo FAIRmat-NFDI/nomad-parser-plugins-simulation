@@ -1,18 +1,21 @@
+from collections.abc import Sequence
 from importlib import reload
 from typing import Any
 
+import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from simulationworkflowschema.molecular_dynamics import MolecularDynamics
+
+# from nomad_simulations.schema_packages.workflow import molecular_dynamics
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import Simulation
+from nomad_simulation_parsers.schema_packages.h5md import MolecularDynamics, Simulation
 from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
@@ -27,8 +30,6 @@ class H5MDMetainfoParser(MetainfoParser):
 
 class H5MDH5Parser(HDF5Parser):
     trajectory_steps: list[int] = []
-    output_steps: list[int] = []
-    observables: dict[str, Any] = {}
 
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -186,7 +187,7 @@ class H5MDH5Parser(HDF5Parser):
                 )
                 return []
 
-        return self.get_source(self.data, kwargs['path'])
+        return source_data
 
     def get_output_steps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         output_steps = {}
@@ -239,67 +240,248 @@ class H5MDH5Parser(HDF5Parser):
         exclude = kwargs.get('exclude')
         contributions = []
         for key, val in source_data.items():
-            if include and key not in include or exclude and key in exclude:
+            # Skip if key is specifically excluded
+            if exclude and key in exclude:
+                continue
+            # Skip if include list is provided but key is not in it
+            if include and key not in include:
                 continue
             step_data = self.get_step_data(val, source['step'])
             contributions.append({'name': key, **step_data})
         return contributions
 
-    def get_output_data(self, source: dict[str, Any], **kwargs) -> pint.Quantity | None:
+    def get_output_data(
+        self, source: dict[str, Any], **kwargs
+    ) -> pint.Quantity | list[dict[str, Any]] | None:
+        """Router function that delegates to appropriate output extraction method."""
         if source.get('value') is not None:
             return source['value']
-        if source.get('step') is None:
-            return
-        observable_type = kwargs.get('observable_type')
-        if observable_type is None or observable_type not in [
-            'configurational',
-            'ensemble_average',
-            'correlation_function',
-        ]:
-            self.logger.warning(
-                'Invalid or no obervable type defined in the schema annotation, '
-                'skipping this observable.'
-            )
-            return
 
-        source_data = self.get_source(self.data, kwargs['path'])
-        if source_data.get('@type') != observable_type:
-            return
-
-        data = self.get_step_data(source_data, source['step']).get('value')
-
-        return data
+        # Route based on whether this is step-based (configurational) or stepless data
+        if source.get('step') is not None:
+            # Step-based: configurational outputs (energies, forces, temperatures)
+            return self.get_configurational_output(source, **kwargs)
+        else:
+            # Stepless: ensemble_average or correlation_function outputs (RDFs, MSDs)
+            return self.get_ensemble_output(source, **kwargs)
 
     def get_custom_outputs(
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
+        """Extract custom configurational outputs (step-based data)."""
+
+        # Only process step-based (configurational) data
         if source.get('step') is None:
             return []
 
         source_data = self.get_source(self.data, kwargs['path'])
         include = kwargs.get('include')
-        exclude = kwargs.get('exclude')
-        observable_type = kwargs.get('observable_type')
+        exclude = kwargs.get('exclude', [])
+
         custom_outputs = []
         for key, val in source_data.items():
-            if include and key not in include or exclude and key in exclude:
+            # Skip standard observables
+            if exclude and key in exclude:
                 continue
-            if observable_type is not None:
-                source_type = val.get('@type')
-                if source_type != observable_type:
-                    continue
-            step_data = self.get_step_data(val, source['step'])
-            if step_data.get('value') is not None:
-                if isinstance(step_data['value'], pint.Quantity):
-                    step_data['unit'] = str(step_data['value'].units)
-                    step_data['value'] = step_data['value'].magnitude
-            custom_outputs.append({'name': key, **step_data})
+
+            # Only include step-based data (configurational custom outputs)
+            if val.get('step') is not None:
+                if include is None or key in include:
+                    step_data = self.get_step_data(val, source['step'])
+                    if step_data.get('value') is not None:
+                        if isinstance(step_data['value'], pint.Quantity):
+                            step_data['unit'] = str(step_data['value'].units)
+                            step_data['value'] = step_data['value'].magnitude
+                    custom_outputs.append({'name': key, **step_data})
+
         return custom_outputs
+
+    def get_custom_ensemble_outputs(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """
+        Get custom ensemble observables following the same pattern as
+        get_ensemble_output. Filters for observables with type 'ensemble_average'
+        or 'correlation_function'. Returns list of dicts for mapper auto-generation
+        of subsection members.
+        """
+        # Use EXACT same logic as get_ensemble_output but with type filtering
+        if source.get('value') is not None:
+            return source['value']
+
+        # For stepless data, convert to list format if it contains multiple items
+        if not source or not all(isinstance(v, dict) for v in source.values()):
+            return []
+
+        results = []
+        exclude_list = kwargs.get('exclude', [])
+        type_filter = kwargs.get(
+            'type_filter', ['ensemble_average', 'correlation_function']
+        )
+
+        # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
+        # where dict_x* = dict_x + {label: label_x}
+        for label, data_dict in source.items():
+            # Skip standard properties listed in exclude list
+            if label in exclude_list:
+                continue
+
+            # First check for nested structures (like free_energies with
+            # individual states)
+            nested_observables_found = False
+            if isinstance(data_dict, dict):
+                for nested_label, nested_data in data_dict.items():
+                    if isinstance(nested_data, dict):
+                        nested_type = self._get_observable_type(
+                            f'{label}/{nested_label}', nested_data
+                        )
+                        if nested_type in type_filter:
+                            nested_observables_found = True
+                            result_dict = {'label': f'{label}_{nested_label}'}
+                            # Process nested data with consistent logic
+                            self._process_observable_data(
+                                result_dict, nested_data, nested_type, type_filter
+                            )
+                            results.append(result_dict)
+
+            # If no nested observables found, process this level directly
+            if not nested_observables_found:
+                data_type = self._get_observable_type(label, data_dict)
+                if data_type in type_filter:
+                    result_dict = {'label': label}
+                    # Process data with consistent logic
+                    self._process_observable_data(
+                        result_dict, data_dict, data_type, type_filter
+                    )
+                    results.append(result_dict)
+        return results
+
+    def _process_observable_data(
+        self, result_dict: dict, data_dict: dict, data_type: str, type_filter: list
+    ) -> None:
+        """Helper method to consistently process observable data."""
+        for key in data_dict.keys():
+            # Skip @type, None values, and 'times' outside correlation functions
+            if (
+                key == '@type'
+                or (value := self.get_value(key, data_dict)) is None
+                or (key == 'times' and data_type != 'correlation_function')
+            ):
+                continue
+            self._add_value_to_result(result_dict, key, value)
+
+    def _add_value_to_result(self, result_dict: dict, key: str, value) -> None:
+        """Helper method to add a value to result dict with proper unit handling."""
+        # Handle 'times' field as normal Quantity
+        if key == 'times':
+            result_dict[key] = value
+        # Handle 'value' field specially - always use schema-mapped field names
+        elif key == 'value':
+            if hasattr(value, 'magnitude') and hasattr(value, 'units'):
+                # Quantity with units
+                magnitude = value.magnitude
+                # Convert scalars to 1-element arrays for schema consistency
+                if not isinstance(magnitude, np.ndarray | Sequence):
+                    magnitude = [magnitude]
+                result_dict['value_magnitude'] = magnitude
+                result_dict['value_unit'] = str(value.units)
+            else:
+                # Raw value (list, float, etc.) - still use mapped field name
+                # Convert scalars to 1-element arrays for schema consistency
+                if not isinstance(value, np.ndarray | Sequence):
+                    value = [value]
+                result_dict['value_magnitude'] = value
+        # Handle other Quantities by separating magnitude and unit
+        elif hasattr(value, 'magnitude') and hasattr(value, 'units'):
+            result_dict[key] = value.magnitude
+            result_dict[f'{key}_unit'] = str(value.units)
+        else:
+            result_dict[key] = value
+
+    def _get_observable_type(self, label: str, data_dict: dict) -> str | None:
+        """Get the type of an observable from H5MD file or parsed data."""
+        # Try to get type from raw H5MD file attributes
+        if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
+            try:
+                # Access h5_archive directly (already opened by h5_parser)
+                # Will be closed via h5_parser.close()
+                h5_file = self.h5_parser.h5_archive
+                if h5_file and 'observables' in h5_file:
+                    obs_path = f'observables/{label}'
+                    if obs_path in h5_file:
+                        obs_group = h5_file[obs_path]
+                        if hasattr(obs_group, 'attrs') and 'type' in obs_group.attrs:
+                            return obs_group.attrs['type']
+            except Exception:
+                pass
+            finally:
+                self.h5_parser.h5_archive.close()
+
+        # Fallback to parsed data structure
+        return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
+
+    def get_configurational_output(
+        self, source: dict[str, Any], **kwargs
+    ) -> pint.Quantity | None:
+        """Extract configurational outputs (energies, forces, temperatures)."""
+        if source.get('value') is not None:
+            return source['value']
+
+        # This function is only for step-based (configurational) outputs
+        if source.get('step') is None:
+            return None
+
+        source_data = self.get_source(self.data, kwargs['path'])
+        if not source_data:
+            self.logger.warning(
+                'No data found at specified path for observable extraction.'
+            )
+            return None
+
+        # For configurational outputs, we can optionally validate @type if present
+        actual_type = source_data.get('@type')
+        if actual_type is not None and actual_type != 'configurational':
+            self.logger.warning(
+                'Expected configurational output but found different type. '
+                'Skipping this observable.'
+            )
+            return None
+        elif actual_type is None:
+            self.logger.debug(
+                'No type defined in source data, proceeding with extraction.'
+            )
+
+        step_data = self.get_step_data(source_data, source['step'])
+        return step_data.get('value')
+
+    def get_ensemble_output(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]] | None:
+        """Extract ensemble/correlation outputs (RDFs, MSDs) - stepless data."""
+        if source.get('value') is not None:
+            return source['value']
+
+        # For stepless data, convert to list format if it contains multiple items
+        if source and all(isinstance(v, dict) for v in source.values()):
+            results = []
+            # Convert source = {label_1: dict_1, ...} to results = [dict_1*, ...]
+            # where dict_x* = dict_x + {label: label_x}
+            for label, data_dict in source.items():
+                result_dict = {'label': label}
+                # Process all keys using get_value to handle H5MD format
+                for key in data_dict.keys():
+                    value = self.get_value(key, data_dict)
+                    if value is not None:
+                        result_dict[key] = value
+                results.append(result_dict)
+            return results
+
+        return None
 
 
 class H5MDArchiveWriter(MDParser):
     def __init__(self, **kwargs):
-        self.h5_parser = H5MDH5Parser()
+        self.h5_parser: H5MDH5Parser = H5MDH5Parser()
         self.simulation_parser = H5MDMetainfoParser()
         self.simulation_parser.max_nested_level = 10
         self.workflow_parser = H5MDMetainfoParser()
@@ -312,17 +494,20 @@ class H5MDArchiveWriter(MDParser):
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 
-        self.trajectory_steps = Path(path='particles.all.position.step').get_data(
+        trajectory_steps_data = Path(path='particles.all.position.step').get_data(
             self.h5_parser.data, default=[]
         )
+        if trajectory_steps_data is None:
+            trajectory_steps_data = []
+        self.trajectory_steps = trajectory_steps_data
         self.h5_parser.trajectory_steps = self.trajectory_steps
 
         # TODO consider using a single parser for the whole archive
         # create metainfo parsers
-        self.simulation_parser.annotation_key = 'hdf5'
+        self.simulation_parser.annotation_key = h5md.HDF5_KEY
         simulation_data = Simulation()
         self.simulation_parser.data_object = simulation_data
-        self.workflow_parser.annotation_key = 'hdf5'
+        self.workflow_parser.annotation_key = h5md.HDF5_KEY
         workflow_data = MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 

@@ -9,7 +9,6 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
     """
     Remove mapping annotations from the input section definition, all its quantities
     and sub-sections recursively.
-
     Args:
         property (Section): The section definition to remove the annotations from.
         max_depth (int, optional): The maximum depth of the recursion for sub-sections
@@ -45,7 +44,7 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
     _remove(property)
 
 
-def add_mapping_annotations(
+def add_mapping_annotation(
     property: Section | Quantity | SubSection,
     annotation_key: str,
     mapper: str | tuple[str, list[str] | tuple[str, list[str], dict[str, Any]]],

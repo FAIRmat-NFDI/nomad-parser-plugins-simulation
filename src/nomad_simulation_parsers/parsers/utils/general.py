@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from structlog.stdlib import (
         BoundLogger,
     )
-
 from nomad.utils import get_logger
 
 DEFAULT_LOGGER = get_logger(__name__)

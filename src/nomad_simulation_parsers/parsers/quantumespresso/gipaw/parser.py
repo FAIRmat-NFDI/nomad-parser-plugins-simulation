@@ -13,7 +13,6 @@ from .file_parser import GIPAWFileParser
 LOGGER = get_logger(__name__)
 
 
-
 class GIPAWMainfileTextParser(MainfileTextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
