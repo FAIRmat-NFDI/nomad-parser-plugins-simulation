@@ -84,9 +84,7 @@ class Simulation(general.Simulation):
         general.Simulation.model_system, OUT_KEY, ('get_systems', ['.@'])
     )
     add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.dft')
-    add_mapping_annotation(
-        general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@'])
-    )
+    add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
     add_mapping_annotation(general.Simulation.outputs, F25_KEY, '.@')
 
 

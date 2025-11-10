@@ -15,22 +15,22 @@ OUT_KEY = 'out'
 DOS_KEY = 'dos'
 
 
-class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationModel.optimization_method,
+        workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
         OUT_KEY,
         ('get_workflow_method', []),
     )
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference,
+        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
         OUT_KEY,
         ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
         unit='hartree',
     )
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_force_maximum,
+        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
         OUT_KEY,
         ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
         unit='hartree/bohr',
@@ -38,7 +38,7 @@ class GeometryOptimizationModel(
 
 
 add_mapping_annotation(
-    workflow.geometry_optimization.GeometryOptimizationModel.m_def, OUT_KEY, '@'
+    workflow.geometry_optimization.GeometryOptimizationMethod.m_def, OUT_KEY, '@'
 )
 add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
 
