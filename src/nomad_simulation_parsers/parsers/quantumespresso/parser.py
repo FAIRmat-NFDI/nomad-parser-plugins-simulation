@@ -328,6 +328,8 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             program=Program(name='Quantum Espresso')
         )
         # convert
+        from devtools import debug
+        debug(self.simulation_parser.annotation_key)
         self.mainfile_parser.convert(self.simulation_parser)
         # set the parsed data to archive
         archive.data = self.simulation_parser.data_object
@@ -411,17 +413,19 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     @property
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
+        from devtools import debug
         basename, ext = self.mainfile.rsplit('.', 1)
+        annotation_key = ext
 
         parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
         parser.filepath = self.mainfile
 
         program = parser.data.get('program')
         if not program:
+            self.simulation_parser.annotation_key = annotation_key
             return parser
 
         name_version = get_program_name_version(program[0][:30])
-        annotation_key = ext
         if name_version[0] == 'gipaw':
             if ext == 'out':
                 annotation_key = 'gipaw_out'
