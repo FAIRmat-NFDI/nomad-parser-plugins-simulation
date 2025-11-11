@@ -25,15 +25,24 @@ class Program(general.Program):
     add_mapping_annotation(general.Program.version, WOUT_KEY, '.version')
 
 
-class OrbitalsState(atoms_state.OrbitalsState):
-    add_mapping_annotation(atoms_state.OrbitalsState.l_quantum_symbol, WIN_KEY, '.l')
-    add_mapping_annotation(atoms_state.OrbitalsState.ml_quantum_symbol, WIN_KEY, '.m')
+class WannierSphericalSymmetryState(atoms_state.SphericalSymmetryState):
+    """
+    Spherical symmetry state customized for Wannier90 orbital projections.
+
+    Maps Wannier90 input file orbital specifications to quantum numbers.
+    """
+    add_mapping_annotation(
+        atoms_state.SphericalSymmetryState.l_quantum_number, WIN_KEY, '.l'
+    )
+    add_mapping_annotation(
+        atoms_state.SphericalSymmetryState.ml_quantum_number, WIN_KEY, '.m'
+    )
 
 
 class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, WOUT_KEY, '.@')
     add_mapping_annotation(
-        model_system.AtomsState.orbitals_state,
+        model_system.AtomsState.electronic_state,
         WIN_KEY,
         ('get_orbitals_state', ['.projection[1]']),
     )
