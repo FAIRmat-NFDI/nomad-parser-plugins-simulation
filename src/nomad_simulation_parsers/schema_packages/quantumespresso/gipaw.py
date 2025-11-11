@@ -20,6 +20,13 @@ class MagneticShielding(schema_package.MagneticShielding):
 
 
 class MagneticSusceptibility(schema_package.MagneticSusceptibility):
+
+    # txt = ''
+    # for item in dir(schema_package.MagneticSusceptibility):
+    #     txt += f'{item}\n'
+    # with open('SUS.txt', 'w') as f:
+    #     f.write(txt)
+
     add_mapping_annotation(
         schema_package.MagneticSusceptibility.value, GIPAW_OUT_KEY, '.value'
     )
@@ -28,6 +35,19 @@ class MagneticSusceptibility(schema_package.MagneticSusceptibility):
     )
     add_mapping_annotation(
         schema_package.MagneticSusceptibility.value_pgv_approx, GIPAW_OUT_KEY, '.value_pgv_approx'
+    )
+
+
+class ElectricFieldGradient(schema_package.ElectricFieldGradient):
+
+    # txt = ''
+    # for item in dir(schema_package.ElectricFieldGradient):
+    #     txt += f'{item}\n'
+    # with open('EFG.txt', 'w') as f:
+    #     f.write(txt)
+
+    add_mapping_annotation(
+        schema_package.ElectricFieldGradient.value, GIPAW_OUT_KEY, '.value'
     )
 
 
@@ -45,6 +65,7 @@ class Outputs(schema_package.Outputs):
     add_mapping_annotation(schema_package.Outputs.magnetic_shieldings, GIPAW_OUT_KEY, '.magnetic_shieldings')
     add_mapping_annotation(schema_package.Outputs.magnetic_shieldings, GIPAW_XML_KEY, '.magnetic_shieldings')
     add_mapping_annotation(schema_package.Outputs.magnetic_susceptibilities, GIPAW_OUT_KEY, '.magnetic_susceptibilities')
+    add_mapping_annotation(schema_package.Outputs.electric_field_gradients, GIPAW_OUT_KEY, '.electric_field_gradients')
 
 add_mapping_annotation(general.Simulation.m_def, GIPAW_OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, GIPAW_XML_KEY, '@')

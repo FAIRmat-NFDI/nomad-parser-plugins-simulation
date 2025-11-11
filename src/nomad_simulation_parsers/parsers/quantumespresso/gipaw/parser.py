@@ -23,7 +23,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         # magnetic shieldings
         data = source.get('ms_list', [])
         from devtools import debug
-        debug(data)
         magnetic_shieldings = []
         for atom_data in data:
             values = np.reshape(atom_data[2:], (3, 3))
@@ -41,8 +40,26 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             value_vgv_approx = chi_bare_vGv,
             value_pgv_approx = chi_bare_pGv
             )
-        debug(out)
-        
+
+        # electric field gradient
+        data = source.get('efg', [])
+        electric_field_gradients = []
+        for i, atom_data in enumerate(data):
+            values = np.reshape(atom_data[2:], (3, 3))
+            sec_efg = self.e_field_gradient_class(
+                type="total", entity_ref=particle_state[i]
+            )
+            sec_efg.value = values
+            electric_field_gradients.append(sec_efg)
+        out['electric_field_gradients'] = [dict(value=e) for e in electric_field_gradients]
+
+        txt = ''
+        for key, value in out.items():
+            txt += f'{key}          {value}\n'
+
+        with open('ciao.txt', 'w') as f:
+            f.write(txt)
+        # debug(out)
         
         return [out]
 

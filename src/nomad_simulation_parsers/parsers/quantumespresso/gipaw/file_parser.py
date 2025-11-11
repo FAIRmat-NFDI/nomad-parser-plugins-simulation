@@ -44,6 +44,33 @@ class GIPAWFileParser(TextParser):
 
             return res
 
+        def parse_tensor_block(val_in: str):
+            lines = [
+                line.strip()
+                for line
+                in val_in.strip().splitlines()
+                if line.strip()
+            ]
+            result = []
+            for i in range(0, len(lines), 3):
+                block = lines[i:i+3]
+                if len(block) < 3:
+                    continue
+
+                values = []
+                atom_type = None
+                atom_index = None
+
+                for row in block:
+                    parts = row.split()
+                    if atom_type is None:
+                        atom_type = parts[0]
+                        atom_index = int(parts[1])
+                    values.extend([float(p) for p in parts[2:]])
+
+                result.append([atom_type, atom_index] + values)
+            return result
+
         self._quantities = [
             Quantity(
                 'header',
@@ -73,6 +100,12 @@ class GIPAWFileParser(TextParser):
                 rf'((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n?){{1,}})',
                 repeats=False,
                 str_operation=str_to_chi_tensor,
+                convert=False,
+            ),
+            Quantity(
+                'efg',
+                r'----- total EFG \(symmetrized\) -----\n((?:.*?\n)*?)\s+NQR/NMR SPECTROSCOPIC PARAMETERS:',
+                str_operation=parse_tensor_block,
                 convert=False,
             ),
         ]
