@@ -15,7 +15,7 @@ class MagneticShielding(schema_package.MagneticShielding):
         schema_package.MagneticShielding.value, GIPAW_OUT_KEY, '.value'
     )
     add_mapping_annotation(
-        schema_package.MagneticShielding.value, GIPAW_XML_KEY, ('get_nmr_xml', ['.@'], dict(name='pippo'))
+        schema_package.MagneticShielding.value, GIPAW_XML_KEY, ('get_nmr_xml', ['.@'], dict(name='atom'))
     )
 
 
@@ -43,7 +43,7 @@ class Outputs(schema_package.Outputs):
         '@',
     )
     add_mapping_annotation(schema_package.Outputs.magnetic_shieldings, GIPAW_OUT_KEY, '.magnetic_shieldings')
-    add_mapping_annotation(schema_package.Outputs.magnetic_shieldings, GIPAW_XML_KEY, '.magnetic_shieldings')
+    add_mapping_annotation(schema_package.Outputs.magnetic_shieldings, GIPAW_XML_KEY, '.output.shielding_tensors.atom')
     add_mapping_annotation(schema_package.Outputs.magnetic_susceptibilities, GIPAW_OUT_KEY, '.magnetic_susceptibilities')
 
 add_mapping_annotation(general.Simulation.m_def, GIPAW_OUT_KEY, '@')

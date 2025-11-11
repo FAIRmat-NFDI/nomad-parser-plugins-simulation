@@ -54,50 +54,10 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
     def logger(self):
         return LOGGER
     
-    def get_nmr_xml(self, pippo: dict[str, Any], **kwargs) -> Any:
-        from devtools import debug
-        debug("sto facendo qualcosa")
-        debug(pippo)
-
-        """
-        # shielding_tensors
-        if 'ms_list' not in self._results:
-            st = self.fileparser.results._data['gpw:gipaw[0]']['output[0]']['shielding_tensors[0]']
-            ms_list = []
-            for key, value in st.items():
-                if not isinstance(value, dict):
-                    continue
-
-                for atom in value['_data']:
-                    atom_list = []
-                    atom_list.append(atom['name'])
-                    atom_list.append(int(atom['index']))
-                    atom_list = atom_list + self.extract_floats_from_string(atom['atom'])
-                    ms_list.append(atom_list)
-            
-            self._results['ms_list'] = ms_list"""
-        
-        # magnetic shieldings
-        source = self.data['{http://www.quantum-espresso.org/ns/gpw/qes_gipaw_1.0}gipaw']['output']['shielding_tensors']['atom']
-        debug(source)
-        data = []
-        for atom_source in source:
-            atom_list = []
-            atom_list.append(atom_source['@name'])
-            atom_list.append(int(atom_source['@index']))
-            atom_list = atom_list + atom_source['__value']
-            data.append(atom_list)
-
-        debug(data)
-        magnetic_shieldings = []
-        for atom_data in data:
-            values = np.reshape(atom_data[2:], (3, 3))
-            FACTOR = 1e-6
-            magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
-        out = dict(magnetic_shieldings=[dict(value=m) for m in magnetic_shieldings ])
-        debug(out)
-
-        return [out]
+    def get_nmr_xml(self, atom: dict[str, Any], **kwargs) -> Any:
+        value = np.reshape(atom["__value"], (3, 3))
+        FACTOR = 1e-6
+        return value * FACTOR * ureg("dimensionless")
 
 
 
