@@ -20,13 +20,6 @@ class MagneticShielding(schema_package.MagneticShielding):
 
 
 class MagneticSusceptibility(schema_package.MagneticSusceptibility):
-
-    # txt = ''
-    # for item in dir(schema_package.MagneticSusceptibility):
-    #     txt += f'{item}\n'
-    # with open('SUS.txt', 'w') as f:
-    #     f.write(txt)
-
     add_mapping_annotation(
         schema_package.MagneticSusceptibility.value, GIPAW_OUT_KEY, '.value'
     )
@@ -39,13 +32,6 @@ class MagneticSusceptibility(schema_package.MagneticSusceptibility):
 
 
 class ElectricFieldGradient(schema_package.ElectricFieldGradient):
-
-    # txt = ''
-    # for item in dir(schema_package.ElectricFieldGradient):
-    #     txt += f'{item}\n'
-    # with open('EFG.txt', 'w') as f:
-    #     f.write(txt)
-
     add_mapping_annotation(
         schema_package.ElectricFieldGradient.value, GIPAW_OUT_KEY, '.value'
     )
