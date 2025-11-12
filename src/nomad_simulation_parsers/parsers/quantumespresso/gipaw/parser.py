@@ -105,7 +105,6 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         value = np.reshape(atom["__value"], (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
-    
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
         if kwargs["name"] != "value":
@@ -119,7 +118,6 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         sus = (vgv + pgv) / 2
         return sus
         
-
 
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):

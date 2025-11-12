@@ -138,6 +138,7 @@ def test_gipaw_nmr_xml():
     )
     debug(archive.data.outputs)
     debug(archive.data.outputs[0].magnetic_shieldings)
+    debug(archive.data.outputs[0].magnetic_susceptibilities)
 
 
 
