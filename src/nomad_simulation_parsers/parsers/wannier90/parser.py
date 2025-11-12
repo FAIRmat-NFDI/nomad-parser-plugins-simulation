@@ -331,7 +331,7 @@ class WInTextParser(TextParser):
         states = []
 
         # Try parsing l-based format: l=2,mr=1
-        orbitals = re.findall(r'l=([\d+])(?:,mr=([\d])+=)?', orbital)
+        orbitals = re.findall(r'l=(\d+)(?:,mr=(\d+)=)?', orbital)
         for orb in orbitals:
             nl = int(orb[0])
             state = {'spin_orbit_state': {'l_quantum_number': nl}}
