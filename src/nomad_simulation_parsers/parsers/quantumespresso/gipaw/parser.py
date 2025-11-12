@@ -90,14 +90,15 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
     def logger(self):
         return LOGGER
     
-    def get_magnetic_shieldings(self, atom: dict[str, Any], **kwargs) -> Any:
+    def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
         value = np.reshape(atom["__value"], (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
-        if kwargs["name"] != "value":
-            value = source.get(kwargs["name"], None)
+        name = kwargs.get("name")
+        if name != "value":
+            value = source.get(name, None)
             return np.reshape(value.get("__value", None), (3, 3))
 
         value_vgv = source.get("susceptibility_low", None)
