@@ -93,8 +93,7 @@ def test_gipaw_efg_text():
     debug(archive.data)
     debug(archive.data.outputs)
     debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].magnetic_shieldings)
-    debug(archive.data.outputs[0].magnetic_susceptibilities)
+    debug(archive.data.outputs[0].electric_field_gradients)
 
 
 def test_gipaw_nmr_xml():
