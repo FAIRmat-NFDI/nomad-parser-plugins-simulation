@@ -71,6 +71,30 @@ class GIPAWFileParser(TextParser):
                 result.append([atom_type, atom_index] + values)
             return result
 
+        def parse_scalar_block(val):
+            lines = [
+                line.strip() 
+                for line 
+                in val.strip().splitlines() 
+                if line.strip()
+            ]
+            results = []
+            for line in lines:
+                parts = line.split()
+                if len(parts) != 6:
+                    continue
+                results.append([parts[0], int(parts[1]), float(parts[-1])])
+            return results
+
+        def str_to_gtensor(val_in):
+            lines = val_in.strip().splitlines()
+            tensor = []
+            for line in lines:
+                if line.strip():
+                    row = [float(x) for x in line.strip().split()]
+                    tensor.append(row)
+            return tensor
+
         self._quantities = [
             Quantity(
                 'header',
@@ -106,6 +130,34 @@ class GIPAWFileParser(TextParser):
                 'efg',
                 r'----- total EFG \(symmetrized\) -----\n((?:.*?\n)*?)\s+NQR/NMR SPECTROSCOPIC PARAMETERS:',
                 str_operation=parse_tensor_block,
+                convert=False,
+            ),
+            Quantity(
+                'hyperfine_dipolar',
+                r'----- total dipolar -----\n((?:.*?\n)*?)\s+----- total dipolar \(symmetrized\) -----',
+                str_operation=parse_tensor_block,
+                convert=False,
+            ),
+            Quantity(
+                'hyperfine_fermi_contact',
+                r'----- Fermi contact in G -----\n((?:.*?\n)*?)\s+Initialization:',
+                str_operation=parse_scalar_block,
+                convert=False,
+            ),
+            Quantity(
+                "delta_g_total_paratec",
+                rf"Delta_g total \(SOO a la Paratec\):\s*-+\s*\n"
+                rf"((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})",
+                repeats=False,
+                str_operation=str_to_gtensor,
+                convert=False,
+            ),
+            Quantity(
+                "delta_g_total",
+                rf"Delta_g total \(SOO as in Eq\.\(7\)\):\s*-+\s*\n"
+                rf"((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})",
+                repeats=False,
+                str_operation=str_to_gtensor,
                 convert=False,
             ),
         ]

@@ -96,6 +96,25 @@ def test_gipaw_efg_text():
     debug(archive.data.outputs[0].electric_field_gradients)
 
 
+def test_gipaw_epr_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    # TODO: this is a dummy test: `quartz-efg.out` does *not* contain epr data
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_efg_out/quartz-efg.out',
+        archive,
+        LOGGER,
+    )
+    debug(archive)
+    debug(archive.data)
+    debug(archive.data.outputs)
+    debug(archive.data.outputs[0])
+    debug(archive.data.outputs[0].hyperfine_dipolar)
+    debug(archive.data.outputs[0].hyperfine_fermi_contact)
+    debug(archive.data.outputs[0].delta_g_paratec)
+    debug(archive.data.outputs[0].delta_g)
+
+
 def test_gipaw_nmr_xml():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
