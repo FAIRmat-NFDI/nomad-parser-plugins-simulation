@@ -54,10 +54,24 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
     def logger(self):
         return LOGGER
     
-    def get_nmr_xml(self, atom: dict[str, Any], **kwargs) -> Any:
+    def get_magnetic_shieldings(self, atom: dict[str, Any], **kwargs) -> Any:
         value = np.reshape(atom["__value"], (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
+    
+
+    def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
+        if kwargs["name"] != "value":
+            value = source.get(kwargs["name"], None)
+            return np.reshape(value.get("__value", None), (3, 3))
+
+        value_vgv = source.get("susceptibility_low", None)
+        vgv = np.reshape(value_vgv.get("__value", None), (3, 3))
+        value_pgv = source.get("susceptibility_high", None)
+        pgv = np.reshape(value_pgv.get("__value", None), (3, 3))
+        sus = (vgv + pgv) / 2
+        return sus
+        
 
 
 
