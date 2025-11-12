@@ -14,17 +14,10 @@ def test_pwscf():
     parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
 
 
-
 def test_pwscf_xml():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
     parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml', archive, LOGGER)
-    # parser.parse('tests/data/quantumespresso/gipaw/scf_xml_nmr_xml/quartz.xml', archive, LOGGER)
-    from devtools import debug
-    debug(archive.data)
-    debug(archive.data.model_system)
-
-
 
 
 def test_epw():
@@ -48,22 +41,6 @@ def test_xspectra():
         LOGGER,
     )
 
-from devtools import debug
-def test_gipaw_nmr_text():
-    parser = QuantumEspressoParser()
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/quantumespresso/gipaw/scf_out_nmr_out_741/quartz-nmr.out',
-        archive,
-        LOGGER,
-    )
-    debug(archive)
-    debug(archive.data)
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].magnetic_shieldings)
-    debug(archive.data.outputs[0].magnetic_susceptibilities)
-
 
 def test_gipaw_nmr_text():
     parser = QuantumEspressoParser()
@@ -73,59 +50,6 @@ def test_gipaw_nmr_text():
         archive,
         LOGGER,
     )
-    debug(archive)
-    debug(archive.data)
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].magnetic_shieldings)
-    debug(archive.data.outputs[0].magnetic_susceptibilities)
-
-
-def test_gipaw_efg_text():
-    parser = QuantumEspressoParser()
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/quantumespresso/gipaw/scf_out_efg_out/quartz-efg.out',
-        archive,
-        LOGGER,
-    )
-    debug(archive)
-    debug(archive.data)
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].electric_field_gradients)
-
-
-def test_gipaw_epr_hyperfine_text():
-    parser = QuantumEspressoParser()
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_hyperfine.out',
-        archive,
-        LOGGER,
-    )
-    debug(archive)
-    debug(archive.data)
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].hyperfine_dipolar)
-    debug(archive.data.outputs[0].hyperfine_fermi_contact)
-
-
-def test_gipaw_epr_deltag_text():
-    parser = QuantumEspressoParser()
-    archive = EntryArchive()
-    parser.parse(
-        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_g-tensor.out',
-        archive,
-        LOGGER,
-    )
-    debug(archive)
-    debug(archive.data)
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0])
-    debug(archive.data.outputs[0].delta_g_paratec)
-    debug(archive.data.outputs[0].delta_g)
 
 
 def test_gipaw_nmr_xml():
@@ -136,9 +60,39 @@ def test_gipaw_nmr_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
-    debug(archive.data.outputs[0].magnetic_shieldings)
-    debug(archive.data.outputs[0].magnetic_susceptibilities)
+
+from devtools import debug
+def test_gipaw_efg_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_efg_out/quartz-efg.out',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_epr_hyperfine_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_hyperfine.out',
+        archive,
+        LOGGER,
+    )
+    debug(archive.data.outputs[0])
+
+
+
+def test_gipaw_epr_deltag_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_g-tensor.out',
+        archive,
+        LOGGER,
+    )
+
 
 
 
