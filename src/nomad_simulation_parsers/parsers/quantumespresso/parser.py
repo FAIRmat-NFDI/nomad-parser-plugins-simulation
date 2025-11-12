@@ -319,6 +319,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     simulation_parser = QuantumEspressoMetainfoParser()
     _text_parser = MainfileTextParser(text_parser=QuantumEspressoFileParser())
     _xml_parser = MainfileXMLParser()
+    _mainfile_parser = None
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
         # reload the schema annotations
@@ -411,32 +412,35 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     @property
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
-        basename, ext = self.mainfile.rsplit('.', 1)
-        self.simulation_parser.annotation_key = ext
-        parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
-        if ext == 'xml':
-            return parser
+        if self._mainfile_parser is None:
+            basename, ext = self.mainfile.rsplit('.', 1)
+            self.simulation_parser.annotation_key = ext
+            self._mainfile_parser = dict(
+                out=self._text_parser, xml=self._xml_parser
+            ).get(ext)
+            if ext == 'xml':
+                return self._mainfile_parser
 
-        # special handling for GIPAW to parse xml if available for version >= 7.4.1
-        # check version
-        parser.filepath = self.mainfile
-        program = parser.data.get('program')
-        if not program:
-            return parser
+            # special handling for GIPAW to parse xml if available for version >= 7.4.1
+            # check version
+            self._mainfile_parser.filepath = self.mainfile
+            program = self._mainfile_parser.data.get('program')
+            if not program:
+                return self._mainfile_parser
 
-        name_version = get_program_name_version(program[0][:30])
-        if name_version[0] != 'gipaw':
-            return parser
+            name_version = get_program_name_version(program[0][:30])
+            if name_version[0] != 'gipaw':
+                return self._mainfile_parser
 
-        ref_version = (7, 4, 0)
-        if name_version[1] >= ref_version:
-            # check if xml file exists
-            xml_file = f'{basename}.xml'
-            if os.path.isfile(xml_file):
-                self.simulation_parser.annotation_key = 'xml'
-                parser = self._xml_parser
-                parser.filepath = xml_file
-        return parser
+            ref_version = (7, 4, 0)
+            if name_version[1] >= ref_version:
+                # check if xml file exists
+                xml_file = f'{basename}.xml'
+                if os.path.isfile(xml_file):
+                    self.simulation_parser.annotation_key = 'xml'
+                    self._mainfile_parser = self._xml_parser
+                    self._mainfile_parser.filepath = xml_file
+        return self._mainfile_parser
 
     def write_to_archive(self) -> None:
         # set up mainfile parser
