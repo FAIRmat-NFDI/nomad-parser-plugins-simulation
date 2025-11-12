@@ -22,8 +22,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
     def get_nmr_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         # magnetic shieldings
         data = source.get('ms_list', [])
-        from devtools import debug
-        debug(data)
         magnetic_shieldings = []
         for atom_data in data:
             values = np.reshape(atom_data[2:], (3, 3))
@@ -40,9 +38,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             value=sus,
             value_vgv_approx = chi_bare_vGv,
             value_pgv_approx = chi_bare_pGv
-            )
-        debug(out)
-        
+            )       
         
         return [out]
 
@@ -58,7 +54,6 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         value = np.reshape(atom["__value"], (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
-    
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
         if kwargs["name"] != "value":
@@ -72,7 +67,6 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         sus = (vgv + pgv) / 2
         return sus
         
-
 
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
