@@ -413,6 +413,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
         basename, ext = self.mainfile.rsplit('.', 1)
         parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
+        parser.filepath = self.mainfile
 
         if "gipaw" not in self.simulation_parser.annotation_key:
             self.simulation_parser.annotation_key = ext      
@@ -424,7 +425,6 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             return parser
 
         program = parser.data.get('program')        
-        parser.filepath = self.mainfile
         name_version = get_program_name_version(program[0][:30])
         if name_version[0] == 'gipaw':
             if ext == 'out':
