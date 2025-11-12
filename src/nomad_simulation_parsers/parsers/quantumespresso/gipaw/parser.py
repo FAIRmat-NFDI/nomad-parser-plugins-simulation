@@ -52,14 +52,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             sec_efg.value = values
             electric_field_gradients.append(sec_efg)
         out['electric_field_gradients'] = [dict(value=e) for e in electric_field_gradients]
-
-        txt = ''
-        for key, value in out.items():
-            txt += f'{key}          {value}\n'
-
-        with open('ciao.txt', 'w') as f:
-            f.write(txt)
-        # debug(out)
         
         return [out]
 

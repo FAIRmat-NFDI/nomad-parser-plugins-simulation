@@ -79,7 +79,23 @@ def test_gipaw_nmr_text():
     debug(archive.data.outputs[0])
     debug(archive.data.outputs[0].magnetic_shieldings)
     debug(archive.data.outputs[0].magnetic_susceptibilities)
-    
+
+
+def test_gipaw_efg_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_efg_out/quartz-efg.out',
+        archive,
+        LOGGER,
+    )
+    debug(archive)
+    debug(archive.data)
+    debug(archive.data.outputs)
+    debug(archive.data.outputs[0])
+    debug(archive.data.outputs[0].magnetic_shieldings)
+    debug(archive.data.outputs[0].magnetic_susceptibilities)
+
 
 def test_gipaw_nmr_xml():
     parser = QuantumEspressoParser()
