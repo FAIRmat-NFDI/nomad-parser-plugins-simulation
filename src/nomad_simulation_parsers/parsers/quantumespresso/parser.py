@@ -420,6 +420,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         if "gipaw" not in self.simulation_parser.annotation_key:
             self.simulation_parser.annotation_key = ext
 
+        debug(self.mainfile)
         debug(list(parser.data.keys()))
         
 

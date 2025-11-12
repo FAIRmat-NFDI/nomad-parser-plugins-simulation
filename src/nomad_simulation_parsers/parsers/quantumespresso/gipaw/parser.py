@@ -20,38 +20,39 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         return LOGGER
     
     def get_nmr_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        # magnetic shieldings
-        data = source.get('ms_list', [])
         from devtools import debug
-        magnetic_shieldings = []
-        for atom_data in data:
-            values = np.reshape(atom_data[2:], (3, 3))
-            FACTOR = 1e-6
-            magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
-        out = dict(magnetic_shieldings=[dict(value=m) for m in magnetic_shieldings ])
+        debug("sono get_nmr_text")
+        out = {}
+        # magnetic shieldings
+        ms_list = source.get('ms_list', None)
+        if ms_list is not None:
+            magnetic_shieldings = []
+            for atom_data in ms_list:
+                values = np.reshape(atom_data[2:], (3, 3))
+                FACTOR = 1e-6
+                magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
+            out["magnetic_shieldings"] = [dict(value=m) for m in magnetic_shieldings ]
 
         # magnetic_susceptibilities
-        chi_bare_pGv = source.get("chi_bare_pGv", [])
-        chi_bare_vGv = source.get("chi_bare_vGv", [])
+        chi_bare_pGv = source.get("chi_bare_pGv", None)
+        chi_bare_vGv = source.get("chi_bare_vGv", None)
 
-        sus = (chi_bare_pGv + chi_bare_vGv) / 2
-        out["magnetic_susceptibilities"] = dict(
-            value=sus,
-            value_vgv_approx = chi_bare_vGv,
-            value_pgv_approx = chi_bare_pGv
-            )
+        if chi_bare_pGv is not None and chi_bare_pGv is not None:
+            sus = (chi_bare_pGv + chi_bare_vGv) / 2
+            out["magnetic_susceptibilities"] = dict(
+                value=sus,
+                value_vgv_approx = chi_bare_vGv,
+                value_pgv_approx = chi_bare_pGv
+                )
 
-        from devtools import debug
         # electric field gradient
-        data = source.get('efg', [])
-        debug(data)
-        electric_field_gradients = []
-        for i, atom_data in enumerate(data):
-            debug(i)
-            debug(atom_data)
-            values = np.reshape(atom_data[2:], (3, 3))
-            electric_field_gradients.append(values)
-        out['electric_field_gradients'] = [dict(value=e) for e in electric_field_gradients]
+        efg = source.get('efg', None)
+        if efg is not None:
+            electric_field_gradients = []
+            for i, atom_data in enumerate(efg):
+                values = np.reshape(atom_data[2:], (3, 3))
+                electric_field_gradients.append(values)
+            out['electric_field_gradients'] = [dict(value=e) for e in electric_field_gradients]
         
         return [out]
 
