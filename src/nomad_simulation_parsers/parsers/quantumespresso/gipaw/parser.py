@@ -19,7 +19,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
     def logger(self):
         return LOGGER
     
-    def get_nmr_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_gipaw_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         out = {}
         # magnetic shieldings
         ms_list = source.get('ms_list', None)
