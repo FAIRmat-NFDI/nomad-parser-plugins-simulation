@@ -20,8 +20,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         return LOGGER
     
     def get_nmr_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        from devtools import debug
-        debug("sono get_nmr_text")
         out = {}
         # magnetic shieldings
         ms_list = source.get('ms_list', None)
@@ -46,50 +44,41 @@ class GIPAWMainfileTextParser(MainfileTextParser):
                 )
 
         # electric_field_gradient
-        data = source.get('efg', None)
-        if data is not None:
+        efg = source.get('efg', None)
+        if efg is not None:
             electric_field_gradients = []
-            for atom_data in data:
+            for atom_data in efg:
                 values = np.reshape(atom_data[2:], (3, 3))
                 electric_field_gradients.append(values)
             out['electric_field_gradients'] = [dict(value=item) for item in electric_field_gradients]
 
         # hyperfine_dipolar
-        data = source.get('hyperfine_dipolar', None)
-        if data is not None:
+        hd = source.get('hyperfine_dipolar', None)
+        if hd is not None:
             hyperfine_dipolar = []
-            for atom_data in data:
+            for atom_data in hd:
                 values = np.reshape(atom_data[2:], (3, 3))
                 hyperfine_dipolar.append(values)
             out['hyperfine_dipolar'] = [dict(value=item) for item in hyperfine_dipolar]
 
         # hyperfine_fermi_contact
-        data = source.get('hyperfine_fermi_contact', None)
-        if data is not None:
+        hfc = source.get('hyperfine_fermi_contact', None)
+        if hfc is not None:
             hyperfine_fermi_contact = []
-            for atom_data in data:
+            for atom_data in hfc:
                 values = atom_data[-1]
                 hyperfine_fermi_contact.append(values)
             out['hyperfine_fermi_contact'] = [dict(value=item) for item in hyperfine_fermi_contact]
 
         # delta_g_paratec
-        data = source.get('delta_g_total_paratec', None)
-        if data is not None:
-            delta_g_total_paratec = []
-            for atom_data in data:
-                values = data
-                delta_g_total_paratec.append(values)
-            out['delta_g_paratec'] = [dict(value=item) for item in delta_g_total_paratec]
+        delta_g_paratec = source.get('delta_g_total_paratec', None)
+        if delta_g_paratec is not None:
+            out['delta_g_paratec'] = dict(value=delta_g_paratec)
 
         # delta_g
-        data = source.get('delta_g_total', None)
-        if data is not None:
-            delta_g_total = []
-            for atom_data in data:
-                values = data
-                delta_g_total.append(values)
-            out['delta_g'] = [dict(value=item) for item in delta_g_total]
-
+        delta_g = source.get('delta_g_total', None)
+        if delta_g is not None:
+            out['delta_g_paratec'] = dict(value=delta_g)
 
         return [out]
 
