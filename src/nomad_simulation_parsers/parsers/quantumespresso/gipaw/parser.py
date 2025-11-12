@@ -41,16 +41,16 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             value_pgv_approx = chi_bare_pGv
             )
 
+        from devtools import debug
         # electric field gradient
         data = source.get('efg', [])
+        debug(data)
         electric_field_gradients = []
         for i, atom_data in enumerate(data):
+            debug(i)
+            debug(atom_data)
             values = np.reshape(atom_data[2:], (3, 3))
-            sec_efg = self.e_field_gradient_class(
-                type="total", entity_ref=particle_state[i]
-            )
-            sec_efg.value = values
-            electric_field_gradients.append(sec_efg)
+            electric_field_gradients.append(values)
         out['electric_field_gradients'] = [dict(value=e) for e in electric_field_gradients]
         
         return [out]
