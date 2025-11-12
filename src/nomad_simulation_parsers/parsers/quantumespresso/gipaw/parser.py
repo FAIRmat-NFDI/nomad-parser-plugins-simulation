@@ -19,27 +19,67 @@ class GIPAWMainfileTextParser(MainfileTextParser):
     def logger(self):
         return LOGGER
     
-    def get_nmr_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_gipaw_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        out = {}
         # magnetic shieldings
-        data = source.get('ms_list', [])
-        magnetic_shieldings = []
-        for atom_data in data:
-            values = np.reshape(atom_data[2:], (3, 3))
-            FACTOR = 1e-6
-            magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
-        out = dict(magnetic_shieldings=[dict(value=m) for m in magnetic_shieldings ])
+        ms_list = source.get('ms_list', None)
+        if ms_list is not None:
+            magnetic_shieldings = []
+            for atom_data in ms_list:
+                values = np.reshape(atom_data[2:], (3, 3))
+                FACTOR = 1e-6
+                magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
+            out["magnetic_shieldings"] = [dict(value=m) for m in magnetic_shieldings ]
 
         # magnetic_susceptibilities
-        chi_bare_pGv = source.get("chi_bare_pGv", [])
-        chi_bare_vGv = source.get("chi_bare_vGv", [])
+        chi_bare_pGv = source.get("chi_bare_pGv", None)
+        chi_bare_vGv = source.get("chi_bare_vGv", None)
 
-        sus = (chi_bare_pGv + chi_bare_vGv) / 2
-        out["magnetic_susceptibilities"] = dict(
-            value=sus,
-            value_vgv_approx = chi_bare_vGv,
-            value_pgv_approx = chi_bare_pGv
-            )       
-        
+        if chi_bare_pGv is not None and chi_bare_pGv is not None:
+            sus = (chi_bare_pGv + chi_bare_vGv) / 2
+            out["magnetic_susceptibilities"] = dict(
+                value=sus,
+                value_vgv_approx = chi_bare_vGv,
+                value_pgv_approx = chi_bare_pGv
+                )
+
+        # electric_field_gradient
+        efg = source.get('efg', None)
+        if efg is not None:
+            electric_field_gradients = []
+            for atom_data in efg:
+                values = np.reshape(atom_data[2:], (3, 3))
+                electric_field_gradients.append(values)
+            out['electric_field_gradients'] = [dict(value=item) for item in electric_field_gradients]
+
+        # hyperfine_dipolar
+        hd = source.get('hyperfine_dipolar', None)
+        if hd is not None:
+            hyperfine_dipolar = []
+            for atom_data in hd:
+                values = np.reshape(atom_data[2:], (3, 3))
+                hyperfine_dipolar.append(values)
+            out['hyperfine_dipolar'] = [dict(value=item) for item in hyperfine_dipolar]
+
+        # hyperfine_fermi_contact
+        hfc = source.get('hyperfine_fermi_contact', None)
+        if hfc is not None:
+            hyperfine_fermi_contact = []
+            for atom_data in hfc:
+                values = atom_data[-1]
+                hyperfine_fermi_contact.append(values)
+            out['hyperfine_fermi_contact'] = [dict(value=item) for item in hyperfine_fermi_contact]
+
+        # delta_g_paratec
+        delta_g_paratec = source.get('delta_g_total_paratec', None)
+        if delta_g_paratec is not None:
+            out['delta_g_paratec'] = dict(value=delta_g_paratec)
+
+        # delta_g
+        delta_g = source.get('delta_g_total', None)
+        if delta_g is not None:
+            out['delta_g_paratec'] = dict(value=delta_g)
+
         return [out]
 
 

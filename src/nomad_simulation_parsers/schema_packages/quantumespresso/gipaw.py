@@ -50,20 +50,43 @@ class MagneticSusceptibility(schema_package.MagneticSusceptibility):
         GIPAW_XML_KEY, 
         ('get_magnetic_susceptibilities', ['.@'], dict(name='susceptibility_high'))
     )
-    
+
+
+class ElectricFieldGradient(schema_package.ElectricFieldGradient):
+    add_mapping_annotation(
+        schema_package.ElectricFieldGradient.value, GIPAW_OUT_KEY, '.value'
+    )
+
+
+class HyperfineDipolar(schema_package.HyperfineDipolar):
+    add_mapping_annotation(
+        schema_package.HyperfineDipolar.value, GIPAW_OUT_KEY, '.value'
+    )
+
+
+class HyperfineFermiContact(schema_package.HyperfineFermiContact):
+    add_mapping_annotation(
+        schema_package.HyperfineFermiContact.value, GIPAW_OUT_KEY, '.value'
+    )
+
+
+class DeltaG(schema_package.DeltaG):
+    add_mapping_annotation(
+        schema_package.DeltaG.value, GIPAW_OUT_KEY, '.value'
+    )
+
+
+class DeltaGParatec(schema_package.DeltaGParatec):
+    add_mapping_annotation(
+        schema_package.DeltaGParatec.value, GIPAW_OUT_KEY, '.value'
+    )
 
 
 class Outputs(schema_package.Outputs):
     add_mapping_annotation(
-        schema_package.Outputs.m_def,
-        GIPAW_OUT_KEY,
-        ('get_nmr_text', ['.@']),
+        schema_package.Outputs.m_def, GIPAW_OUT_KEY, ('get_gipaw_text', ['.@']),
     )
-    add_mapping_annotation(
-        schema_package.Outputs.m_def,
-        GIPAW_XML_KEY,
-        '.output',
-    )
+    add_mapping_annotation(schema_package.Outputs.m_def, GIPAW_XML_KEY, '.output')
     add_mapping_annotation(
         schema_package.Outputs.magnetic_shieldings, 
         GIPAW_OUT_KEY, 
@@ -81,6 +104,25 @@ class Outputs(schema_package.Outputs):
     )
     add_mapping_annotation(
         schema_package.Outputs.magnetic_susceptibilities, GIPAW_XML_KEY, '.@'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.electric_field_gradients, 
+        GIPAW_OUT_KEY, 
+        '.electric_field_gradients'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.hyperfine_dipolar, GIPAW_OUT_KEY, '.hyperfine_dipolar'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.hyperfine_fermi_contact, 
+        GIPAW_OUT_KEY, 
+        '.hyperfine_fermi_contact'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.delta_g_paratec, GIPAW_OUT_KEY, '.delta_g_paratec'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.delta_g, GIPAW_OUT_KEY, '.delta_g'
     )
 
 
