@@ -529,10 +529,6 @@ class Wannier90Parser(MatchingParser):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Store instance-level tolerance without mutating global config
-        self.equal_cell_positions_tolerance = kwargs.get(
-            'equal_cell_positions_tolerance'
-        )
         self.archive_writer = WannierArchiveWriter()
 
     def is_mainfile(
