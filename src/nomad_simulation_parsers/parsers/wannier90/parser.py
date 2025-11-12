@@ -334,11 +334,7 @@ class WInTextParser(TextParser):
         orbitals = re.findall(r'l=([\d+])(?:,mr=([\d])+=)?', orbital)
         for orb in orbitals:
             nl = int(orb[0])
-            state = {
-                'spin_orbit_state': {
-                    'l_quantum_number': nl
-                }
-            }
+            state = {'spin_orbit_state': {'l_quantum_number': nl}}
             if orb[1]:
                 # mr parameter specifies position within l-manifold
                 ml = self._calculate_ml_from_position(nl, int(orb[1]))
@@ -359,12 +355,14 @@ class WInTextParser(TextParser):
                     continue
 
                 nl, ml = quantum_numbers
-                states.append({
-                    'spin_orbit_state': {
-                        'l_quantum_number': nl,
-                        'ml_quantum_number': ml
+                states.append(
+                    {
+                        'spin_orbit_state': {
+                            'l_quantum_number': nl,
+                            'ml_quantum_number': ml,
+                        }
                     }
-                })
+                )
 
         return states
 
@@ -531,7 +529,9 @@ class Wannier90Parser(MatchingParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Store instance-level tolerance without mutating global config
-        self.equal_cell_positions_tolerance = kwargs.get('equal_cell_positions_tolerance')
+        self.equal_cell_positions_tolerance = kwargs.get(
+            'equal_cell_positions_tolerance'
+        )
         self.archive_writer = WannierArchiveWriter()
 
     def is_mainfile(

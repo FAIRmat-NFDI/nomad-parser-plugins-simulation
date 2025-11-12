@@ -31,6 +31,7 @@ class WannierSphericalSymmetryState(atoms_state.SphericalSymmetryState):
 
     Maps Wannier90 input file orbital specifications to quantum numbers.
     """
+
     add_mapping_annotation(
         atoms_state.SphericalSymmetryState.l_quantum_number, WIN_KEY, '.l'
     )
