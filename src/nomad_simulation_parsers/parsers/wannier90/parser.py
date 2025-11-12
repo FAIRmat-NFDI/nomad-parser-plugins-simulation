@@ -227,22 +227,22 @@ class WInTextParser(TextParser):
         return self._symbol_to_quantum_numbers.get(symbol)
 
     @staticmethod
-    def _calculate_ml_from_position(l: int, position: int) -> int:
+    def _calculate_ml_from_position(ll: int, position: int) -> int:
         """
         Convert position within l-manifold to ml quantum number.
 
         Args:
-            l: Orbital angular momentum quantum number
+            ll: Orbital angular momentum quantum number
             position: Position within the l-manifold (0-indexed)
 
         Returns:
             ml quantum number corresponding to the position
 
         Note:
-            Assumes position 0 → ml=-l, position 1 → ml=-l+1, etc.
+            Assumes position 0 → ml=-ll, position 1 → ml=-ll+1, etc.
             This convention should be verified against Wannier90 documentation.
         """
-        return -l + position
+        return -ll + position
 
     def get_projections(self, source: list[Any]) -> list[dict[str, Any]]:
         return [dict(projection=val) for val in source]
@@ -270,7 +270,8 @@ class WInTextParser(TextParser):
             lattice_vectors: Unit cell lattice vectors
 
         Returns:
-            Dict with 'label' (combined symbol string) and 'indices' (list of atom indices)
+            Dict with 'label' (combined symbol string) and 'indices'
+            (list of atom indices)
         """
         symbols, indices = [], []
         if atom is None:

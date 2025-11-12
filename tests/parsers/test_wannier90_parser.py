@@ -3,8 +3,8 @@ from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.wannier90.parser import (
-    WInTextParser,
     Wannier90Parser,
+    WInTextParser,
 )
 
 LOGGER = get_logger(__name__)
@@ -26,8 +26,8 @@ class TestWannierQuantumNumberMapping:
 
     def test_s_orbital(self, parser):
         """Test s orbital mapping."""
-        l, ml = parser._get_quantum_numbers_from_symbol('s')
-        assert l == 0
+        ll, ml = parser._get_quantum_numbers_from_symbol('s')
+        assert ll == 0
         assert ml == 0
 
     def test_p_orbitals(self, parser):
@@ -56,8 +56,8 @@ class TestWannierQuantumNumberMapping:
 
     def test_lco_test_case(self, parser):
         """Test the specific orbital used in lco.win test data: Cu:dx2-y2."""
-        l, ml = parser._get_quantum_numbers_from_symbol('dx2-y2')
-        assert l == 2, 'dx2-y2 should have l=2 (d orbital)'
+        ll, ml = parser._get_quantum_numbers_from_symbol('dx2-y2')
+        assert ll == 2, 'dx2-y2 should have l=2 (d orbital)'
         assert ml == 2, 'dx2-y2 should have ml=+2 according to Wannier90 Table 3.2'
 
     def test_unknown_symbol(self, parser):
