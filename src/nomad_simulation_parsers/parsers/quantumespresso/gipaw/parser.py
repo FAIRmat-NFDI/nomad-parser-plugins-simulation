@@ -78,7 +78,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         # delta_g
         delta_g = source.get('delta_g_total', None)
         if delta_g is not None:
-            out['delta_g_paratec'] = dict(value=delta_g)
+            out['delta_g'] = dict(value=delta_g)
 
         return [out]
 
