@@ -15,6 +15,7 @@ def test_pwscf():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
     parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
+    debug(archive.data.outputs)
 
 
 def test_pwscf_xml():
@@ -54,6 +55,7 @@ def test_gipaw_nmr_text():
         archive,
         LOGGER,
     )
+    debug(archive.data.outputs)
 
 
 def test_gipaw_nmr_xml():
@@ -75,6 +77,7 @@ def test_gipaw_efg_text():
         archive,
         LOGGER,
     )
+    debug(archive.data.outputs)
 
 
 def test_gipaw_efg_xml():
@@ -86,7 +89,6 @@ def test_gipaw_efg_xml():
         LOGGER,
     )
     debug(archive.data.outputs)
-    debug(archive.data.outputs[0].electric_field_gradients)
 
 
 def test_gipaw_epr_hyperfine_text():
@@ -97,7 +99,7 @@ def test_gipaw_epr_hyperfine_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
+    debug(archive.data.outputs)
 
 
 def test_gipaw_epr_hyperfine_xml():
@@ -108,7 +110,7 @@ def test_gipaw_epr_hyperfine_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
+    debug(archive.data.outputs)
     
 
 def test_gipaw_epr_deltag_text():
@@ -119,7 +121,7 @@ def test_gipaw_epr_deltag_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
+    debug(archive.data.outputs)
 
 
 def test_gipaw_epr_deltag_xml():
@@ -130,7 +132,7 @@ def test_gipaw_epr_deltag_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs[0])
+    debug(archive.data.outputs)
 
 
    

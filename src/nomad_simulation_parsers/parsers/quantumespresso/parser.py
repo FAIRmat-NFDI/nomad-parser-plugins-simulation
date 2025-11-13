@@ -418,11 +418,14 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             basename, ext = self.mainfile.rsplit('.', 1)
             self._mainfile_parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
             self._mainfile_parser.filepath = self.mainfile
+            keys = list(self._mainfile_parser.data.keys())
+
+            from devtools import debug
+            debug(self.mainfile_parser.filepath)
+            debug(keys)
 
             if "gipaw" not in self.simulation_parser.annotation_key:
-                self.simulation_parser.annotation_key = ext   
-
-            keys = list(self._mainfile_parser.data.keys())   
+                self.simulation_parser.annotation_key = ext
 
             if "program" not in keys:           
                 if len(keys) == 1 and "gipaw" in keys[0]:
