@@ -65,11 +65,21 @@ class HyperfineDipolar(schema_package.HyperfineDipolar):
     add_mapping_annotation(
         schema_package.HyperfineDipolar.value, GIPAW_OUT_KEY, '.value'
     )
+    add_mapping_annotation(
+        schema_package.HyperfineDipolar.value, 
+        GIPAW_XML_KEY, 
+        ('get_hyperfine_dipolar', ['.@'])
+    )
 
 
 class HyperfineFermiContact(schema_package.HyperfineFermiContact):
     add_mapping_annotation(
         schema_package.HyperfineFermiContact.value, GIPAW_OUT_KEY, '.value'
+    )
+    add_mapping_annotation(
+        schema_package.HyperfineFermiContact.value, 
+        GIPAW_XML_KEY, 
+        ('get_hyperfine_fermi_contact', ['.@'])
     )
 
 
@@ -122,9 +132,19 @@ class Outputs(schema_package.Outputs):
         schema_package.Outputs.hyperfine_dipolar, GIPAW_OUT_KEY, '.hyperfine_dipolar'
     )
     add_mapping_annotation(
+        schema_package.Outputs.hyperfine_dipolar, 
+        GIPAW_XML_KEY, 
+        '.hyperfine_dipolar.atom'
+    )
+    add_mapping_annotation(
         schema_package.Outputs.hyperfine_fermi_contact, 
         GIPAW_OUT_KEY, 
         '.hyperfine_fermi_contact'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.hyperfine_fermi_contact, 
+        GIPAW_XML_KEY, 
+        '.hyperfine_fermi_contact.atom'
     )
     add_mapping_annotation(
         schema_package.Outputs.delta_g_paratec, GIPAW_OUT_KEY, '.delta_g_paratec'

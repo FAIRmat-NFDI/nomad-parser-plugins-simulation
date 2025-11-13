@@ -123,12 +123,21 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         pgv = np.reshape(value_pgv.get("__value", None), (3, 3))
         sus = (vgv + pgv) / 2
         return sus
-    
 
     def get_efg(self, atom: dict[str, Any]) -> Any:
         if self.job != "efg":
             return
         return np.reshape(atom.get("__value"), (3, 3))
+    
+    def get_hyperfine_dipolar(self, atom: dict[str, Any]) -> Any:
+        if self.job != "hyperfine":
+            return
+        return np.reshape(atom.get("__value"), (3, 3))
+    
+    def get_hyperfine_fermi_contact(self, atom: dict[str, Any]) -> Any:
+        if self.job != "hyperfine":
+            return
+        return atom.get("__value")
 
         
 

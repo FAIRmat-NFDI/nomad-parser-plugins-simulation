@@ -64,6 +64,8 @@ def test_gipaw_nmr_xml():
         archive,
         LOGGER,
     )
+    debug(archive.data.outputs)
+
 
 def test_gipaw_efg_text():
     parser = QuantumEspressoParser()
@@ -84,6 +86,7 @@ def test_gipaw_efg_xml():
         LOGGER,
     )
     debug(archive.data.outputs)
+    debug(archive.data.outputs[0].electric_field_gradients)
 
 
 def test_gipaw_epr_hyperfine_text():
@@ -97,6 +100,17 @@ def test_gipaw_epr_hyperfine_text():
     debug(archive.data.outputs[0])
 
 
+def test_gipaw_epr_hyperfine_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_hyperfine_xml/benzene-hyperfyne.xml',
+        archive,
+        LOGGER,
+    )
+    debug(archive.data.outputs[0])
+    
+
 
 def test_gipaw_epr_deltag_text():
     parser = QuantumEspressoParser()
@@ -106,6 +120,8 @@ def test_gipaw_epr_deltag_text():
         archive,
         LOGGER,
     )
+    debug(archive.data.outputs[0])
+
 
 
 
