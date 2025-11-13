@@ -73,16 +73,20 @@ class ModelSystem(model_system.ModelSystem):
     )
 
 
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label, OUT_KEY, '.XC_functional_name'
+    )
+
+
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.XCFunctional.libxc_name, OUT_KEY, '.XC_functional_name'
+        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', [])
     )
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(
-        model_method.DFT.xc_functionals, OUT_KEY, ('get_xc_functionals', [])
-    )
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):

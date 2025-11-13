@@ -60,34 +60,30 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(
-        model_method.DFT.xc_functionals,
-        XML_KEY,
-        '.separator[?"@name"==\'electronic exchange-correlation\']',
-    )
-    add_mapping_annotation(
-        model_method.DFT.xc_functionals, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
-    )
-    add_mapping_annotation(
-        model_method.DFT.exact_exchange_mixing_factor,
-        XML_KEY,
-        (
-            'mix_alpha',
-            [
-                '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-                '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-            ],
-        ),
-    )
+    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.XCFunctional.libxc_name,
+        model_method.XCFunctional.components,
+        XML_KEY,
+        '.separator[?"@name"==\'electronic exchange-correlation\']',
+    )
+    add_mapping_annotation(
+        model_method.XCFunctional.components, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+    )
+
+
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label,
         XML_KEY,
         '.i[?"@name"==\'GGA\'] | [0].__value',
     )
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, OUTCAR_KEY, '.name')
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
+    )
 
 
 class ModelMethod(model_method.ModelMethod):

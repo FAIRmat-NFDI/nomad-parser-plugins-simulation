@@ -77,15 +77,19 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
+
+
+class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.DFT.xc_functionals,
+        model_method.XCFunctional.components,
         TEXT_KEY,
         ('get_xc_functionals', ['.controlInOut_xc']),
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, TEXT_KEY, '.name')
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, TEXT_KEY, '.name')
 
 
 class GW(model_method.GW):
