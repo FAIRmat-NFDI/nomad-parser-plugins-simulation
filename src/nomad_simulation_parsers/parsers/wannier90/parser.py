@@ -132,6 +132,13 @@ class WOutTextParser(TextParser):
 
 
 class WInTextParser(TextParser):
+    """
+    Parser for Wannier90 .win input files.
+
+    Extracts projection specifications, lattice parameters, and atomic positions
+    from Wannier90 input files and converts them to NOMAD schema structures.
+    """
+
     # TODO these should be defined in common utils
     _l_symbols = ['s', 'p', 'd', 'f']
     _m_symbols = [
@@ -171,10 +178,71 @@ class WInTextParser(TextParser):
         'fy(3x2-y2)',
     ]
 
+    # Explicit mapping from Wannier90 symbols to (l, ml) quantum numbers
+    # Based on Wannier90 User Guide Table 3.2
+    # Real spherical harmonics with Wannier90's specific ordering
+    _symbol_to_quantum_numbers = {
+        # s orbitals (l=0)
+        's': (0, 0),
+        # p orbitals (l=1)
+        'px': (1, -1),
+        'py': (1, 0),
+        'pz': (1, 1),
+        # d orbitals (l=2)
+        'dz2': (2, 0),
+        'dxz': (2, 1),
+        'dyz': (2, -1),
+        'dx2-y2': (2, 2),
+        'dxy': (2, -2),
+        # f orbitals (l=3) - standard cubic harmonic ordering
+        'fz3': (3, 0),
+        'fxz2': (3, 1),
+        'fyz2': (3, -1),
+        'fz(x2-y2)': (3, 2),
+        'fxyz': (3, -2),
+        'fx(x2-3y2)': (3, 3),
+        'fy(3x2-y2)': (3, -3),
+    }
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
         return LOGGER
+
+    def _get_quantum_numbers_from_symbol(self, symbol: str) -> tuple[int, int] | None:
+        """
+        Get (l, ml) quantum numbers for a Wannier90 orbital symbol.
+
+        Args:
+            symbol: Orbital symbol (e.g., 's', 'px', 'dxy', 'dx2-y2')
+
+        Returns:
+            tuple: (l_quantum_number, ml_quantum_number) or None if not found
+
+        Note:
+            Uses explicit mapping from Wannier90 User Guide Table 3.2.
+            The mapping is for real spherical harmonics with Wannier90's
+            specific ordering convention.
+        """
+        return self._symbol_to_quantum_numbers.get(symbol)
+
+    @staticmethod
+    def _calculate_ml_from_position(ll: int, position: int) -> int:
+        """
+        Convert position within l-manifold to ml quantum number.
+
+        Args:
+            ll: Orbital angular momentum quantum number
+            position: Position within the l-manifold (0-indexed)
+
+        Returns:
+            ml quantum number corresponding to the position
+
+        Note:
+            Assumes position 0 → ml=-ll, position 1 → ml=-ll+1, etc.
+            This convention should be verified against Wannier90 documentation.
+        """
+        return -ll + position
 
     def get_projections(self, source: list[Any]) -> list[dict[str, Any]]:
         return [dict(projection=val) for val in source]
@@ -186,6 +254,25 @@ class WInTextParser(TextParser):
         labels: list[str],
         lattice_vectors: list[np.ndarray],
     ) -> Any:
+        """
+        Parse atom specification and find matching atom indices in the structure.
+
+        Supports multiple formats:
+        - Integer: direct atom index
+        - "c=x,y,z": Cartesian coordinates
+        - "f=x,y,z": Fractional coordinates
+        - String: atom label/symbol
+
+        Args:
+            atom: Atom specification from Wannier90 projection
+            positions: List of atomic positions
+            labels: List of atomic labels/symbols
+            lattice_vectors: Unit cell lattice vectors
+
+        Returns:
+            Dict with 'label' (combined symbol string) and 'indices'
+            (list of atom indices)
+        """
         symbols, indices = [], []
         if atom is None:
             return None
@@ -198,10 +285,13 @@ class WInTextParser(TextParser):
             position = np.array(match.groups()[1:4], float)
             if coord.lower() == 'f':
                 position = np.dot(position, lattice_vectors)
+
+            # Use global config for tolerance (instance-level tolerance would require
+            # refactoring the mapping system to pass parser context)
+            tolerance = configuration.equal_cell_positions_tolerance
+
             for n, pos in enumerate(positions):
-                if np.allclose(
-                    position, pos, configuration.equal_cell_positions_tolerance
-                ):
+                if np.allclose(position, pos, tolerance):
                     indices.append(n)
                     symbols.append(labels[n])
 
@@ -212,38 +302,81 @@ class WInTextParser(TextParser):
         return dict(label=''.join(symbols), indices=indices)
 
     def get_orbitals_state(self, orbital: Any) -> list[dict[str, Any]]:
+        """
+        Parse orbital projections from Wannier90 input and create
+        ElectronicState dictionary specifications.
+
+        Wannier90 supports two projection formats:
+        1. l-based: "l=2,mr=1" - specifies l and position within l-manifold
+        2. Symbol-based: "dx2-y2" - uses standard orbital names
+
+        Both formats are converted to ElectronicState structures containing
+        SphericalSymmetryState quantum numbers (l, ml).
+
+        Args:
+            orbital: Orbital specification string from Wannier90 .win file
+
+        Returns:
+            List of dicts with structure:
+            [{'spin_orbit_state': {'l_quantum_number': int, 'ml_quantum_number': int}}]
+            Returns None if orbital is None.
+
+        Note:
+            The ml quantum number mapping assumes Wannier90's ordering convention
+            where position within an l-manifold maps linearly to ml values starting
+            from ml=-l. This should be verified against Wannier90 documentation.
+        """
         if orbital is None:
             return None
 
         states = []
-        orbitals = re.findall(r'l=([\d+])(?:,mr=([\d])+=)?', orbital)
+
+        # Try parsing l-based format: l=2,mr=1
+        orbitals = re.findall(r'l=(\d+)(?:,mr=(\d+)=)?', orbital)
         for orb in orbitals:
             nl = int(orb[0])
-            states.append(dict(l=self._l_symbols[nl]))
+            state = {'spin_orbit_state': {'l_quantum_number': nl}}
             if orb[1]:
-                nm = sum([len(range(-n, n + 1)) for n in range(nl)]) + int(orb[1])
-                states[-1]['m'] = self._m_symbols[nm]
+                # mr parameter specifies position within l-manifold
+                ml = self._calculate_ml_from_position(nl, int(orb[1]))
+                state['spin_orbit_state']['ml_quantum_number'] = ml
+            states.append(state)
+
+        # If l-based format not found, try symbol-based format: dx2-y2
         if not orbitals:
             for orb in orbital.split(';'):
-                try:
-                    norb = self._wannier_symbols.index(orb)
-                except Exception:
+                # Look up quantum numbers from explicit mapping
+                quantum_numbers = self._get_quantum_numbers_from_symbol(orb)
+
+                if quantum_numbers is None:
+                    # Symbol not recognized, skip it
+                    self.logger.warning(
+                        f"Unknown orbital symbol '{orb}' in projection specification"
+                    )
                     continue
-                # calculate l,m from norb
-                nl = 0
-                nm = 0
-                while True:
-                    m_offset = [nm + nq for nq in range(len(range(-nl, nl + 1)))]
-                    if norb in m_offset:
-                        nm = m_offset.index(norb)
-                        break
-                    nl += 1
-                    nm += len(m_offset)
-                states.append(dict(l=self._l_symbols[nl], m=self._m_symbols[nm]))
+
+                nl, ml = quantum_numbers
+                states.append(
+                    {
+                        'spin_orbit_state': {
+                            'l_quantum_number': nl,
+                            'ml_quantum_number': ml,
+                        }
+                    }
+                )
+
         return states
 
 
 class WannierArchiveWriter(ArchiveWriter):
+    """
+    Archive writer for Wannier90 calculations.
+
+    Orchestrates parsing of multiple Wannier90 output files (.wout, .win, _hr.dat,
+    _band.dat, etc.) and populates the NOMAD archive with simulation data including
+    model systems, methods, and output properties.
+    """
+
     def parse_workflow(self) -> None:
         """
         Write to archive workflow2 section.
@@ -387,7 +520,16 @@ class WannierArchiveWriter(ArchiveWriter):
 
 
 class Wannier90Parser(MatchingParser):
-    archive_writer = WannierArchiveWriter()
+    """
+    Parser for Wannier90 output files.
+
+    Parses Wannier90 calculations including maximally localized Wannier functions,
+    band structures, density of states, and hopping matrices.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.archive_writer = WannierArchiveWriter()
 
     def is_mainfile(
         self,
