@@ -56,6 +56,9 @@ class ElectricFieldGradient(schema_package.ElectricFieldGradient):
     add_mapping_annotation(
         schema_package.ElectricFieldGradient.value, GIPAW_OUT_KEY, '.value'
     )
+    add_mapping_annotation(
+        schema_package.ElectricFieldGradient.value, GIPAW_XML_KEY, ('get_efg', ['.@'])
+    )
 
 
 class HyperfineDipolar(schema_package.HyperfineDipolar):
@@ -109,6 +112,11 @@ class Outputs(schema_package.Outputs):
         schema_package.Outputs.electric_field_gradients, 
         GIPAW_OUT_KEY, 
         '.electric_field_gradients'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.electric_field_gradients, 
+        GIPAW_XML_KEY, 
+        '.electric_field_gradients.atom'
     )
     add_mapping_annotation(
         schema_package.Outputs.hyperfine_dipolar, GIPAW_OUT_KEY, '.hyperfine_dipolar'
