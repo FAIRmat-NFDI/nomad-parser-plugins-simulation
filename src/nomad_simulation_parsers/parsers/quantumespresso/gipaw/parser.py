@@ -85,23 +85,33 @@ class GIPAWMainfileTextParser(MainfileTextParser):
 
 
 class GIPAWMainfileXMLParser(MainfileXMLParser):
+    _job: str | None = None
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
         return LOGGER
     
+    @property
+    def job(self) -> str | None:
+        if self._job is None:
+            try:
+                self._job = self.data["input"]["job"]
+            except Exception as exc:
+                self.logger.warning("Unable to get job from data: %s", exc)
+        return self._job
+        
+    
     def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
-        from devtools import debug
-        debug("sono get_magnetic_shieldings")
-        debug(atom)
+        if self.job != "nmr":
+            return
         value = np.reshape(atom.get("__value"), (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
-        from devtools import debug
-        debug("sono get_magnetic_susceptibilities")
-        # debug(source)
+        if self.job != "nmr":
+            return
         name = kwargs.get("name")
         if name != "value":
             value = source.get(name, None)
@@ -113,6 +123,7 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         pgv = np.reshape(value_pgv.get("__value", None), (3, 3))
         sus = (vgv + pgv) / 2
         return sus
+
         
 
 
