@@ -77,20 +77,27 @@ class KLinePath(numerical_settings.KLinePath):
 
 
 class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc, INFO_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, INPUT_XML_KEY, '.@')
+
+
+class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.DFT.xc_functionals, INFO_KEY, ('get_xc_functionals', ['.type'])
+        model_method.XCFunctional.components,
+        INFO_KEY,
+        ('get_xc_functionals', ['.type']),
     )
     add_mapping_annotation(
-        model_method.DFT.xc_functionals,
+        model_method.XCFunctional.components,
         INPUT_XML_KEY,
         ('get_xc_functionals', ['.libxc']),
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, INFO_KEY, '.libxc')
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, INFO_KEY, '.libxc')
     add_mapping_annotation(
-        model_method.XCFunctional.libxc_name, INPUT_XML_KEY, '.libxc'
+        model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'
     )
 
 
