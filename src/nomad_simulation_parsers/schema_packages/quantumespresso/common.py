@@ -31,21 +31,22 @@ class Program(general.Program):
     )
 
 
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label, 'out', '.XC_functional_name'
+    )
+
+
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.XCFunctional.libxc_name, OUT_KEY, '.XC_functional_name'
+        model_method.XCFunctional.components,
+        'out',
+        ('get_xc_functionals', ['.xc_functional']),
     )
-    # TODO map to libxc
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, XML_KEY, '.functional')
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(
-        model_method.DFT.xc_functionals,
-        OUT_KEY,
-        ('get_xc_functionals', ['.xc_functional']),
-    )
-    add_mapping_annotation(model_method.DFT.xc_functionals, XML_KEY, '.dft')
+    add_mapping_annotation(model_method.DFT.xc, 'out', '@')
 
 
 class AtomsState(model_system.AtomsState):
