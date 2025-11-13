@@ -51,7 +51,7 @@ class XCFunctional(model_method.XCFunctional):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc.m_annotations, GPW_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):

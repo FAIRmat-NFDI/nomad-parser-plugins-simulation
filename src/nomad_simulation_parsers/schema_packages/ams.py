@@ -48,7 +48,7 @@ class XCFunctional(model_method.XCFunctional):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc.m_annotations, OUT_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
