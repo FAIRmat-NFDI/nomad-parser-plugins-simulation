@@ -111,7 +111,6 @@ def test_gipaw_epr_hyperfine_xml():
     debug(archive.data.outputs[0])
     
 
-
 def test_gipaw_epr_deltag_text():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
@@ -122,6 +121,19 @@ def test_gipaw_epr_deltag_text():
     )
     debug(archive.data.outputs[0])
 
+
+def test_gipaw_epr_deltag_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_delta_g_xml/benzene-delta_g.xml',
+        archive,
+        LOGGER,
+    )
+    debug(archive.data.outputs[0])
+
+
+   
 
 
 

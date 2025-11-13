@@ -138,6 +138,11 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         if self.job != "hyperfine":
             return
         return atom.get("__value")
+    
+    def get_delta_g(self, source: dict[str, Any]) -> Any:
+        if self.job != "g-tensor":
+            return
+        return np.reshape(source.get("__value"), (3, 3))
 
         
 

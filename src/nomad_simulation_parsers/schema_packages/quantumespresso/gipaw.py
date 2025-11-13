@@ -87,11 +87,19 @@ class DeltaG(schema_package.DeltaG):
     add_mapping_annotation(
         schema_package.DeltaG.value, GIPAW_OUT_KEY, '.value'
     )
+    add_mapping_annotation(
+        schema_package.DeltaG.value, GIPAW_XML_KEY, ('get_delta_g', ['.@'])
+    )
 
 
 class DeltaGParatec(schema_package.DeltaGParatec):
     add_mapping_annotation(
         schema_package.DeltaGParatec.value, GIPAW_OUT_KEY, '.value'
+    )
+    add_mapping_annotation(
+        schema_package.DeltaGParatec.value, 
+        GIPAW_XML_KEY, 
+        ('get_delta_g', ['.@'])
     )
 
 
@@ -150,7 +158,13 @@ class Outputs(schema_package.Outputs):
         schema_package.Outputs.delta_g_paratec, GIPAW_OUT_KEY, '.delta_g_paratec'
     )
     add_mapping_annotation(
+        schema_package.Outputs.delta_g_paratec, GIPAW_XML_KEY, '.delta_g_paratec'
+    )
+    add_mapping_annotation(
         schema_package.Outputs.delta_g, GIPAW_OUT_KEY, '.delta_g'
+    )
+    add_mapping_annotation(
+        schema_package.Outputs.delta_g, GIPAW_XML_KEY, '.delta_g'
     )
 
 
