@@ -91,11 +91,17 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         return LOGGER
     
     def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
-        value = np.reshape(atom["__value"], (3, 3))
+        from devtools import debug
+        debug("sono get_magnetic_shieldings")
+        debug(atom)
+        value = np.reshape(atom.get("__value"), (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg("dimensionless")
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
+        from devtools import debug
+        debug("sono get_magnetic_susceptibilities")
+        # debug(source)
         name = kwargs.get("name")
         if name != "value":
             value = source.get(name, None)
