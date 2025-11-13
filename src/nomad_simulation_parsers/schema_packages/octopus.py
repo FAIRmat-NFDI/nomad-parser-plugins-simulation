@@ -19,16 +19,20 @@ class Program(general.Program):
     add_mapping_annotation(general.Program.version, OUT_KEY, '.Version')
 
 
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.@')
+
+
 class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(model_method.XCFunctional.libxc_name, OUT_KEY, '.@')
-
-
-class DFT(model_method.DFT):
     add_mapping_annotation(
-        model_method.DFT.xc_functionals,
+        model_method.XCFunctional.components,
         OUT_KEY,
         ('get_xc_functionals', ['.theory_level']),
     )
+
+
+class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class ModelSystem(model_system.ModelSystem):
