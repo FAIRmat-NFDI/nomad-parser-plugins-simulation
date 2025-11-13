@@ -25,7 +25,7 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import Cell, ModelSystem
+from nomad_simulations.schema_packages.model_system import Representation, ModelSystem
 
 # nomad-simulations
 from nomad_simulations.schema_packages.outputs import (
@@ -145,7 +145,7 @@ class MDParser(ArchiveWriter):
         data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
-        cell: Cell = None,
+        representation: Representation = None,
     ) -> None:
         """
         Create a system section and write the provided data.
@@ -157,16 +157,16 @@ class MDParser(ArchiveWriter):
             return
         if model_system is None:
             model_system = ModelSystem()
-        if cell is None:
-            cell = Cell()
+        if representation is None:
+            representation = Representation()
 
         cell_dict = data.pop('cell')
         particle_labels = data.pop('labels')
         for label in particle_labels:
             particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
-        self.parse_section(cell_dict, cell)
-        model_system.cell.append(cell)
+        self.parse_section(cell_dict, representation)
+        model_system.representations.append(representation)
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 

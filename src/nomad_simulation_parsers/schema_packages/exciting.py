@@ -102,14 +102,14 @@ class XCComponent(model_method.XCComponent):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, INFO_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, INFO_KEY, '.@')
     add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
     add_mapping_annotation(model_system.AtomsState.m_def, INFO_KEY, '.atoms')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, INFO_KEY, '.lattice_vectors'
+        model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'
     )
 
 
