@@ -78,16 +78,6 @@ def str_to_energy_dict(val_in: str) -> dict[str, pint.Quantity]:
         energies[v[0].strip()] = float(v[1]) * ureg.hartree
     return energies
 
-def convert_convergence_target_reached(text: bytes) -> bool:
-    success = r"Force convergence target achieved"
-    failed = r"Required force convergence has not been reached!"
-    if re.match(success, text.decode()) is not None:
-        return True
-    elif re.match(failed, text.decode()) is not None:
-        return False
-    # TODO should I log here something instead of raising an Exception?
-    raise ValueError('No valid text for matching convergence target success.')
-
 
 class InfoFileParser(TextParser):
     def init_quantities(self):
@@ -552,13 +542,6 @@ class InfoFileParser(TextParser):
                             str_operation=str_to_array,
                             dtype=float,
                             unit=ureg.hartree / ureg.bohr,
-                        ),
-                        Quantity(
-                            'target_reached',
-                            r'(?:Required\s)?[fF]orce\sconvergence\s(?:target\sachieved|has\snot\sbeen\sreached!)',
-                            repeats=False,
-                            str_operation=convert_convergence_target_reached,
-                            dtype=bool,
                         ),
                         Quantity(
                             'force_target',

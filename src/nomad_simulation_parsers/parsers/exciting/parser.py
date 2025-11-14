@@ -111,17 +111,19 @@ class InfoParser(TextParser):
         )
     
     def get_geometry_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
-        return [
+        structure_optimization=source.get('structure_optimization')
+        reached = True if structure_optimization.get('final') is not None else False
+        convergence = [      
             {
                 'convergence_parameter_name': 'force',
                 'threshold_type' : 'maximum',
                 'convergence_threshold_unit' : 'hartree/bohr',
                 'convergence_threshold' : source.get('structure_optimization')
                                                 .get('force_target'),
-                'is_reached' : source.get('structure_optimization')
-                                     .get('target_reached')
+                'is_reached' : reached
             }
         ]
+        return convergence
 
     def get_single_point_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
         last_iteration = source.get('groundstate').get('scf_iteration')[-1]
@@ -239,7 +241,9 @@ class EigvalParser(TextParser):
 
 
 class ExcitingArchiveWriter(ArchiveWriter):
-    def write_to_archive(self) -> None:
+    def write_to_archive(self) -> None:  # noqa: PLR0915
+        reload(exciting)
+
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
 
@@ -299,18 +303,28 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         # workflow section
         # populate geometry optimization if present
+        single_point_wf_parser = ExcitingMetainfoParser(
+            data_object=SinglePoint(model=SinglePointModel())
+            )
+        single_point_wf_parser.annotation_key = 'info'
+        info_parser.convert(single_point_wf_parser)
         if info_parser.text_parser.has_geometry_optimization():            
             data_parser.data_object = GeometryOptimization(
                 model=GeometryOptimizationModel()
             )
-            data_parser.annotation_key = 'info'
+            data_parser.annotation_key = 'geo_opt'
+            info_parser.convert(data_parser)
+            self.archive.workflow2 = data_parser.data_object
+            # Avoid writing geometry optimization tasks to the single point wfs
+            single_point_wf_parser.data_object.tasks=[]
+            self.archive.workflow2.model.single_point_workflows = [single_point_wf_parser.data_object]  # noqa: E501
+            #self.archive.workflow2.single_point_workflows            
         else: # here should come more standard workflows - for now only single point
             data_parser.data_object = SinglePoint(
                 model=SinglePointModel()
             )
             data_parser.annotation_key = 'info'
-        info_parser.convert(data_parser)
-        self.archive.workflow2 = data_parser.data_object
+            self.archive.workflow2 = single_point_wf_parser.data_object
             
 
         # close parsers
@@ -320,6 +334,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # remove annotations
         remove_mapping_annotations(exciting.general.Simulation.m_def)
         remove_mapping_annotations(exciting.workflow.GeometryOptimization.m_def)
+        remove_mapping_annotations(exciting.workflow.SinglePoint.m_def)
 
 
 class ExcitingParser(MatchingParser):

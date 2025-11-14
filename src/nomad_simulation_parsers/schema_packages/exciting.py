@@ -18,21 +18,24 @@ m_package = SchemaPackage()
 
 
 # simulation
-add_mapping_annotation(general.Simulation.m_def, INFO_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, INPUT_XML_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, EIGVAL_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, DOS_XML_KEY, '@')
+general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='@'),
+    geo_opt=Mapper(mapper='@'),
+    input_xml=Mapper(mapper='@'),
+    eigval=Mapper(mapper='@'),
+    bandstructure_xml=Mapper(mapper='@'),
+    dos_xml=Mapper(mapper='@'),
+)
 
 # geometry optimization
 
 workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(info=Mapper(mapper='@')))
+).update(dict(geo_opt=Mapper(mapper='@')))
 
 workflow.GeometryOptimization.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(info=Mapper(mapper='@')))
+).update(dict(geo_opt=Mapper(mapper='@')))
 """
 workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
@@ -41,7 +44,11 @@ workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_a
 
 workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper=('get_geometry_convergence', ['.@']))))
+    ).update(dict(geo_opt=Mapper(mapper=('get_geometry_convergence', ['.@']))))
+
+workflow.geometry_optimization.GeometryOptimizationModel.single_point_workflows.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(geo_opt=Mapper(mapper='@'))
 
 
 # single point
@@ -63,23 +70,28 @@ workflow.single_point.SinglePointModel.convergence.m_annotations.setdefault(
 
 workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.convergence_parameter_name')))
+    ).update(dict(info=Mapper(mapper='.convergence_parameter_name'),
+                  geo_opt=Mapper(mapper='.convergence_parameter_name')))
 
 workflow.general.WorkflowConvergenceTarget.convergence_threshold.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.convergence_threshold')))
+    ).update(dict(info=Mapper(mapper='.convergence_threshold'),
+                  geo_opt=Mapper(mapper='.convergence_threshold')))
 
 workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.threshold_type')))
+    ).update(dict(info=Mapper(mapper='.threshold_type'),
+                  geo_opt=Mapper(mapper='.threshold_type')))
 
 workflow.general.WorkflowConvergenceTarget.convergence_threshold_unit.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.convergence_threshold_unit')))
+    ).update(dict(info=Mapper(mapper='.convergence_threshold_unit'),
+                  geo_opt=Mapper(mapper='.convergence_threshold_unit')))
 
 workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.is_reached')))
+    ).update(dict(info=Mapper(mapper='.is_reached'),
+                  geo_opt=Mapper(mapper='.is_reached')))
 
 
 # outputs
