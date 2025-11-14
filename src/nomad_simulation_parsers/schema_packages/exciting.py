@@ -45,6 +45,24 @@ workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotatio
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(info=Mapper(mapper=('get_geometry_convergence', ['.@']))))
 
+
+# single point
+
+workflow.single_point.SinglePointModel.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(info=Mapper(mapper='@')))
+
+workflow.SinglePoint.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(info=Mapper(mapper='@')))
+
+workflow.single_point.SinglePointModel.convergence.m_annotations.setdefault( 
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(info=Mapper(mapper=('get_single_point_convergence', ['.@']))))
+
+
+# general workflow convergence mapping
+
 workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(info=Mapper(mapper='.convergence_parameter_name')))
