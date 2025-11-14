@@ -17,6 +17,10 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
     GeometryOptimizationModel,
 )
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointModel,
+)
 from structlog.stdlib import (
     BoundLogger,
 )
@@ -118,7 +122,28 @@ class InfoParser(TextParser):
                                      .get('target_reached')
             }
         ]
-    
+
+    def get_single_point_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
+        last_iteration = source.get('groundstate').get('scf_iteration')[-1]
+        threshold_mapping = { # TODO move this to the beginning of the file?
+            'x_exciting_effective_potential_convergence': {'name': 'potential', 'type': 'rms'},  # noqa: E501
+            'x_exciting_energy_convergence': {'name': 'energy', 'type': 'absolute'},
+            'x_exciting_charge_convergence': {'name': 'charge', 'type': 'absolute'},
+            'x_exciting_IBS_force_convergence': {'name': 'force', 'type': 'absolute'}
+        }
+        convergence_targets = []
+        for key_, info_ in threshold_mapping.items():
+            quantity = last_iteration.get(key_, None)
+            if quantity is None:
+                continue
+            convergence_targets.append({
+                'convergence_parameter_name': info_['name'],
+                'threshold_type': info_['type'],
+                'convergence_threshold_unit': quantity.units,
+                'is_reached': quantity.magnitude[0] < quantity.magnitude[1]
+            })
+        return convergence_targets
+
     def get_scf_steps(self, source : dict[str, Any]) -> dict[str, Any]:
         scf_steps = source.get('groundstate').get('scf_iteration')
         energies = []
@@ -272,14 +297,21 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         self.archive.data = data_parser.data_object
 
+        # workflow section
         # populate geometry optimization if present
         if info_parser.text_parser.has_geometry_optimization():            
             data_parser.data_object = GeometryOptimization(
                 model=GeometryOptimizationModel()
             )
             data_parser.annotation_key = 'info'
-            info_parser.convert(data_parser)
-            self.archive.workflow2 = data_parser.data_object
+        else: # here should come more standard workflows - for now only single point
+            data_parser.data_object = SinglePoint(
+                model=SinglePointModel()
+            )
+            data_parser.annotation_key = 'info'
+        info_parser.convert(data_parser)
+        self.archive.workflow2 = data_parser.data_object
+            
 
         # close parsers
         info_parser.close()
