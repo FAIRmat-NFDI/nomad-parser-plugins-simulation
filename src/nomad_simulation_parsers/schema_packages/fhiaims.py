@@ -160,9 +160,10 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     add_mapping_annotation(
-        properties.ElectronicEigenvalues.n_bands, TEXT_KEY, '.nbands'
+        properties.ElectronicEigenvalues.n_levels, TEXT_KEY, '.nbands'
     )
     add_mapping_annotation(
         properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'
