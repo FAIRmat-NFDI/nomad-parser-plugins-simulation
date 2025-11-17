@@ -244,6 +244,7 @@ class TotalForce(properties.forces.TotalForce):
     )
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.n_levels,

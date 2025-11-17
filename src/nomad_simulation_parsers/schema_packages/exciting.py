@@ -145,6 +145,7 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'
