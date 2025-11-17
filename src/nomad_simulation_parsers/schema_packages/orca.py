@@ -9,7 +9,6 @@ from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
-    model_method,
     model_system,
     numerical_settings,
 )
@@ -52,33 +51,6 @@ atoms_state.AtomsState.chemical_symbol.m_annotations.setdefault(
 
 ############# DFT ###################
 
-model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper=('get_dft_data', ['.@'])))
-)
-
-# model_method.DFT.jacobs_ladder.m_annotations.setdefault(
-#     MAPPING_ANNOTATION_KEY, {}
-# ).update(dict(out=Mapper(mapper='.jacobs_ladder')))
-
-model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.exact_exchange_mixing_factor')))
-
-model_method.DFT.xc_functionals.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.xc_functionals')))
-
-model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.libxc_name')))
-
-model_method.XCFunctional.name.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.name')))
-
-model_method.XCFunctional.weight.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.weight')))
 
 ############# numerical settings ###################
 
