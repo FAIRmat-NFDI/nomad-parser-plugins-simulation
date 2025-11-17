@@ -7,13 +7,11 @@ from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
-    general,
     atoms_state,
+    general,
     model_method,
     model_system,
     numerical_settings,
-    outputs,
-    properties,
 )
 
 m_package = SchemaPackage()
@@ -84,19 +82,18 @@ model_method.XCFunctional.weight.m_annotations.setdefault(
 
 ############# numerical settings ###################
 
-numerical_settings.SelfConsistency.m_def.m_annotations \
-    .setdefault(MAPPING_ANNOTATION_KEY, {}) \
-    .update(dict(out=Mapper(mapper=("get_numerical_settings", [".@"]))))
+numerical_settings.SelfConsistency.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(out=Mapper(mapper=('get_numerical_settings', ['.@']))))
 
 # individual quantities inside that section
-numerical_settings.SelfConsistency.n_max_iterations.m_annotations \
-    .setdefault(MAPPING_ANNOTATION_KEY, {}) \
-    .update(dict(out=Mapper(mapper=".n_max_iterations")))
+numerical_settings.SelfConsistency.n_max_iterations.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(out=Mapper(mapper='.n_max_iterations')))
 
-numerical_settings.SelfConsistency.threshold_change.m_annotations \
-    .setdefault(MAPPING_ANNOTATION_KEY, {}) \
-    .update(dict(out=Mapper(mapper=".threshold_change")))
-
+numerical_settings.SelfConsistency.threshold_change.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(out=Mapper(mapper='.threshold_change')))
 
 
 try:

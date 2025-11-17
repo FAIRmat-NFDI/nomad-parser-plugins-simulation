@@ -1,21 +1,25 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from nomad.datamodel.datamodel import (
+        EntryArchive,
+    )
+    from structlog.stdlib import (
+        BoundLogger,
+    )
 
-import re
-import numpy as np
 from importlib import reload
 
-from nomad.units import ureg
-from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
+import numpy as np
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
+from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+
+from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.schema_packages import orca
+
 from .text_parser import OutReader
 
 LOGGER = get_logger(__name__)
@@ -66,53 +70,49 @@ class OutParser(MappingTextParser):
         syms, pos = str_to_cartesian_coordinates(coords)
         atoms = [{'chemical_symbol': s} for s in syms]
         return [{'positions': pos, 'particle_states': atoms}]
-    
 
     def get_dft_data(self, source: dict[str, Any]) -> dict[str, Any]:
         """
         Collect DFT settings (XC functionals, HF-exchange fraction, etc.)
         """
         scf_settings = (
-            source
-            .get("single_point", {})
-            .get("self_consistent", {})
-            .get("scf_settings", {})
+            source.get('single_point', {})
+            .get('self_consistent', {})
+            .get('scf_settings', {})
         )
 
         # (functional_key, role_name, weight_key)
         _xc_map = [
-            ("exchange_functional",    "exchange",    "scaling_exchange"),
-            ("correlation_functional", "correlation", "scaling_correlation"),
+            ('exchange_functional', 'exchange', 'scaling_exchange'),
+            ('correlation_functional', 'correlation', 'scaling_correlation'),
         ]
         xc_functionals = [
             {
-                "libxc_name": scf_settings[k],
-                "name": role,
-                "weight": scf_settings.get(w),
+                'libxc_name': scf_settings[k],
+                'name': role,
+                'weight': scf_settings.get(w),
             }
             for k, role, w in _xc_map
             if scf_settings.get(k)
         ]
 
         return {
-            "jacobs_ladder": "metaGGA",                       # TODO: detect rung
-            "xc_functionals": xc_functionals,                
-            "exact_exchange_mixing_factor": scf_settings.get("fraction_hf_exchange"),
+            'jacobs_ladder': 'metaGGA',  # TODO: detect rung
+            'xc_functionals': xc_functionals,
+            'exact_exchange_mixing_factor': scf_settings.get('fraction_hf_exchange'),
         }
 
-        
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
-        scf_convergence = source.get('single_point', {}) \
-                                .get('self_consistent', {}) \
-                                .get('scf_settings', {})
+        scf_convergence = (
+            source.get('single_point', {})
+            .get('self_consistent', {})
+            .get('scf_settings', {})
+        )
 
         return {
-                "n_max_iterations": scf_convergence.get("n_max_iterations", 2575),
-                "threshold_change": scf_convergence.get("energy_change_tolerance", 1e-8)
+            'n_max_iterations': scf_convergence.get('n_max_iterations', 2575),
+            'threshold_change': scf_convergence.get('energy_change_tolerance', 1e-8),
         }
-    
-
-  
 
 
 class OrcaParser(MatchingParser):
@@ -129,9 +129,8 @@ class OrcaParser(MatchingParser):
         reader.filepath = mainfile
 
         meta = MetainfoParser(data_object=Simulation())
-        meta.annotation_key = 'out' 
+        meta.annotation_key = 'out'
         meta.max_nested_level = 1
-
 
         reader.convert(meta)
         archive.data = meta.data_object
