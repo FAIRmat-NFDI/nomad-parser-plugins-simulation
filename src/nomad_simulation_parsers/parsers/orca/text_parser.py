@@ -124,21 +124,31 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'auxj_basis_set',
-                r'----- AuxJ basis set information -----\s*Your calculation utilizes the auxiliary basis:\s*([^\s].*?)(?:\s*\n|$)',
+                (
+                    r'----- AuxJ basis set information -----\s*'
+                    r'Your calculation utilizes the auxiliary basis:\s*'
+                    r'([^\s].*?)(?:\s*\n|$)'
+                ),
                 repeats=False,
                 convert=False,
-                flatten=False,
             ),
             Quantity(
                 'auxjk_basis_set',
-                r'----- AuxJK basis set information -----\s*Your calculation utilizes the auxiliary basis:\s*([^\s].*?)(?:\s*\n|$)',
+                (
+                    r'----- AuxJK basis set information -----\s*'
+                    r'Your calculation utilizes the auxiliary basis:\s*'
+                    r'([^\s].*?)(?:\s*\n|$)'
+                ),
                 repeats=False,
                 convert=False,
-                flatten=False,
             ),
             Quantity(
                 'auxc_basis_set',
-                r'----- AuxC basis set information -----\s*Your calculation utilizes the auxiliary basis:\s*([^\s].*?)(?:\s*\n|$)',
+                (
+                    r'----- AuxC basis set information -----\s*'
+                    r'Your calculation utilizes the auxiliary basis:\s*'
+                    r'([^\s].*?)(?:\s*\n|$)'
+                ),
                 repeats=False,
                 convert=False,
                 flatten=False,
@@ -363,10 +373,7 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'n_max_iterations',
-                            #rf'Maximum # iterations\s*MaxIter\s*\.+\s*({re_float})',
-                            #rf'Maximum \s* \# \s* iterations \s* MaxIter \s* \.+ \s* ({re_float})',
-                            #rf"Maximum\s+\#\s+iterations\s+MaxIter\s*\.+\s*({re_float})",
-                            rf"MaxIter\s+\.*\s*({re_float})",
+                            rf'MaxIter\s+\.*\s*({re_float})',
                             dtype=float,
                         ),
                         Quantity(
@@ -462,8 +469,8 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'energy_change_tolerance',
-                            #rf'Energy Change\s*TolE\s*\.+\s*({re_float})',
-                            rf"Energy\s+Change\s+TolE\s+\.*\s*({re_float})\s*(?:Eh)?",
+                            # rf'Energy Change\s*TolE\s*\.+\s*({re_float})',
+                            rf'Energy\s+Change\s+TolE\s+\.*\s*({re_float})\s*(?:Eh)?',
                             dtype=float,
                             unit=ureg.hartree,
                         ),
@@ -479,7 +486,10 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'cosx',
-                            r'RIJ-COSX \(HFX calculated with COS-X\)\)\s*\.\.\.\.\s*(\w+)',
+                            (
+                                r'RIJ-COSX \(HFX calculated with COS-X\)\)\s*'
+                                r'\.\.\.\.\s*(\w+)'
+                            ),
                             convert=False,
                         ),
                         Quantity(
@@ -911,7 +921,6 @@ class OutReader(TextParser):
         calculation_quantities = [
             Quantity(
                 'cartesian_coordinates',
-                # rf'CARTESIAN COORDINATES \(ANGSTROEM\)\s*\-+\s*([\s\S]+?)(?=\-+\s*{re_n}CARTESIAN COORDINATES \(A\.U\.\))',
                 rf'CARTESIAN COORDINATES \(ANGSTROEM\)\s*\-+\s*([\s\S]+?){re_n}{re_n}',
                 # str_operation=str_to_cartesian_coordinates,
                 repeats=False,
@@ -943,8 +952,10 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'mp2',
-                # r'ORCA MP2 CALCULATION([\s\S]+?MP2 TOTAL ENERGY:.+)',
-                r'(ORCA MP2 CALCULATION|-{78}\s+ORCA\s+MP2\s+-{78})([\s\S]+?MP2 TOTAL ENERGY:.+)',
+                (
+                    r'(ORCA MP2 CALCULATION|-{78}\s+ORCA\s+MP2\s+-{78})'
+                    r'([\s\S]+?MP2 TOTAL ENERGY:.+)'
+                ),
                 sub_parser=TextParser(quantities=mp2_quantities),
             ),
             Quantity(
@@ -969,8 +980,8 @@ class OutReader(TextParser):
 
         geometry_optimization_quantities = [
             Quantity(
-                '%s_tol' % key.lower().replace(' ', '_').replace('.', ''),
-                rf'%s\s*(\w+)\s*\.+\s*({re_float})' % key,
+                f'{key.lower().replace(" ", "_").replace(".", "")}_tol',
+                rf'{key}\s*(\w+)\s*\.+\s*({re_float})',
                 dtype=float,
             )
             for key in [
@@ -991,13 +1002,19 @@ class OutReader(TextParser):
         geometry_optimization_quantities += [
             Quantity(
                 'cycle',
-                r'OPTIMIZATION CYCLE\s*\d+\s*\*\s*\*+([\s\S]+?)(?:\*\s*GEOMETRY|OPTIMIZATION RUN DONE|\Z)',
+                (
+                    r'OPTIMIZATION CYCLE\s*\d+\s*\*\s*\*+'
+                    r'([\s\S]+?)(?:\*\s*GEOMETRY|OPTIMIZATION RUN DONE|\Z)'
+                ),
                 repeats=True,
                 sub_parser=TextParser(quantities=calculation_quantities),
             ),
             Quantity(
                 'final_energy_evaluation',
-                r'FINAL ENERGY EVALUATION AT THE STATIONARY POINT([\s\S]+?FINAL SINGLE POINT ENERGY.*)',
+                (
+                    r'FINAL ENERGY EVALUATION AT THE STATIONARY POINT'
+                    r'([\s\S]+?FINAL SINGLE POINT ENERGY.*)'
+                ),
                 sub_parser=TextParser(quantities=calculation_quantities),
             ),
         ]
@@ -1023,7 +1040,6 @@ class OutReader(TextParser):
                 'input_file',
                 # r'INPUT FILE\s*\=+([\s\S]+?)END OF INPUT',
                 r'INPUT FILE\s*=\s*([\s\S]+?)(?:(?:^=+$|END OF INPUT))',
-                # r'INPUT FILE\s*\=+\s*([\s\S]*?)(?:(?:\|\s*\d+\s*>)[\s\S]*)*END OF INPUT',
                 # sub_parser=TextParser(
                 #    quantities=[
                 #        Quantity('xc_functional', r'\d+>\s*!\s*(\S+)'),
@@ -1050,12 +1066,18 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'single_point',
-                r'\* Single Point Calculation \*\s*\*+([\s\S]+?(?:FINAL SINGLE POINT ENERGY.*|\Z))',
+                (
+                    r'\* Single Point Calculation \*\s*\*+'
+                    r'([\s\S]+?(?:FINAL SINGLE POINT ENERGY.*|\Z))'
+                ),
                 sub_parser=TextParser(quantities=calculation_quantities),
             ),
             Quantity(
                 'geometry_optimization',
-                r'\* Geometry Optimization Run \*\s*\*+([\s\S]+?(?:OPTIMIZATION RUN DONE|\Z))',
+                (
+                    r'\* Geometry Optimization Run \*\s*\*+'
+                    r'([\s\S]+?(?:OPTIMIZATION RUN DONE|\Z))'
+                ),
                 sub_parser=TextParser(quantities=geometry_optimization_quantities),
             ),
         ]
