@@ -147,7 +147,7 @@ class TotalForce(properties.forces.TotalForce):
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands, EIGVAL_KEY, '.n_states'
+        outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'
     )
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'
@@ -159,7 +159,7 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_bands, BANDSTRUCTURE_XML_KEY, '.n_states'
+        outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'
     )
     add_mapping_annotation(
         outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'

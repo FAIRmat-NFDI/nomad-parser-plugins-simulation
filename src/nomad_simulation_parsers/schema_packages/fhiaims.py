@@ -162,7 +162,7 @@ class TotalForce(properties.forces.TotalForce):
 
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     add_mapping_annotation(
-        properties.ElectronicEigenvalues.n_bands, TEXT_KEY, '.nbands'
+        properties.ElectronicEigenvalues.n_levels, TEXT_KEY, '.nbands'
     )
     add_mapping_annotation(
         properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'

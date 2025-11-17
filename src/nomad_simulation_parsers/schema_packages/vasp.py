@@ -246,17 +246,17 @@ class TotalForce(properties.forces.TotalForce):
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands,
+        outputs.ElectronicEigenvalues.n_levels,
         XML_KEY,
         'length(.array.set.set.set[0].r)',
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands,
+        outputs.ElectronicEigenvalues.n_levels,
         XML2_KEY,
         'length(.array.set.set.set[0].r)',
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands, OUTCAR_KEY, '.n_bands'
+        outputs.ElectronicEigenvalues.n_levels, OUTCAR_KEY, '.n_bands'
     )
 
     # TODO This only works for non-spin pol

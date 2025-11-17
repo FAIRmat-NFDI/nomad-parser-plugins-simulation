@@ -156,7 +156,7 @@ class Wannier(model_method.Wannier):
 
 class ElectronicBandStructure(properties.ElectronicBandStructure):
     add_mapping_annotation(
-        properties.ElectronicBandStructure.n_bands, WOUT_KEY, '.Nwannier'
+        properties.ElectronicBandStructure.n_levels, WOUT_KEY, '.Nwannier'
     )
     add_mapping_annotation(
         properties.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
