@@ -17,7 +17,6 @@ from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
-from nomad_simulation_parsers.parsers.utils.general import remove_mapping_annotations
 from nomad_simulation_parsers.schema_packages import orca
 
 from .text_parser import OutReader
@@ -130,11 +129,10 @@ class OrcaParser(MatchingParser):
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
-        meta.max_nested_level = 1
+        # meta.max_nested_level = 1
 
         reader.convert(meta)
         archive.data = meta.data_object
 
-        remove_mapping_annotations(orca.general.Simulation.m_def)
         meta.close()
         reader.close()
