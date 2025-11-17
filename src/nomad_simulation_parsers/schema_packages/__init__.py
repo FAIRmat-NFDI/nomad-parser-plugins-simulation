@@ -85,7 +85,7 @@ octopus_schema_package = EntryPoint(
 )
 
 orca_schema_package = EntryPoint(
-    name='OctopusSchemaPackage',
+    name='OrcaSchemaPackage',
     description='Schema package for Orca.',
     module='nomad_simulation_parsers.schema_packages.orca',
 )
