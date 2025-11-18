@@ -70,36 +70,22 @@ class OutParser(MappingTextParser):
         atoms = [{'chemical_symbol': s} for s in syms]
         return [{'positions': pos, 'particle_states': atoms}]
 
-    def get_dft_data(self, source: dict[str, Any]) -> dict[str, Any]:
+    def get_dft(self, src: dict[str, Any]) -> dict[str, Any]:
         """
-        Collect DFT settings (XC functionals, HF-exchange fraction, etc.)
+        Minimal DFT getter
+
         """
         scf_settings = (
-            source.get('single_point', {})
+            src.get('single_point', {})
             .get('self_consistent', {})
             .get('scf_settings', {})
         )
+        if not scf_settings:
+            return {}
 
-        # (functional_key, role_name, weight_key)
-        _xc_map = [
-            ('exchange_functional', 'exchange', 'scaling_exchange'),
-            ('correlation_functional', 'correlation', 'scaling_correlation'),
-        ]
-        xc_functionals = [
-            {
-                'libxc_name': scf_settings[k],
-                'name': role,
-                'weight': scf_settings.get(w),
-            }
-            for k, role, w in _xc_map
-            if scf_settings.get(k)
-        ]
+        hf_frac = scf_settings.get('fraction_hf_exchange')
 
-        return {
-            'jacobs_ladder': 'metaGGA',  # TODO: detect rung
-            'xc_functionals': xc_functionals,
-            'exact_exchange_mixing_factor': scf_settings.get('fraction_hf_exchange'),
-        }
+        return {'xc': {'global_exact_exchange': hf_frac}}
 
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_convergence = (

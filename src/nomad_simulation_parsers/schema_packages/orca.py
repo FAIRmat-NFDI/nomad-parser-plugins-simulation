@@ -3,69 +3,74 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
+    model_method,
     model_system,
-    numerical_settings,
 )
+
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
-# Simulation
-general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper='@'))
+OUT_KEY = 'out'
+
+
+############# Simulation + Program ###################
+
+add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
+
+add_mapping_annotation(general.Simulation.program, OUT_KEY, '.@')
+
+add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
+
+############# Atoms / ModelSystem ###################
+
+add_mapping_annotation(
+    general.Simulation.model_system,
+    OUT_KEY,
+    ('get_atoms', ['.@']),
 )
 
-# Program
-general.Simulation.program.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper='.@'))
+add_mapping_annotation(
+    model_system.ModelSystem.positions,
+    OUT_KEY,
+    '.positions',
 )
 
-# Program quantities
-general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper='.program_version'))
+add_mapping_annotation(
+    atoms_state.AtomsState.m_def,
+    OUT_KEY,
+    '.particle_states',
 )
 
-general.Simulation.model_system.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper=('get_atoms', ['.@']))))
-
-
-model_system.ModelSystem.positions.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.positions')))
-
-
-atoms_state.AtomsState.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.particle_states')))
-
-atoms_state.AtomsState.chemical_symbol.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.chemical_symbol')))
-
+add_mapping_annotation(
+    atoms_state.AtomsState.chemical_symbol,
+    OUT_KEY,
+    '.chemical_symbol',
+)
 
 ############# DFT ###################
 
+add_mapping_annotation(
+    model_method.DFT.m_def,
+    OUT_KEY,
+    ('get_dft', ['.@']),
+)
 
-############# numerical settings ###################
+add_mapping_annotation(
+    model_method.DFT.xc,
+    OUT_KEY,
+    '.xc',
+)
 
-numerical_settings.SelfConsistency.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper=('get_numerical_settings', ['.@']))))
-
-# individual quantities inside that section
-numerical_settings.SelfConsistency.n_max_iterations.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.n_max_iterations')))
-
-numerical_settings.SelfConsistency.threshold_change.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(out=Mapper(mapper='.threshold_change')))
+add_mapping_annotation(
+    model_method.XCFunctional.global_exact_exchange,
+    OUT_KEY,
+    '.global_exact_exchange',
+)
 
 
 try:
