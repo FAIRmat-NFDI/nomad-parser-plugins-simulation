@@ -145,6 +145,18 @@ h5md_parser = EntryPoint(
     # },
 )
 
+molcas_parser = EntryPoint(
+    name='parsers/molcas',
+    aliases=['parsers/molcas'],
+    description='NOMAD parser for MOLCAS.',
+    parser_class_name='nomad_simulation_parsers.parsers.molcas.parser.MolcasParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'Molcas',
+    code_name='Molcas',
+    code_homepage='https://www.molcas.org/',
+)
+
+
 octopus_parser = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],

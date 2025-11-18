@@ -78,6 +78,12 @@ h5md_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.h5md',
 )
 
+molcas_schema_package = EntryPoint(
+    name='MolcasSchemaPackage',
+    description='Schema package for Molcas.',
+    module='nomad_simulation_parsers.schema_packages.molcas',
+)
+
 octopus_schema_package = EntryPoint(
     name='OctopusSchemaPackage',
     description='Schema package for Octopus.',
