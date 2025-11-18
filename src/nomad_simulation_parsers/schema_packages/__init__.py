@@ -90,6 +90,12 @@ phonopy_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.phonopy',
 )
 
+pyscf_schema_package = EntryPoint(
+    name='PySCFSchemaPackage',
+    description='Schema package for PySCF.',
+    module='nomad_simulation_parsers.schema_packages.pyscf',
+)
+
 quantumespresso_schema_package = EntryPoint(
     name='QuantumEspressoSchemaPackage',
     description='Schema package for Quantum Espresso.',

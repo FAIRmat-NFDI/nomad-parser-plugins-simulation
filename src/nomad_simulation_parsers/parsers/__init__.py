@@ -167,6 +167,19 @@ phonopy_parser = EntryPoint(
     code_homepage='https://phonopy.github.io/phonopy/',
 )
 
+
+pyscf_parser = EntryPoint(
+    name='parsers/pyscf',
+    aliases=['parsers/pyscf'],
+    description='NOMAD parser for PySCF.',
+    mainfile_name_re='.*/phon[^/]+yaml',
+    mainfile_contents_re=r'^PySCF\s+\(.+\)',
+    parser_class_name='nomad_simulation_parsers.parsers.pyscf.parser.PySCFParser',
+    code_name='pyscf',
+    python_package='nomad_simulation_parsers',
+    code_homepage='https://pyscf.org/',
+)
+
 quantumespresso_parser = EntryPoint(
     name='parsers/quantumespresso',
     aliases=['parsers/quantumespresso'],
