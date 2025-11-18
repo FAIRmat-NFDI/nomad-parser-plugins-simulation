@@ -66,6 +66,12 @@ fhiaims_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.fhiaims',
 )
 
+gaussian_schema_package = EntryPoint(
+    name='GaussianSchemaPackage',
+    description='Schema package for Gaussian.',
+    module='nomad_simulation_parsers.schema_packages.gaussian',
+)
+
 gpaw_schema_package = EntryPoint(
     name='GPAWSchemaPackage',
     description='Schema package for GPAW.',

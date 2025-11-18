@@ -105,6 +105,19 @@ lammps_parser = EntryPoint(
     code_category='Atomistic code',
 )
 
+gaussian_parser = EntryPoint(
+    name='parsers/gaussian',
+    aliases=['parsers/gaussian'],
+    description='NOMAD parser for Gaussian.',
+    python_package='nomad_simulation_parsers',
+    mainfile_name_re=r'^.*\.(log|out)$',
+    mainfile_contents_re=r'^Gaussian',
+    parser_class_name='nomad_simulation_parsers.parsers.gaussian.parser.GaussianParser',
+    code_name='Gaussian',
+    code_homepage='https://gaussian.com/',
+    code_category='Atomistic code',
+)
+
 gpaw_parser = EntryPoint(
     name='parsers/gpaw',
     aliases=['parsers/gpaw'],
