@@ -408,7 +408,7 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'fraction_hf_exchange',
-                            r'Fraction HF Exchange\s*ScalHFX\s*\.+\s*([\d\.]+)',
+                            r'   Fraction HF Exchange\s*ScalHFX\s*\.+\s*([\d\.]+)',
                             dtype=float,
                         ),
                         Quantity(
