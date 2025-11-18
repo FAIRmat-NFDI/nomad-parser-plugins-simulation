@@ -167,6 +167,17 @@ phonopy_parser = EntryPoint(
     code_homepage='https://phonopy.github.io/phonopy/',
 )
 
+turbomole_parser = EntryPoint(
+    name='parsers/turbomole',
+    aliases=['parsers/turbomole'],
+    description='NOMAD parser for TURBOMOLE.',
+    mainfile_name_re='.*/Turbomole[^/]+',
+    parser_class_name='nomad_simulation_parsers.parsers.turbomole.parser.TurbomoleParser',
+    code_name='turbomole',
+    python_package='nomad_simulation_parsers',
+    code_homepage='https://www.turbomole.org/',
+)
+
 quantumespresso_parser = EntryPoint(
     name='parsers/quantumespresso',
     aliases=['parsers/quantumespresso'],

@@ -90,6 +90,12 @@ phonopy_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.phonopy',
 )
 
+turbomole_schema_package = EntryPoint(
+    name='TurbomoleSchemaPackage',
+    description='Schema package for Turbomole.',
+    module='nomad_simulation_parsers.schema_packages.turbomole',
+)
+
 quantumespresso_schema_package = EntryPoint(
     name='QuantumEspressoSchemaPackage',
     description='Schema package for Quantum Espresso.',
