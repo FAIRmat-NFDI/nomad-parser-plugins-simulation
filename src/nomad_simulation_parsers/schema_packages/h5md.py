@@ -134,7 +134,7 @@ add_mapping_annotation(
 )
 add_mapping_annotation(atoms_state.ParticleState.label, HDF5_KEY, '.label')
 
-### Geometric properties now on ModelSystem directly
+### Geometric properties now on ModelSystem directly (handled in get_traj_data)
 
 add_mapping_annotation(
     model_system.ModelSystem.lattice_vectors, HDF5_KEY, '.lattice_vectors'
