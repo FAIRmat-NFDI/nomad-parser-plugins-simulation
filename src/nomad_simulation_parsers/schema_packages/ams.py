@@ -32,7 +32,9 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(
         model_system.AtomsState.m_def, OUT_KEY, '.labels_positions[0]'
     )
-    add_mapping_annotation(model_system.Representation.m_def, OUT_KEY, '.lattice_vectors')
+    add_mapping_annotation(
+        model_system.Representation.m_def, OUT_KEY, '.lattice_vectors'
+    )
 
 
 class XCComponent(model_method.XCComponent):
