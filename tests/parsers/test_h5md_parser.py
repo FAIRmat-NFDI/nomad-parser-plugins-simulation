@@ -61,10 +61,10 @@ def assert_systems(archive: EntryArchive) -> None:
 
     assert sec_systems[2].positions[80][1].to('angstrom').magnitude == approx(28.748762)
     assert sec_systems[2].velocities[50][2].to('angstrom/ps').magnitude == approx(400.0)
-    assert sec_systems[3].cell[0].lattice_vectors[2][2].to(
+    assert sec_systems[3].lattice_vectors[2][2].to(
         'angstrom'
     ).magnitude == approx(68.22318)
-    assert sec_systems[3].cell[0].periodic_boundary_conditions == [True, True, True]
+    assert sec_systems[3].periodic_boundary_conditions == [True, True, True]
     assert sec_systems[0].bond_list[200][0] == 198
     assert sec_systems[0].dimensionality == 3
     assert sec_systems[0].is_molecule() is False
@@ -74,8 +74,6 @@ def assert_system_hierarchy(archive: EntryArchive) -> None:
     sec_atoms_group = archive.data.model_system[0].sub_systems
     assert len(sec_atoms_group) == 4
     assert sec_atoms_group[0].particle_states == []
-    # TODO comment back in once nested fix is in release
-    # assert sec_atoms_group[0].cell == []
     assert sec_atoms_group[0].name == 'group_1ZNF'
     assert sec_atoms_group[0].branch_label == 'molecule_group'
     assert sec_atoms_group[0].composition_formula == '1ZNF(1)'
