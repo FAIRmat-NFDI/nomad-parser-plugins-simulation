@@ -82,11 +82,11 @@ class ModelSystem(model_system.ModelSystem):
     )
     add_mapping_annotation(
         model_system.Representation.m_def,
-        'out',
+        OUT_KEY,
         ('get_value', ['.@'], dict(key='simulation_cell')),
     )
     add_mapping_annotation(
-        model_system.AtomicCell.m_def, XML_KEY, '.atomic_structure.cell'
+        model_system.Representation.m_def, XML_KEY, '.atomic_structure.cell'
     )
 
 
