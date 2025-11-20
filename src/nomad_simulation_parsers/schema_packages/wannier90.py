@@ -49,23 +49,23 @@ class AtomsState(model_system.AtomsState):
     )
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors,
+        model_system.Representation.lattice_vectors,
         WOUT_KEY,
         ('get_lattice_vectors', ['lattice_vectors']),
         unit='angstrom',
     )
     add_mapping_annotation(
-        model_system.AtomicCell.periodic_boundary_conditions,
+        model_system.Representation.periodic_boundary_conditions,
         WOUT_KEY,
         ('get_pbc', ['lattice_vectors']),
     )
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, WOUT_KEY, '.@')
-    add_mapping_annotation(model_system.ModelSystem.cell, WIN_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, WOUT_KEY, '.@')
+    add_mapping_annotation(model_system.ModelSystem.representations, WIN_KEY, '.@')
     add_mapping_annotation(
         model_system.ModelSystem.sub_systems,
         WIN_KEY,
