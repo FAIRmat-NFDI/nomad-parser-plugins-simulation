@@ -28,14 +28,6 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
-# Check if MDAnalysis is available
-try:
-    import MDAnalysis  # noqa: F401
-
-    HAS_MDANALYSIS = True
-except ImportError:
-    HAS_MDANALYSIS = False
-
 from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
@@ -751,7 +743,6 @@ def test_system_hierarchy(parser) -> None:
 
 
 # Tests for: LammpsArchiveWriter, LammpsParser (integration tests)
-@pytest.mark.skipif(not HAS_MDANALYSIS, reason='MDAnalysis not installed')
 def test_traj_dcd():
     dcd_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
     dcd_parser.mainfile = 'tests/data/lammps/methane_dcd/data.64xmethane_from_restart'
