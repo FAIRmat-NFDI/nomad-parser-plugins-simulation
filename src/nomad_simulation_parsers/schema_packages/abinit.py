@@ -51,9 +51,9 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.label')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors,
+        model_system.Representation.lattice_vectors,
         OUT_KEY,
         'dataset[0].x_abinit_vprim',
         unit='bohr',
@@ -61,7 +61,7 @@ class AtomicCell(model_system.AtomicCell):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, OUT_KEY, '.@')
     add_mapping_annotation(
         model_system.AtomsState.m_def, OUT_KEY, ('get_atoms', []), cache=True
     )
