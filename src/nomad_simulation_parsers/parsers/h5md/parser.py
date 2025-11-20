@@ -108,17 +108,21 @@ class H5MDH5Parser(HDF5Parser):
         # TODO add len assertion for other system traj properties
         # TODO or generalize to store properly
 
-        traj_data = [
-            {
+        traj_data = []
+        for n, step in enumerate(steps):
+            if step not in self.trajectory_steps:
+                continue
+            frame_data = {
                 'step': step,
                 'time': times[n],
                 'n_particles': len(positions[n]) if len(positions) != 0 else [],
                 'positions': positions[n] if len(positions) != 0 else [],
                 'velocities': velocities[n] if len(velocities) != 0 else [],
             }
-            for n, step in enumerate(steps)
-            if step in self.trajectory_steps
-        ]
+            # Add cell/lattice data for each frame
+            cell_data = self.get_cell_data({'step': step})
+            frame_data.update(cell_data)
+            traj_data.append(frame_data)
 
         return traj_data
 

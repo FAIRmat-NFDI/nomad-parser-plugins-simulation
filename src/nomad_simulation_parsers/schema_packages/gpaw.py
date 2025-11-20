@@ -17,12 +17,12 @@ class Program(general.Program):
     add_mapping_annotation(general.Program.version, GPW_KEY, '.program_version')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, GPW_KEY, '.unitcell'
+        model_system.Representation.lattice_vectors, GPW_KEY, '.unitcell'
     )
     add_mapping_annotation(
-        model_system.AtomicCell.periodic_boundary_conditions,
+        model_system.Representation.periodic_boundary_conditions,
         GPW_KEY,
         '.boundary_conditions',
     )
@@ -36,7 +36,7 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(
         model_system.ModelSystem.positions, GPW_KEY, '.atom_positions'
     )
-    add_mapping_annotation(model_system.AtomicCell.m_def, GPW_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, GPW_KEY, '.@')
     add_mapping_annotation(model_system.AtomsState.m_def, GPW_KEY, '.labels')
 
 
