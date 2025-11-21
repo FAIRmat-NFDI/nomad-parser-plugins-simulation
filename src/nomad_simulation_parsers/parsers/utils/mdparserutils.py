@@ -163,13 +163,13 @@ class MDParser(ArchiveWriter):
         if representation is None:
             representation = AlternativeRepresentation()
 
-        cell_dict = data.pop('cell')
+        repr_dict = data.pop('representation')
         particle_labels = data.pop('labels')
         dimensions = data.pop('dimensions')
         for label in particle_labels:
             particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
-        self.parse_section(cell_dict, representation)
+        self.parse_section(repr_dict, representation)
         model_system.representations.append(representation)
         model_system.dimensionality = dimensions
         self.parse_section(data, model_system)

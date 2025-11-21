@@ -48,12 +48,18 @@ class LammpsArchiveWriter(MDParser):
         self.traj_parsers[0].masses = masses
 
         # TODO: find best place for first attempt to set _bond_list
-        # Extract bond list from MDAnalysis universe
-        self._bond_list = [
-            tuple(interaction['atom_indices'])
-            for interaction in self._mdanalysistraj_parser.get_interactions()
-            if interaction['type'] == 'bond'
-        ]
+        # Extract bond list from MDAnalysis universe if available
+        if (
+            self._mdanalysistraj_parser.mainfile is not None
+            and self._mdanalysistraj_parser.universe is not None
+        ):
+            self._bond_list = [
+                tuple(interaction['atom_indices'])
+                for interaction in self._mdanalysistraj_parser.get_interactions()
+                if interaction['type'] == 'bond'
+            ]
+        else:
+            self._bond_list = None
 
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
@@ -111,7 +117,7 @@ class LammpsArchiveWriter(MDParser):
                 _extract_bond_list()
 
             particles_dict = {
-                'cell': {
+                'representation': {
                     'lattice_vectors': lattice_vectors,
                     'periodic_boundary_conditions': self.traj_parsers.eval(
                         'get_pbc', traj_n

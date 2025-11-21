@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 from nomad.parsing.file_parser import Quantity, TextParser
+
 from nomad_simulation_parsers.parsers.utils.constants import (
     CHEMICAL_SYMBOLS,
     REFERENCE_MASSES,
@@ -134,9 +135,10 @@ class TrajParser(TextParser):
     # TODO: Inspect other parsers for consistent default return type
     def get_atom_labels(self, idx: int) -> list[str] | list:
         atoms_info = self.get('atoms_info')
-        if atoms_info is None:
-            return  # TODO: should this return [] for consistency?
-        atoms_info = atoms_info.get(idx)
+        try:
+            atoms_info = atoms_info[idx]
+        except (TypeError, IndexError, AttributeError):
+            return []
 
         atoms_id = atoms_info.get('id')
         default = ['CGX' for _ in atoms_id] if atoms_id is not None else []
@@ -302,6 +304,7 @@ class TrajParsers:
         self, parsers: list[TrajParser | XYZTrajParser | MDAnalysisParser]
     ) -> None:
         self._parsers = parsers
+        self.logger = parsers[0].logger if parsers else None
         for parser in parsers:
             parser.parse()
 

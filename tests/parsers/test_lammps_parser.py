@@ -682,10 +682,14 @@ def test_systems(parser) -> None:
     # assert sec_systems[idx].velocities[idx][idx].to(
     #     'angstrom/ps'
     # ).magnitude == pytest.approx(target_float)
-    assert sec_systems[3].cell[0].lattice_vectors[2][2].to(
+    assert sec_systems[3].representation[0].lattice_vectors[2][2].to(
         'angstrom'
     ).magnitude == pytest.approx(214680000000.0)
-    assert sec_systems[3].cell[0].periodic_boundary_conditions == [True, True, True]
+    assert sec_systems[3].representation[0].periodic_boundary_conditions == [
+        True,
+        True,
+        True,
+    ]
     assert (
         np.testing.assert_array_equal(
             sec_systems[0].bond_list[200], np.array([189, 192])
