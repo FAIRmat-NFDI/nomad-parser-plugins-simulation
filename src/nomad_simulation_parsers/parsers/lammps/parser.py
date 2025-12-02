@@ -117,12 +117,10 @@ class LammpsArchiveWriter(MDParser):
                 _extract_bond_list()
 
             particles_dict = {
-                'representation': {
-                    'lattice_vectors': lattice_vectors,
-                    'periodic_boundary_conditions': self.traj_parsers.eval(
-                        'get_pbc', traj_n
-                    ),
-                },
+                'lattice_vectors': lattice_vectors,
+                'periodic_boundary_conditions': self.traj_parsers.eval(
+                    'get_pbc', traj_n
+                ),
                 'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
                 'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
                 'positions': self.apply_unit(
