@@ -455,7 +455,6 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         # set up mainfile parser
-        self.mainfile_parser.filepath = self.mainfile
         for n, writer in enumerate(self.mainfile_parser.writers):
             # write the first program to the main archive, the rest to child archives
             archive = (
