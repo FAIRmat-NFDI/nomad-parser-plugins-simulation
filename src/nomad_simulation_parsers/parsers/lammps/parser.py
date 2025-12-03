@@ -44,8 +44,19 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        masses = self._data_parser.get('Masses', None)
-        self.traj_parsers[0].masses = masses
+        masses_data = self._data_parser.get('Masses', None)
+        # Extract array from DataParser format: [(None, np.ndarray)]
+        if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
+            masses = (
+                masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
+            )
+        else:
+            masses = None
+
+        # Set masses on all trajectory parsers since eval() can return from any parser
+        for parser in self.traj_parsers._parsers:
+            if isinstance(parser, TrajParser):
+                parser.masses = masses
 
         # TODO: find best place for first attempt to set _bond_list
         # Extract bond list from MDAnalysis universe if available
@@ -225,7 +236,6 @@ class LammpsArchiveWriter(MDParser):
             name=molecule,
             branch_label='molecule',
             particle_indices=particle_indices,
-            is_representative=(i_molecule == 0),
         )
 
         # Check if molecule has multiple residues
@@ -313,7 +323,6 @@ class LammpsArchiveWriter(MDParser):
         particles_info = _get_particles_info()
         if particles_info is None:
             return
-
         particle_arrays = _extract_particle_arrays(particles_info, simulation)
 
         # Build molecular hierarchy
@@ -330,6 +339,10 @@ class LammpsArchiveWriter(MDParser):
 
         # Parse trajectory frames (dimension, positions, velocities, cell)
         self._parse_trajectory_frames(simulation)
+
+        # Mark the last (minimized/equilibrated) configuration as is_representative
+        if simulation.model_system:
+            simulation.model_system[-1].is_representative = True
 
         # Parse molecular hierarchy (molecule groups, molecules, residues)
         self._parse_molecular_hierarchy(simulation)

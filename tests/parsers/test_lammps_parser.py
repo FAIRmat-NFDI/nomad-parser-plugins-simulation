@@ -25,7 +25,7 @@ from io import BytesIO, StringIO
 import numpy as np
 import pytest
 from nomad.client import normalize_all
-from nomad.datamodel import EntryArchive
+from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
@@ -666,6 +666,8 @@ def test_systems(parser) -> None:
         archive,
         LOGGER,
     )
+    # Add rudimentary metadata to suppress normalization error
+    archive.metadata = EntryMetadata()
     normalize_all(archive, logger=LOGGER)
     sec_systems = archive.data.model_system
     assert len(sec_systems) == 4
@@ -677,15 +679,15 @@ def test_systems(parser) -> None:
     assert sec_systems[0].particle_states[100].label == 'H'
 
     assert sec_systems[2].positions[567][1].to('angstrom').magnitude == pytest.approx(
-        -58847500000.0
+        -5.88475
     )
     # assert sec_systems[idx].velocities[idx][idx].to(
     #     'angstrom/ps'
     # ).magnitude == pytest.approx(target_float)
-    assert sec_systems[3].representation[0].lattice_vectors[2][2].to(
+    assert sec_systems[3].lattice_vectors[2][2].to(
         'angstrom'
-    ).magnitude == pytest.approx(214680000000.0)
-    assert sec_systems[3].representation[0].periodic_boundary_conditions == [
+    ).magnitude == pytest.approx(21.468)
+    assert sec_systems[3].periodic_boundary_conditions == [
         True,
         True,
         True,

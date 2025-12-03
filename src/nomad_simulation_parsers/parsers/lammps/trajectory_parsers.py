@@ -9,8 +9,6 @@ from nomad_simulation_parsers.parsers.utils.constants import (
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
-from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
-
 
 class TrajParser(TextParser):
     """
@@ -107,7 +105,7 @@ class TrajParser(TextParser):
     # TODO: handle non-atomistic representations
     @masses.setter
     def masses(self, val: Any) -> None:
-        if not val:
+        if val is None:
             return
         if not isinstance(val, np.ndarray):
             try:
@@ -143,9 +141,11 @@ class TrajParser(TextParser):
         atoms_id = atoms_info.get('id')
         default = ['CGX' for _ in atoms_id] if atoms_id is not None else []
         atoms_type = atoms_info.get('type')
+
         if atoms_type is None:
             return default
-        if self._chemical_symbols is None:
+        # Access property to trigger lazy computation from masses
+        if self.chemical_symbols is None:
             return default
 
         atom_labels = [self._chemical_symbols[atype] for atype in atoms_type]
