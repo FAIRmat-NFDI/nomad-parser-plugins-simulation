@@ -92,17 +92,17 @@ add_mapping_annotation(general.Simulation.m_def, EDR_KEY, '@')
 
 class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
     add_mapping_annotation(
-        geometry_optimization.GeometryOptimizationModel.optimization_method,
+        geometry_optimization.GeometryOptimizationMethod.optimization_method,
         LOG_KEY,
         ('get_integrator_type', ['.input_parameters.integrator']),
     )
     add_mapping_annotation(
-        geometry_optimization.GeometryOptimizationModel.n_steps_maximum,
+        geometry_optimization.GeometryOptimizationMethod.n_steps_maximum,
         LOG_KEY,
         '.input_parameters.nsteps',
     )
     add_mapping_annotation(
-        geometry_optimization.GeometryOptimizationModel.convergence_tolerance_force_maximum,
+        geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
         LOG_KEY,
         '.input_parameters.emtol',
         unit='kilojoule/avogadro_number/nanometer',
@@ -130,7 +130,7 @@ class GeometryOptimizationResults(geometry_optimization.GeometryOptimizationResu
 
 class GeometryOptimization(geometry_optimization.GeometryOptimization):
     add_mapping_annotation(
-        geometry_optimization.GeometryOptimizationModel.m_def, LOG_KEY, '.@'
+        geometry_optimization.GeometryOptimizationMethod.m_def, LOG_KEY, '.@'
     )
     add_mapping_annotation(
         geometry_optimization.GeometryOptimizationResults.m_def, LOG_KEY, '.@'
@@ -140,14 +140,14 @@ class GeometryOptimization(geometry_optimization.GeometryOptimization):
     )
 
 
-class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsModel):
+class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
     add_mapping_annotation(
-        molecular_dynamics.MolecularDynamicsModel.integrator_type,
+        molecular_dynamics.MolecularDynamicsMethod.integrator_type,
         LOG_KEY,
         ('get_integrator_type', ['.input_parameters.integrator']),
     )
     add_mapping_annotation(
-        molecular_dynamics.MolecularDynamicsModel.integration_timestep,
+        molecular_dynamics.MolecularDynamicsMethod.integration_timestep,
         LOG_KEY,
         '.input_parameters.dt',
         unit='picosecond',
@@ -161,7 +161,7 @@ class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
 
 class MolecularDynamics(molecular_dynamics.MolecularDynamics):
     add_mapping_annotation(
-        molecular_dynamics.MolecularDynamicsModel.m_def, LOG_KEY, '.@'
+        molecular_dynamics.MolecularDynamicsMethod.m_def, LOG_KEY, '.@'
     )
 
 
