@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.metainfo import SchemaPackage
+import numpy as np
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -124,6 +125,48 @@ class KMesh(numerical_settings.KMesh):
             dict(shape_rest=()),
         ),
     )
+
+
+class Pseudopotential(numerical_settings.Pseudopotential):
+    """
+    VASP-specific pseudopotential extension with ENMAX/ENMIN cutoffs.
+    """
+
+    enmax = Quantity(
+        type=np.float64,
+        unit='joule',
+        description="""
+        Maximum cutoff energy (ENMAX) recommended for this pseudopotential.
+        This is the standard cutoff used for high-precision calculations.
+        """,
+    )
+
+    enmin = Quantity(
+        type=np.float64,
+        unit='joule',
+        description="""
+        Minimum cutoff energy (ENMIN) for low-precision calculations.
+        Typically about 2/3 of ENMAX.
+        """,
+    )
+
+    # Mapping annotations will be added here
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.reference_configuration,
+        OUTCAR_KEY,
+        '.vrhfin',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom'
+    )
+    add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
+    add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
 
 
 class ModelSystem(model_system.ModelSystem):
