@@ -4,7 +4,9 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
+from nomad_simulations.schema_packages.force_field import ForceField
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
 from structlog.stdlib import BoundLogger
 
@@ -36,13 +38,35 @@ class LammpsArchiveWriter(MDParser):
         return value
 
     def parse_method(self, simulation: Simulation) -> None:
-        # TODO: replace with counterparts from nomad_simulations!
+        """
+        Parse method information from data file and log file.
+
+        TODO: Migrate from legacy parser
+        - Still extract and set masses and charges on AtomParameters, or deprecated?
+        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs, bond_coeffs, angle_coeffs, etc.) using MDAnalysis
+        - Set ForceField with Model containing interactions
+        - Parse force calculation parameters:
+          * pair_style: extract vdw_cutoff, coulomb_cutoff
+          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh, multilevel_summation)
+        - Parse neighbor searching parameters:
+          * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
+          * neigh_modify: extract neighbor_update_frequency from 'every' parameter
+
+        Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Use nomad_simulations schemas instead of runschema
+        - Adapt to new ModelSystem structure
+        - Integrate with existing masses extraction (lines 47-57)
+        """
 
         if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
 
         if self.traj_parsers.eval('n_frames') is None:
             return
+
+        method = ModelMethod()
+        force_field = ForceField()
 
         masses_data = self._data_parser.get('Masses', None)
         # Extract array from DataParser format: [(None, np.ndarray)]
@@ -71,6 +95,8 @@ class LammpsArchiveWriter(MDParser):
             ]
         else:
             self._bond_list = None
+
+        simulation.model_method.append(method)
 
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
@@ -340,12 +366,88 @@ class LammpsArchiveWriter(MDParser):
         # Parse trajectory frames (dimension, positions, velocities, cell)
         self._parse_trajectory_frames(simulation)
 
+        # Parse molecular hierarchy (molecule groups, molecules, residues)
+        self._parse_molecular_hierarchy(simulation)
+
         # Mark the last (minimized/equilibrated) configuration as is_representative
         if simulation.model_system:
             simulation.model_system[-1].is_representative = True
 
-        # Parse molecular hierarchy (molecule groups, molecules, residues)
-        self._parse_molecular_hierarchy(simulation)
+    def parse_input(self, simulation: Simulation) -> None:
+        """
+        Parse input/control parameters from log file.
+
+        TODO: Migrate from legacy parser
+        - Extract input/output file information:
+          * Data file basename
+          * Trajectory file basename
+        - Parse control parameters from log file commands
+        - Map LAMMPS commands to x_lammps_inout_control_* attributes
+        - Store in custom section x_lammps_section_control_parameters
+
+        Legacy implementation: lines 1625-1650 in
+        atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Determine if custom x_lammps sections should be migrated or dropped
+        - Consider storing control parameters in standard schema if applicable
+        - Update file path handling to use self._data_parser, self.traj_parsers
+        """
+        pass
+
+    def parse_thermodynamic_data(self, simulation: Simulation) -> None:
+        """
+        Parse thermodynamic output data from log file.
+
+        TODO: Migrate from legacy parser
+        - Extract thermodynamic data from log file or aux log file
+        - Map thermodynamic quantities to TrajectoryOutputs:
+          * Step number and physical time (step * timestep)
+          * Energy contributions (kinetic, potential, pair, bond, angle, etc.)
+          * Total energy (TotEng)
+          * Pressure and temperature
+          * Forces (if available in trajectory)
+          * Calculation time (CPU)
+        - Create TrajectoryOutputs for each thermodynamic step
+        - Link outputs to corresponding model_system via model_system_ref
+
+        Legacy implementation: lines 971-1036 in atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Use nomad_simulations TrajectoryOutputs instead of Calculation
+        - Map energy types using self._energy_mapping
+        - Coordinate with parse_output_step in mdparserutils.py (lines 186-238)
+        - Extract timestep from log file (get_time_step method)
+        - Match thermodynamics_steps with trajectory_steps
+        """
+        pass
+
+    def parse_workflow(self, simulation: Simulation) -> None:
+        """
+        Parse workflow information for geometry optimization runs.
+
+        TODO: Migrate from legacy parser
+        - Detect minimization runs from log file (minimization_stats)
+        - Create GeometryOptimization workflow:
+          * Extract minimization method (cg, hftn, sd, quickmin, fire, spin)
+          * Map to standard method names (polak_ribiere_conjugant_gradient,
+            hessian_free_truncated_newton, steepest_descent, damped_dynamics)
+          * Parse optimization parameters (max steps, force convergence)
+        - Extract optimization results:
+          * Final energy difference
+          * Final force maximum
+        - Parse minimize/minimize/kk parameters:
+          * optimization_steps_maximum
+          * convergence_tolerance_force_maximum
+        - Handle unit conversions using self._log_parser.units
+
+        Legacy implementation: lines 1037-1120 in
+        atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Determine which simulation workflow schema to use from nomad_simulations
+        - Check if GeometryOptimization is available in nomad_simulations
+        - Adapt to simulation.workflow structure if different from sec_run.workflow
+        - Update unit conversion to use apply_unit method
+        """
+        pass
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
@@ -491,13 +593,9 @@ class LammpsArchiveWriter(MDParser):
         self.parse_system(self.archive.data)
 
         # TODO: uncomment when implemented
-        # # include input controls from log file
-        # self.parse_input()
-
-        # # parse thermodynamic data from log file
-        # self.parse_thermodynamic_data()
-
-        # self.parse_workflow()
+        # self.parse_input(self.archive.data)
+        # self.parse_thermodynamic_data(self.archive.data)
+        # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))

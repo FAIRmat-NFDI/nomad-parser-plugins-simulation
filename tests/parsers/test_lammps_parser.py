@@ -666,7 +666,7 @@ def test_systems(parser) -> None:
         archive,
         LOGGER,
     )
-    # Add rudimentary metadata to suppress normalization error
+    # Add placeholder metadata to suppress normalizer error
     archive.metadata = EntryMetadata()
     normalize_all(archive, logger=LOGGER)
     sec_systems = archive.data.model_system
