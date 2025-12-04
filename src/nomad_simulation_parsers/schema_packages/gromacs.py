@@ -29,12 +29,17 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.@')
 
 
-class AtomicCell(model_system.AtomicCell):
+class AtomicCell(model_system.Representation):
+    """
+    Map the representation quantities used by GROMACS to the unified
+    Representation fields so annotations and conversion remain correct.
+    """
+
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, TPR_KEY, '.lattice_vectors'
+        model_system.Representation.lattice_vectors, TPR_KEY, '.lattice_vectors'
     )
     add_mapping_annotation(
-        model_system.AtomicCell.periodic_boundary_conditions, LOG_KEY, '.pbc'
+        model_system.Representation.periodic_boundary_conditions, LOG_KEY, '.pbc'
     )
 
 
@@ -42,8 +47,8 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
-    add_mapping_annotation(model_system.AtomicCell.m_def, LOG_KEY, '.@')
-    add_mapping_annotation(model_system.AtomicCell.m_def, TPR_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, LOG_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, TPR_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
