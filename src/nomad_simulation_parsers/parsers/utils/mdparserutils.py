@@ -160,13 +160,23 @@ class MDParser(ArchiveWriter):
         if representation is None:
             representation = Representation()
 
-        cell_dict = data.pop('cell')
+        lattice_vectors = data.pop('lattice_vectors')
+        periodic_boundary_conditions = data.pop('periodic_boundary_conditions')
         particle_labels = data.pop('labels')
+        dimensions = data.pop('dimensions')
+
         for label in particle_labels:
             particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
-        self.parse_section(cell_dict, representation)
-        model_system.representations.append(representation)
+
+        q_lattice = model_system.m_get_quantity_definition('lattice_vectors')
+        model_system.m_set(q_lattice, lattice_vectors)
+
+        q_pbc = model_system.m_get_quantity_definition('periodic_boundary_conditions')
+        model_system.m_set(q_pbc, periodic_boundary_conditions)
+
+        model_system.dimensionality = dimensions
+
         self.parse_section(data, model_system)
         simulation.model_system.append(model_system)
 
