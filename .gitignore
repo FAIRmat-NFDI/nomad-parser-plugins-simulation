@@ -128,3 +128,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MDAnalysis temporary/cache artifacts under tests data
+tests/data/**/*.lock
+tests/data/**/*.npz
