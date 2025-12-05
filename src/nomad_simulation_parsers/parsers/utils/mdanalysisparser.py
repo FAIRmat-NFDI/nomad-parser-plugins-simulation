@@ -80,6 +80,7 @@ class MDAnalysisParser(FileParser):
         self._args = args
         self._kwargs = kwargs
         self._atomsgroup_info = None
+        self._results = None
 
     @property
     def auxilliary_files(self):
@@ -534,6 +535,9 @@ class MDAnalysisParser(FileParser):
         interactions = self.get('interactions', None)
         if interactions is not None:
             return interactions
+
+        if self._results is None:
+            self._results = {}
 
         interaction_types = ['angles', 'bonds', 'dihedrals', 'impropers']
         interactions = []
