@@ -7,13 +7,12 @@ import numpy as np
 import pint
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+
 from nomad_simulation_parsers.parsers.utils.constants import (
     MOLE,
     RE_FLOAT,
     RE_N,
 )
-from nomad_simulation_parsers.parsers.utils.general import search_files
-
 from nomad_simulation_parsers.parsers.utils.general import search_files
 
 

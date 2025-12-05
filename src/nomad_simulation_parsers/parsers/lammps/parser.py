@@ -4,7 +4,6 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
-from nomad_simulations.schema_packages.force_field import ForceField
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
@@ -43,11 +42,13 @@ class LammpsArchiveWriter(MDParser):
 
         TODO: Migrate from legacy parser
         - Still extract and set masses and charges on AtomParameters, or deprecated?
-        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs, bond_coeffs, angle_coeffs, etc.) using MDAnalysis
+        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
+          bond_coeffs, angle_coeffs, etc.) using MDAnalysis
         - Set ForceField with Model containing interactions
         - Parse force calculation parameters:
           * pair_style: extract vdw_cutoff, coulomb_cutoff
-          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh, multilevel_summation)
+          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh,
+            multilevel_summation)
         - Parse neighbor searching parameters:
           * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
           * neigh_modify: extract neighbor_update_frequency from 'every' parameter
@@ -66,7 +67,7 @@ class LammpsArchiveWriter(MDParser):
             return
 
         method = ModelMethod()
-        force_field = ForceField()
+        # force_field = ForceField()
 
         masses_data = self._data_parser.get('Masses', None)
         # Extract array from DataParser format: [(None, np.ndarray)]
