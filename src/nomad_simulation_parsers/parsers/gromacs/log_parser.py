@@ -125,7 +125,8 @@ class GromacsLogParser(TextParser):
             Quantity('time_start', r'Log file opened on (.+)', flatten=False),
             Quantity(
                 'host_info',
-                r'Host:\s*(\S+)\s*pid:\s*(\d+)\s*rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
+                r'Host:\s*(\S+)\s*pid:\s*(\d+)\s*'
+                r'rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
             ),
             Quantity(
                 'module_version', r'GROMACS:\s*(.+?),\s*VERSION\s*(\S+)', flatten=False
