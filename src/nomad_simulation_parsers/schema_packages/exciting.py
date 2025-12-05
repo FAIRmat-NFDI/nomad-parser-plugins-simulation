@@ -102,14 +102,14 @@ class XCComponent(model_method.XCComponent):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, INFO_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, INFO_KEY, '.@')
     add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
     add_mapping_annotation(model_system.AtomsState.m_def, INFO_KEY, '.atoms')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, INFO_KEY, '.lattice_vectors'
+        model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'
     )
 
 
@@ -145,9 +145,10 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands, EIGVAL_KEY, '.n_states'
+        outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'
     )
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'
@@ -159,7 +160,7 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_bands, BANDSTRUCTURE_XML_KEY, '.n_states'
+        outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'
     )
     add_mapping_annotation(
         outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'

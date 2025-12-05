@@ -128,8 +128,8 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotation(model_system.AtomicCell.m_def, XML_KEY, '.structure')
-    add_mapping_annotation(model_system.AtomicCell.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, XML_KEY, '.structure')
+    add_mapping_annotation(model_system.Representation.m_def, OUTCAR_KEY, '.@')
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
@@ -149,15 +149,15 @@ class ModelSystem(model_system.ModelSystem):
     )
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors,
+        model_system.Representation.lattice_vectors,
         XML_KEY,
         '.structure.varray[?"@name"==\'basis\'] | [0].v',
         unit='angstrom',
     )
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors,
+        model_system.Representation.lattice_vectors,
         OUTCAR_KEY,
         '.lattice_vectors',
         unit='angstrom',
@@ -244,19 +244,20 @@ class TotalForce(properties.forces.TotalForce):
     )
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands,
+        outputs.ElectronicEigenvalues.n_levels,
         XML_KEY,
         'length(.array.set.set.set[0].r)',
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands,
+        outputs.ElectronicEigenvalues.n_levels,
         XML2_KEY,
         'length(.array.set.set.set[0].r)',
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_bands, OUTCAR_KEY, '.n_bands'
+        outputs.ElectronicEigenvalues.n_levels, OUTCAR_KEY, '.n_bands'
     )
 
     # TODO This only works for non-spin pol

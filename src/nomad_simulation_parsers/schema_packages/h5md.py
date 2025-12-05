@@ -134,18 +134,14 @@ add_mapping_annotation(
 )
 add_mapping_annotation(atoms_state.ParticleState.label, HDF5_KEY, '.label')
 
-### class AtomicCell(model_system.AtomicCell):
+### Geometric properties now on ModelSystem directly (handled in get_traj_data)
 
 add_mapping_annotation(
-    model_system.AtomicCell.m_def, HDF5_KEY, ('get_cell_data', ['.@'])
+    model_system.ModelSystem.lattice_vectors, HDF5_KEY, '.lattice_vectors'
 )
 
 add_mapping_annotation(
-    model_system.AtomicCell.lattice_vectors, HDF5_KEY, '.lattice_vectors'
-)
-
-add_mapping_annotation(
-    model_system.AtomicCell.periodic_boundary_conditions, HDF5_KEY, '.boundary'
+    model_system.ModelSystem.periodic_boundary_conditions, HDF5_KEY, '.boundary'
 )
 
 

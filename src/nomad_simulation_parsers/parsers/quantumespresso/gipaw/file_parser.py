@@ -73,9 +73,9 @@ class GIPAWFileParser(TextParser):
 
         def parse_scalar_block(val):
             lines = [
-                line.strip() 
-                for line 
-                in val.strip().splitlines() 
+                line.strip()
+                for line
+                in val.strip().splitlines()
                 if line.strip()
             ]
             results = []

@@ -18,7 +18,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
     @property
     def logger(self):
         return LOGGER
-    
+
     def get_gipaw_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         out = {}
         # magnetic shieldings
@@ -91,7 +91,7 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
     @property
     def logger(self):
         return LOGGER
-    
+
     @property
     def job(self) -> str | None:
         if self._job is None:
@@ -100,8 +100,8 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
             except Exception as exc:
                 self.logger.warning("Unable to get job from data: %s", exc)
         return self._job
-        
-    
+
+
     def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
         if self.job != "nmr":
             return
@@ -128,23 +128,23 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         if self.job != "efg":
             return
         return np.reshape(atom.get("__value"), (3, 3))
-    
+
     def get_hyperfine_dipolar(self, atom: dict[str, Any]) -> Any:
         if self.job != "hyperfine":
             return
         return np.reshape(atom.get("__value"), (3, 3))
-    
+
     def get_hyperfine_fermi_contact(self, atom: dict[str, Any]) -> Any:
         if self.job != "hyperfine":
             return
         return atom.get("__value")
-    
+
     def get_delta_g(self, source: dict[str, Any]) -> Any:
         if self.job != "g-tensor":
             return
         return np.reshape(source.get("__value"), (3, 3))
 
-        
+
 
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):

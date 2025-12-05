@@ -24,15 +24,15 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.atomic_number, OUT_KEY, '.number')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     # TODO the or || operator does not seem to work
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, OUT_KEY, '.lattice_vectors'
+        model_system.Representation.lattice_vectors, OUT_KEY, '.lattice_vectors'
     )
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, OUT_KEY, '.@')
     add_mapping_annotation(model_system.ModelSystem.positions, OUT_KEY, '.positions')
     add_mapping_annotation(model_system.AtomsState.m_def, OUT_KEY, '.atoms')
 

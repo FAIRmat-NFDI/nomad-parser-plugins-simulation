@@ -54,13 +54,8 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, XML_KEY, '."@name"')
 
 
-class AtomicCell(model_system.AtomicCell):
-    add_mapping_annotation(model_system.AtomicCell.lattice_vectors, OUT_KEY, '.@')
-    add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors,
-        XML_KEY,
-        ('apply_unit', ['.[a1, a2, a3]'], dict(name='length')),
-    )
+class Representation(model_system.Representation):
+    add_mapping_annotation(model_system.Representation.lattice_vectors, 'out', '.@')
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -88,17 +83,12 @@ class ModelSystem(model_system.ModelSystem):
         ),
     )
     add_mapping_annotation(
-        model_system.AtomsState.m_def,
-        XML_KEY,
-        '.atomic_structure.atomic_positions.atom[]',
-    )
-    add_mapping_annotation(
-        model_system.AtomicCell.m_def,
+        model_system.Representation.m_def,
         OUT_KEY,
         ('get_value', ['.@'], dict(key='simulation_cell')),
     )
     add_mapping_annotation(
-        model_system.AtomicCell.m_def, XML_KEY, '.atomic_structure.cell'
+        model_system.Representation.m_def, XML_KEY, '.atomic_structure.cell'
     )
 
 

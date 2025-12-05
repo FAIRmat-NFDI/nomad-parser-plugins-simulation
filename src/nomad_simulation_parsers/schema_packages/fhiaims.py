@@ -99,7 +99,7 @@ class GW(model_method.GW):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.AtomicCell.m_def, TEXT_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, TEXT_KEY, '.@')
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         TEXT_KEY,
@@ -109,9 +109,9 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels')
 
 
-class AtomicCell(model_system.AtomicCell):
+class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.AtomicCell.lattice_vectors, TEXT_KEY, '.lattice_vectors'
+        model_system.Representation.lattice_vectors, TEXT_KEY, '.lattice_vectors'
     )
 
 
@@ -160,9 +160,10 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
+# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     add_mapping_annotation(
-        properties.ElectronicEigenvalues.n_bands, TEXT_KEY, '.nbands'
+        properties.ElectronicEigenvalues.n_levels, TEXT_KEY, '.nbands'
     )
     add_mapping_annotation(
         properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'

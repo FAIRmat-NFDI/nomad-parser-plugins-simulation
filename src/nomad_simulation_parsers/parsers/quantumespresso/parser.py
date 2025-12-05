@@ -420,19 +420,15 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             self._mainfile_parser.filepath = self.mainfile
             keys = list(self._mainfile_parser.data.keys())
 
-            from devtools import debug
-            debug(self.mainfile_parser.filepath)
-            debug(keys)
-
             if "gipaw" not in self.simulation_parser.annotation_key:
                 self.simulation_parser.annotation_key = ext
 
-            if "program" not in keys:           
+            if "program" not in keys:
                 if len(keys) == 1 and "gipaw" in keys[0]:
                     self.simulation_parser.annotation_key = 'gipaw_xml'
                 return self._mainfile_parser
 
-            program = self._mainfile_parser.data.get('program')        
+            program = self._mainfile_parser.data.get('program')
             name_version = get_program_name_version(program[0][:30])
             if name_version[0] == 'gipaw':
                 if ext == 'out':
@@ -454,7 +450,6 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         return self._mainfile_parser
 
     def write_to_archive(self) -> None:
-        # set up mainfile parser
         for n, writer in enumerate(self.mainfile_parser.writers):
             # write the first program to the main archive, the rest to child archives
             archive = (
