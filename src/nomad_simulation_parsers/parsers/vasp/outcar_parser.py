@@ -11,6 +11,8 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_method import XCFunctional
+from nomad_simulations.schema_packages.numerical_settings import Pseudopotential
 
 from nomad_simulation_parsers.schema_packages import vasp
 
@@ -617,20 +619,29 @@ class OutcarArchiveWriter(ArchiveWriter):
                 pp.gw_optimized = True
 
             # XC functional
-            # TODO: Fix XCFunctional metainfo resolution issue
-            # if 'lexch' in pp_data:
-            #     xc = vasp.XCFunctional()
-            #     lexch_code = pp_data['lexch']
-            #     xc.functional_key = xc_mapping.get(lexch_code, lexch_code)
-            #     pp.xc_functional = xc
+            if 'lexch' in pp_data:
+                xc = XCFunctional()
+                lexch_code = pp_data['lexch']
+                # Store the VASP LEXCH code directly; normalization will expand to LibXC names
+                xc.functional_key = lexch_code
+                pp.xc_functional = xc
 
             # Add to numerical_settings
             if not model_method.numerical_settings:
                 model_method.numerical_settings = []
             model_method.numerical_settings.append(pp)
 
-        # TODO: Link pseudopotentials to AtomsState
-        # Requires fixing metainfo resolution for Pseudopotential reference
+        # Link pseudopotentials to AtomsState
+        # VASP lists pseudopotentials in POSCAR species order
+        if archive_data.model_system and len(archive_data.model_system) > 0:
+            model_system = archive_data.model_system[0]
+            if hasattr(model_system, 'particle_states') and model_system.particle_states:
+                # Get the pseudopotentials we just created
+                created_pseudopotentials = model_method.numerical_settings[-len(pseudopotentials_data):]
+
+                # Link each AtomsState to its corresponding Pseudopotential
+                for atoms_state, pp in zip(model_system.particle_states, created_pseudopotentials):
+                    atoms_state.pseudopotential = pp
 
     def write_to_archive(self) -> None:
         # set up archive parser
