@@ -194,7 +194,7 @@ vasp_parser = EntryPoint(
         r'^\s*vasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
-    mainfile_name_re='.*[^/]*xml[^/]*',
+    mainfile_name_re=r'.*[^/]*(xml|OUTCAR)[^/]*',
     mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
 )
