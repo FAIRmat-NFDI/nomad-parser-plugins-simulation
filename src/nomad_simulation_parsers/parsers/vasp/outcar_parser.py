@@ -622,8 +622,20 @@ class OutcarArchiveWriter(ArchiveWriter):
             if 'lexch' in pp_data:
                 xc = XCFunctional()
                 lexch_code = pp_data['lexch']
-                # Store the VASP LEXCH code directly; normalization will expand to LibXC names
-                xc.functional_key = lexch_code
+
+                # Map VASP LEXCH codes to standard functional names
+                vasp_xc_map = {
+                    'PE': 'PBE',
+                    'PS': 'PBEsol',
+                    'CA': 'LDA',
+                    '91': 'PW91',
+                    'AM': 'AM05',
+                    'RP': 'RPBE',
+                    'PW': 'PW91',
+                }
+
+                functional_name = vasp_xc_map.get(lexch_code, lexch_code)
+                xc.functional_key = functional_name
                 pp.xc_functional = xc
 
             # Add to numerical_settings
