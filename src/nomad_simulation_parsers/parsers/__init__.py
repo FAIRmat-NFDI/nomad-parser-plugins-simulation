@@ -191,7 +191,7 @@ vasp_parser = EntryPoint(
     mainfile_contents_re=(
         r'^\s*<\?xml version="1\.0" encoding="ISO-8859-1"\?>\s*?\s*<modeling>?\s*'
         r'<generator>?\s*<i name="program" type="string">\s*vasp\s*</i>?|'
-        r'^\svasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
+        r'^\s*vasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
     mainfile_name_re='.*[^/]*xml[^/]*',
