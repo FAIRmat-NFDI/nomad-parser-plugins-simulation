@@ -36,6 +36,7 @@ dependencies = [
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
+    'pint>=0.23',
 ]
 
 [project.urls]

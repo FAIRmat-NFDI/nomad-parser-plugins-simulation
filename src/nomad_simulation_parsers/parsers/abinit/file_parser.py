@@ -1,6 +1,8 @@
 import re
+from typing import Any
 
 import numpy as np
+import pint
 from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
 
@@ -19,8 +21,8 @@ class AbinitOutParser(TextParser):
             'psp_local': 'Loc. psp. energy',
             'psp_nonlocal': 'NL   psp  energy',
             'internal': '>>>>> Internal E',
-            'energy_correction_entropy': r'\-kT*entropy',
-            'energy_total': ' >>>>>>>>> Etotal',
+            'energy_correction_entropy': r'\-kT\*entropy',
+            'energy_total': '>>>>>>>>> Etotal',
             'energy_sum_eigenvalues': r'Band energy \(Ha\)',
         }
         self._input_vars = None
@@ -110,9 +112,6 @@ class AbinitOutParser(TextParser):
                 convert=False,
                 flatten=False,
             ),
-        ]
-
-        self._quantities.append(
             Quantity(
                 'input_variables',
                 r'\-outvars: echo values of preprocessed input variables '
@@ -122,20 +121,20 @@ class AbinitOutParser(TextParser):
                     quantities=[
                         Quantity(
                             'key_value',
-                            r'([a-zA-Z\d]+)\s*([\d\.\+\-E\s]+)',
+                            r'([a-zA-Z\d\_]+)\s+(\-*\d[\d\.\+\-E\s]+)',
                             repeats=True,
                         )
                     ]
                 ),
-            )
-        )
+            ),
+        ]
 
-        def str_to_array(val_in):
+        def str_to_array(val_in: str) -> np.ndarray:
             val = val_in.strip().split('\n')
             val = [v.split()[-3:] for v in val]
             return np.array(val, dtype=float)
 
-        def str_to_stress_tensor(val_in):
+        def str_to_stress_tensor(val_in: str) -> pint.Quantity:
             val = np.array(val_in.split(), dtype=float)
             stress_tensor = np.zeros((3, 3))
             stress_tensor[0][0] = val[0]
@@ -146,7 +145,7 @@ class AbinitOutParser(TextParser):
             stress_tensor[1][0] = stress_tensor[0][1] = val[5]
             return stress_tensor * (ureg.hartree / ureg.bohr**3)
 
-        def str_to_eigenvalues(val_in):
+        def str_to_eigenvalues(val_in: str) -> list[float]:
             return [float(v) for v in val_in.split() if v[-1].isdecimal()]
 
         self_consistent = [
@@ -364,7 +363,7 @@ class AbinitOutParser(TextParser):
             Quantity(
                 'kmesh',
                 rf'{RE_N}(\s*====\s*K-mesh[a-zA-Z\s]*wavefunctions[\s\S]+?)'
-                rf'(?:\s*====\s*Q-mesh)',
+                rf'(?:\s*====\s*Q\-mesh)',
                 repeats=False,
                 sub_parser=TextParser(
                     quantities=[
@@ -376,8 +375,8 @@ class AbinitOutParser(TextParser):
                         ),
                         Quantity(
                             'mesh',
-                            rf'{RE_N}[\d\)\s]+{RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}\s*'
-                            rf'{RE_FLOAT}',
+                            rf'{RE_N}[\d\)\s]+({RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}\s*'
+                            rf'{RE_FLOAT})',
                             repeats=True,
                         ),
                     ]
@@ -398,8 +397,8 @@ class AbinitOutParser(TextParser):
                         ),
                         Quantity(
                             'mesh',
-                            rf'{RE_N}[\d\)\s]+{RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}\s*'
-                            rf'{RE_FLOAT}',
+                            rf'{RE_N}[\d\)\s]+({RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}\s*'
+                            rf'{RE_FLOAT})',
                             repeats=True,
                         ),
                     ]
@@ -415,6 +414,7 @@ class AbinitOutParser(TextParser):
                 'symm_screening',
                 rf'{RE_N}\- screening\:([a-zA-Z\-\s]+){RE_N}',
                 repeats=False,
+                flatten=False,
             ),
             Quantity(
                 'max_band_occ',
@@ -436,17 +436,19 @@ class AbinitOutParser(TextParser):
             Quantity(
                 'n_electrons',
                 rf'{RE_N}\s*Number of electrons calculated from density'
-                rf'\s*\=\s*{RE_FLOAT}'
-                rf'\;\s*Expected\s*\=\s*{RE_FLOAT}'
-                rf'{RE_N}\s*average of density\,\s*n\s*\=\s*{RE_FLOAT}',
+                rf'\s*\=\s*({RE_FLOAT})'
+                rf'\;\s*Expected\s*\=\s*({RE_FLOAT})'
+                rf'{RE_N}\s*average of density\,\s*n\s*\=\s*({RE_FLOAT})',
                 repeats=False,
             ),
             Quantity(
-                'wigner_seitz_radius', rf'{RE_N}\s*r_s\s*\=\s*{RE_FLOAT}', repeats=False
+                'wigner_seitz_radius',
+                rf'{RE_N}\s*r_s\s*\=\s*({RE_FLOAT})',
+                repeats=False,
             ),
             Quantity(
                 'omega_plasma',
-                rf'{RE_N}\s*omega_plasma\s*\=\s*{RE_FLOAT}\s*\[(?P<__unit>\w+)\]',
+                rf'{RE_N}\s*omega_plasma\s*\=\s*({RE_FLOAT})\s*\[(?P<__unit>\w+)\]',
                 repeats=False,
             ),
         ]
@@ -460,7 +462,7 @@ class AbinitOutParser(TextParser):
                     quantities=[
                         Quantity(
                             'values',
-                            rf'{RE_N}\s*\d*\s*{RE_FLOAT}\s*{RE_FLOAT}',
+                            rf'{RE_N}\s*\d*\s*({RE_FLOAT}\s*{RE_FLOAT})',
                             repeats=True,
                         )
                     ]
@@ -468,19 +470,20 @@ class AbinitOutParser(TextParser):
             ),
             Quantity(
                 'static_diel_const',
-                rf'{RE_N}\s*dielectric constant\s*\=\s*{RE_FLOAT}',
+                rf'{RE_N}\s*dielectric constant\s*\=\s*({RE_FLOAT})',
                 repeats=False,
             ),
             Quantity(
                 'static_diel_const_nofields',
-                rf'{RE_N}\s*dielectric constant without local fields\s*\=\s*{RE_FLOAT}',
+                rf'{RE_N}\s*dielectric constant without local fields\s*\=\s*'
+                rf'({RE_FLOAT})',
                 repeats=False,
             ),
             Quantity(
                 'chi_q',
-                rf'{RE_N}(\s*q-point number\s*1[\s\S]+?)(?:\s*Average fulfillment'
-                rf'[\s\w\[\]\-\:\.\%]*===)',
-                repeats=False,
+                rf'{RE_N}\s*(q\-point number\s*\d+.+?{RE_N}\s*\-+[\s\S]+?'
+                rf'Average fulfillment.+)',
+                repeats=True,
                 sub_parser=TextParser(
                     quantities=[
                         Quantity(
@@ -510,10 +513,10 @@ class AbinitOutParser(TextParser):
             )
         )
 
-        def params_to_pairs(val_in):
+        def params_to_pairs(val_in: str) -> tuple[str, int]:
             key = '_'.join(val_in.split()[:-1]).replace('-', '_')
-            value = np.int(val_in.split()[-1])
-            return [key, value]
+            value = int(val_in.split()[-1])
+            return key, value
 
         gw_quantities = rpa_quantities + [
             Quantity(
@@ -525,27 +528,31 @@ class AbinitOutParser(TextParser):
                     quantities=[
                         Quantity(
                             'min_direct_gap',
-                            rf'\s*Minimum direct gap\s*=\s*{RE_FLOAT}\s*\[\w*\]\,\s*'
-                            rf'located at k-point\s*\:\s*{RE_FLOAT}\s*{RE_FLOAT}\s*'
-                            rf'{RE_FLOAT}',
+                            rf'\s*Minimum direct gap\s*=\s*({RE_FLOAT})\s*\[\w*\]\,\s*',
                             repeats=False,
                         ),
                         Quantity(
                             'fundamental_gap',
-                            rf'\s*Fundamental gap\s*=\s*{RE_FLOAT}\s*'
+                            rf'\s*Fundamental gap\s*=\s*({RE_FLOAT})\s*'
                             rf'\[(?P<__unit>\w+)\]',
                             repeats=False,
                         ),
                         Quantity(
+                            'k_minimum_direct_gap',
+                            rf'located at k-point\s*\:\s*({RE_FLOAT}\s*{RE_FLOAT}\s*'
+                            rf'{RE_FLOAT})',
+                            repeats=False,
+                        ),
+                        Quantity(
                             'k_top_valence_band',
-                            rf'\s*Top of valence bands at\s*\:\s*{RE_FLOAT}\s*'
-                            rf'{RE_FLOAT}\s*{RE_FLOAT}',
+                            rf'\s*Top of valence bands at\s*\:\s*({RE_FLOAT}\s*'
+                            rf'{RE_FLOAT}\s*{RE_FLOAT})',
                             repeats=False,
                         ),
                         Quantity(
                             'k_bottom_conduction_band',
-                            rf'\s*Bottom of conduction at\s*\:\s*{RE_FLOAT}\s*'
-                            rf'{RE_FLOAT}\s*{RE_FLOAT}',
+                            rf'\s*Bottom of conduction at\s*\:\s*({RE_FLOAT}\s*'
+                            rf'{RE_FLOAT}\s*{RE_FLOAT})',
                             repeats=False,
                         ),
                     ]
@@ -568,18 +575,20 @@ class AbinitOutParser(TextParser):
                         ),
                         Quantity(
                             'freq_step',
-                            rf'{RE_N}\s*frequency step[a-zA-Z\s\/]*\[eV\]\s*{RE_FLOAT}',
+                            rf'{RE_N}\s*frequency step[a-zA-Z\s\/]*\[eV\]\s*'
+                            rf'({RE_FLOAT})',
                             repeats=False,
                         ),
                         Quantity(
                             'max_omega_sigma',
                             rf'{RE_N}\s*max omega for Sigma[a-zA-Z\s]*\[eV\]\s*'
-                            rf'{RE_FLOAT}',
+                            rf'({RE_FLOAT})',
                             repeats=False,
                         ),
                         Quantity(
                             'zcut_avoid',
-                            rf'{RE_N}\s*zcut for avoiding poles\s*\[eV\]\s*{RE_FLOAT}',
+                            rf'{RE_N}\s*zcut for avoiding poles\s*\[eV\]\s*'
+                            rf'({RE_FLOAT})',
                             repeats=False,
                         ),
                     ]
@@ -614,8 +623,8 @@ class AbinitOutParser(TextParser):
                     quantities=[
                         Quantity(
                             'kpoint',
-                            rf'{RE_N}kpoint\s*\:[\s\[]*{RE_FLOAT}\, *{RE_FLOAT}\, *'
-                            rf'{RE_FLOAT}',
+                            rf'{RE_N}kpoint\s*\:[\s\[]*({RE_FLOAT})\, *({RE_FLOAT})\, *'
+                            rf'({RE_FLOAT})',
                             repeats=False,
                         ),
                         Quantity(
@@ -625,9 +634,9 @@ class AbinitOutParser(TextParser):
                         ),
                         Quantity(
                             'data',
-                            rf'{RE_N} *(\d+) *{RE_FLOAT} *{RE_FLOAT} *{RE_FLOAT} *'
+                            rf'{RE_N} *(\d+ *{RE_FLOAT} *{RE_FLOAT} *{RE_FLOAT} *'
                             rf'{RE_FLOAT} *{RE_FLOAT} *{RE_FLOAT} *{RE_FLOAT} *'
-                            rf'{RE_FLOAT} *{RE_FLOAT}',
+                            rf'{RE_FLOAT} *{RE_FLOAT})',
                             repeats=True,
                         ),
                     ]
@@ -646,7 +655,7 @@ class AbinitOutParser(TextParser):
         )
 
     @property
-    def dataset_numbers(self):
+    def dataset_numbers(self) -> list[int]:
         if self._dataset_numbers is None:
             self._dataset_numbers = [
                 d.get('x_abinit_dataset_number', 1) for d in self.get('dataset', [])
@@ -654,13 +663,13 @@ class AbinitOutParser(TextParser):
         return self._dataset_numbers
 
     @property
-    def n_datasets(self):
+    def n_datasets(self) -> int:
         if self._n_datasets is None:
             self._n_datasets = max(self.dataset_numbers) if self.dataset_numbers else 1
         return self._n_datasets
 
     @property
-    def input_vars(self):
+    def input_vars(self) -> dict[str, Any]:
         if self._input_vars is None:
             # set defaults
             self._input_vars = {
@@ -701,6 +710,7 @@ class AbinitOutParser(TextParser):
                 # )
                 # if not m_quantity.shape:
                 #     val = val[0]
+                val = val[0] if len(val) == 1 else val
                 if n_dataset:
                     self._input_vars[key][int(n_dataset) - 1] = val
                 else:
