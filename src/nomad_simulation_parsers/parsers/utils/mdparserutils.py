@@ -29,7 +29,6 @@ from nomad_simulations.schema_packages import workflow
 from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_system import (
-    AlternativeRepresentation,
     ModelSystem,
 )
 
@@ -148,7 +147,7 @@ class MDParser(ArchiveWriter):
         data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
-        representation: AlternativeRepresentation = None,
+        # representations: AlternativeRepresentation = None,
     ) -> None:
         """
         Create a system section and write the provided data.
@@ -160,8 +159,6 @@ class MDParser(ArchiveWriter):
 
         if model_system is None:
             model_system = ModelSystem()
-        if representation is None:
-            representation = AlternativeRepresentation()
 
         lattice_vectors = data.pop('lattice_vectors')
         periodic_boundary_conditions = data.pop('periodic_boundary_conditions')
