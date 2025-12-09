@@ -172,11 +172,8 @@ class MDParser(ArchiveWriter):
             particle_state = ParticleState(label=label)
             model_system.particle_states.append(particle_state)
 
-        q_lattice = model_system.m_get_quantity_definition('lattice_vectors')
-        model_system.m_set(q_lattice, lattice_vectors)
-
-        q_pbc = model_system.m_get_quantity_definition('periodic_boundary_conditions')
-        model_system.m_set(q_pbc, periodic_boundary_conditions)
+        model_system.lattice_vectors = lattice_vectors
+        model_system.periodic_boundary_conditions = periodic_boundary_conditions
 
         model_system.dimensionality = dimensions
 
