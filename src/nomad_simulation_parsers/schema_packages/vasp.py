@@ -163,29 +163,8 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
-    lpaw = Quantity(
-        type=bool,
-        description="""
-        LPAW flag from POTCAR indicating if this is a PAW pseudopotential.
-        Used internally for type determination.
-        """,
-    )
-
-    lultra = Quantity(
-        type=bool,
-        description="""
-        LULTRA flag from POTCAR indicating if this is an ultrasoft pseudopotential.
-        Used internally for type determination.
-        """,
-    )
-
-    lexch = Quantity(
-        type=str,
-        description="""
-        LEXCH code from POTCAR indicating the XC functional (e.g., 'PE' for PBE).
-        Used internally for XC functional determination.
-        """,
-    )
+    # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
+    # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
     # Mapping annotations will be added here
     # OUTCAR provides complete POTCAR metadata
@@ -216,9 +195,8 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
     add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
-    add_mapping_annotation(lpaw, OUTCAR_KEY, '.lpaw')
-    add_mapping_annotation(lultra, OUTCAR_KEY, '.lultra')
-    add_mapping_annotation(lexch, OUTCAR_KEY, '.lexch')
+    # Note: lpaw, lultra, lexch are NOT mapped to schema - they're used internally
+    # by the parser's _process_pseudopotentials method to derive type and is_norm_conserving
 
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition

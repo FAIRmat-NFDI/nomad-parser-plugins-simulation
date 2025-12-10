@@ -549,6 +549,7 @@ class OutcarArchiveWriter(ArchiveWriter):
     def _process_pseudopotentials(
         self,
         archive_data: Simulation,
+        parser_data: dict[str, Any],
     ) -> None:
         """
         Post-process Pseudopotential instances created by mapping annotations.
@@ -560,6 +561,10 @@ class OutcarArchiveWriter(ArchiveWriter):
         - GW optimization detection
         - XC functional subsection creation and normalization
         - Linking pseudopotentials to AtomsState
+
+        Args:
+            archive_data: The simulation archive being populated
+            parser_data: Raw parsed data containing lpaw, lultra, lexch flags
         """
         # Ensure model_method exists
         if not archive_data.model_method or len(archive_data.model_method) == 0:
@@ -571,15 +576,28 @@ class OutcarArchiveWriter(ArchiveWriter):
         if not model_method.numerical_settings:
             return
 
+        # Get pseudopotential data from parser (filter out empty dicts)
+        # The OUTCAR parser extracts 4 POTCAR entries but the first 2 are just
+        # short header lines without full data
+        raw_pseudopotentials = [pp for pp in parser_data.get('pseudopotentials', []) if pp]
+
+        pp_index = 0  # Track actual pseudopotential index (skipping non-PP numerical_settings)
         for pp in model_method.numerical_settings:
             # Skip non-pseudopotential numerical settings (if any exist)
             if not isinstance(pp, vasp.Pseudopotential):
                 continue
 
-            # Mapping annotations have populated all fields including lpaw, lultra, lexch
             # Set cutoff_target (derived field not directly in source data)
             if pp.enmax:
                 pp.cutoff_target = 'ENMAX'
+
+            # Get lpaw, lultra, lexch from raw parser data (not stored in schema)
+            # These flags are used only to derive type and is_norm_conserving
+            raw_pp = raw_pseudopotentials[pp_index] if pp_index < len(raw_pseudopotentials) else {}
+            lpaw = raw_pp.get('lpaw', False)
+            lultra = raw_pp.get('lultra', False)
+            lexch = raw_pp.get('lexch')
+            pp_index += 1
 
             # Determine type from POTCAR flags and name
             # VASP uses LPAW and LULTRA flags in POTCAR (parsed from OUTCAR):
@@ -591,8 +609,6 @@ class OutcarArchiveWriter(ArchiveWriter):
             #   - Both LPAW=F and LULTRA=F: Fully norm-conserving (NC)
             # VASP does NOT have an explicit "LNORMCONS" flag - absence of both
             # LPAW and LULTRA indicates standard norm-conserving pseudopotential.
-            lpaw = pp.lpaw if hasattr(pp, 'lpaw') and pp.lpaw is not None else False
-            lultra = pp.lultra if hasattr(pp, 'lultra') and pp.lultra is not None else False
             is_gw = '_GW' in pp.name if pp.name else False
 
             if lpaw:
@@ -622,10 +638,10 @@ class OutcarArchiveWriter(ArchiveWriter):
             if is_gw:
                 pp.gw_optimized = True
 
-            # XC functional
-            if hasattr(pp, 'lexch') and pp.lexch:
+            # XC functional - use lexch from raw parser data
+            if lexch:
                 xc = XCFunctional()
-                lexch_code = pp.lexch
+                lexch_code = lexch
 
                 # Map VASP LEXCH codes to standard functional names
                 vasp_xc_map = {
@@ -674,7 +690,8 @@ class OutcarArchiveWriter(ArchiveWriter):
 
         # Post-process pseudopotentials created by mapping annotations
         # This handles complex transformations (type, XC functional, linking)
-        self._process_pseudopotentials(archive_data)
+        # Pass parser data to access lpaw, lultra, lexch flags (not stored in schema)
+        self._process_pseudopotentials(archive_data, source_parser.data)
 
         # assign simulation section to archive data
         self.archive.data = archive_data_parser.data_object
