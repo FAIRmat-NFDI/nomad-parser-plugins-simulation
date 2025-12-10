@@ -84,6 +84,8 @@ class VasprunParser(XMLParser):
         LEXCH, ENMAX, ENMIN, RCORE, VRHFIN, SHA256). These are only available in
         OUTCAR or by parsing POTCAR directly.
         """
+        LOGGER.info(f'get_pseudopotentials called with type: {type(atomtypes)}')
+
         if not atomtypes:
             LOGGER.debug('get_pseudopotentials: No atomtypes provided')
             return []
@@ -91,7 +93,11 @@ class VasprunParser(XMLParser):
         LOGGER.debug(f'get_pseudopotentials: Processing {len(atomtypes)} atomtypes')
 
         pseudopotentials = []
-        for atomtype in atomtypes:
+        for i, atomtype in enumerate(atomtypes):
+            LOGGER.debug(f'Item {i}: type={type(atomtype)}')
+            if isinstance(atomtype, dict):
+                LOGGER.debug(f'  keys: {list(atomtype.keys())}')
+
             # Extract fields from the rc array structure
             # Format: [atomspertype, element, mass, valence, pseudopotential_name]
             rc = atomtype.get('rc', [])
@@ -111,6 +117,76 @@ class VasprunParser(XMLParser):
 
 
 class XMLArchiveWriter(ArchiveWriter):
+    def _add_pseudopotentials(self, archive_data: Simulation, xml_parser: VasprunParser) -> None:
+        """
+        Extract and add basic pseudopotential data from vasprun.xml atomtypes.
+
+        vasprun.xml contains only name and n_valence_electrons, not the detailed
+        POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.) needed for type
+        determination. For complete support, parse POTCAR files directly.
+        """
+        if not xml_parser.data:
+            return
+
+        # Navigate to atominfo through modeling
+        modeling = xml_parser.data.get('modeling', {})
+        atominfo = modeling.get('atominfo', {})
+
+        arrays = atominfo.get('array', [])
+        if not isinstance(arrays, list):
+            arrays = [arrays]
+
+        # Find atomtypes array
+        atomtypes_array = None
+        for arr in arrays:
+            if isinstance(arr, dict) and arr.get('@name') == 'atomtypes':
+                atomtypes_array = arr
+                break
+
+        if not atomtypes_array:
+            LOGGER.debug('No atomtypes array found in vasprun.xml')
+            return
+
+        # Extract rc rows from the set
+        set_data = atomtypes_array.get('set', {})
+        rc_rows = set_data.get('rc', [])
+        if not isinstance(rc_rows, list):
+            rc_rows = [rc_rows]
+
+        if not rc_rows:
+            LOGGER.debug('No rc rows in atomtypes')
+            return
+
+        # Ensure model_method exists
+        if not archive_data.model_method or len(archive_data.model_method) == 0:
+            LOGGER.debug('No model_method to attach pseudopotentials to')
+            return
+
+        model_method = archive_data.model_method[0]
+
+        # Create pseudopotentials from rc rows
+        for rc in rc_rows:
+            if not isinstance(rc, dict):
+                continue
+
+            # rc contains 'c' children with values
+            c_elements = rc.get('c', [])
+            if not isinstance(c_elements, list) or len(c_elements) < 5:
+                continue
+
+            # Extract: [atomspertype, element, mass, valence, pseudopotential_name]
+            try:
+                pp = vasp.Pseudopotential()
+                pp.name = c_elements[4].strip()
+                pp.n_valence_electrons = float(c_elements[3])
+                model_method.m_add_sub_section(
+                    model_method.m_def.all_sub_sections['numerical_settings'],
+                    pp
+                )
+                LOGGER.debug(f'Added pseudopotential: {pp.name}')
+            except (IndexError, ValueError) as e:
+                LOGGER.warning(f'Failed to parse pseudopotential from rc: {e}')
+
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()
@@ -122,6 +198,9 @@ class XMLArchiveWriter(ArchiveWriter):
 
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
+
+        # Add pseudopotentials from atominfo
+        self._add_pseudopotentials(data_parser.data_object, xml_parser)
 
         self.archive.data = data_parser.data_object
 

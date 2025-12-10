@@ -35,7 +35,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        '.parameters.separator[?"@name"==\'electronic\']',
+        '.parameters',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
     # Note: Pseudopotential.m_def mapping added after Pseudopotential class definition
@@ -232,10 +232,11 @@ add_mapping_annotation(
 # XML mapping: Extract basic pseudopotential data from atomtypes array
 # Note: vasprun.xml only contains name and n_valence_electrons, not detailed
 # POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.)
+# TODO: Fix jmespath to correctly extract atomtypes.set.rc data structure
 add_mapping_annotation(
     Pseudopotential.m_def,
     XML_KEY,
-    ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\'].set.rc']),
+    ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\']']),
 )
 
 
