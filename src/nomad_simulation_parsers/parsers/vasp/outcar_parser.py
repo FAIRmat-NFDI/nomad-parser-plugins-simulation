@@ -560,14 +560,26 @@ class OutcarArchiveWriter(ArchiveWriter):
         for pp_data in pseudopotentials_data:
             pp = vasp.Pseudopotential()
 
-            # Use mapping annotation keys (defined in vasp.py with OUTCAR_KEY)
-            # The annotations specify unit conversion, so we pass raw values
-            pp.m_cache = {'OUTCAR_KEY': pp_data}
+            # Basic metadata (mapping annotations defined in vasp.py)
+            pp.name = pp_data.get('titel', '')
+            if 'zval' in pp_data:
+                pp.n_valence_electrons = pp_data['zval']
+            if 'vrhfin' in pp_data:
+                pp.reference_configuration = pp_data['vrhfin']
+            if 'rcore' in pp_data:
+                pp.r_core = pp_data['rcore'] * ureg.angstrom
 
-            # Fields not covered by mapping annotations:
+            # VASP-specific cutoffs
             if 'enmax' in pp_data:
+                pp.enmax = pp_data['enmax'] * ureg.eV
                 pp.cutoff = pp_data['enmax'] * ureg.eV
                 pp.cutoff_target = 'ENMAX'
+            if 'enmin' in pp_data:
+                pp.enmin = pp_data['enmin'] * ureg.eV
+
+            # SHA256 hash
+            if 'sha256' in pp_data:
+                pp.sha256 = pp_data['sha256']
 
             # Determine type from POTCAR flags and name
             # TODO: Double-check VASP's norm-conserving annotation logic:
