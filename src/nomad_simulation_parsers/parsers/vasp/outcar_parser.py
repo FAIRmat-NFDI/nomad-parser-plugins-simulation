@@ -576,17 +576,12 @@ class OutcarArchiveWriter(ArchiveWriter):
             if not isinstance(pp, vasp.Pseudopotential):
                 continue
 
-            # Get the corresponding pp_data to access raw parsed values
-            # The mapping annotations have already populated basic fields (name, n_valence_electrons,
-            # reference_configuration, r_core, cutoff, enmax, enmin, sha256)
-            pp_data = pp.m_cache.get(vasp.OUTCAR_KEY, {})
-
+            # Mapping annotations have populated all fields including lpaw, lultra, lexch
             # Set cutoff_target (derived field not directly in source data)
             if pp.enmax:
                 pp.cutoff_target = 'ENMAX'
 
             # Determine type from POTCAR flags and name
-            # TODO: Double-check VASP's norm-conserving annotation logic:
             # VASP uses LPAW and LULTRA flags in POTCAR (parsed from OUTCAR):
             #   - LPAW=T: PAW potential
             #     - Title contains '_GW' → NC-PAW-GW (norm-conserving)
@@ -596,9 +591,9 @@ class OutcarArchiveWriter(ArchiveWriter):
             #   - Both LPAW=F and LULTRA=F: Fully norm-conserving (NC)
             # VASP does NOT have an explicit "LNORMCONS" flag - absence of both
             # LPAW and LULTRA indicates standard norm-conserving pseudopotential.
-            lpaw = pp_data.get('lpaw', False)
-            lultra = pp_data.get('lultra', False)
-            is_gw = '_GW' in pp_data.get('titel', '')
+            lpaw = pp.lpaw if hasattr(pp, 'lpaw') and pp.lpaw is not None else False
+            lultra = pp.lultra if hasattr(pp, 'lultra') and pp.lultra is not None else False
+            is_gw = '_GW' in pp.name if pp.name else False
 
             if lpaw:
                 # PAW potential
@@ -607,8 +602,8 @@ class OutcarArchiveWriter(ArchiveWriter):
                     pp.is_norm_conserving = True  # GW potentials have NC partial waves
                 else:
                     # Check for NC-PAW variant (rare without GW, but possible)
-                    titel = pp_data.get('titel', '').lower()
-                    if 'nc' in titel and 'paw' in titel:
+                    titel_lower = pp.name.lower() if pp.name else ''
+                    if 'nc' in titel_lower and 'paw' in titel_lower:
                         pp.type = 'NC-PAW'
                         pp.is_norm_conserving = True
                     else:
@@ -623,14 +618,14 @@ class OutcarArchiveWriter(ArchiveWriter):
                 pp.type = 'NC'
                 pp.is_norm_conserving = True
 
-            # GW optimization detection (keep for backward compatibility)
-            if '_GW' in pp_data.get('titel', ''):
+            # GW optimization detection
+            if is_gw:
                 pp.gw_optimized = True
 
             # XC functional
-            if 'lexch' in pp_data:
+            if hasattr(pp, 'lexch') and pp.lexch:
                 xc = XCFunctional()
-                lexch_code = pp_data['lexch']
+                lexch_code = pp.lexch
 
                 # Map VASP LEXCH codes to standard functional names
                 vasp_xc_map = {

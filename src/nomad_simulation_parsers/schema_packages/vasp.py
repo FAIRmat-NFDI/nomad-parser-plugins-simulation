@@ -163,6 +163,30 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
+    lpaw = Quantity(
+        type=bool,
+        description="""
+        LPAW flag from POTCAR indicating if this is a PAW pseudopotential.
+        Used internally for type determination.
+        """,
+    )
+
+    lultra = Quantity(
+        type=bool,
+        description="""
+        LULTRA flag from POTCAR indicating if this is an ultrasoft pseudopotential.
+        Used internally for type determination.
+        """,
+    )
+
+    lexch = Quantity(
+        type=str,
+        description="""
+        LEXCH code from POTCAR indicating the XC functional (e.g., 'PE' for PBE).
+        Used internally for XC functional determination.
+        """,
+    )
+
     # Mapping annotations will be added here
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
@@ -184,6 +208,9 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
     add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
+    add_mapping_annotation(lpaw, OUTCAR_KEY, '.lpaw')
+    add_mapping_annotation(lultra, OUTCAR_KEY, '.lultra')
+    add_mapping_annotation(lexch, OUTCAR_KEY, '.lexch')
 
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
