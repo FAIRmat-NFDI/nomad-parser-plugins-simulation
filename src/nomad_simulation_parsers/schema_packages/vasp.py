@@ -188,11 +188,19 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
 
     # Mapping annotations will be added here
+    # OUTCAR provides complete POTCAR metadata
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval'
+    )
+    # vasprun.xml provides basic pseudopotential info (name and valence only)
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.name, XML_KEY, '.name'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons, XML_KEY, '.n_valence_electrons'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.reference_configuration,
@@ -219,6 +227,15 @@ add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
     ('get_pseudopotentials', ['@.pseudopotentials']),
+)
+
+# XML mapping: Extract basic pseudopotential data from atomtypes array
+# Note: vasprun.xml only contains name and n_valence_electrons, not detailed
+# POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.)
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    XML_KEY,
+    ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\'].set.rc']),
 )
 
 
