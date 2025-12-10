@@ -150,6 +150,18 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
+    cutoff_target = numerical_settings.Pseudopotential.cutoff_target.m_copy()
+    cutoff_target.default = 'ENMAX'
+
+    sha256 = Quantity(
+        type=str,
+        description="""
+        SHA256 hash of the POTCAR file for unique identification.
+        This allows verification of pseudopotential provenance and ensures
+        reproducibility by confirming the exact pseudopotential file used.
+        """,
+    )
+
     # Mapping annotations will be added here
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
@@ -167,6 +179,7 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
     add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
     add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
+    add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
 
 
 class ModelSystem(model_system.ModelSystem):

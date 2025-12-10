@@ -180,6 +180,11 @@ class OutcarTextParser(TextParser):
             if lultra_match:
                 data['lultra'] = lultra_match.group(1) == 'T'
 
+            # Extract SHA256 hash
+            sha256_match = re.search(r'SHA256\s*=\s*([a-f0-9]{64})', val_in)
+            if sha256_match:
+                data['sha256'] = sha256_match.group(1)
+
             return data
 
         scf_iteration = [
@@ -585,8 +590,23 @@ class OutcarArchiveWriter(ArchiveWriter):
             # Store representative cutoff (convert eV to joules)
             if 'enmax' in pp_data:
                 pp.cutoff = pp_data['enmax'] * EV_TO_JOULE
+                pp.cutoff_target = 'ENMAX'
+
+            # SHA256 hash for unique identification
+            if 'sha256' in pp_data:
+                pp.sha256 = pp_data['sha256']
 
             # Determine type from POTCAR flags and name
+            # TODO: Double-check VASP's norm-conserving annotation logic:
+            # VASP uses LPAW and LULTRA flags in POTCAR (parsed from OUTCAR):
+            #   - LPAW=T: PAW potential
+            #     - Title contains '_GW' → NC-PAW-GW (norm-conserving)
+            #     - Title contains 'nc' and 'paw' → NC-PAW (norm-conserving)
+            #     - Otherwise → PAW (NOT norm-conserving)
+            #   - LULTRA=T: Ultrasoft (US, NOT norm-conserving)
+            #   - Both LPAW=F and LULTRA=F: Fully norm-conserving (NC)
+            # VASP does NOT have an explicit "LNORMCONS" flag - absence of both
+            # LPAW and LULTRA indicates standard norm-conserving pseudopotential.
             lpaw = pp_data.get('lpaw', False)
             lultra = pp_data.get('lultra', False)
             is_gw = '_GW' in pp_data.get('titel', '')
