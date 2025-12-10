@@ -9,7 +9,6 @@ import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
-from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import XCFunctional
@@ -186,12 +185,16 @@ class OutcarTextParser(TextParser):
                 data['sha256'] = sha256_match.group(1)
 
             # Extract LMAX (number of l-projection operators)
-            lmax_match = re.search(r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', val_in)
+            lmax_match = re.search(
+                r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', val_in
+            )
             if lmax_match:
                 data['lmax'] = int(lmax_match.group(1))
 
             # Extract LMMAX (number of lm-projection operators)
-            lmmax_match = re.search(r'number of lm-projection operators is LMMAX\s*=\s*(\d+)', val_in)
+            lmmax_match = re.search(
+                r'number of lm-projection operators is LMMAX\s*=\s*(\d+)', val_in
+            )
             if lmmax_match:
                 data['lmmax'] = int(lmmax_match.group(1))
 
@@ -502,7 +505,9 @@ class OutcarParser(MappingTextParser):
             )
         return data
 
-    def get_pseudopotentials(self, pseudopotentials: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def get_pseudopotentials(
+        self, pseudopotentials: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Filter and return non-empty pseudopotential dictionaries.
 
@@ -589,9 +594,13 @@ class OutcarArchiveWriter(ArchiveWriter):
         # Get pseudopotential data from parser (filter out empty dicts)
         # The OUTCAR parser extracts 4 POTCAR entries but the first 2 are just
         # short header lines without full data
-        raw_pseudopotentials = [pp for pp in parser_data.get('pseudopotentials', []) if pp]
+        raw_pseudopotentials = [
+            pp for pp in parser_data.get('pseudopotentials', []) if pp
+        ]
 
-        pp_index = 0  # Track actual pseudopotential index (skipping non-PP numerical_settings)
+        pp_index = (
+            0  # Track actual pseudopotential index (skipping non-PP numerical_settings)
+        )
         for pp in model_method.numerical_settings:
             # Skip non-pseudopotential numerical settings (if any exist)
             if not isinstance(pp, vasp.Pseudopotential):
@@ -603,7 +612,11 @@ class OutcarArchiveWriter(ArchiveWriter):
 
             # Get lpaw, lultra, lexch from raw parser data (not stored in schema)
             # These flags are used only to derive type and is_norm_conserving
-            raw_pp = raw_pseudopotentials[pp_index] if pp_index < len(raw_pseudopotentials) else {}
+            raw_pp = (
+                raw_pseudopotentials[pp_index]
+                if pp_index < len(raw_pseudopotentials)
+                else {}
+            )
             lpaw = raw_pp.get('lpaw', False)
             lultra = raw_pp.get('lultra', False)
             lexch = raw_pp.get('lexch')
@@ -672,15 +685,21 @@ class OutcarArchiveWriter(ArchiveWriter):
         # VASP lists pseudopotentials in POSCAR species order
         if archive_data.model_system and len(archive_data.model_system) > 0:
             model_system = archive_data.model_system[0]
-            if hasattr(model_system, 'particle_states') and model_system.particle_states:
+            if (
+                hasattr(model_system, 'particle_states')
+                and model_system.particle_states
+            ):
                 # Get only the Pseudopotential objects
                 pseudopotentials = [
-                    ns for ns in model_method.numerical_settings
+                    ns
+                    for ns in model_method.numerical_settings
                     if isinstance(ns, vasp.Pseudopotential)
                 ]
 
                 # Link each AtomsState to its corresponding Pseudopotential
-                for atoms_state, pp in zip(model_system.particle_states, pseudopotentials):
+                for atoms_state, pp in zip(
+                    model_system.particle_states, pseudopotentials
+                ):
                     atoms_state.pseudopotential = pp
 
     def write_to_archive(self) -> None:

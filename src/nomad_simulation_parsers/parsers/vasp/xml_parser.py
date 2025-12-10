@@ -69,7 +69,9 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
-    def get_pseudopotentials(self, atomtypes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def get_pseudopotentials(
+        self, atomtypes: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Extract basic pseudopotential data from vasprun.xml atomtypes array.
 
@@ -112,12 +114,16 @@ class VasprunParser(XMLParser):
             pseudopotentials.append(pp_data)
             LOGGER.debug(f'get_pseudopotentials: Added {pp_data["name"]}')
 
-        LOGGER.debug(f'get_pseudopotentials: Returning {len(pseudopotentials)} pseudopotentials')
+        LOGGER.debug(
+            f'get_pseudopotentials: Returning {len(pseudopotentials)} pseudopotentials'
+        )
         return pseudopotentials
 
 
 class XMLArchiveWriter(ArchiveWriter):
-    def _add_pseudopotentials(self, archive_data: Simulation, xml_parser: VasprunParser) -> None:
+    def _add_pseudopotentials(
+        self, archive_data: Simulation, xml_parser: VasprunParser
+    ) -> None:
         """
         Extract and add basic pseudopotential data from vasprun.xml atomtypes.
 
@@ -180,8 +186,7 @@ class XMLArchiveWriter(ArchiveWriter):
                 pp.name = c_elements[4].strip()
                 pp.n_valence_electrons = float(c_elements[3])
                 model_method.m_add_sub_section(
-                    model_method.m_def.all_sub_sections['numerical_settings'],
-                    pp
+                    model_method.m_def.all_sub_sections['numerical_settings'], pp
                 )
                 LOGGER.debug(f'Added pseudopotential: {pp.name}')
             except (IndexError, ValueError) as e:

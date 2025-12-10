@@ -193,11 +193,11 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval'
     )
     # vasprun.xml provides basic pseudopotential info (name and valence only)
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.name, XML_KEY, '.name'
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons, XML_KEY, '.n_valence_electrons'
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        XML_KEY,
+        '.n_valence_electrons',
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.reference_configuration,
