@@ -9,10 +9,10 @@ import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import XCFunctional
-from nomad_simulations.schema_packages.numerical_settings import Pseudopotential
 
 from nomad_simulation_parsers.schema_packages import vasp
 
@@ -557,44 +557,17 @@ class OutcarArchiveWriter(ArchiveWriter):
 
         model_method = archive_data.model_method[0]
 
-        # Unit conversion constants:
-        # VASP uses angstroms and eV, schema expects meters and joules
-        ANGSTROM_TO_METER = 1e-10
-        EV_TO_JOULE = 1.602176634e-19
-
-        # Create Pseudopotential instances
         for pp_data in pseudopotentials_data:
             pp = vasp.Pseudopotential()
 
-            # Basic info
-            pp.name = pp_data.get('titel', '')
+            # Use mapping annotation keys (defined in vasp.py with OUTCAR_KEY)
+            # The annotations specify unit conversion, so we pass raw values
+            pp.m_cache = {'OUTCAR_KEY': pp_data}
 
-            # Valence electrons
-            if 'zval' in pp_data:
-                pp.n_valence_electrons = pp_data['zval']
-
-            # Reference configuration
-            if 'vrhfin' in pp_data:
-                pp.reference_configuration = pp_data['vrhfin']
-
-            # Core radius (convert angstroms to meters)
-            if 'rcore' in pp_data:
-                pp.r_core = pp_data['rcore'] * ANGSTROM_TO_METER
-
-            # VASP-specific cutoffs (convert eV to joules)
+            # Fields not covered by mapping annotations:
             if 'enmax' in pp_data:
-                pp.enmax = pp_data['enmax'] * EV_TO_JOULE
-            if 'enmin' in pp_data:
-                pp.enmin = pp_data['enmin'] * EV_TO_JOULE
-
-            # Store representative cutoff (convert eV to joules)
-            if 'enmax' in pp_data:
-                pp.cutoff = pp_data['enmax'] * EV_TO_JOULE
+                pp.cutoff = pp_data['enmax'] * ureg.eV
                 pp.cutoff_target = 'ENMAX'
-
-            # SHA256 hash for unique identification
-            if 'sha256' in pp_data:
-                pp.sha256 = pp_data['sha256']
 
             # Determine type from POTCAR flags and name
             # TODO: Double-check VASP's norm-conserving annotation logic:
