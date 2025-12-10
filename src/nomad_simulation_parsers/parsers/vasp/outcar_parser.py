@@ -588,24 +588,24 @@ class OutcarArchiveWriter(ArchiveWriter):
                 # PAW potential
                 if is_gw:
                     pp.type = 'NC-PAW-GW'
-                    pp.norm_conserving = True  # GW potentials have NC partial waves
+                    pp.is_norm_conserving = True  # GW potentials have NC partial waves
                 else:
                     # Check for NC-PAW variant (rare without GW, but possible)
                     titel = pp_data.get('titel', '').lower()
                     if 'nc' in titel and 'paw' in titel:
                         pp.type = 'NC-PAW'
-                        pp.norm_conserving = True
+                        pp.is_norm_conserving = True
                     else:
                         pp.type = 'PAW'
-                        pp.norm_conserving = False
+                        pp.is_norm_conserving = False
             elif lultra:
                 # Ultrasoft (always Vanderbilt formalism)
                 pp.type = 'US'
-                pp.norm_conserving = False
+                pp.is_norm_conserving = False
             else:
                 # Fully norm-conserving (non-PAW, non-ultrasoft)
                 pp.type = 'NC'
-                pp.norm_conserving = True
+                pp.is_norm_conserving = True
 
             # GW optimization detection (keep for backward compatibility)
             if '_GW' in pp_data.get('titel', ''):
