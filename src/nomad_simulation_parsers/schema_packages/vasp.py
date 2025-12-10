@@ -163,6 +163,24 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
+    lmax = Quantity(
+        type=np.int32,
+        description="""
+        Maximum angular momentum quantum number (l) for projection operators.
+        Indicates the highest angular momentum channel included in the pseudopotential.
+        Typical values: 4-6 for transition metals, 2-4 for lighter elements.
+        """,
+    )
+
+    lmmax = Quantity(
+        type=np.int32,
+        description="""
+        Total number of lm-projection operators.
+        This is the sum over all angular momentum channels of (2l+1) for each l up to lmax.
+        Determines the completeness of the PAW reconstruction.
+        """,
+    )
+
     # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
     # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
@@ -195,6 +213,8 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
     add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
+    add_mapping_annotation(lmax, OUTCAR_KEY, '.lmax')
+    add_mapping_annotation(lmmax, OUTCAR_KEY, '.lmmax')
     # Note: lpaw, lultra, lexch are NOT mapped to schema - they're used internally
     # by the parser's _process_pseudopotentials method to derive type and is_norm_conserving
 

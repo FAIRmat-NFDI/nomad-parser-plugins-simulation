@@ -185,6 +185,16 @@ class OutcarTextParser(TextParser):
             if sha256_match:
                 data['sha256'] = sha256_match.group(1)
 
+            # Extract LMAX (number of l-projection operators)
+            lmax_match = re.search(r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', val_in)
+            if lmax_match:
+                data['lmax'] = int(lmax_match.group(1))
+
+            # Extract LMMAX (number of lm-projection operators)
+            lmmax_match = re.search(r'number of lm-projection operators is LMMAX\s*=\s*(\d+)', val_in)
+            if lmmax_match:
+                data['lmmax'] = int(lmmax_match.group(1))
+
             return data
 
         scf_iteration = [
