@@ -492,6 +492,16 @@ class OutcarParser(MappingTextParser):
             )
         return data
 
+    def get_pseudopotentials(self, pseudopotentials: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Filter and return non-empty pseudopotential dictionaries.
+
+        The OUTCAR parser extracts 4 POTCAR entries but the first 2 are just
+        short header lines without full data. This transformer filters out
+        empty dicts to return only valid pseudopotential data.
+        """
+        return [pp for pp in pseudopotentials if pp]
+
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = []
         if parameters.get('LHFCALC', False):
@@ -539,47 +549,41 @@ class OutcarArchiveWriter(ArchiveWriter):
     def _process_pseudopotentials(
         self,
         archive_data: Simulation,
-        pseudopotentials_data: list[dict[str, Any]],
-        text_parser: Any,
     ) -> None:
-        """Process POTCAR information and create Pseudopotential instances."""
-        if not pseudopotentials_data:
-            return
+        """
+        Post-process Pseudopotential instances created by mapping annotations.
 
-        # Filter out empty dicts (from short POTCAR header lines)
-        pseudopotentials_data = [pp for pp in pseudopotentials_data if pp]
-
+        This method handles complex transformations that cannot be expressed
+        in declarative mapping annotations:
+        - Type determination (PAW, NC-PAW, US, NC) from LPAW/LULTRA flags
+        - is_norm_conserving flag based on type
+        - GW optimization detection
+        - XC functional subsection creation and normalization
+        - Linking pseudopotentials to AtomsState
+        """
         # Ensure model_method exists
-        if not archive_data.model_method:
-            from nomad_simulations.schema_packages.model_method import ModelMethod
-
-            archive_data.model_method = [ModelMethod()]
+        if not archive_data.model_method or len(archive_data.model_method) == 0:
+            return
 
         model_method = archive_data.model_method[0]
 
-        for pp_data in pseudopotentials_data:
-            pp = vasp.Pseudopotential()
+        # Check if any pseudopotentials were created by mapping annotations
+        if not model_method.numerical_settings:
+            return
 
-            # Basic metadata (mapping annotations defined in vasp.py)
-            pp.name = pp_data.get('titel', '')
-            if 'zval' in pp_data:
-                pp.n_valence_electrons = pp_data['zval']
-            if 'vrhfin' in pp_data:
-                pp.reference_configuration = pp_data['vrhfin']
-            if 'rcore' in pp_data:
-                pp.r_core = pp_data['rcore'] * ureg.angstrom
+        for pp in model_method.numerical_settings:
+            # Skip non-pseudopotential numerical settings (if any exist)
+            if not isinstance(pp, vasp.Pseudopotential):
+                continue
 
-            # VASP-specific cutoffs
-            if 'enmax' in pp_data:
-                pp.enmax = pp_data['enmax'] * ureg.eV
-                pp.cutoff = pp_data['enmax'] * ureg.eV
+            # Get the corresponding pp_data to access raw parsed values
+            # The mapping annotations have already populated basic fields (name, n_valence_electrons,
+            # reference_configuration, r_core, cutoff, enmax, enmin, sha256)
+            pp_data = pp.m_cache.get(vasp.OUTCAR_KEY, {})
+
+            # Set cutoff_target (derived field not directly in source data)
+            if pp.enmax:
                 pp.cutoff_target = 'ENMAX'
-            if 'enmin' in pp_data:
-                pp.enmin = pp_data['enmin'] * ureg.eV
-
-            # SHA256 hash
-            if 'sha256' in pp_data:
-                pp.sha256 = pp_data['sha256']
 
             # Determine type from POTCAR flags and name
             # TODO: Double-check VASP's norm-conserving annotation logic:
@@ -643,21 +647,19 @@ class OutcarArchiveWriter(ArchiveWriter):
                 xc.functional_key = functional_name
                 pp.xc_functional = xc
 
-            # Add to numerical_settings
-            if not model_method.numerical_settings:
-                model_method.numerical_settings = []
-            model_method.numerical_settings.append(pp)
-
         # Link pseudopotentials to AtomsState
         # VASP lists pseudopotentials in POSCAR species order
         if archive_data.model_system and len(archive_data.model_system) > 0:
             model_system = archive_data.model_system[0]
             if hasattr(model_system, 'particle_states') and model_system.particle_states:
-                # Get the pseudopotentials we just created
-                created_pseudopotentials = model_method.numerical_settings[-len(pseudopotentials_data):]
+                # Get only the Pseudopotential objects
+                pseudopotentials = [
+                    ns for ns in model_method.numerical_settings
+                    if isinstance(ns, vasp.Pseudopotential)
+                ]
 
                 # Link each AtomsState to its corresponding Pseudopotential
-                for atoms_state, pp in zip(model_system.particle_states, created_pseudopotentials):
+                for atoms_state, pp in zip(model_system.particle_states, pseudopotentials):
                     atoms_state.pseudopotential = pp
 
     def write_to_archive(self) -> None:
@@ -672,19 +674,12 @@ class OutcarArchiveWriter(ArchiveWriter):
         source_parser.text_parser = OutcarTextParser()
         source_parser.filepath = self.mainfile
 
-        # TODO remove this for debug only
-        self.archive_data_parser = archive_data_parser
-        self.source_parser = source_parser
-
         # convert
         source_parser.convert(archive_data_parser)
 
-        # Process pseudopotentials
-        pseudopotentials_data = source_parser.text_parser.get('pseudopotentials', [])
-        if pseudopotentials_data:
-            self._process_pseudopotentials(
-                archive_data, pseudopotentials_data, source_parser.text_parser
-            )
+        # Post-process pseudopotentials created by mapping annotations
+        # This handles complex transformations (type, XC functional, linking)
+        self._process_pseudopotentials(archive_data)
 
         # assign simulation section to archive data
         self.archive.data = archive_data_parser.data_object

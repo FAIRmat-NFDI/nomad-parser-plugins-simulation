@@ -38,6 +38,7 @@ class Simulation(general.Simulation):
         '.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
+    # Note: Pseudopotential.m_def mapping added after Pseudopotential class definition
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
@@ -177,9 +178,21 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom'
     )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.cutoff, OUTCAR_KEY, '.enmax', unit='eV'
+    )
     add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
     add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
+
+
+# Pseudopotential collection mapping - must be after Pseudopotential class definition
+# to use the VASP-specific extension with enmax, enmin, sha256 fields
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    OUTCAR_KEY,
+    ('get_pseudopotentials', ['@.pseudopotentials']),
+)
 
 
 class ModelSystem(model_system.ModelSystem):
