@@ -145,7 +145,7 @@ class MDParser(ArchiveWriter):
         data: dict[str, Any],
         simulation: Simulation,
         model_system: ModelSystem = None,
-        # representation: Representation = None,
+        # representations: AlternativeRepresentation = None,
     ) -> None:
         """
         Create a system section and write the provided data.
