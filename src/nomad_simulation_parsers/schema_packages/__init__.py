@@ -72,6 +72,12 @@ gpaw_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.gpaw',
 )
 
+gromacs_schema_package = EntryPoint(
+    name='GromacsSchemaPackage',
+    description='Schema package for Gromacs.',
+    module='nomad_simulation_parsers.schema_packages.gromacs',
+)
+
 h5md_schema_package = EntryPoint(
     name='H5MDSchemaPackage',
     description='Schema package for H5MD.',
