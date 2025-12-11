@@ -23,9 +23,14 @@ from typing import Any
 import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
+
+# from runschema.method import Interaction, Model
+from nomad_simulations.schema_packages import workflow
 from nomad_simulations.schema_packages.atoms_state import ParticleState
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.model_system import (
+    ModelSystem,
+)
 
 # nomad-simulations
 from nomad_simulations.schema_packages.outputs import (
@@ -37,9 +42,6 @@ from nomad_simulations.schema_packages.properties.energies import BaseEnergy
 from nomad_simulations.schema_packages.properties.forces import BaseForce
 
 # from runschema.method import Interaction, Model
-from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
-    MolecularDynamics,
-)
 
 
 class MDParser(ArchiveWriter):
@@ -152,9 +154,9 @@ class MDParser(ArchiveWriter):
         """
         if simulation is None:
             return
-
         if (step := data.get('step')) is not None and step not in self.trajectory_steps:
             return
+
         if model_system is None:
             model_system = ModelSystem()
 
@@ -230,7 +232,7 @@ class MDParser(ArchiveWriter):
         if self.archive is None:
             return
 
-        sec_workflow = MolecularDynamics()
+        sec_workflow = workflow.MolecularDynamics()
         self.parse_section(data, sec_workflow)
         self.archive.workflow2 = sec_workflow
 

@@ -5,6 +5,8 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.model_method import ModelMethod
+from nomad_simulations.schema_packages.model_system import ModelSystem
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
@@ -35,7 +37,28 @@ class LammpsArchiveWriter(MDParser):
         return value
 
     def parse_method(self, simulation: Simulation) -> None:
-        # TODO: replace with counterparts from nomad_simulations!
+        """
+        Parse method information from data file and log file.
+
+        TODO: Migrate from legacy parser
+        - Still extract and set masses and charges on AtomParameters, or deprecated?
+        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
+          bond_coeffs, angle_coeffs, etc.) using MDAnalysis
+        - Set ForceField with Model containing interactions
+        - Parse force calculation parameters:
+          * pair_style: extract vdw_cutoff, coulomb_cutoff
+          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh,
+            multilevel_summation)
+        - Parse neighbor searching parameters:
+          * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
+          * neigh_modify: extract neighbor_update_frequency from 'every' parameter
+
+        Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Use nomad_simulations schemas instead of runschema
+        - Adapt to new ModelSystem structure
+        - Integrate with existing masses extraction (lines 47-57)
+        """
 
         if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
@@ -43,60 +66,99 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        masses = self._data_parser.get('Masses', None)
-        self.traj_parsers[0].masses = masses
+        method = ModelMethod()
+        # force_field = ForceField()
+
+        masses_data = self._data_parser.get('Masses', None)
+        # Extract array from DataParser format: [(None, np.ndarray)]
+        if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
+            masses = (
+                masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
+            )
+        else:
+            masses = None
+
+        # Set masses on all trajectory parsers since eval() can return from any parser
+        for parser in self.traj_parsers._parsers:
+            if isinstance(parser, TrajParser):
+                parser.masses = masses
 
         # TODO: find best place for first attempt to set _bond_list
-        # Extract bond list from MDAnalysis universe
-        self._bond_list = [
-            tuple(interaction['atom_indices'])
-            for interaction in self._mdanalysistraj_parser.get_interactions()
-            if interaction['type'] == 'bond'
-        ]
+        # Extract bond list from MDAnalysis universe if available
+        if (
+            self._mdanalysistraj_parser.mainfile is not None
+            and self._mdanalysistraj_parser.universe is not None
+        ):
+            self._bond_list = [
+                tuple(interaction['atom_indices'])
+                for interaction in self._mdanalysistraj_parser.get_interactions()
+                if interaction['type'] == 'bond'
+            ]
+        else:
+            self._bond_list = None
 
-    def parse_system(self, simulation: Simulation) -> None:
+        simulation.model_method.append(method)
+
+    def _validate_trajectory_data(self) -> bool:
+        """Validate that trajectory data is available and extract basic info."""
         n_traj = self.traj_parsers.eval('n_frames')
         if n_traj is None:
-            return
+            return False
+
         self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
         self.trajectory_steps = [
             step
             for n in range(n_traj)
             if (step := self.traj_parsers.eval('get_step', n)) is not None
         ]
+        return True
+
+    def _parse_trajectory_frames(self, simulation: Simulation) -> None:
+        """Parse all trajectory frames and create model systems."""
+
+        def _get_quantity_with_units(
+            traj_n: int, quantity: str, unit: str
+        ) -> np.ndarray | None:
+            """Get lattice vectors, velocities with units applied."""
+            data = self.traj_parsers.eval(f'get_{quantity}', traj_n)
+            if data is not None:
+                return self.apply_unit(data, unit)
+            return None
+
+        def _extract_bond_list() -> None:
+            """Extract bond list from data parser if not already set."""
+            if self._bond_list is not None:
+                return
+
+            bonds = self._data_parser.get('Bonds', None)
+            if bonds is None or bonds[0][1].size == 0:
+                self._bond_list = None
+            else:
+                # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
+                self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
 
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
-            lattice_vectors = self.traj_parsers.eval('get_lattice_vectors', traj_n)
-            if lattice_vectors is not None:
-                lattice_vectors = self.apply_unit(lattice_vectors, 'distance')
-            velocities = self.traj_parsers.eval('get_velocities', traj_n)
-            if velocities is not None:
-                velocities = self.apply_unit(velocities, 'velocity')
-            if traj_n == 0:  # TODO add references to the bond list for other steps
-                # TODO: update get_bond_list_from_model_contributions,
-                # TODO: maybe move to MDParserUtils?
-                # bond_list = get_bond_list_from_model_contributions(
-                #     sec_run, method_index=-1, model_index=-1
-                # )
-                if self._bond_list is None:
-                    # Convert bond list returned by data parser from
-                    # List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
-                    bonds = self._data_parser.get('Bonds', None)
-                    if bonds is None or bonds[0][1].size == 0:
-                        self._bond_list = None
-                    else:
-                        self._bond_list = list(
-                            map(tuple, bonds[0][1][:, 2:4].astype(int))
-                        )
-            # Set the structure of the data dictionary according to ModelSystem
+
+            # Extract and apply units to trajectory data
+            lattice_vectors = _get_quantity_with_units(
+                traj_n, 'lattice_vectors', 'distance'
+            )
+            velocities = _get_quantity_with_units(traj_n, 'velocities', 'velocity')
+            # The 'dimension' command "must be used" to specify 2D simulations (https://docs.lammps.org/Howto_2d.html).
+            # LAMMPS default is 3D.
+            dimension = self._log_parser.get('dimension', 3)
+
+            # Extract bond list for first frame only
+            # TODO: add link to this in other frames
+            if traj_n == 0:
+                _extract_bond_list()
+
             particles_dict = {
-                'cell': {
-                    'lattice_vectors': lattice_vectors,
-                    'periodic_boundary_conditions': self.traj_parsers.eval(
-                        'get_pbc', traj_n
-                    ),
-                },
+                'lattice_vectors': lattice_vectors,
+                'periodic_boundary_conditions': self.traj_parsers.eval(
+                    'get_pbc', traj_n
+                ),
                 'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
                 'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
                 'positions': self.apply_unit(
@@ -104,39 +166,289 @@ class LammpsArchiveWriter(MDParser):
                 ),
                 'velocities': velocities,
                 'bond_list': self._bond_list if self._bond_list else None,
+                'dimensions': dimension,
             }
             self.parse_trajectory_step(particles_dict, simulation)
 
-        # parse atomsgroup (moltypes --> molecules --> residues)
-        # Only information from first frame is used to date
-        first_frame = 0
-        atoms_info = self._mdanalysistraj_parser.get('atoms_info', None)
-        if atoms_info is None:
-            atoms_info = self.traj_parsers.eval('atoms_info')
-            if isinstance(atoms_info, list):
-                atoms_info = (
-                    atoms_info[first_frame] if atoms_info else None
-                )  # using info from the initial frame
-        if atoms_info is not None:
-            # atoms_moltypes = np.array(atoms_info.get('moltypes', []))
-            # atoms_molnums = np.array(atoms_info.get('molnums', []))
-            # atoms_resids = np.array(atoms_info.get('resids', []))
-            atoms_elements = np.array(
-                atoms_info.get('elements', ['CGX'] * self.n_atoms)
+    def _create_system_node(
+        self, name: str | int, branch_label: str, particle_indices: np.ndarray, **kwargs
+    ) -> ModelSystem:
+        """
+        Create a ModelSystem node with common setup.
+
+        Args:
+            name: System name
+            branch_label: Hierarchy level label
+            particle_indices: Indices of particles in this system
+            **kwargs: Additional attributes: composition_formula, is_representative, ...
+        """
+        system = ModelSystem()
+        system.name = str(name)
+        system.branch_label = branch_label
+        system.particle_indices = particle_indices
+
+        # Set any additional attributes
+        for key, value in kwargs.items():
+            setattr(system, key, value)
+
+        return system
+
+    def _create_molecule(
+        self, molecule: int, i_molecule: int, particle_arrays: dict
+    ) -> ModelSystem:
+        """Create a single molecule with its residues."""
+
+        def _create_residue(
+            res_id: int,
+            restype: str,
+            parent_system: ModelSystem,
+            particle_arrays: dict,
+        ) -> ModelSystem:
+            """Create a single residue."""
+            particle_indices = np.where(particle_arrays['resids'] == res_id)[0]
+            particle_indices = np.intersect1d(
+                particle_indices, parent_system.particle_indices
             )
-            atoms_types = np.array(atoms_info.get('types', []))
-            atom_labels = [
-                particle_state.label
-                for particle_state in simulation.model_system[
-                    first_frame
-                ].particle_states
-            ]
-            if 'CGX' in atoms_elements:
-                atoms_elements = (
-                    np.array(atom_labels)
-                    if atom_labels and 'CGX' not in atom_labels
-                    else atoms_types
+
+            return self._create_system_node(
+                name=restype,
+                branch_label='monomer',
+                particle_indices=particle_indices,
+            )
+
+        def _create_monomer_group(
+            restype: str, parent_system: ModelSystem, particle_arrays: dict
+        ) -> ModelSystem:
+            """Create a monomer group with its constituent residues."""
+
+            restype_indices = np.where(particle_arrays['resnames'] == restype)[0]
+            particle_indices = np.intersect1d(
+                restype_indices, parent_system.particle_indices
+            )
+
+            monomer_group = self._create_system_node(
+                name=f'group_{restype}',
+                branch_label='monomer_group',
+                particle_indices=particle_indices,
+            )
+
+            # Add individual residues
+            restype_resids = np.unique(
+                particle_arrays['resids'][monomer_group.particle_indices]
+            )
+            for res_id in restype_resids:
+                residue = _create_residue(
+                    res_id, restype, monomer_group, particle_arrays
                 )
+                monomer_group.sub_systems.append(residue)
+
+            return monomer_group
+
+        def _add_residue_hierarchy(
+            sec_molecule: ModelSystem, particle_arrays: dict
+        ) -> None:
+            """Add residue/monomer hierarchy to a molecule."""
+            mol_resnames = particle_arrays['resnames'][sec_molecule.particle_indices]
+            restypes = np.unique(mol_resnames)
+
+            for restype in restypes:
+                sec_monomer_group = _create_monomer_group(
+                    restype, sec_molecule, particle_arrays
+                )
+                sec_molecule.sub_systems.append(sec_monomer_group)
+
+        particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
+
+        mol_system = self._create_system_node(
+            name=molecule,
+            branch_label='molecule',
+            particle_indices=particle_indices,
+        )
+
+        # Check if molecule has multiple residues
+        mol_resids = np.unique(particle_arrays['resids'][mol_system.particle_indices])
+        if len(mol_resids) > 1:
+            _add_residue_hierarchy(mol_system, particle_arrays)
+
+        return mol_system
+
+    def _parse_molecular_hierarchy(self, simulation: Simulation) -> None:
+        """Parse molecular hierarchy (molecule groups, molecules, residues)."""
+
+        def _get_particles_info() -> dict | None:
+            """Get particle information from the first frame."""
+            first_frame = 0
+            particles_info = self._mdanalysistraj_parser.get('atoms_info', None)
+
+            if particles_info is None:
+                particles_info = self.traj_parsers.eval('atoms_info')
+                if isinstance(particles_info, list):
+                    particles_info = (
+                        particles_info[first_frame]
+                        if len(particles_info) > first_frame
+                        else None
+                    )
+
+            return particles_info
+
+        def _extract_particle_arrays(
+            particles_info: dict, simulation: Simulation
+        ) -> dict:
+            """Extract and process particle information arrays."""
+            first_frame = 0
+
+            particle_labels = [
+                ps.label for ps in simulation.model_system[first_frame].particle_states
+            ]
+
+            particles_elements = np.array(
+                particles_info.get('elements', ['CGX'] * self.n_atoms)
+            )
+            particles_types = np.array(particles_info.get('types', []))
+
+            # Replace CGX placeholder elements if better labels available
+            if 'CGX' in particles_elements:
+                if particle_labels and 'CGX' not in particle_labels:
+                    particles_elements = np.array(particle_labels)
+                else:
+                    particles_elements = particles_types
+
+            return {
+                'moltypes': np.array(particles_info.get('moltypes', [])),
+                'molnums': np.array(particles_info.get('molnums', [])),
+                'resids': np.array(particles_info.get('resids', [])),
+                'resnames': np.array(particles_info.get('resnames', [])),
+                'elements': particles_elements,
+                'types': particles_types,
+            }
+
+        def _create_molecule_group(moltype: str, particle_arrays: dict) -> ModelSystem:
+            """Create a molecule group with its constituent molecules."""
+            particle_indices = np.where(particle_arrays['moltypes'] == moltype)[0]
+
+            # Calculate composition formula
+            mol_nums = particle_arrays['molnums'][particle_indices]
+            moltype_count = np.unique(mol_nums).shape[0]
+
+            molecule_group = self._create_system_node(
+                name=f'group_{moltype}',
+                branch_label='molecule_group',
+                particle_indices=particle_indices,
+                composition_formula=f'{moltype}({moltype_count})',
+            )
+
+            # Add individual molecules
+            molecules = particle_arrays['molnums']
+            for i_molecule, molecule in enumerate(
+                np.unique(molecules[molecule_group.particle_indices])
+            ):
+                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+                molecule_group.sub_systems.append(mol)
+
+            return molecule_group
+
+        particles_info = _get_particles_info()
+        if particles_info is None:
+            return
+        particle_arrays = _extract_particle_arrays(particles_info, simulation)
+
+        # Build molecular hierarchy
+        moltypes = np.unique(particle_arrays['moltypes'])
+        for moltype in moltypes:
+            molecule_group = _create_molecule_group(moltype, particle_arrays)
+            simulation.model_system[0].sub_systems.append(molecule_group)
+
+    def parse_system(self, simulation):
+        """Parse system information from trajectory and create model systems."""
+        # Validate and prepare trajectory data
+        if not self._validate_trajectory_data():
+            return
+
+        # Parse trajectory frames (dimension, positions, velocities, cell)
+        self._parse_trajectory_frames(simulation)
+
+        # Parse molecular hierarchy (molecule groups, molecules, residues)
+        self._parse_molecular_hierarchy(simulation)
+
+        # Mark the last (minimized/equilibrated) configuration as is_representative
+        if simulation.model_system:
+            simulation.model_system[-1].is_representative = True
+
+    def parse_input(self, simulation: Simulation) -> None:
+        """
+        Parse input/control parameters from log file.
+
+        TODO: Migrate from legacy parser
+        - Extract input/output file information:
+          * Data file basename
+          * Trajectory file basename
+        - Parse control parameters from log file commands
+        - Map LAMMPS commands to x_lammps_inout_control_* attributes
+        - Store in custom section x_lammps_section_control_parameters
+
+        Legacy implementation: lines 1625-1650 in
+        atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Determine if custom x_lammps sections should be migrated or dropped
+        - Consider storing control parameters in standard schema if applicable
+        - Update file path handling to use self._data_parser, self.traj_parsers
+        """
+        pass
+
+    def parse_thermodynamic_data(self, simulation: Simulation) -> None:
+        """
+        Parse thermodynamic output data from log file.
+
+        TODO: Migrate from legacy parser
+        - Extract thermodynamic data from log file or aux log file
+        - Map thermodynamic quantities to TrajectoryOutputs:
+          * Step number and physical time (step * timestep)
+          * Energy contributions (kinetic, potential, pair, bond, angle, etc.)
+          * Total energy (TotEng)
+          * Pressure and temperature
+          * Forces (if available in trajectory)
+          * Calculation time (CPU)
+        - Create TrajectoryOutputs for each thermodynamic step
+        - Link outputs to corresponding model_system via model_system_ref
+
+        Legacy implementation: lines 971-1036 in atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Use nomad_simulations TrajectoryOutputs instead of Calculation
+        - Map energy types using self._energy_mapping
+        - Coordinate with parse_output_step in mdparserutils.py (lines 186-238)
+        - Extract timestep from log file (get_time_step method)
+        - Match thermodynamics_steps with trajectory_steps
+        """
+        pass
+
+    def parse_workflow(self, simulation: Simulation) -> None:
+        """
+        Parse workflow information for geometry optimization runs.
+
+        TODO: Migrate from legacy parser
+        - Detect minimization runs from log file (minimization_stats)
+        - Create GeometryOptimization workflow:
+          * Extract minimization method (cg, hftn, sd, quickmin, fire, spin)
+          * Map to standard method names (polak_ribiere_conjugant_gradient,
+            hessian_free_truncated_newton, steepest_descent, damped_dynamics)
+          * Parse optimization parameters (max steps, force convergence)
+        - Extract optimization results:
+          * Final energy difference
+          * Final force maximum
+        - Parse minimize/minimize/kk parameters:
+          * optimization_steps_maximum
+          * convergence_tolerance_force_maximum
+        - Handle unit conversions using self._log_parser.units
+
+        Legacy implementation: lines 1037-1120 in
+        atomisticparsers/lammps/parser.py
+        Key changes needed:
+        - Determine which simulation workflow schema to use from nomad_simulations
+        - Check if GeometryOptimization is available in nomad_simulations
+        - Adapt to simulation.workflow structure if different from sec_run.workflow
+        - Update unit conversion to use apply_unit method
+        """
+        pass
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
@@ -199,7 +511,7 @@ class LammpsArchiveWriter(MDParser):
 
         # TODO: Handling of file_type = 'atom' is a LB edit, test
         def _create_custom_parser(
-            traj_file: str, index: int, file_type: str, data_file: str
+            traj_file: str, index: int, data_file: str, file_type: str
         ) -> TrajParser | MDAnalysisParser:
             """Create parser for custom or atom LAMMPS dump formats."""
             custom_options = None
@@ -282,13 +594,9 @@ class LammpsArchiveWriter(MDParser):
         self.parse_system(self.archive.data)
 
         # TODO: uncomment when implemented
-        # # include input controls from log file
-        # self.parse_input()
-
-        # # parse thermodynamic data from log file
-        # self.parse_thermodynamic_data()
-
-        # self.parse_workflow()
+        # self.parse_input(self.archive.data)
+        # self.parse_thermodynamic_data(self.archive.data)
+        # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
