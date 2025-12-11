@@ -105,7 +105,7 @@ class TrajParser(TextParser):
     # TODO: handle non-atomistic representations
     @masses.setter
     def masses(self, val: Any) -> None:
-        if not val:
+        if val is None:
             return
         if not isinstance(val, np.ndarray):
             try:
@@ -133,16 +133,19 @@ class TrajParser(TextParser):
     # TODO: Inspect other parsers for consistent default return type
     def get_atom_labels(self, idx: int) -> list[str] | list:
         atoms_info = self.get('atoms_info')
-        if atoms_info is None:
-            return  # TODO: should this return [] for consistency?
-        atoms_info = atoms_info.get(idx)
+        try:
+            atoms_info = atoms_info[idx]
+        except (TypeError, IndexError, AttributeError):
+            return []
 
         atoms_id = atoms_info.get('id')
         default = ['CGX' for _ in atoms_id] if atoms_id is not None else []
         atoms_type = atoms_info.get('type')
+
         if atoms_type is None:
             return default
-        if self._chemical_symbols is None:
+        # Access property to trigger lazy computation from masses
+        if self.chemical_symbols is None:
             return default
 
         atom_labels = [self._chemical_symbols[atype] for atype in atoms_type]
@@ -301,6 +304,7 @@ class TrajParsers:
         self, parsers: list[TrajParser | XYZTrajParser | MDAnalysisParser]
     ) -> None:
         self._parsers = parsers
+        self.logger = parsers[0].logger if parsers else None
         for parser in parsers:
             parser.parse()
 

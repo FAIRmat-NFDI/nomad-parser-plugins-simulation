@@ -24,15 +24,9 @@ from io import BytesIO, StringIO
 
 import numpy as np
 import pytest
+from nomad.client import normalize_all
+from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
-
-# Check if MDAnalysis is available
-try:
-    import MDAnalysis  # noqa: F401
-
-    HAS_MDANALYSIS = True
-except ImportError:
-    HAS_MDANALYSIS = False
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
@@ -584,8 +578,96 @@ Atoms. Timestep: 400
         os.unlink(temp_file)
 
 
+def test_systems(parser) -> None:
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
+        archive,
+        LOGGER,
+    )
+    # Add placeholder metadata to suppress normalizer error
+    archive.metadata = EntryMetadata()
+    normalize_all(archive, logger=LOGGER)
+    sec_systems = archive.data.model_system
+    assert len(sec_systems) == 4
+    assert np.shape(sec_systems[0].positions) == (1134, 3)
+    # TODO: Atomic test data does not have velocities, update testing!
+    # assert np.shape(sec_systems[0].velocities) == (1134, 3)
+    assert sec_systems[0].n_particles == 1134
+    assert sec_systems[0].particle_states[100].chemical_symbol == 'H'
+    assert sec_systems[0].particle_states[100].label == 'H'
+
+    assert sec_systems[2].positions[567][1].to('angstrom').magnitude == pytest.approx(
+        -5.88475
+    )
+    # assert sec_systems[idx].velocities[idx][idx].to(
+    #     'angstrom/ps'
+    # ).magnitude == pytest.approx(target_float)
+    assert sec_systems[3].lattice_vectors[2][2].to(
+        'angstrom'
+    ).magnitude == pytest.approx(21.468)
+    assert sec_systems[3].periodic_boundary_conditions == [
+        True,
+        True,
+        True,
+    ]
+    assert (
+        np.testing.assert_array_equal(
+            sec_systems[0].bond_list[200], np.array([189, 192])
+        )
+        is None
+    )
+    assert sec_systems[0].dimensionality == 3
+    assert sec_systems[0].is_molecule() is False
+
+
+def test_systems_velocities(parser):
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_xyz_files/log.lammps',
+        archive,
+        LOGGER,
+    )
+    normalize_all(archive, logger=LOGGER)
+    sec_systems = archive.data.model_system
+    assert np.shape(sec_systems[0].velocities) == (500, 3)
+    assert sec_systems[100].velocities[250][2].to(
+        'angstrom/ps'
+    ).magnitude == pytest.approx(0.0256726)
+
+
+# TODO: Needs to be tested with more complex system!
+def test_system_hierarchy(parser) -> None:
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
+        archive,
+        LOGGER,
+    )
+    normalize_all(archive, logger=LOGGER)
+    sec_particles_group = archive.data.model_system[0].sub_systems
+    assert len(sec_particles_group) == 1
+    assert sec_particles_group[0].particle_states == []
+    # TODO comment back in once nested fix is in release
+    # assert sec_particles_group[0].cell == []
+    assert sec_particles_group[0].name == 'group_0'
+    assert sec_particles_group[0].branch_label == 'molecule_group'
+    assert sec_particles_group[0].composition_formula == '0(54)'
+    # ! Particle index is wrong when parsing 1_xyz LJ system!
+    assert sec_particles_group[0].particle_indices[13] == 13
+    # ? Should this or shouldn't this be recognized as a molecule?
+    assert sec_particles_group[0].is_molecule() is False
+
+    sec_monomers = sec_particles_group[0].sub_systems
+    assert len(sec_monomers) == 54
+    assert sec_monomers[0].name == '0'
+    assert sec_monomers[0].branch_label == 'molecule'
+    assert sec_monomers[0].composition_formula == 'C(11)H(10)'
+    assert sec_monomers[0].particle_indices[20] == 20
+    assert sec_monomers[0].is_molecule() is True
+
+
 # Tests for: LammpsArchiveWriter, LammpsParser (integration tests)
-@pytest.mark.skipif(not HAS_MDANALYSIS, reason='MDAnalysis not installed')
 def test_traj_dcd():
     dcd_parser = MDAnalysisParser(topology_format='DATA', format='DCD')
     dcd_parser.mainfile = 'tests/data/lammps/methane_dcd/data.64xmethane_from_restart'
