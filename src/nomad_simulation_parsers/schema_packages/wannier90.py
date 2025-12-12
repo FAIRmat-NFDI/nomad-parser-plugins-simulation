@@ -21,14 +21,14 @@ class Program(general.Program):
     )
 
 
-class OrbitalsState(atoms_state.OrbitalsState):
-    atoms_state.OrbitalsState.l_quantum_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.l')))
+# class OrbitalsState(atoms_state.OrbitalsState):
+#     atoms_state.OrbitalsState.l_quantum_symbol.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(win=Mapper(mapper='.l')))
 
-    atoms_state.OrbitalsState.ml_quantum_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper='.m')))
+#     atoms_state.OrbitalsState.ml_quantum_symbol.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(win=Mapper(mapper='.m')))
 
 
 class AtomsState(model_system.AtomsState):
@@ -36,9 +36,9 @@ class AtomsState(model_system.AtomsState):
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(wout=Mapper(mapper='.@')))
 
-    model_system.AtomsState.orbitals_state.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(win=Mapper(mapper=('get_orbitals_state', ['.projection[1]']))))
+    # model_system.AtomsState.orbitals_state.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(win=Mapper(mapper=('get_orbitals_state', ['.projection[1]']))))
 
 
 class AtomicCell(model_system.AtomicCell):
@@ -183,9 +183,9 @@ class Wannier(model_method.Wannier):
 
 
 class ElectronicBandStructure(properties.ElectronicBandStructure):
-    properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(wout=Mapper(mapper='.Nwannier')))
+    # properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(wout=Mapper(mapper='.Nwannier')))
 
     properties.ElectronicBandStructure.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}

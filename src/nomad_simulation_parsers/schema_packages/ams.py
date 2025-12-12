@@ -41,31 +41,31 @@ class ModelSystem(model_system.ModelSystem):
     ).update(dict(out=Mapper(mapper='.lattice_vectors')))
 
 
-class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.@')))
 
 
-class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper=('get_xc_functionals', ['.model_parameters.dft_potential'])
-            )
-        )
-    )
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             out=Mapper(
+#                 mapper=('get_xc_functionals', ['.model_parameters.dft_potential'])
+#             )
+#         )
+#     )
 
 
-class TotalEnergy(outputs.TotalEnergy):
-    outputs.TotalEnergy.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .energy_total')))
-    outputs.TotalEnergy.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.value || .energy_total')))
+#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
 
 
 class TotalForce(outputs.TotalForce):
@@ -86,10 +86,10 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     ).update(dict(out=Mapper(mapper='.occupations')))
 
 
-class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+# class Outputs(outputs.Outputs):
+#     outputs.Outputs.total_energies.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.@')))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@')))

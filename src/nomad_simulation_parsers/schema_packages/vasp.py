@@ -89,46 +89,46 @@ class Program(general.Program):
     )
 
 
-class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
-            ),
-            outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
-        )
-    )
-    model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                mapper=(
-                    'mix_alpha',
-                    [
-                        '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-                        '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-                    ],
-                )
-            )
-        )
-    )  # TODO convert vasp bool
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             xml=MapperAnnotation(
+#                 mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
+#             ),
+#             outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
+#         )
+#     )
+#     model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             xml=MapperAnnotation(
+#                 mapper=(
+#                     'mix_alpha',
+#                     [
+#                         '.i[?"@name"==\'HFALPHA\'] | [0].__value',
+#                         '.i[?"@name"==\'LHFCALC\'] | [0].__value',
+#                     ],
+#                 )
+#             )
+#         )
+#     )  # TODO convert vasp bool
 
 
-class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(
-                # TODO add LDA & mGGA, convert_xc
-                mapper='.i[?"@name"==\'GGA\'] | [0].__value'
-            ),
-            outcar=MapperAnnotation(mapper='.name'),
-        )
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             xml=MapperAnnotation(
+#                 # TODO add LDA & mGGA, convert_xc
+#                 mapper='.i[?"@name"==\'GGA\'] | [0].__value'
+#             ),
+#             outcar=MapperAnnotation(mapper='.name'),
+#         )
+#     )
 
 
 class ModelMethod(model_method.ModelMethod):
@@ -331,15 +331,15 @@ class TotalForce(properties.forces.TotalForce):
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            xml=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
-            outcar=MapperAnnotation(mapper='.n_bands'),
-        )
-    )
+    # outputs.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(
+    #     dict(
+    #         xml=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
+    #         xml2=MapperAnnotation(mapper='length(.array.set.set.set[0].r)'),
+    #         outcar=MapperAnnotation(mapper='.n_bands'),
+    #     )
+    # )
 
     # TODO This only works for non-spin pol
     outputs.ElectronicEigenvalues.occupation.m_annotations.setdefault(

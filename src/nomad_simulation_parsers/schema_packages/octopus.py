@@ -17,16 +17,16 @@ class Program(general.Program):
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.@')))
 
 
-class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.theory_level']))))
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.theory_level']))))
 
 
 class ModelSystem(model_system.ModelSystem):

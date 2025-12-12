@@ -47,22 +47,22 @@ class ModelSystem(model_system.ModelSystem):
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.name')
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper='.name')
+#     )
 
 
-class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper=('get_xc_functionals', ['.@']))
-    )
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper=('get_xc_functionals', ['.@']))
+#     )
 
 
-class TotalEnergy(outputs.TotalEnergy):
-    outputs.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.energy')
-    )
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper='.energy')
+#     )
 
 
 class TotalForces(outputs.TotalForce):
@@ -78,9 +78,9 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.@')
-    )
+    # outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    #     out=Mapper(mapper='.@')
+    # )
     outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
         out=Mapper(mapper='.@')
     )

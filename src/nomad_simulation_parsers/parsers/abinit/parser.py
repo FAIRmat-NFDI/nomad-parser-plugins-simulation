@@ -19,7 +19,7 @@ from nomad_simulations.schema_packages.workflow import (
 )
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
-    GeometryOptimizationModel,
+    GeometryOptimizationMethod,
 )
 from structlog.stdlib import BoundLogger
 
@@ -636,7 +636,7 @@ class AbinitArchiveWriter(ArchiveWriter):
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             self.archive.workflow2 = GeometryOptimization(
-                model=GeometryOptimizationModel()
+                model=GeometryOptimizationMethod()
             )
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             self.archive.workflow2 = MolecularDynamics()

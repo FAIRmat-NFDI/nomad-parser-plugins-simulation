@@ -102,16 +102,16 @@ class Program(general.Program):
     )
 
 
-class DFT(model_method.DFT):
-    model_method.DFT.xc_functionals.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
 
 
-class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.name')))
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper='.name')))
 
 
 class GW(model_method.GW):
@@ -145,9 +145,9 @@ class AtomsState(model_system.AtomsState):
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
+    # outputs.Outputs.total_energies.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
@@ -200,9 +200,9 @@ class TotalForce(properties.forces.TotalForce):
 
 
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.nbands')))
+    # properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(text=Mapper(mapper='.nbands')))
     properties.ElectronicEigenvalues.value.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper='.eigenvalues')))
@@ -256,16 +256,16 @@ workflow.molecular_dynamics.MolecularDynamics.m_def.m_annotations.setdefault(
 
 
 class MolecularDynamics(workflow.MolecularDynamics):
-    workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.@')))
+    # workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(md_workflow=Mapper(mapper='.@')))
     workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
 
 
 class GeometryOptimization(workflow.GeometryOptimization):
-    workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
     workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
@@ -273,34 +273,34 @@ class GeometryOptimization(workflow.GeometryOptimization):
     ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 
 
-class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
-class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
-    workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
-    workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
+# class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
+#     workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
+#     workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
 
 
-class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-    workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            md_workflow=Mapper(
-                mapper='molecular_dynamics[*].md_calculation_info.'
-                '"Temperature (nuclei)"'
-            )
-        )
-    )
+# class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
+#     workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             md_workflow=Mapper(
+#                 mapper='molecular_dynamics[*].md_calculation_info.'
+#                 '"Temperature (nuclei)"'
+#             )
+#         )
+#     )
 
 
 try:
