@@ -34,7 +34,6 @@ license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
-    "parse-patrol[all]@git+https://github.com/ndaelman-hu/parse-patrol.git@ase-parser-copy",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
 ]
@@ -45,6 +44,7 @@ Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 [project.optional-dependencies]
 md = [
     "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "nomad-simulations[md]",
     "MDAnalysis>=2.4.0",
 ]
 dev = ["ruff", "pytest", "structlog"]
