@@ -12,10 +12,10 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 # TODO Implement for new model
-"""class GeometryOptimizationModel(
-    workflow.geometry_optimization.GeometryOptimizationModel
+"""class GeometryOptimizationMethod(
+    workflow.geometry_optimization.GeometryOptimizationMethod
 ):
-    workflow.geometry_optimization.GeometryOptimizationModel.convergence_tolerance_energy_difference.m_annotations.setdefault(
+    workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
@@ -29,32 +29,37 @@ m_package = SchemaPackage()
             )
         )
     )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
-        unit='hartree',
-    )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
-        unit='hartree/bohr',
+    workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            out=Mapper(
+                mapper=(
+                    'get_input_var',
+                    [],
+                    dict(name='tolmxf', n_dataset=1, default=0.0),
+                ),
+                unit='hartree/bohr',
+            )
+        )
     )
 """
 
 # Geometry Optimization
 
-add_mapping_annotation(
-    workflow.geometry_optimization.GeometryOptimizationMethod.m_def, OUT_KEY, '@'
-)
-add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
+workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(out=Mapper(mapper='@')))
 
-workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+workflow.GeometryOptimization.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(out=Mapper(mapper='@')))
+
+workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
 
-workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
+workflow.geometry_optimization.GeometryOptimizationMethod.convergence.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper=('get_geometry_convergence', []))))
 
@@ -70,13 +75,9 @@ workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefau
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.threshold_type')))
 
-workflow.general.WorkflowConvergenceTarget.convergence_threshold_unit.m_annotations.setdefault(
+workflow.general.WorkflowConvergenceTarget.threshold_unit.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.convergence_threshold_unit')))
-
-workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.is_reached')))
 
 
 class Program(general.Program):
@@ -115,24 +116,28 @@ class XCComponent(model_method.XCComponent):
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', [])
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.XC_functional_name')))
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', []))))
 
 
-class TotalEnergy(outputs.TotalEnergy):
-    add_mapping_annotation(
-        outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total'
-    )
-    add_mapping_annotation(outputs.TotalEnergy.name, OUT_KEY, '.name')
-    add_mapping_annotation(
-        outputs.TotalEnergy.contributions, OUT_KEY, ('get_energy_contributions', ['.@'])
-    )
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.value || .energy_total')))
+#     outputs.TotalEnergy.name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.name')))
+#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_energy_contributions', ['.@']))))
 
 
 class TotalForce(outputs.TotalForce):
@@ -151,17 +156,25 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
     )
 
 
-class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        OUT_KEY,
-        ('get_bandstructures', ['.eigenvalues', '.occupation_numbers']),
-    )
+# class Outputs(outputs.Outputs):
+#     outputs.Outputs.total_energies.m_annotations.setdefault(
+        # MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(out=Mapper(mapper='.@')))
+    # outputs.Outputs.total_forces.m_annotations.setdefault(
+        # MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(out=Mapper(mapper='.@')))
+    # outputs.Outputs.electronic_dos.m_annotations.setdefault(
+        # MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(dos=Mapper(mapper=('get_dos', ['.data']))))
+    # outputs.Outputs.electronic_band_structures.m_annotations.setdefault(
+        # MAPPING_ANNOTATION_KEY, {}
+    # ).update(
+        # dict(
+            # out=Mapper(
+                # mapper=('get_bandstructures', ['.eigenvalues', '.occupation_numbers'])
+            # )
+        # )
+    # )
 
 
 class Simulation(general.Simulation):

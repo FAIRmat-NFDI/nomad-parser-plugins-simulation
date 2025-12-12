@@ -14,9 +14,6 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-#TODO Bring back the function that sets these annotations. Implement it as a class with a call method to be able to set defaults.  # noqa: E501
-
-
 # simulation
 general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper='@'),
@@ -29,39 +26,40 @@ general.Simulation.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
 
 # geometry optimization
 
-workflow.geometry_optimization.GeometryOptimizationModel.m_def.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(dict(geo_opt=Mapper(mapper='@')))
-
 workflow.GeometryOptimization.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(geo_opt=Mapper(mapper='@')))
+).update(dict(geo_opt=Mapper(mapper='.@')))
+
+workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
+    MAPPING_ANNOTATION_KEY, {}
+).update(dict(geo_opt=Mapper(mapper='.@')))
+
 """
-workflow.geometry_optimization.GeometryOptimizationModel.optimization_method.m_annotations.setdefault(
+workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
 """
 
-workflow.geometry_optimization.GeometryOptimizationModel.convergence.m_annotations.setdefault(
+workflow.geometry_optimization.GeometryOptimizationMethod.convergence.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt=Mapper(mapper=('get_geometry_convergence', ['.@']))))
 
-workflow.geometry_optimization.GeometryOptimizationModel.single_point_workflows.m_annotations.setdefault(
-    MAPPING_ANNOTATION_KEY, {}
-).update(geo_opt=Mapper(mapper='@'))
+# workflow.geometry_optimization.GeometryOptimizationMethod.single_point_workflows.m_annotations.setdefault(
+#     MAPPING_ANNOTATION_KEY, {}
+# ).update(geo_opt=Mapper(mapper='@'))
 
 
 # single point
 
-workflow.single_point.SinglePointModel.m_def.m_annotations.setdefault(
+workflow.single_point.SinglePointMethod.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(info=Mapper(mapper='@')))
+).update(dict(info=Mapper(mapper='.@')))
 
 workflow.SinglePoint.m_def.m_annotations.setdefault(
     MAPPING_ANNOTATION_KEY, {}
-).update(dict(info=Mapper(mapper='@')))
+).update(dict(info=Mapper(mapper='.@')))
 
-workflow.single_point.SinglePointModel.convergence.m_annotations.setdefault( 
+workflow.single_point.SinglePointMethod.convergence.m_annotations.setdefault( 
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(info=Mapper(mapper=('get_single_point_convergence', ['.@']))))
 
@@ -83,74 +81,99 @@ workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefau
     ).update(dict(info=Mapper(mapper='.threshold_type'),
                   geo_opt=Mapper(mapper='.threshold_type')))
 
-workflow.general.WorkflowConvergenceTarget.convergence_threshold_unit.m_annotations.setdefault(
+workflow.general.WorkflowConvergenceTarget.threshold_unit.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(info=Mapper(mapper='.convergence_threshold_unit'),
                   geo_opt=Mapper(mapper='.convergence_threshold_unit')))
 
-workflow.general.WorkflowConvergenceTarget.is_reached.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(info=Mapper(mapper='.is_reached'),
-                  geo_opt=Mapper(mapper='.is_reached')))
-
-
 # outputs
 general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='@')
+    info=Mapper(mapper='.@'),
+    eigval=Mapper(mapper='.@'),
+    bandstructure_xml=Mapper(mapper='.@'),
+    dos_xml=Mapper(mapper='.@'),
+
 )
-outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper='.@')
-)
+# outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#     info=Mapper(mapper='.@')
+# )
+# outputs.Outputs.m_def.m_annotations[MAPPING_ANNOTATION_KEY]=dict(
+#     info=Mapper(mapper='.@')
+# )
 outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper=('get_forces', ['.@']))
+    info=Mapper(mapper=('get_forces', ['@']))
 )
 outputs.Outputs.electronic_eigenvalues.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     eigval=Mapper(mapper=('get_eigenvalues', ['.@']))
 )
-outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
-    dict(bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@'])))
-)
-outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
-)
+# outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY]=dict(
+#     bandstructure_xml=Mapper(mapper=('get_bandstructures', ['.@']))
+# )
+# outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#     dos_xml=Mapper(mapper=('dos.totaldos.diagram'))
+# )
 outputs.Outputs.scf_steps.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
     info=Mapper(mapper=('get_scf_steps', ['@']))
 )
 
 # output quantities
-outputs.SCFStep.duration.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper=('.duration'))
+# outputs.SCFSteps.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#     info=Mapper(mapper=('get_scf_steps', ['.@']))
+# )
+outputs.SCFSteps.durations.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.durations'))
 )
-outputs.SCFStep.energy_total.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    info=Mapper(mapper=('.energy_total'))
+outputs.SCFSteps.energies_total.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.energies_total'))
+)
+outputs.SCFSteps.delta_energies_total.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.delta_energies_total'))
+)
+outputs.SCFSteps.delta_potential_rms.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.delta_potential_rms'))
+)
+outputs.SCFSteps.delta_density_rms.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.delta_density_rms'))
+)
+outputs.SCFSteps.delta_force_abs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper=('.delta_force_abs'))
 )
 
 
-class Simulation(general.Simulation):
-    add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
-    # DFT method
-    add_mapping_annotation(
-        model_method.DFT.m_def, INFO_KEY, '.initialization.xc_functional'
-    )
-    add_mapping_annotation(model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate')
-    add_mapping_annotation(model_method.DFT.m_def, BANDSTRUCTURE_XML_KEY, '.@')
-    add_mapping_annotation(
-        general.Simulation.model_system,
-        INFO_KEY,
-        ('get_configurations', ['.@']),
-        cache=True,
-    )
-    add_mapping_annotation(
-        general.Simulation.outputs, INFO_KEY, ('get_configurations', ['.@'])
-    )
-    add_mapping_annotation(general.Simulation.outputs, EIGVAL_KEY, '.@')
-    add_mapping_annotation(general.Simulation.outputs, BANDSTRUCTURE_XML_KEY, '.@')
-    add_mapping_annotation(general.Simulation.outputs, DOS_XML_KEY, '.@')
+# class Simulation(general.Simulation):
+#     general.Simulation.program.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         info=Mapper(mapper='.@')
+#     )
+#     # DFT method
+#     model_method.DFT.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         info=Mapper(mapper='.initialization.xc_functional'),
+#         input_xml=Mapper(mapper='.input.groundstate'),
+#         bandstructure_xml=Mapper(mapper='.@'),
+#     )
+#     general.Simulation.model_system.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         info=Mapper(mapper=('get_configurations', ['.@']), cache=True)
+#     )
+#     general.Simulation.outputs.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         #info=Mapper(mapper=('get_configurations', ['.@'])),
+#         eigval=Mapper(mapper='.@'),
+#         bandstructure_xml=Mapper(mapper='.@'),
+#         dos_xml=Mapper(mapper='.@'),
+#     )
 
 
-class Program(general.Program):
-    add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
+general.Program.m_def.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='.@')
+)
 
+general.Program.version.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='.program_version')
+)
+
+# properties
+
+properties.forces.TotalForce.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    info=Mapper(mapper='.forces')
+)
 
 class ModelMethod(model_method.ModelMethod):
     add_mapping_annotation(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@')
@@ -175,29 +198,17 @@ class KLinePath(numerical_settings.KLinePath):
     )
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, INFO_KEY, '.@')
-    add_mapping_annotation(model_method.DFT.xc, INPUT_XML_KEY, '.@')
+#class DFT(model_method.DFT):
+#    model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#        info=Mapper(mapper=('get_xc_functionals', ['.type'])),
+#        input_xml=Mapper(mapper=('get_xc_functionals', ['.libxc'])),
+#    )
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        INFO_KEY,
-        ('get_xc_functionals', ['.type']),
-    )
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        INPUT_XML_KEY,
-        ('get_xc_functionals', ['.libxc']),
-    )
-
-
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, INFO_KEY, '.libxc')
-    add_mapping_annotation(
-        model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         info=Mapper(mapper='.libxc'), input_xml=Mapper(mapper='.libxc')
+#     )
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -222,17 +233,16 @@ class TotalEnergy(properties.TotalEnergy):
     )
 
 
-class TotalForce(properties.forces.TotalForce):
-    add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
 
 
 # TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'
+    # outputs.ElectronicEigenvalues.n_bands.m_annotations[MAPPING_ANNOTATION_KEY] = dict(  # noqa: E501
+    #     eigval=Mapper(mapper='.n_states')
+    # )
+    # we need to use setdefault when annot was defined previously
+    outputs.ElectronicEigenvalues.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        eigval=Mapper(mapper='.eigenvalues'),
     )
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, EIGVAL_KEY, '.occupancies'
@@ -240,12 +250,12 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'
-    )
+    # outputs.ElectronicBandStructure.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(bandstructure_xml=Mapper(mapper='.n_states')))
+    outputs.ElectronicBandStructure.value.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(bandstructure_xml=Mapper(mapper='.energies')))
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):

@@ -41,18 +41,22 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.name')
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', ['.@'])
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper='.name')
+#     )
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper=('get_xc_functionals', ['.@']))
+#     )
 
 
-class TotalEnergy(outputs.TotalEnergy):
-    add_mapping_annotation(outputs.TotalEnergy.value, OUT_KEY, '.energy')
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper='.energy')
+#     )
 
 
 class TotalForces(outputs.TotalForce):
@@ -64,15 +68,17 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos, F25_KEY, ('get_dos', ['.dos'])
+    # outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+    #     out=Mapper(mapper='.@')
+    # )
+    outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        out=Mapper(mapper='.@')
     )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        OUT_KEY,
-        ('get_band_structures', ['.band_structure']),
+    outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        f25=Mapper(mapper=('get_dos', ['.dos']))
+    )
+    outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
+        dict(out=Mapper(mapper=('get_band_structures', ['.band_structure'])))
     )
 
 

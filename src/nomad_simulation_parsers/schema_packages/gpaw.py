@@ -44,20 +44,28 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, GPW_KEY, '.@')
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components, GPW_KEY, '.xcfunctional'
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.@')))
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.xcfunctional')))
 
 
-class TotalEnergy(outputs.TotalEnergy):
-    add_mapping_annotation(outputs.TotalEnergy.value, GPW_KEY, '.total || .value')
-    add_mapping_annotation(outputs.TotalEnergy.name, GPW_KEY, '.name')
-    add_mapping_annotation(outputs.TotalEnergy.contributions, GPW_KEY, '.contributions')
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.total || .value')))
+#     outputs.TotalEnergy.name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.name')))
+#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.contributions')))
 
 
 class TotalForce(outputs.TotalForce):
@@ -72,13 +80,15 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(
-        outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])
-    )
-    add_mapping_annotation(outputs.Outputs.total_forces, GPW_KEY, ('get_forces', []))
-    add_mapping_annotation(
-        outputs.Outputs.electronic_eigenvalues, GPW_KEY, ('get_eigenvalues', [])
-    )
+    # outputs.Outputs.total_energies.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(gpw=Mapper(mapper=('get_energies', []))))
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper=('get_forces', []))))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(gpw=Mapper(mapper=('get_eigenvalues', []))))
 
 
 class Simulation(general.Simulation):
