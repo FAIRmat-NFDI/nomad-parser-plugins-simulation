@@ -130,29 +130,8 @@ class KMesh(numerical_settings.KMesh):
 
 class Pseudopotential(numerical_settings.Pseudopotential):
     """
-    VASP-specific pseudopotential extension with ENMAX/ENMIN cutoffs.
+    VASP-specific pseudopotential extension with ENMAX/ENMIN cutoff metadata.
     """
-
-    enmax = Quantity(
-        type=np.float64,
-        unit='joule',
-        description="""
-        Maximum cutoff energy (ENMAX) recommended for this pseudopotential.
-        This is the standard cutoff used for high-precision calculations.
-        """,
-    )
-
-    enmin = Quantity(
-        type=np.float64,
-        unit='joule',
-        description="""
-        Minimum cutoff energy (ENMIN) for low-precision calculations.
-        Typically about 2/3 of ENMAX.
-        """,
-    )
-
-    cutoff_target = numerical_settings.Pseudopotential.cutoff_target.m_copy()
-    cutoff_target.default = 'ENMAX'
 
     sha256 = Quantity(
         type=str,
@@ -176,15 +155,15 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         type=np.int32,
         description="""
         Total number of lm-projection operators.
-        This is the sum over all angular momentum channels of (2l+1) for each l up to lmax.
-        Determines the completeness of the PAW reconstruction.
+        This is the sum over all angular momentum channels of (2l+1) for each l
+        up to lmax. Determines the completeness of the PAW reconstruction.
         """,
     )
 
     # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
     # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
-    # Mapping annotations will be added here
+    # Mapping annotations
     # OUTCAR provides complete POTCAR metadata
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
@@ -207,20 +186,18 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom'
     )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.cutoff, OUTCAR_KEY, '.enmax', unit='eV'
-    )
-    add_mapping_annotation(enmax, OUTCAR_KEY, '.enmax', unit='eV')
-    add_mapping_annotation(enmin, OUTCAR_KEY, '.enmin', unit='eV')
+    # PPCutoff subsections - ENMAX and ENMIN will be populated via custom parser logic
+    # in get_pseudopotentials() rather than direct mapping annotations
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
     add_mapping_annotation(lmax, OUTCAR_KEY, '.lmax')
     add_mapping_annotation(lmmax, OUTCAR_KEY, '.lmmax')
     # Note: lpaw, lultra, lexch are NOT mapped to schema - they're used internally
-    # by the parser's _process_pseudopotentials method to derive type and is_norm_conserving
+    # by the parser's _process_pseudopotentials method to derive type and
+    # is_norm_conserving
 
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
-# to use the VASP-specific extension with enmax, enmin, sha256 fields
+# to use the VASP-specific extension with sha256, lmax, lmmax fields
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,

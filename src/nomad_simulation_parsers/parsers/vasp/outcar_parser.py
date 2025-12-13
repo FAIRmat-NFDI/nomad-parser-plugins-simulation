@@ -9,6 +9,7 @@ import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import XCFunctional
@@ -571,6 +572,7 @@ class OutcarArchiveWriter(ArchiveWriter):
 
         This method handles complex transformations that cannot be expressed
         in declarative mapping annotations:
+        - PPCutoff subsection creation from ENMAX and ENMIN values
         - Type determination (PAW, NC-PAW, US, NC) from LPAW/LULTRA flags
         - is_norm_conserving flag based on type
         - GW optimization detection
@@ -606,17 +608,45 @@ class OutcarArchiveWriter(ArchiveWriter):
             if not isinstance(pp, vasp.Pseudopotential):
                 continue
 
-            # Set cutoff_target (derived field not directly in source data)
-            if pp.enmax:
-                pp.cutoff_target = 'ENMAX'
-
-            # Get lpaw, lultra, lexch from raw parser data (not stored in schema)
-            # These flags are used only to derive type and is_norm_conserving
+            # Create PPCutoff subsections from ENMAX and ENMIN
             raw_pp = (
                 raw_pseudopotentials[pp_index]
                 if pp_index < len(raw_pseudopotentials)
                 else {}
             )
+
+            # ENMAX: recommended cutoff for standard precision
+            if enmax_value := raw_pp.get('enmax'):
+                from nomad_simulations.schema_packages.numerical_settings import (
+                    PPCutoff,
+                )
+
+                enmax_cutoff = PPCutoff(
+                    cutoff_kind='wavefunction',
+                    cutoff_role='recommended',
+                    value=enmax_value * ureg.eV,
+                )
+                if not pp.cutoffs:
+                    pp.cutoffs = []
+                pp.cutoffs.append(enmax_cutoff)
+
+            # ENMIN: minimum recommended cutoff for fast calculations
+            if enmin_value := raw_pp.get('enmin'):
+                from nomad_simulations.schema_packages.numerical_settings import (
+                    PPCutoff,
+                )
+
+                enmin_cutoff = PPCutoff(
+                    cutoff_kind='wavefunction',
+                    cutoff_role='recommended_min',
+                    value=enmin_value * ureg.eV,
+                )
+                if not pp.cutoffs:
+                    pp.cutoffs = []
+                pp.cutoffs.append(enmin_cutoff)
+
+            # Get lpaw, lultra, lexch from raw parser data (not stored in schema)
+            # These flags are used only to derive type and is_norm_conserving
             lpaw = raw_pp.get('lpaw', False)
             lultra = raw_pp.get('lultra', False)
             lexch = raw_pp.get('lexch')
