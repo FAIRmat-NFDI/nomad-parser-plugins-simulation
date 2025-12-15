@@ -38,7 +38,8 @@ class Simulation(general.Simulation):
         '.parameters',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    # Note: Pseudopotential.m_def mapping added after Pseudopotential class definition
+    # NOTE: Pseudopotential annotations registered after class definition (line 203)
+    # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
@@ -91,6 +92,8 @@ class XCComponent(model_method.XCComponent):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    # TODO: Add KSpace mapping for OUTCAR k-points
+    # add_mapping_annotation(numerical_settings.KSpace.m_def, OUTCAR_KEY, '@')
 
 
 class KSpace(numerical_settings.KSpace):
@@ -198,6 +201,8 @@ class Pseudopotential(numerical_settings.Pseudopotential):
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
 # to use the VASP-specific extension with sha256, lmax, lmmax fields
+# These annotations are added in the context of ModelMethod to ensure the parser
+# creates Pseudopotential subsections in model_method.numerical_settings
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
