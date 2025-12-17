@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-import numpy as np
 from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
@@ -40,6 +39,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
     # NOTE: Pseudopotential annotations registered after class definition (line 203)
     # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
+    add_mapping_annotation(general.Simulation.model_method, OUTCAR_KEY, '.@')
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
@@ -145,24 +145,6 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
-    lmax = Quantity(
-        type=np.int32,
-        description="""
-        Maximum angular momentum quantum number (l) for projection operators.
-        Indicates the highest angular momentum channel included in the pseudopotential.
-        Typical values: 4-6 for transition metals, 2-4 for lighter elements.
-        """,
-    )
-
-    lmmax = Quantity(
-        type=np.int32,
-        description="""
-        Total number of lm-projection operators.
-        This is the sum over all angular momentum channels of (2l+1) for each l
-        up to lmax. Determines the completeness of the PAW reconstruction.
-        """,
-    )
-
     # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
     # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
@@ -189,18 +171,18 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom'
     )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, '.lmax'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, '.lmmax'
+    )
     # PPCutoff subsections - ENMAX and ENMIN will be populated via custom parser logic
     # in get_pseudopotentials() rather than direct mapping annotations
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
-    add_mapping_annotation(lmax, OUTCAR_KEY, '.lmax')
-    add_mapping_annotation(lmmax, OUTCAR_KEY, '.lmmax')
-    # Note: lpaw, lultra, lexch are NOT mapped to schema - they're used internally
-    # by the parser's _process_pseudopotentials method to derive type and
-    # is_norm_conserving
 
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
-# to use the VASP-specific extension with sha256, lmax, lmmax fields
 # These annotations are added in the context of ModelMethod to ensure the parser
 # creates Pseudopotential subsections in model_method.numerical_settings
 add_mapping_annotation(

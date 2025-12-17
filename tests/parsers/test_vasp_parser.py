@@ -64,5 +64,5 @@ def test_outcar():
         # Verify OUTCAR-specific fields are populated
         if pp.sha256:
             LOGGER.info(f'    SHA256: {pp.sha256[:16]}...')
-        if pp.lmax is not None:
-            LOGGER.info(f'    lmax: {pp.lmax}')
+        if pp.l_max is not None:
+            LOGGER.info(f'    l_max: {pp.l_max}')
