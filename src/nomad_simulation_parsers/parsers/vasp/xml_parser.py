@@ -14,6 +14,10 @@ from nomad_simulation_parsers.schema_packages import vasp
 
 LOGGER = get_logger(__name__)
 
+# Number of expected elements in atomtype rc data:
+# [atomspertype, element, mass, valence, pseudopotential_name]
+ATOMTYPE_RC_EXPECTED_LENGTH = 5
+
 
 # TODO temporary fix for structlog unable to propagate logger
 class VASPMetainfoParser(MetainfoParser):
@@ -103,7 +107,7 @@ class VasprunParser(XMLParser):
             # Extract fields from the rc array structure
             # Format: [atomspertype, element, mass, valence, pseudopotential_name]
             rc = atomtype.get('rc', [])
-            if not rc or len(rc) < 5:
+            if not rc or len(rc) < ATOMTYPE_RC_EXPECTED_LENGTH:
                 LOGGER.debug(f'get_pseudopotentials: Skipping atomtype with rc={rc}')
                 continue
 
@@ -177,7 +181,10 @@ class XMLArchiveWriter(ArchiveWriter):
 
             # rc contains 'c' children with values
             c_elements = rc.get('c', [])
-            if not isinstance(c_elements, list) or len(c_elements) < 5:
+            if (
+                not isinstance(c_elements, list)
+                or len(c_elements) < ATOMTYPE_RC_EXPECTED_LENGTH
+            ):
                 continue
 
             # Extract: [atomspertype, element, mass, valence, pseudopotential_name]

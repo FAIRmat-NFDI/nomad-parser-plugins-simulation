@@ -13,6 +13,7 @@ from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import XCFunctional
+from nomad_simulations.schema_packages.numerical_settings import PPCutoff
 
 from nomad_simulation_parsers.schema_packages import vasp
 
@@ -66,7 +67,7 @@ class OutcarTextParser(TextParser):
 
         super().__init__(None)
 
-    def init_quantities(self):
+    def init_quantities(self):  # noqa: PLR0915
         def str_to_array(val_in):
             val = [
                 re.findall(r'(\-?\d+\.[\dEe]+)', v)
@@ -127,7 +128,7 @@ class OutcarTextParser(TextParser):
                 val.extend(['nan' if '*' in v else v for v in line.split()])
             return np.array(val, np.float64)
 
-        def str_to_potcar(val_in):
+        def str_to_potcar(val_in):  # noqa: PLR0912
             """Parse POTCAR header information."""
             data = {}
             # Extract TITEL
@@ -562,7 +563,7 @@ class OutcarParser(MappingTextParser):
 
 
 class OutcarArchiveWriter(ArchiveWriter):
-    def _process_pseudopotentials(
+    def _process_pseudopotentials(  # noqa: PLR0912, PLR0915
         self,
         archive_data: Simulation,
         parser_data: dict[str, Any],
@@ -617,10 +618,6 @@ class OutcarArchiveWriter(ArchiveWriter):
 
             # ENMAX: recommended cutoff for standard precision
             if enmax_value := raw_pp.get('enmax'):
-                from nomad_simulations.schema_packages.numerical_settings import (
-                    PPCutoff,
-                )
-
                 enmax_cutoff = PPCutoff(
                     cutoff_kind='wavefunction',
                     cutoff_role='recommended',
@@ -632,10 +629,6 @@ class OutcarArchiveWriter(ArchiveWriter):
 
             # ENMIN: minimum recommended cutoff for fast calculations
             if enmin_value := raw_pp.get('enmin'):
-                from nomad_simulations.schema_packages.numerical_settings import (
-                    PPCutoff,
-                )
-
                 enmin_cutoff = PPCutoff(
                     cutoff_kind='wavefunction',
                     cutoff_role='recommended_min',
