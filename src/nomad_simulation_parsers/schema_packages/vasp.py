@@ -39,7 +39,6 @@ class Simulation(general.Simulation):
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
     # NOTE: Pseudopotential annotations registered after class definition (line 203)
     # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
-    add_mapping_annotation(general.Simulation.model_method, OUTCAR_KEY, '.@')
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
