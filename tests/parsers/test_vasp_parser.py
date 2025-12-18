@@ -21,7 +21,9 @@ def test_outcar():
     parser.parse('tests/data/vasp/AgAc_relax/OUTCAR', archive, LOGGER)
 
     simulation = archive.data
+    print(simulation)
     assert simulation is not None, 'No simulation data in archive'
+
     assert simulation.model_method, 'No model_method in simulation'
 
     method = simulation.model_method[0]
