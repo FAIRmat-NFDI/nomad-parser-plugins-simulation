@@ -529,7 +529,10 @@ class H5MDArchiveWriter(MDParser):
         self.workflow_parser.close()
 
         # remove mapping annotations
-        remove_mapping_annotations(self.archive.data.m_def)
+        remove_mapping_annotations(
+            self.archive.data.m_def,
+            annotation_keys=[h5md.HDF5_KEY],
+        )
 
 
 class H5MDParser(MatchingParser):
