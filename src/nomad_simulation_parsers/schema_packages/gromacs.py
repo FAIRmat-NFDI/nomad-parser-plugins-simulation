@@ -1,5 +1,6 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import (
+    force_field,
     general,
     model_system,
     outputs,
@@ -83,6 +84,8 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, LOG_KEY, ('get_outputs', []))
     add_mapping_annotation(general.Simulation.outputs, TPR_KEY, ('get_outputs', []))
     add_mapping_annotation(general.Simulation.outputs, EDR_KEY, ('get_outputs', ['.@']))
+    add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
+    add_mapping_annotation(general.Simulation.model_method, LOG_KEY, '.@')
 
 
 add_mapping_annotation(general.Simulation.m_def, LOG_KEY, '@')
@@ -169,6 +172,44 @@ class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, LOG_KEY, '@')
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, EDR_KEY, '@')
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
+
+
+# Force Field
+class ForceField(force_field.ForceField):
+    add_mapping_annotation(
+        force_field.ForceField.contributions,
+        TPR_KEY,
+        ('get_force_field_contributions', []),
+    )
+
+
+class ForceCalculations(force_field.ForceCalculations):
+    add_mapping_annotation(
+        force_field.ForceCalculations.vdw_cutoff,
+        LOG_KEY,
+        '.input_parameters.rvdw',
+        unit='nanometer',
+    )
+    add_mapping_annotation(
+        force_field.ForceCalculations.coulomb_cutoff,
+        LOG_KEY,
+        '.input_parameters.rcoulomb',
+        unit='nanometer',
+    )
+    add_mapping_annotation(
+        force_field.ForceCalculations.coulomb_type,
+        LOG_KEY,
+        ('get_coulomb_type', ['.input_parameters.coulombtype']),
+    )
+    add_mapping_annotation(
+        force_field.ForceCalculations.neighbor_update_frequency,
+        LOG_KEY,
+        '.input_parameters.nstlist',
+    )
+
+
+add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
+add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
 
 try:

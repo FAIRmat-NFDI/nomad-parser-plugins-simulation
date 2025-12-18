@@ -151,3 +151,143 @@ def test_integration_parse_gromacs_water():
     )
     if getattr(archive, 'data', None) is not None:
         assert isinstance(archive.data.model_system, list)
+
+
+def test_force_field_parsing_from_tpr():
+    """Test that force field parameters are extracted from TPR file."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    candidates = ['mdrun.log', 'md.log', 'mdrun.out']
+    mainfile = ''
+    for name in candidates:
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            mainfile = p
+            break
+
+    if not mainfile:
+        pytest.skip(f'No suitable mainfile found in {base}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(mainfile, archive)
+
+    # Verify data section exists
+    assert archive.data is not None, 'Archive.data should be populated'
+    assert hasattr(archive.data, 'model_method'), 'Simulation should have model_method'
+
+    # Check model_method was populated
+    if not archive.data.model_method or len(archive.data.model_method) == 0:
+        pytest.skip('No model_method found - TPR file may not contain force field data')
+
+    # Find ForceField in model_method (identified by having contributions attribute)
+    force_field = None
+    for method in archive.data.model_method:
+        if hasattr(method, 'contributions'):
+            force_field = method
+            break
+
+    if force_field is None:
+        pytest.skip('No ForceField found in model_method')
+
+    # Verify ForceField structure populated via annotations
+    assert hasattr(force_field, 'contributions'), 'ForceField should have contributions'
+    assert hasattr(force_field, 'numerical_settings'), (
+        'ForceField should have numerical_settings'
+    )
+
+    # Check ForceCalculations (numerical settings) from LOG_KEY annotations
+    if len(force_field.numerical_settings) > 0:
+        force_calc = force_field.numerical_settings[0]
+        # Verify attributes exist (values may be None if not in log/mdp)
+        assert hasattr(force_calc, 'vdw_cutoff'), (
+            'ForceCalculations should have vdw_cutoff'
+        )
+        assert hasattr(force_calc, 'coulomb_cutoff'), (
+            'ForceCalculations should have coulomb_cutoff'
+        )
+        assert hasattr(force_calc, 'coulomb_type'), (
+            'ForceCalculations should have coulomb_type'
+        )
+        assert hasattr(force_calc, 'neighbor_update_frequency'), (
+            'ForceCalculations should have neighbor_update_frequency'
+        )
+
+        # If values are populated, verify they have correct types
+        if force_calc.vdw_cutoff is not None:
+            assert hasattr(force_calc.vdw_cutoff, 'magnitude'), (
+                'vdw_cutoff should be a pint Quantity'
+            )
+        if force_calc.coulomb_cutoff is not None:
+            assert hasattr(force_calc.coulomb_cutoff, 'magnitude'), (
+                'coulomb_cutoff should be a pint Quantity'
+            )
+
+    # Check contributions (Potential list) from TPR_KEY get_force_field_contributions()
+    if len(force_field.contributions) > 0:
+        potential = force_field.contributions[0]
+        assert hasattr(potential, 'type'), 'Potential should have type'
+        assert hasattr(potential, 'functional_form'), (
+            'Potential should have functional_form'
+        )
+        assert hasattr(potential, 'parameters'), 'Potential should have parameters'
+
+        # Verify that type is one of the valid enum values (or None)
+        if potential.type is not None:
+            valid_types = [
+                'bond',
+                'angle',
+                'dihedral',
+                'improper dihedral',
+                'nonbonded',
+                'bond-angle',
+            ]
+            assert potential.type in valid_types, (
+                f'Potential type {potential.type} should be in {valid_types}'
+            )
+
+
+def test_get_coulomb_type_transformation():
+    """Test the get_coulomb_type transformation function."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test various coulombtype mappings
+    test_cases = [
+        ('cut-off', 'cutoff'),
+        ('cutoff', 'cutoff'),
+        ('Ewald', 'ewald'),
+        ('PME', 'particle_mesh_ewald'),
+        ('P3M-AD', 'particle_particle_particle_mesh'),
+        ('Reaction-Field', 'reaction_field'),
+        ('Reaction-Field-zero', 'reaction_field'),
+        ('unknown', None),
+    ]
+
+    for input_val, expected in test_cases:
+        result = lp.get_coulomb_type(input_val)
+        assert result == expected, (
+            f'get_coulomb_type({input_val}) should return {expected}, got {result}'
+        )
+
+
+def test_get_force_field_contributions_transformation():
+    """Test the get_force_field_contributions transformation function."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+
+    # Mock interactions data
+    interactions = [
+        {'type': 'bonds', 'parameters': [1.0, 2.0]},
+        {'type': 'angles', 'parameters': [120.0, 3.0]},
+        {'type': 'lj', 'parameters': [0.5, 0.3]},
+    ]
+    mdap.data_object = {'interactions': interactions}
+
+    contributions = mdap.get_force_field_contributions()
+
+    assert isinstance(contributions, list), 'Should return list'
+    assert len(contributions) == 3, 'Should have 3 contributions'
+
+    for i, contrib in enumerate(contributions):
+        assert 'type' in contrib, f'Contribution {i} should have type'
+        assert 'parameters' in contrib, f'Contribution {i} should have parameters'
+        assert contrib['type'] == interactions[i]['type']
+        assert contrib['parameters'] == interactions[i]['parameters']

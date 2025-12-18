@@ -188,6 +188,25 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             else None
         )
 
+    def get_coulomb_type(self, coulombtype: str) -> str:
+        """Map GROMACS coulombtype to NOMAD schema enum."""
+        result = None
+        if not coulombtype:
+            return result
+
+        coulombtype_lower = coulombtype.lower().replace('_', '-')
+        coulomb_map = {
+            'cut-off': 'cutoff',
+            'cutoff': 'cutoff',
+            'ewald': 'ewald',
+            'pme': 'particle_mesh_ewald',
+            'p3m-ad': 'particle_particle_particle_mesh',
+            'reaction-field': 'reaction_field',
+            'reaction-field-zero': 'reaction_field',
+        }
+        result = coulomb_map.get(coulombtype_lower)
+        return result
+
 
 class GromacsMDPParser(TextParser):
     # TODO: temporary fix for structlog unable to propagate logger
@@ -337,6 +356,18 @@ class GromacsMDAnalysisParser(MappingParser):
                 )
             )
         return configurations
+
+    def get_force_field_contributions(self) -> list[dict[str, Any]]:
+        """Transform interactions into force field contributions."""
+        interactions = self.data_object.get('interactions', [])
+        contributions = []
+        for interaction in interactions:
+            contribution = {
+                'type': interaction.get('type', ''),
+                'parameters': interaction.get('parameters', []),
+            }
+            contributions.append(contribution)
+        return contributions
 
 
 class GromacsArchiveWriter(MDParser):
@@ -519,7 +550,7 @@ class GromacsArchiveWriter(MDParser):
         self._edr_parser._thermodynamic_steps = self.thermodynamics_steps
         self._edr_parser._trajectory_steps = traj_steps
 
-        # self._parse_data_section()
+        self._parse_data_section()
 
         self._parse_workflow_section()
 
