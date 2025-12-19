@@ -48,6 +48,10 @@ workflow.geometry_optimization.GeometryOptimizationMethod.convergence.m_annotati
 #     MAPPING_ANNOTATION_KEY, {}
 # ).update(geo_opt=Mapper(mapper='@'))
 
+workflow.geometry_optimization.GeometryOptimizationMethod.single_point_convergence.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(geo_opt=Mapper(mapper=('get_single_point_convergence', ['.@']))))
+
 
 # single point
 
