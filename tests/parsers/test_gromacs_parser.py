@@ -273,21 +273,61 @@ def test_get_force_field_contributions_transformation():
     """Test the get_force_field_contributions transformation function."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Mock interactions data
-    interactions = [
-        {'type': 'bonds', 'parameters': [1.0, 2.0]},
-        {'type': 'angles', 'parameters': [120.0, 3.0]},
-        {'type': 'lj', 'parameters': [0.5, 0.3]},
+    # Mock MDAnalysis-style interactions with atom_indices and atom_labels
+    mock_interactions = [
+        {'type': 'bond_harmonic', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
+        {'type': 'bond_harmonic', 'atom_indices': [2, 3], 'atom_labels': ['O', 'H']},
+        {
+            'type': 'angle_harmonic',
+            'atom_indices': [0, 1, 2],
+            'atom_labels': ['H', 'O', 'H'],
+        },
+        {
+            'type': 'angle_harmonic',
+            'atom_indices': [3, 4, 5],
+            'atom_labels': ['H', 'O', 'H'],
+        },
     ]
-    mdap.data_object = {'interactions': interactions}
+
+    # Mock the data_object to return interactions
+    mdap.data_object = type(
+        'obj',
+        (object,),
+        {
+            'get': lambda self, key: 'GROMACS 2024' if key == 'version' else None,
+            'get_interactions': lambda self, version: mock_interactions,
+        },
+    )()
 
     contributions = mdap.get_force_field_contributions()
 
     assert isinstance(contributions, list), 'Should return list'
-    assert len(contributions) == 3, 'Should have 3 contributions'
+    assert len(contributions) == 2, (
+        'Should have 2 grouped contributions (bonds and angles)'
+    )
 
-    for i, contrib in enumerate(contributions):
-        assert 'type' in contrib, f'Contribution {i} should have type'
-        assert 'parameters' in contrib, f'Contribution {i} should have parameters'
-        assert contrib['type'] == interactions[i]['type']
-        assert contrib['parameters'] == interactions[i]['parameters']
+    # Check that contributions are grouped by type
+    contrib_types = {c['functional_form'] for c in contributions}
+    assert 'bond_harmonic' in contrib_types, 'Should have bond_harmonic contribution'
+    assert 'angle_harmonic' in contrib_types, 'Should have angle_harmonic contribution'
+
+    # Check structure of contributions
+    for contrib in contributions:
+        assert 'functional_form' in contrib, 'Should have functional_form'
+        assert 'particle_indices' in contrib, 'Should have particle_indices'
+        assert isinstance(contrib['particle_indices'], list), (
+            'particle_indices should be list'
+        )
+
+        if contrib['functional_form'] == 'bond_harmonic':
+            assert len(contrib['particle_indices']) == 2, 'Should have 2 bond instances'
+            assert all(len(indices) == 2 for indices in contrib['particle_indices']), (
+                'Bonds should have 2 particles'
+            )
+        elif contrib['functional_form'] == 'angle_harmonic':
+            assert len(contrib['particle_indices']) == 2, (
+                'Should have 2 angle instances'
+            )
+            assert all(len(indices) == 3 for indices in contrib['particle_indices']), (
+                'Angles should have 3 particles'
+            )

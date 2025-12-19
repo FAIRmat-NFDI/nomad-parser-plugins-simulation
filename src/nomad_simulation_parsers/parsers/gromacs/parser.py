@@ -331,7 +331,7 @@ class GromacsMDAnalysisParser(MappingParser):
         try:
             symbols2numbers(labels)
         except Exception:
-            labels = ['X'] * len(labels)
+            labels = ['CGX'] * len(labels)
         return labels
 
     def get_outputs(self) -> list[dict[str, Any]]:
@@ -358,15 +358,52 @@ class GromacsMDAnalysisParser(MappingParser):
         return configurations
 
     def get_force_field_contributions(self) -> list[dict[str, Any]]:
-        """Transform interactions into force field contributions."""
-        interactions = self.data_object.get('interactions', [])
-        contributions = []
+        """
+        Transform MDAnalysis interactions into force field contributions.
+        Groups interactions by type and creates one Potential per interaction type.
+        """
+        gromacs_version = self.data_object.get('version')
+        if not gromacs_version:
+            return []
+
+        interactions = self.data_object.get_interactions(gromacs_version)
+        if not interactions:
+            return []
+
+        # Group interactions by type (bonds, angles, dihedrals, impropers)
+        grouped = {}
         for interaction in interactions:
+            int_type = interaction.get('type', 'unknown')
+            if int_type not in grouped:
+                grouped[int_type] = []
+            grouped[int_type].append(interaction)
+
+        # Create one Potential contribution per interaction type
+        contributions = []
+        for int_type, int_list in grouped.items():
+            # Collect all indices and labels for this type
+            all_indices = []
+            all_labels = []
+            for inter in int_list:
+                atom_indices = inter.get('atom_indices')
+                atom_labels = inter.get('atom_labels')
+                if atom_indices is not None and len(atom_indices) > 0:
+                    all_indices.append(list(atom_indices))
+                if atom_labels is not None and len(atom_labels) > 0:
+                    all_labels.append(list(atom_labels))
+
+            if len(all_indices) == 0:
+                continue
+
             contribution = {
-                'type': interaction.get('type', ''),
-                'parameters': interaction.get('parameters', []),
+                'functional_form': int_type,
+                'particle_indices': all_indices,
             }
+            if len(all_labels) > 0:
+                contribution['particle_labels'] = all_labels
+
             contributions.append(contribution)
+
         return contributions
 
 
@@ -552,7 +589,7 @@ class GromacsArchiveWriter(MDParser):
 
         self._parse_data_section()
 
-        self._parse_workflow_section()
+        # self._parse_workflow_section()
 
         for parser in [
             self._simulation_parser,

@@ -208,7 +208,8 @@ class ForceCalculations(force_field.ForceCalculations):
     )
 
 
-add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
+# add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
+add_mapping_annotation(force_field.Potential.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
 
