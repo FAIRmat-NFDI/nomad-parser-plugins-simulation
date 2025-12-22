@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Any
 
-import re
-
 if TYPE_CHECKING:
     from nomad.datamodel.datamodel import (
         EntryArchive,
@@ -97,8 +95,6 @@ class OutParser(MappingTextParser):
     #     input snippet captured in `input_file`. The getter can optionally be scoped
     #     to a specific multireference section via `target` ('scf', 'ci', 'pt').
     #     """
-
-
 
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_convergence = (
