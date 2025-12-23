@@ -87,15 +87,6 @@ class OutParser(MappingTextParser):
 
         return {'xc': {'global_exact_exchange': hf_frac}}
 
-    # def get_multireference(
-    #     self, src: dict[str, Any], target: str | None = None
-    # ) -> dict[str, Any]:
-    #     """
-    #     Extract minimal multireference settings (CASSCF/CASCI/NEVPT2) from the ORCA
-    #     input snippet captured in `input_file`. The getter can optionally be scoped
-    #     to a specific multireference section via `target` ('scf', 'ci', 'pt').
-    #     """
-
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_convergence = (
             source.get('single_point', {})
@@ -126,19 +117,7 @@ class OrcaParser(MatchingParser):
         meta.annotation_key = 'out'
         # meta.max_nested_level = 1
 
-        mapper = meta.mapper
-        source_data = reader.data
-        if mapper.source:
-            source_data = mapper.source.get_data(reader.data, reader)
-        mapped = mapper.get_data(source_data, reader, remove=False)
-
-        for model_system in mapped.get('model_system', []) or []:
-            if isinstance(model_system, dict):
-                model_system.pop('.lattice_vectors', None)
-
-        meta.set_data(mapped, meta.data)
-        meta.from_dict(meta.data)
-
+        reader.convert(meta)
         archive.data = meta.data_object
 
         meta.close()

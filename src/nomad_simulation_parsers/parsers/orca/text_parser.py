@@ -963,6 +963,83 @@ class OutReader(TextParser):
                 r'ORCA\-MATRIX DRIVEN CI([\s\S]+?E\(CCSD\(T\)\).*)',
                 sub_parser=TextParser(quantities=ci_quantities),
             ),
+            # CASSCF / multireference block
+            Quantity(
+                'casscf',
+                (
+                    r'ORCA\-CASSCF\s*\-+\s*'
+                    r'([\s\S]+?CAS\-?SCF ITERATIONS)'
+                ),
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'n_active_electrons',
+                            r'Number of active electrons\s*\.+\s*(\d+)',
+                            dtype=int,
+                        ),
+                        Quantity(
+                            'n_active_orbitals',
+                            r'Number of active orbitals\s*\.+\s*(\d+)',
+                            dtype=int,
+                        ),
+                        Quantity(
+                            'n_total_electrons',
+                            r'Total number of electrons\s*\.+\s*(\d+)',
+                            dtype=int,
+                        ),
+                        Quantity(
+                            'n_total_orbitals',
+                            r'Total number of orbitals\s*\.+\s*(\d+)',
+                            dtype=int,
+                        ),
+                        Quantity(
+                            'n_blocks',
+                            r'Number of multiplicity blocks\s*\.+\s*(\d+)',
+                            dtype=int,
+                        ),
+                        Quantity(
+                            'block',
+                            r'BLOCK\s+\d+\s+WEIGHT=\s*([-+]?\d*\.?\d+)\s*([\s\S]+?)(?=(?:BLOCK|\Z))',
+                            repeats=True,
+                            sub_parser=TextParser(
+                                quantities=[
+                                    Quantity(
+                                        'weight',
+                                        r'BLOCK\s+\d+\s+WEIGHT=\s*([-+]?\d*\.?\d+)',
+                                        dtype=float,
+                                    ),
+                                    Quantity(
+                                        'multiplicity',
+                                        r'Multiplicity\s*\.+\s*(\d+)',
+                                        dtype=int,
+                                    ),
+                                    Quantity(
+                                        'n_configurations',
+                                        r'#\(Configurations\)\s*\.+\s*(\d+)',
+                                        dtype=int,
+                                    ),
+                                    Quantity(
+                                        'n_csfs',
+                                        r'#\(CSFs\)\s*\.+\s*(\d+)',
+                                        dtype=int,
+                                    ),
+                                    Quantity(
+                                        'n_roots',
+                                        r'#\(Roots\)\s*\.+\s*(\d+)',
+                                        dtype=int,
+                                    ),
+                                    Quantity(
+                                        'root_weights',
+                                        r'ROOT=\d+\s+WEIGHT=\s*([-+]?\d*\.?\d+)',
+                                        repeats=True,
+                                        dtype=float,
+                                    ),
+                                ]
+                            ),
+                        ),
+                    ]
+                ),
+            ),
             Quantity(
                 'loc',
                 r'\n *ORCA ORBITAL LOCALIZATION\s*\-+([\s\S]+?)\-{10}',
