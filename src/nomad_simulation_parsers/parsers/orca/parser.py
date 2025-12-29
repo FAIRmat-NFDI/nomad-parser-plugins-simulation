@@ -96,6 +96,9 @@ class OutParser(MappingTextParser):
 
         hf_frac = scf_settings.get('fraction_hf_exchange')
 
+        if hf_frac is None:
+            return {}
+
         return {'xc': {'global_exact_exchange': hf_frac}}
 
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
@@ -119,13 +122,12 @@ class OutParser(MappingTextParser):
         if not casscf:
             return []
 
-        active_space = {}
-        if casscf.get('n_active_electrons') is not None:
-            active_space['n_active_electrons'] = casscf['n_active_electrons']
-        if casscf.get('n_active_orbitals') is not None:
-            active_space['n_active_orbitals'] = casscf['n_active_orbitals']
-        if active_space:
-            active_space['orbital_space_type'] = 'CAS'
+        active_space = {
+            'n_active_electrons': casscf.get('n_active_electrons'),
+            'n_active_orbitals': casscf.get('n_active_orbitals'),
+            'orbital_space_type': 'CAS',
+        }
+        active_space = {k: v for k, v in active_space.items() if v is not None}
 
         state_multiplicities: list[int] = []
         n_roots_per_multiplicity: list[int] = []
@@ -141,7 +143,9 @@ class OutParser(MappingTextParser):
             state_weights.extend(weights)
 
         reference_type = (
-            'state_averaged' if state_weights and len(state_weights) > 1 else None
+            'state_averaged'
+            if state_weights and len(state_weights) > 1
+            else 'state_specific'
         )
         n_state_groups = len(state_multiplicities) if state_multiplicities else None
 
@@ -176,7 +180,7 @@ class OrcaParser(MatchingParser):
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
-        meta.max_nested_level = 2
+        meta.max_nested_level = 3
 
         reader.convert(meta)
         archive.data = meta.data_object
