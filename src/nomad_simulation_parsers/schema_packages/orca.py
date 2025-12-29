@@ -74,89 +74,50 @@ add_mapping_annotation(
 
 ############# Multireference (CAS) ###################
 
-# add_mapping_annotation(
-#     model_method.MultireferenceSCF.m_def,
-#     OUT_KEY,
-#     ('get_multireference', ['.@'], dict(target='scf')),
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferenceCI.m_def,
-#     OUT_KEY,
-#     ('get_multireference', ['.@'], dict(target='ci')),
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferencePT.m_def,
-#     OUT_KEY,
-#     ('get_multireference', ['.@'], dict(target='pt')),
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferenceSCF.type,
-#     OUT_KEY,
-#     '.type',
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferenceCI.type,
-#     OUT_KEY,
-#     '.type',
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferencePT.type,
-#     OUT_KEY,
-#     '.type',
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferencePT.order,
-#     OUT_KEY,
-#     '.order',
-# )
-
-# add_mapping_annotation(
-#     model_method.BaseMultireferenceMethod.reference_type,
-#     OUT_KEY,
-#     '.reference_type',
-# )
-
-# add_mapping_annotation(
-#     model_method.BaseMultireferenceMethod.n_state_groups,
-#     OUT_KEY,
-#     '.n_state_groups',
-# )
-
-# add_mapping_annotation(
-#     model_method.BaseMultireferenceMethod.state_multiplicities,
-#     OUT_KEY,
-#     '.state_multiplicities',
-# )
-
-# add_mapping_annotation(
-#     model_method.BaseMultireferenceMethod.n_roots_per_multiplicity,
-#     OUT_KEY,
-#     '.n_roots_per_multiplicity',
-# )
-
-# add_mapping_annotation(
-#     model_method.MultireferenceSCF.active_space,
-#     OUT_KEY,
-#     '.active_space',
-# )
-
-# add_mapping_annotation(
-#     model_method.ActiveSpace.n_active_electrons,
-#     OUT_KEY,
-#     '.active_space.n_active_electrons',
-# )
-
-# add_mapping_annotation(
-#     model_method.ActiveSpace.n_active_orbitals,
-#     OUT_KEY,
-#     '.active_space.n_active_orbitals',
-# )
+add_mapping_annotation(
+    general.Simulation.model_method,
+    OUT_KEY,
+    ('get_multireference_methods', ['.@']),
+)
+add_mapping_annotation(model_method.MultireferenceSCF.m_def, OUT_KEY, '.@')
+add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
+add_mapping_annotation(
+    model_method.MultireferenceSCF.reference_type, OUT_KEY, '.reference_type'
+)
+add_mapping_annotation(
+    model_method.MultireferenceSCF.n_state_groups, OUT_KEY, '.n_state_groups'
+)
+add_mapping_annotation(
+    model_method.MultireferenceSCF.state_multiplicities,
+    OUT_KEY,
+    '.state_multiplicities',
+)
+add_mapping_annotation(
+    model_method.MultireferenceSCF.n_roots_per_multiplicity,
+    OUT_KEY,
+    '.n_roots_per_multiplicity',
+)
+add_mapping_annotation(
+    model_method.MultireferenceSCF.state_weights, OUT_KEY, '.state_weights'
+)
+add_mapping_annotation(
+    model_method.MultireferenceSCF.active_space, OUT_KEY, '.active_space'
+)
+add_mapping_annotation(
+    model_method.ActiveSpace.n_active_electrons,
+    OUT_KEY,
+    '.active_space.n_active_electrons',
+)
+add_mapping_annotation(
+    model_method.ActiveSpace.n_active_orbitals,
+    OUT_KEY,
+    '.active_space.n_active_orbitals',
+)
+add_mapping_annotation(
+    model_method.ActiveSpace.orbital_space_type,
+    OUT_KEY,
+    '.active_space.orbital_space_type',
+)
 
 
 try:

@@ -54,6 +54,16 @@ class OutParser(MappingTextParser):
 
     def __init__(self):
         super().__init__(text_parser=OutReader())
+        # Parse all quantities so helper-driven mappings (e.g., CASSCF) are available
+        self.parse_only_required = False
+        self.text_parser.parse_only_required = False
+        self.text_parser.findlazy = False
+
+    def load_file(self):
+        if self.filepath:
+            self.text_parser.findlazy = False
+            self.text_parser.mainfile = self.filepath
+        return self.text_parser
 
     def get_program_data(self, src: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -100,6 +110,53 @@ class OutParser(MappingTextParser):
             'threshold_change': scf_convergence.get('energy_change_tolerance', 1e-8),
         }
 
+    def get_multireference_methods(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        casscf = source.get('single_point', {}).get('casscf') if source else None
+        if hasattr(casscf, '_results'):
+            casscf = casscf._results
+        if not casscf:
+            return []
+
+        active_space = {}
+        if casscf.get('n_active_electrons') is not None:
+            active_space['n_active_electrons'] = casscf['n_active_electrons']
+        if casscf.get('n_active_orbitals') is not None:
+            active_space['n_active_orbitals'] = casscf['n_active_orbitals']
+        if active_space:
+            active_space['orbital_space_type'] = 'CAS'
+
+        state_multiplicities: list[int] = []
+        n_roots_per_multiplicity: list[int] = []
+        state_weights: list[float] = []
+        for block in casscf.get('block') or []:
+            block_data = block._results if hasattr(block, '_results') else block
+            multiplicity = block_data.get('multiplicity')
+            weights = block_data.get('root_weights') or []
+            n_roots = block_data.get('n_roots')
+
+            state_multiplicities.append(multiplicity)
+            n_roots_per_multiplicity.append(len(weights) or n_roots)
+            state_weights.extend(weights)
+
+        reference_type = (
+            'state_averaged' if state_weights and len(state_weights) > 1 else None
+        )
+        n_state_groups = len(state_multiplicities) if state_multiplicities else None
+
+        return [
+            {
+                'type': 'CASSCF',
+                'active_space': active_space or None,
+                'reference_type': reference_type,
+                'n_state_groups': n_state_groups,
+                'state_multiplicities': state_multiplicities or None,
+                'n_roots_per_multiplicity': n_roots_per_multiplicity or None,
+                'state_weights': state_weights or None,
+            }
+        ]
+
 
 class OrcaParser(MatchingParser):
     def parse(
@@ -119,7 +176,7 @@ class OrcaParser(MatchingParser):
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
-        # meta.max_nested_level = 1
+        meta.max_nested_level = 2
 
         reader.convert(meta)
         archive.data = meta.data_object
