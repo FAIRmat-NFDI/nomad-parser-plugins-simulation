@@ -32,11 +32,11 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     # dft method
     add_mapping_annotation(
-        model_method.DFT.m_def,
+        general.Simulation.model_method,
         XML_KEY,
         '.parameters',
     )
-    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, '.parameters')
+    add_mapping_annotation(general.Simulation.model_method, OUTCAR_KEY, '.parameters')
     # NOTE: Pseudopotential annotations registered after class definition (line 203)
     # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
