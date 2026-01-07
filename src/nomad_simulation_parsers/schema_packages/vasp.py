@@ -24,7 +24,7 @@ OUTCAR_KEY = 'outcar'
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
-add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '.')
+add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
 
 class Simulation(general.Simulation):

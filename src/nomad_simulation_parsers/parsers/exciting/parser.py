@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -24,7 +23,6 @@ from nomad_simulation_parsers.parsers.utils.general import (
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import exciting
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser
@@ -185,8 +183,6 @@ class EigvalParser(TextParser):
 
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-        reload(exciting)
-
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
 
@@ -247,9 +243,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # close parsers
         info_parser.close()
         data_parser.close()
-
-        # remove annotations
-        remove_mapping_annotations(exciting.general.Simulation.m_def)
 
 
 class ExcitingParser(MatchingParser):

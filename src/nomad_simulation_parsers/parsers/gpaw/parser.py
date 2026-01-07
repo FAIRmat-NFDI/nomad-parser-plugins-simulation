@@ -1,4 +1,3 @@
-from importlib import reload
 from typing import Any
 
 from nomad.datamodel import EntryArchive
@@ -90,9 +89,6 @@ class GPAWArchiveWriter(ArchiveWriter):
     archive_parser = GPAWMetainfoParser()
 
     def write_to_archive(self):
-        # reload schema annotations
-        reload(gpaw)
-
         self.mainfile_parser.filepath = self.mainfile
         self.archive_parser.annotation_key = gpaw.GPW_KEY
         self.archive_parser.data_object = Simulation()
