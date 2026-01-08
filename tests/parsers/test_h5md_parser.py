@@ -49,6 +49,10 @@ def assert_h5md_header(archive: EntryArchive) -> None:
     assert sec_simulation.x_h5md_creator.name == 'h5py'
     assert sec_simulation.x_h5md_creator.version == '3.6.0'
 
+    # Verify model_method is populated (should be empty for h5md trajectory format)
+    # h5md is a trajectory format without method information
+    assert sec_simulation.model_method is not None, 'model_method should exist (possibly empty)'
+
 
 def assert_systems(archive: EntryArchive) -> None:
     sec_systems = archive.data.model_system
