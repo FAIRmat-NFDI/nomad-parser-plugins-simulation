@@ -2,7 +2,6 @@ import os
 import re
 from collections.abc import Iterable
 from datetime import datetime
-from importlib import reload
 from types import ModuleType
 from typing import Any
 
@@ -218,8 +217,6 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     mainfile_parser = MainfileParser(text_parser=QuantumEspressoFileParser())
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        # reload the schema annotations
-        reload(self.schema)
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
         )

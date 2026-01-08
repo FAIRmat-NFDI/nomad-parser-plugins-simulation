@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -34,9 +34,11 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        '.parameters.separator[?"@name"==\'electronic\']',
+        '.parameters',
     )
-    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
+    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, '.parameters')
+    # NOTE: Pseudopotential annotations registered after class definition (line 203)
+    # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
@@ -89,6 +91,8 @@ class XCComponent(model_method.XCComponent):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    # TODO: Add KSpace mapping for OUTCAR k-points
+    # add_mapping_annotation(numerical_settings.KSpace.m_def, OUTCAR_KEY, '@')
 
 
 class KSpace(numerical_settings.KSpace):
@@ -124,6 +128,62 @@ class KMesh(numerical_settings.KMesh):
             dict(shape_rest=()),
         ),
     )
+
+
+class Pseudopotential(numerical_settings.Pseudopotential):
+    """
+    VASP-specific pseudopotential extension with ENMAX/ENMIN cutoff metadata.
+    """
+
+    sha256 = Quantity(
+        type=str,
+        description="""
+        SHA256 hash of the POTCAR file for unique identification.
+        This allows verification of pseudopotential provenance and ensures
+        reproducibility by confirming the exact pseudopotential file used.
+        """,
+    )
+
+    # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
+    # They're used internally by the parser to derive `type` and `is_norm_conserving`.
+
+    # NOTE: Mapping annotations moved to after class definition to reference
+    # Pseudopotential.property instead of base class properties, making VASP
+    # immune to annotation contamination from other parsers
+
+
+# Pseudopotential mapping annotations - AFTER class definition to reference VASP-specific
+# inherited properties instead of base class properties. This makes VASP immune to
+# contamination from other parsers removing base class annotations.
+
+# Collection mapping - tells parser to create Pseudopotential instances
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    OUTCAR_KEY,
+    ('get_pseudopotentials', ['@.pseudopotentials']),
+)
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    XML_KEY,
+    ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\']']),
+)
+
+# Property mappings - using Pseudopotential.property (VASP-specific inherited properties)
+# instead of numerical_settings.Pseudopotential.property (base class properties).
+# This isolates VASP from contamination when other parsers remove base class annotations.
+
+# OUTCAR provides complete POTCAR metadata
+add_mapping_annotation(Pseudopotential.name, OUTCAR_KEY, '.titel')
+add_mapping_annotation(Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval')
+add_mapping_annotation(Pseudopotential.reference_configuration, OUTCAR_KEY, '.vrhfin')
+add_mapping_annotation(Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom')
+add_mapping_annotation(Pseudopotential.l_max, OUTCAR_KEY, '.lmax')
+add_mapping_annotation(Pseudopotential.lm_max, OUTCAR_KEY, '.lmmax')
+add_mapping_annotation(Pseudopotential.sha256, OUTCAR_KEY, '.sha256')
+
+# vasprun.xml provides basic pseudopotential info (name and valence only)
+add_mapping_annotation(Pseudopotential.name, XML_KEY, '.name')
+add_mapping_annotation(Pseudopotential.n_valence_electrons, XML_KEY, '.n_valence_electrons')
 
 
 class ModelSystem(model_system.ModelSystem):

@@ -25,6 +25,7 @@ class EntryPoint(ParserEntryPoint):
             LOGGER.error(
                 f'Could not load parser class {self.parser_class_name}', exc_info=e
             )
+            raise
 
 
 class Wannier90ParserEntryPoint(EntryPoint):
@@ -203,10 +204,10 @@ vasp_parser = EntryPoint(
     mainfile_contents_re=(
         r'^\s*<\?xml version="1\.0" encoding="ISO-8859-1"\?>\s*?\s*<modeling>?\s*'
         r'<generator>?\s*<i name="program" type="string">\s*vasp\s*</i>?|'
-        r'^\svasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
+        r'^\s*vasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
-    mainfile_name_re='.*[^/]*xml[^/]*',
+    mainfile_name_re=r'.*[^/]*(xml|OUTCAR)[^/]*',
     mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
 )
