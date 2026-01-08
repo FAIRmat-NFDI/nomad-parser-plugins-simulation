@@ -147,58 +147,43 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     # Note: lpaw, lultra, lexch are extracted during parsing but not stored in schema.
     # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
-    # Mapping annotations
-    # OUTCAR provides complete POTCAR metadata
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval'
-    )
-    # vasprun.xml provides basic pseudopotential info (name and valence only)
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons,
-        XML_KEY,
-        '.n_valence_electrons',
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.reference_configuration,
-        OUTCAR_KEY,
-        '.vrhfin',
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom'
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, '.lmax'
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, '.lmmax'
-    )
-    # PPCutoff subsections - ENMAX and ENMIN will be populated via custom parser logic
-    # in get_pseudopotentials() rather than direct mapping annotations
-    add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
+    # NOTE: Mapping annotations moved to after class definition to reference
+    # Pseudopotential.property instead of base class properties, making VASP
+    # immune to annotation contamination from other parsers
 
 
-# Pseudopotential collection mapping - must be after Pseudopotential class definition
-# These annotations are added in the context of ModelMethod to ensure the parser
-# creates Pseudopotential subsections in model_method.numerical_settings
+# Pseudopotential mapping annotations - AFTER class definition to reference VASP-specific
+# inherited properties instead of base class properties. This makes VASP immune to
+# contamination from other parsers removing base class annotations.
+
+# Collection mapping - tells parser to create Pseudopotential instances
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
     ('get_pseudopotentials', ['@.pseudopotentials']),
 )
-
-# XML mapping: Extract basic pseudopotential data from atomtypes array
-# Note: vasprun.xml only contains name and n_valence_electrons, not detailed
-# POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.)
-# TODO: Fix jmespath to correctly extract atomtypes.set.rc data structure
 add_mapping_annotation(
     Pseudopotential.m_def,
     XML_KEY,
     ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\']']),
 )
+
+# Property mappings - using Pseudopotential.property (VASP-specific inherited properties)
+# instead of numerical_settings.Pseudopotential.property (base class properties).
+# This isolates VASP from contamination when other parsers remove base class annotations.
+
+# OUTCAR provides complete POTCAR metadata
+add_mapping_annotation(Pseudopotential.name, OUTCAR_KEY, '.titel')
+add_mapping_annotation(Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval')
+add_mapping_annotation(Pseudopotential.reference_configuration, OUTCAR_KEY, '.vrhfin')
+add_mapping_annotation(Pseudopotential.r_core, OUTCAR_KEY, '.rcore', unit='angstrom')
+add_mapping_annotation(Pseudopotential.l_max, OUTCAR_KEY, '.lmax')
+add_mapping_annotation(Pseudopotential.lm_max, OUTCAR_KEY, '.lmmax')
+add_mapping_annotation(Pseudopotential.sha256, OUTCAR_KEY, '.sha256')
+
+# vasprun.xml provides basic pseudopotential info (name and valence only)
+add_mapping_annotation(Pseudopotential.name, XML_KEY, '.name')
+add_mapping_annotation(Pseudopotential.n_valence_electrons, XML_KEY, '.n_valence_electrons')
 
 
 class ModelSystem(model_system.ModelSystem):
