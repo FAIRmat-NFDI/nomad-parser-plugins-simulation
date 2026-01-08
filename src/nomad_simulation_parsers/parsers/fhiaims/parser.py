@@ -551,7 +551,17 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         # archive_handler.close()
 
         # remove annotations
-        remove_mapping_annotations(fhiaims.general.Simulation.m_def)
+        remove_mapping_annotations(
+            fhiaims.general.Simulation.m_def,
+            annotation_keys=[
+                fhiaims.TEXT_KEY,
+                fhiaims.TEXT_DOS_KEY,
+                fhiaims.TEXT_GW_KEY,
+                fhiaims.SINGLE_POINT_KEY,
+                fhiaims.GEO_OPT_WORKFLOW_KEY,
+                fhiaims.MD_WORKFLOW_KEY,
+            ],
+        )
 
 
 class FHIAimsParser(MatchingParser):

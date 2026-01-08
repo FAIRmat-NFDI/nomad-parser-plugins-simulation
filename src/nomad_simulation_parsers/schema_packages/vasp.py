@@ -31,6 +31,8 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     # dft method
+    add_mapping_annotation(general.Simulation.model_method, XML_KEY, '.parameters')
+    add_mapping_annotation(general.Simulation.model_method, OUTCAR_KEY, '.parameters')
     add_mapping_annotation(
         general.Simulation.model_method,
         XML_KEY,

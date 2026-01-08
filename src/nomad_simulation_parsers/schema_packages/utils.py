@@ -1,45 +1,71 @@
-from typing import Any
+from typing import Any, Iterable
 
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import Quantity, Section, SubSection
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 
 
-def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
+def remove_mapping_annotations(
+    property: Section | SubSection,
+    max_depth: int = 5,
+    annotation_keys: Iterable[str] | None = None,
+) -> None:
     """
     Remove mapping annotations from the input section definition, all its quantities
     and sub-sections recursively.
+
     Args:
-        property (Section): The section definition to remove the annotations from.
-        max_depth (int, optional): The maximum depth of the recursion for sub-sections
-            using the same section as parent.
+        property: The section definition or subsection to remove annotations from.
+        max_depth: The maximum depth of the recursion for sub-sections using the same
+            section as parent.
+        annotation_keys: Optional set of annotation keys that should be removed.
+            When omitted, all mapping annotations are removed (legacy behaviour).
     """
 
-    def _remove(property: Section | SubSection, depth: int = 0):
+    annotation_keys = set(annotation_keys) if annotation_keys is not None else None
+    visited_sections: set[int] = set()
+
+    def _clear_annotations(target: Section | SubSection | Quantity) -> None:
+        mapping = target.m_annotations.get(MAPPING_ANNOTATION_KEY)
+        if not mapping:
+            return
+        if annotation_keys is None:
+            target.m_annotations.pop(MAPPING_ANNOTATION_KEY, None)
+            return
+        for key in annotation_keys:
+            mapping.pop(key, None)
+        if not mapping:
+            target.m_annotations.pop(MAPPING_ANNOTATION_KEY, None)
+
+    def _remove(property: Section | SubSection, depth: int = 0) -> None:
         if depth > max_depth:
             return
 
-        annotation_key = 'mapping'
-        property.m_annotations.pop(annotation_key, None)
+        _clear_annotations(property)
 
-        depth += 1
         property_section = (
             property.sub_section if isinstance(property, SubSection) else property
         )
+        if property_section is None:
+            return
+
+        _clear_annotations(property_section)
+
+        section_id = id(property_section)
+        if section_id in visited_sections:
+            return
+        visited_sections.add(section_id)
+
+        next_depth = depth + 1
+
         for quantity in property_section.all_quantities.values():
-            quantity.m_annotations.pop(annotation_key, None)
+            _clear_annotations(quantity)
 
         for sub_section in property_section.all_sub_sections.values():
-            if sub_section.m_annotations.get(annotation_key):
-                _remove(sub_section, depth)
-            elif sub_section.sub_section.m_annotations.get(annotation_key):
-                _remove(sub_section.sub_section, depth)
-            else:
-                for (
-                    inheriting_section
-                ) in sub_section.sub_section.all_inheriting_sections:
-                    if inheriting_section.m_annotations.get(annotation_key):
-                        _remove(inheriting_section, depth)
+            _remove(sub_section, next_depth)
+
+        for inheriting_section in property_section.all_inheriting_sections:
+            _remove(inheriting_section, next_depth)
 
     _remove(property)
 

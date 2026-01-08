@@ -249,7 +249,16 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.close()
 
         # remove annotations
-        remove_mapping_annotations(exciting.general.Simulation.m_def)
+        remove_mapping_annotations(
+            exciting.general.Simulation.m_def,
+            annotation_keys=[
+                exciting.INFO_KEY,
+                exciting.INPUT_XML_KEY,
+                exciting.EIGVAL_KEY,
+                exciting.BANDSTRUCTURE_XML_KEY,
+                exciting.DOS_XML_KEY,
+            ],
+        )
 
 
 class ExcitingParser(MatchingParser):
