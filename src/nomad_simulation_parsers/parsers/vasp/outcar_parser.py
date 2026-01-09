@@ -128,80 +128,6 @@ class OutcarTextParser(TextParser):
                 val.extend(['nan' if '*' in v else v for v in line.split()])
             return np.array(val, np.float64)
 
-        def str_to_potcar(val_in):  # noqa: PLR0912
-            """Parse POTCAR header information."""
-            data = {}
-            # Extract TITEL
-            titel_match = re.search(r'TITEL\s*=\s*(.+)', val_in)
-            if titel_match:
-                data['titel'] = titel_match.group(1).strip()
-
-            # Extract VRHFIN (reference configuration)
-            vrhfin_match = re.search(r'VRHFIN\s*=\s*(.+)', val_in)
-            if vrhfin_match:
-                # Extract just the configuration part after the element
-                vrhfin = vrhfin_match.group(1).strip()
-                # Remove element name, keep configuration
-                if ':' in vrhfin:
-                    data['vrhfin'] = vrhfin.split(':', 1)[1].strip()
-                else:
-                    data['vrhfin'] = vrhfin
-
-            # Extract LEXCH (XC functional)
-            lexch_match = re.search(r'LEXCH\s*=\s*(\w+)', val_in)
-            if lexch_match:
-                data['lexch'] = lexch_match.group(1)
-
-            # Extract ZVAL (valence electrons)
-            zval_match = re.search(r'ZVAL\s*=\s*([\d\.]+)', val_in)
-            if zval_match:
-                data['zval'] = float(zval_match.group(1))
-
-            # Extract RCORE (core radius)
-            rcore_match = re.search(r'RCORE\s*=\s*([\d\.]+)', val_in)
-            if rcore_match:
-                data['rcore'] = float(rcore_match.group(1))
-
-            # Extract ENMAX and ENMIN
-            enmax_match = re.search(r'ENMAX\s*=\s*([\d\.]+)', val_in)
-            if enmax_match:
-                data['enmax'] = float(enmax_match.group(1))
-
-            enmin_match = re.search(r'ENMIN\s*=\s*([\d\.]+)', val_in)
-            if enmin_match:
-                data['enmin'] = float(enmin_match.group(1))
-
-            # Extract LPAW (is it PAW?)
-            lpaw_match = re.search(r'LPAW\s*=\s*([TF])', val_in)
-            if lpaw_match:
-                data['lpaw'] = lpaw_match.group(1) == 'T'
-
-            # Extract LULTRA (is it ultrasoft?)
-            lultra_match = re.search(r'LULTRA\s*=\s*([TF])', val_in)
-            if lultra_match:
-                data['lultra'] = lultra_match.group(1) == 'T'
-
-            # Extract SHA256 hash
-            sha256_match = re.search(r'SHA256\s*=\s*([a-f0-9]{64})', val_in)
-            if sha256_match:
-                data['sha256'] = sha256_match.group(1)
-
-            # Extract LMAX (number of l-projection operators)
-            lmax_match = re.search(
-                r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', val_in
-            )
-            if lmax_match:
-                data['lmax'] = int(lmax_match.group(1))
-
-            # Extract LMMAX (number of lm-projection operators)
-            lmmax_match = re.search(
-                r'number of lm-projection operators is LMMAX\s*=\s*(\d+)', val_in
-            )
-            if lmmax_match:
-                data['lmmax'] = int(lmmax_match.group(1))
-
-            return data
-
         scf_iteration = [
             Quantity(
                 'energy_total',
@@ -353,7 +279,81 @@ class OutcarTextParser(TextParser):
                 'pseudopotentials',
                 r'(POTCAR:\s*.+?[\s\S]+?)(?=POTCAR:|end of INCAR parameters|\Z)',
                 repeats=True,
-                str_operation=str_to_potcar,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'titel',
+                            r'TITEL\s*=\s*(.+)',
+                            dtype=str,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'vrhfin',
+                            r'VRHFIN\s*=\s*(.+)',
+                            str_operation=lambda x: (
+                                x.split(':', 1)[1].strip() if ':' in x else x.strip()
+                            ),
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'lexch', r'LEXCH\s*=\s*(\w+)', dtype=str, repeats=False
+                        ),
+                        Quantity(
+                            'zval',
+                            r'ZVAL\s*=\s*([\d\.]+)',
+                            dtype=float,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'rcore',
+                            r'RCORE\s*=\s*([\d\.]+)',
+                            dtype=float,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'enmax',
+                            r'ENMAX\s*=\s*([\d\.]+)',
+                            dtype=float,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'enmin',
+                            r'ENMIN\s*=\s*([\d\.]+)',
+                            dtype=float,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'lpaw',
+                            r'LPAW\s*=\s*([TF])',
+                            str_operation=lambda x: x == 'T',
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'lultra',
+                            r'LULTRA\s*=\s*([TF])',
+                            str_operation=lambda x: x == 'T',
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'sha256',
+                            r'SHA256\s*=\s*([a-f0-9]{64})',
+                            dtype=str,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'lmax',
+                            r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)',
+                            dtype=int,
+                            repeats=False,
+                        ),
+                        Quantity(
+                            'lmmax',
+                            r'number of lm-projection operators is LMMAX\s*=\s*(\d+)',
+                            dtype=int,
+                            repeats=False,
+                        ),
+                    ]
+                ),
                 convert=False,
             ),
             Quantity(
@@ -507,17 +507,55 @@ class OutcarParser(MappingTextParser):
             )
         return data
 
-    def get_pseudopotentials(
-        self, pseudopotentials: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def get_pseudopotentials(self, pseudopotentials: list[Any]) -> list[dict[str, Any]]:
         """
-        Filter and return non-empty pseudopotential dictionaries.
+        Extract and filter pseudopotential data from sub-parser results.
 
         The OUTCAR parser extracts 4 POTCAR entries but the first 2 are just
-        short header lines without full data. This transformer filters out
-        empty dicts to return only valid pseudopotential data.
+        short header lines without full data. This transformer converts
+        TextParser objects to dictionaries and filters out empty ones.
         """
-        return [pp for pp in pseudopotentials if pp]
+        result = []
+        # List of quantity names we expect from the sub-parser
+        quantity_names = [
+            'titel',
+            'vrhfin',
+            'lexch',
+            'zval',
+            'rcore',
+            'enmax',
+            'enmin',
+            'lpaw',
+            'lultra',
+            'sha256',
+            'lmax',
+            'lmmax',
+        ]
+
+        for pp in pseudopotentials:
+            pp_dict = {}
+
+            # Extract quantities from TextParser object using get() method
+            if hasattr(pp, 'get'):
+                for qty_name in quantity_names:
+                    value = pp.get(qty_name)
+                    if value is not None:
+                        # Convert numpy arrays to strings for titel
+                        if (
+                            qty_name == 'titel'
+                            and hasattr(value, '__iter__')
+                            and not isinstance(value, str)
+                        ):
+                            value = ' '.join(str(v) for v in value)
+                        pp_dict[qty_name] = value
+            elif isinstance(pp, dict):
+                pp_dict = pp
+
+            # Only include non-empty dictionaries
+            if pp_dict:
+                result.append(pp_dict)
+
+        return result
 
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = []
