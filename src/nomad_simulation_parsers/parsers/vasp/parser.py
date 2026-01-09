@@ -10,10 +10,6 @@ if TYPE_CHECKING:
 
 from nomad.parsing import MatchingParser
 
-from nomad_simulation_parsers.schema_packages import (
-    vasp,  # noqa: F401 - needed to register mapping annotations
-)
-
 from .outcar_parser import OutcarArchiveWriter
 from .xml_parser import XMLArchiveWriter
 

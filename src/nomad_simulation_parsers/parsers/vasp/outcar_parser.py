@@ -671,9 +671,7 @@ class OutcarArchiveWriter(ArchiveWriter):
         if is_gw:
             pp.gw_optimized = True
 
-    def _add_xc_functional(
-        self, pp: vasp.Pseudopotential, lexch: str | None
-    ) -> None:
+    def _add_xc_functional(self, pp: vasp.Pseudopotential, lexch: str | None) -> None:
         """
         Add XC functional information from VASP LEXCH code.
 
