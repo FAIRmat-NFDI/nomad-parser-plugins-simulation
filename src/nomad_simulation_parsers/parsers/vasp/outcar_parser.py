@@ -67,7 +67,7 @@ class OutcarTextParser(TextParser):
 
         super().__init__(None)
 
-    def init_quantities(self):  # noqa: PLR0915
+    def init_quantities(self):
         def str_to_array(val_in):
             val = [
                 re.findall(r'(\-?\d+\.[\dEe]+)', v)
@@ -601,7 +601,136 @@ class OutcarParser(MappingTextParser):
 
 
 class OutcarArchiveWriter(ArchiveWriter):
-    def _process_pseudopotentials(  # noqa: PLR0912, PLR0915
+    def _add_cutoff(
+        self, pp: vasp.Pseudopotential, raw_pp: dict, key: str, role: str
+    ) -> None:
+        """
+        Add a single cutoff value to pseudopotential if present in raw data.
+
+        Args:
+            pp: Pseudopotential instance to modify
+            raw_pp: Raw parser data containing cutoff values
+            key: Key to look up in raw_pp ('enmax' or 'enmin')
+            role: Cutoff role ('recommended' or 'recommended_min')
+        """
+        if value := raw_pp.get(key):
+            cutoff = PPCutoff(
+                cutoff_kind='wavefunction',
+                cutoff_role=role,
+                value=value * ureg.eV,
+            )
+            if not pp.cutoffs:
+                pp.cutoffs = []
+            pp.cutoffs.append(cutoff)
+
+    def _determine_pp_type(
+        self, pp: vasp.Pseudopotential, lpaw: bool, lultra: bool
+    ) -> None:
+        """
+        Determine pseudopotential type from VASP flags and name.
+
+        VASP uses LPAW and LULTRA flags in POTCAR:
+        - LPAW=T: PAW potential
+          - Title contains '_GW' → NC-PAW-GW (norm-conserving)
+          - Title contains 'nc' and 'paw' → NC-PAW (norm-conserving)
+          - Otherwise → PAW (NOT norm-conserving)
+        - LULTRA=T: Ultrasoft (US, NOT norm-conserving)
+        - Both LPAW=F and LULTRA=F: Fully norm-conserving (NC)
+
+        Args:
+            pp: Pseudopotential instance to modify
+            lpaw: LPAW flag from POTCAR
+            lultra: LULTRA flag from POTCAR
+        """
+        is_gw = '_GW' in pp.name if pp.name else False
+
+        if lpaw:
+            # PAW potential
+            if is_gw:
+                pp.type = 'NC-PAW-GW'
+                pp.is_norm_conserving = True  # GW potentials have NC partial waves
+            else:
+                # Check for NC-PAW variant (rare without GW, but possible)
+                titel_lower = pp.name.lower() if pp.name else ''
+                if 'nc' in titel_lower and 'paw' in titel_lower:
+                    pp.type = 'NC-PAW'
+                    pp.is_norm_conserving = True
+                else:
+                    pp.type = 'PAW'
+                    pp.is_norm_conserving = False
+        elif lultra:
+            # Ultrasoft (always Vanderbilt formalism)
+            pp.type = 'US'
+            pp.is_norm_conserving = False
+        else:
+            # Fully norm-conserving (non-PAW, non-ultrasoft)
+            pp.type = 'NC'
+            pp.is_norm_conserving = True
+
+        # GW optimization detection
+        if is_gw:
+            pp.gw_optimized = True
+
+    def _add_xc_functional(
+        self, pp: vasp.Pseudopotential, lexch: str | None
+    ) -> None:
+        """
+        Add XC functional information from VASP LEXCH code.
+
+        Args:
+            pp: Pseudopotential instance to modify
+            lexch: LEXCH code from POTCAR (e.g., 'PE' for PBE)
+        """
+        if not lexch:
+            return
+
+        xc = XCFunctional()
+
+        # Map VASP LEXCH codes to standard functional names
+        vasp_xc_map = {
+            'PE': 'PBE',
+            'PS': 'PBEsol',
+            'CA': 'LDA',
+            '91': 'PW91',
+            'AM': 'AM05',
+            'RP': 'RPBE',
+            'PW': 'PW91',
+        }
+
+        functional_name = vasp_xc_map.get(lexch, lexch)
+        xc.functional_key = functional_name
+        pp.xc_functional = xc
+
+    def _link_pseudopotentials_to_atoms(
+        self,
+        archive_data: Simulation,
+        pseudopotentials: list[vasp.Pseudopotential],
+    ) -> None:
+        """
+        Link pseudopotentials to AtomsState instances.
+
+        VASP lists pseudopotentials in POSCAR species order, matching the order
+        of particle_states in the model_system.
+
+        Args:
+            archive_data: The simulation archive containing model_system
+            pseudopotentials: List of Pseudopotential instances to link
+        """
+        if not archive_data.model_system or len(archive_data.model_system) == 0:
+            return
+
+        model_system = archive_data.model_system[0]
+        if (
+            not hasattr(model_system, 'particle_states')
+            or not model_system.particle_states
+        ):
+            return
+
+        # Link each AtomsState to its corresponding Pseudopotential
+        for atoms_state, pp in zip(model_system.particle_states, pseudopotentials):
+            atoms_state.pseudopotential = pp
+
+    def _process_pseudopotentials(
         self,
         archive_data: Simulation,
         parser_data: dict[str, Any],
@@ -609,14 +738,11 @@ class OutcarArchiveWriter(ArchiveWriter):
         """
         Post-process Pseudopotential instances created by mapping annotations.
 
-        This method handles complex transformations that cannot be expressed
-        in declarative mapping annotations:
-        - PPCutoff subsection creation from ENMAX and ENMIN values
-        - Type determination (PAW, NC-PAW, US, NC) from LPAW/LULTRA flags
-        - is_norm_conserving flag based on type
-        - GW optimization detection
-        - XC functional subsection creation and normalization
-        - Linking pseudopotentials to AtomsState
+        This method coordinates complex transformations using helper methods:
+        - _add_cutoff(): Add PPCutoff from ENMAX/ENMIN
+        - _determine_pp_type(): Determine type from LPAW/LULTRA flags
+        - _add_xc_functional(): Map LEXCH codes to standard XC functionals
+        - _link_pseudopotentials_to_atoms(): Link PPs to AtomsState
 
         Args:
             archive_data: The simulation archive being populated
@@ -654,27 +780,9 @@ class OutcarArchiveWriter(ArchiveWriter):
                 else {}
             )
 
-            # ENMAX: recommended cutoff for standard precision
-            if enmax_value := raw_pp.get('enmax'):
-                enmax_cutoff = PPCutoff(
-                    cutoff_kind='wavefunction',
-                    cutoff_role='recommended',
-                    value=enmax_value * ureg.eV,
-                )
-                if not pp.cutoffs:
-                    pp.cutoffs = []
-                pp.cutoffs.append(enmax_cutoff)
-
-            # ENMIN: minimum recommended cutoff for fast calculations
-            if enmin_value := raw_pp.get('enmin'):
-                enmin_cutoff = PPCutoff(
-                    cutoff_kind='wavefunction',
-                    cutoff_role='recommended_min',
-                    value=enmin_value * ureg.eV,
-                )
-                if not pp.cutoffs:
-                    pp.cutoffs = []
-                pp.cutoffs.append(enmin_cutoff)
+            # Add cutoffs from ENMAX and ENMIN
+            self._add_cutoff(pp, raw_pp, 'enmax', 'recommended')
+            self._add_cutoff(pp, raw_pp, 'enmin', 'recommended_min')
 
             # Get lpaw, lultra, lexch from raw parser data (not stored in schema)
             # These flags are used only to derive type and is_norm_conserving
@@ -683,85 +791,19 @@ class OutcarArchiveWriter(ArchiveWriter):
             lexch = raw_pp.get('lexch')
             pp_index += 1
 
-            # Determine type from POTCAR flags and name
-            # VASP uses LPAW and LULTRA flags in POTCAR (parsed from OUTCAR):
-            #   - LPAW=T: PAW potential
-            #     - Title contains '_GW' → NC-PAW-GW (norm-conserving)
-            #     - Title contains 'nc' and 'paw' → NC-PAW (norm-conserving)
-            #     - Otherwise → PAW (NOT norm-conserving)
-            #   - LULTRA=T: Ultrasoft (US, NOT norm-conserving)
-            #   - Both LPAW=F and LULTRA=F: Fully norm-conserving (NC)
-            # VASP does NOT have an explicit "LNORMCONS" flag - absence of both
-            # LPAW and LULTRA indicates standard norm-conserving pseudopotential.
-            is_gw = '_GW' in pp.name if pp.name else False
+            # Determine type and norm-conserving flag
+            self._determine_pp_type(pp, lpaw, lultra)
 
-            if lpaw:
-                # PAW potential
-                if is_gw:
-                    pp.type = 'NC-PAW-GW'
-                    pp.is_norm_conserving = True  # GW potentials have NC partial waves
-                else:
-                    # Check for NC-PAW variant (rare without GW, but possible)
-                    titel_lower = pp.name.lower() if pp.name else ''
-                    if 'nc' in titel_lower and 'paw' in titel_lower:
-                        pp.type = 'NC-PAW'
-                        pp.is_norm_conserving = True
-                    else:
-                        pp.type = 'PAW'
-                        pp.is_norm_conserving = False
-            elif lultra:
-                # Ultrasoft (always Vanderbilt formalism)
-                pp.type = 'US'
-                pp.is_norm_conserving = False
-            else:
-                # Fully norm-conserving (non-PAW, non-ultrasoft)
-                pp.type = 'NC'
-                pp.is_norm_conserving = True
+            # Add XC functional
+            self._add_xc_functional(pp, lexch)
 
-            # GW optimization detection
-            if is_gw:
-                pp.gw_optimized = True
-
-            # XC functional - use lexch from raw parser data
-            if lexch:
-                xc = XCFunctional()
-                lexch_code = lexch
-
-                # Map VASP LEXCH codes to standard functional names
-                vasp_xc_map = {
-                    'PE': 'PBE',
-                    'PS': 'PBEsol',
-                    'CA': 'LDA',
-                    '91': 'PW91',
-                    'AM': 'AM05',
-                    'RP': 'RPBE',
-                    'PW': 'PW91',
-                }
-
-                functional_name = vasp_xc_map.get(lexch_code, lexch_code)
-                xc.functional_key = functional_name
-                pp.xc_functional = xc
-
-        # Link pseudopotentials to AtomsState
-        # VASP lists pseudopotentials in POSCAR species order
-        if archive_data.model_system and len(archive_data.model_system) > 0:
-            model_system = archive_data.model_system[0]
-            if (
-                hasattr(model_system, 'particle_states')
-                and model_system.particle_states
-            ):
-                # Get only the Pseudopotential objects
-                pseudopotentials = [
-                    ns
-                    for ns in model_method.numerical_settings
-                    if isinstance(ns, vasp.Pseudopotential)
-                ]
-
-                # Link each AtomsState to its corresponding Pseudopotential
-                for atoms_state, pp in zip(
-                    model_system.particle_states, pseudopotentials
-                ):
-                    atoms_state.pseudopotential = pp
+        # Link pseudopotentials to atoms
+        pseudopotentials = [
+            ns
+            for ns in model_method.numerical_settings
+            if isinstance(ns, vasp.Pseudopotential)
+        ]
+        self._link_pseudopotentials_to_atoms(archive_data, pseudopotentials)
 
     def write_to_archive(self) -> None:
         # set up archive parser
