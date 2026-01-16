@@ -10,3 +10,7 @@ def test_parse_file():
     parser = FHIAimsParser()
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    simulation = archive.data
+    assert simulation is not None, 'No simulation data in archive'
+    assert simulation.model_method, 'No model_method in simulation'
