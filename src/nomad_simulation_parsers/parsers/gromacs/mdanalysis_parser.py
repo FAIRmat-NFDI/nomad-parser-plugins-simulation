@@ -157,12 +157,18 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                 'Interactions will not be stored'
             )
             return []
-        gromacs_version = gromacs_version.split('.', 1)[0] if gromacs_version else None
-        if gromacs_version == '2024':
-            self.logger.warning(
-                'Reading force field from tpr not yet supported for Gromacs 2024.'
-                ' Interactions will not be stored'
-            )
+        if not self.universe:
+            if isinstance(self.universe_error, NotImplementedError):
+                self.logger.warning(
+                    'GROMACS TPR file version currently not supported by MDAnalysis. '
+                    'Force field interactions will not be stored.'
+                )
+            elif self.universe_error:
+                self.logger.warning(
+                    'Failed to read TPR file: %s. '
+                    'Force field interactions will not be stored.',
+                    str(self.universe_error),
+                )
             return []
 
         with open(self.mainfile, 'rb') as f:

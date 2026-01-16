@@ -362,11 +362,8 @@ class GromacsMDAnalysisParser(MappingParser):
         Transform MDAnalysis interactions into force field contributions.
         Groups interactions by type and creates one Potential per interaction type.
         """
-        gromacs_version = self.data_object.get('version')
-        if not gromacs_version:
-            return []
 
-        interactions = self.data_object.get_interactions(gromacs_version)
+        interactions = self.data_object.get_interactions()
         if not interactions:
             return []
 

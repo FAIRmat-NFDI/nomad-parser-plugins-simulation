@@ -81,6 +81,7 @@ class MDAnalysisParser(FileParser):
         self._kwargs = kwargs
         self._atomsgroup_info = None
         self._results = None
+        self.universe_error = None
 
     @property
     def auxilliary_files(self):
@@ -111,6 +112,7 @@ class MDAnalysisParser(FileParser):
                 )
             except Exception as e:
                 self.logger.error('Error creating MDAnalysis universe.', exc_info=e)
+                self.universe_error = e
         return self._file_handler
 
     @property
