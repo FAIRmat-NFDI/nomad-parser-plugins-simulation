@@ -41,7 +41,6 @@ from nomad_simulation_parsers.parsers.utils.general import (
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import fhiaims
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .common import ControlParser, GeometryParser
 
@@ -549,9 +548,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         self.archive_handler = archive_handler
         # out_parser.close()
         # archive_handler.close()
-
-        # remove annotations
-        remove_mapping_annotations(fhiaims.general.Simulation.m_def)
 
 
 class FHIAimsParser(MatchingParser):

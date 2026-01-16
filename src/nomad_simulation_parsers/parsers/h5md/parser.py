@@ -16,7 +16,6 @@ from structlog.stdlib import BoundLogger
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
 from nomad_simulation_parsers.schema_packages.h5md import MolecularDynamics, Simulation
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
 
@@ -527,9 +526,6 @@ class H5MDArchiveWriter(MDParser):
         self.h5_parser.close()
         self.simulation_parser.close()
         self.workflow_parser.close()
-
-        # remove mapping annotations
-        remove_mapping_annotations(self.archive.data.m_def)
 
 
 class H5MDParser(MatchingParser):

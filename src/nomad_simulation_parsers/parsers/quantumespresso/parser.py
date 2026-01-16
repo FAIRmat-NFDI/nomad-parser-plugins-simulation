@@ -24,7 +24,9 @@ from nomad_simulations.schema_packages.workflow import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.schema_packages import quantumespresso
 from nomad_simulation_parsers.schema_packages.quantumespresso import common
+from nomad_simulation_parsers.schema_packages.utils import remove_annotation_key
 
 from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
@@ -218,6 +220,15 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     mainfile_parser = MainfileParser(text_parser=QuantumEspressoFileParser())
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
+        # Clear 'out' key to avoid accumulation from abinit/ams/crystal/octopus
+        # These parsers also use 'out' and run before QE in test suite
+        from nomad_simulations.schema_packages import general, model_method, model_system, outputs
+        remove_annotation_key(general.Simulation.m_def, 'out')
+        remove_annotation_key(general.Program.m_def, 'out')
+        remove_annotation_key(model_method.DFT.m_def, 'out')
+        remove_annotation_key(model_system.ModelSystem.m_def, 'out')
+        remove_annotation_key(outputs.Outputs.m_def, 'out')
+
         # reload the schema annotations
         reload(self.schema)
         self.simulation_parser.data_object = Simulation(

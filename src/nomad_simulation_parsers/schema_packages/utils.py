@@ -44,6 +44,23 @@ def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
     _remove(property)
 
 
+def remove_annotation_key(property: Section, annotation_key: str) -> None:
+    """
+    Remove a specific annotation key from a section definition, without removing
+    other annotation keys.
+
+    This is useful when multiple parsers share the same annotation key (e.g., 'out')
+    and need to clear accumulated annotations from previous parsers.
+
+    Args:
+        property (Section): The section definition to remove the annotation key from.
+        annotation_key (str): The specific key to remove (e.g., 'out', 'xml').
+    """
+    mapping_annotations = property.m_annotations.get(MAPPING_ANNOTATION_KEY, {})
+    if annotation_key in mapping_annotations:
+        mapping_annotations.pop(annotation_key)
+
+
 def add_mapping_annotation(
     property: Section | Quantity | SubSection,
     annotation_key: str,
