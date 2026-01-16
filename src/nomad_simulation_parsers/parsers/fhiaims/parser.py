@@ -371,8 +371,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     f'../upload/archive/mainfile/{mainfile}'
                 )
             # check if supercell match calculation cell
-            calc_cell: Atoms = (
-                archive.data.model_system[-1].to_ase_atoms(logger=self.logger)
+            calc_cell: Atoms = archive.data.model_system[-1].to_ase_atoms(
+                logger=self.logger
             )
             supercell_atoms = Atoms(
                 positions=supercell.positions,
