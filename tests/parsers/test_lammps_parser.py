@@ -682,3 +682,14 @@ def test_traj_dcd():
 
 
 # TODO Add tests that use the full parser fixture and test end-to-end parsing
+
+
+def test_model_method(parser):
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/lammps/1_methyl_naphthalene/log.1_methyl_naphthalene',
+        archive,
+        LOGGER,
+    )
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0

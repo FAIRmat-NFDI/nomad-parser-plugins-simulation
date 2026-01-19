@@ -34,3 +34,27 @@ def test_xspectra():
         archive,
         LOGGER,
     )
+
+
+def test_model_method_pwscf():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
+    assert archive.data is not None
+    assert hasattr(archive.data, 'model_method')
+
+
+def test_model_method_epw():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/quantumespresso/epw/epw.out', archive, LOGGER)
+    assert archive.data is not None
+    assert hasattr(archive.data, 'model_method')
+
+
+def test_model_method_phonon():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/quantumespresso/phonon/ph.out', archive, LOGGER)
+    assert archive.data is not None
+    assert hasattr(archive.data, 'model_method')

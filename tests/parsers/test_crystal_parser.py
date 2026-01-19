@@ -10,3 +10,11 @@ def test_parse_file():
     parser = CrystalParser()
     archive = EntryArchive()
     parser.parse('tests/data/crystal/single_point/dft/output.out', archive, LOGGER)
+
+
+def test_model_method():
+    parser = CrystalParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/crystal/single_point/dft/output.out', archive, LOGGER)
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0

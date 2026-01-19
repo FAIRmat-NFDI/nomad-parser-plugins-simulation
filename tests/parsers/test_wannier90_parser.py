@@ -80,3 +80,11 @@ class TestWannierQuantumNumberMapping:
         assert states[0]['spin_orbit_state']['ml_quantum_number'] == -1
         assert states[1]['spin_orbit_state']['ml_quantum_number'] == 0
         assert states[2]['spin_orbit_state']['ml_quantum_number'] == 1
+
+
+def test_model_method():
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0

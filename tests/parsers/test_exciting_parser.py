@@ -10,3 +10,11 @@ def test_parse_file():
     parser = ExcitingParser()
     archive = EntryArchive()
     parser.parse('tests/data/exciting/GaO_strucopt/INFO.OUT', archive, LOGGER)
+
+
+def test_model_method():
+    parser = ExcitingParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/exciting/GaO_strucopt/INFO.OUT', archive, LOGGER)
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0

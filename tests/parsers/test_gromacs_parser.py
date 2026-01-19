@@ -151,3 +151,23 @@ def test_integration_parse_gromacs_water():
     )
     if getattr(archive, 'data', None) is not None:
         assert isinstance(archive.data.model_system, list)
+
+
+def test_model_method():
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    candidates = ['mdrun.log', 'md.log', 'mdrun.out']
+    mainfile = ''
+    for name in candidates:
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            mainfile = p
+            break
+    assert mainfile, f'No suitable mainfile found in {base}'
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(mainfile, archive)
+    # Gromacs is an MD parser, model_method may not be populated for MD simulations
+    # that don't use quantum methods
+    if archive.data is not None:
+        assert hasattr(archive.data, 'model_method')

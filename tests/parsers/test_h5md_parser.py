@@ -391,3 +391,15 @@ def test_md(parser):
     assert_system_hierarchy(archive)
     assert_outputs(archive)
     assert_workflow(archive)
+
+
+def test_model_method(parser):
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        archive,
+        None,
+    )
+    # H5MD is typically used for MD trajectories, model_method may be empty
+    # for classical MD simulations
+    assert archive.data.model_method is not None

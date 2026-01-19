@@ -10,3 +10,11 @@ def test_parse_file():
     parser = FHIAimsParser()
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+
+def test_model_method():
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0

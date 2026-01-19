@@ -10,3 +10,11 @@ def test_parse_file():
     parser = AMSParser()
     archive = EntryArchive()
     parser.parse('tests/data/ams/scf/phenylrSmall-metagga.out', archive, LOGGER)
+
+
+def test_model_method():
+    parser = AMSParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/ams/scf/phenylrSmall-metagga.out', archive, LOGGER)
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) > 0
