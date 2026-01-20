@@ -25,7 +25,6 @@ class EntryPoint(ParserEntryPoint):
             LOGGER.error(
                 f'Could not load parser class {self.parser_class_name}', exc_info=e
             )
-            raise
 
 
 class Wannier90ParserEntryPoint(EntryPoint):
