@@ -120,6 +120,11 @@ class XMLArchiveWriter(ArchiveWriter):
 
         xml_parser = VasprunParser(filepath=self.mainfile)
 
+        # DFT-specific key first to create DFT object
+        data_parser.annotation_key = vasp.DFT_XML_KEY
+        xml_parser.convert(data_parser)
+
+        # Generic keys for shared annotations (populate into existing DFT)
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 

@@ -21,22 +21,38 @@ XML_KEY = 'xml'
 XML2_KEY = 'xml2'
 OUTCAR_KEY = 'outcar'
 
+# Method-specific keys
+DFT_XML_KEY = 'dft_xml'
+DFT_OUTCAR_KEY = 'dft_outcar'
+
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
+# DFT-specific keys use same root paths as generic keys
+add_mapping_annotation(general.Simulation.m_def, DFT_XML_KEY, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, DFT_OUTCAR_KEY, '@')
+
 
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
-    # dft method
+    # dft method - use both generic and DFT-specific keys
+    # Generic keys allow numerical_settings to populate into the created model_method
     add_mapping_annotation(
-        model_method.DFT.m_def,
+        general.Simulation.model_method,
         XML_KEY,
         '.parameters',
     )
-    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, '.parameters')
+    add_mapping_annotation(general.Simulation.model_method, OUTCAR_KEY, '.parameters')
+    # DFT-specific keys ensure proper DFT type and avoid circular references
+    add_mapping_annotation(
+        model_method.DFT.m_def,
+        DFT_XML_KEY,
+        '.parameters',
+    )
+    add_mapping_annotation(model_method.DFT.m_def, DFT_OUTCAR_KEY, '.parameters')
     # NOTE: Pseudopotential annotations registered after class definition (line 203)
     # Ensures proper parser hierarchy: Simulation -> ModelMethod -> NumericalSettings
     add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
@@ -62,29 +78,38 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
-    add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, DFT_XML_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, DFT_OUTCAR_KEY, '.@')
+
+    # pseudopotential numerical settings (OUTCAR only)
+    # Note: Pseudopotentials extracted only from OUTCAR, not vasprun.xml
+    # vasprun.xml lacks detailed POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.)
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        DFT_OUTCAR_KEY,
+        ('get_pseudopotentials', ['@.pseudopotentials']),
+    )
 
 
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
         model_method.XCFunctional.components,
-        XML_KEY,
+        DFT_XML_KEY,
         '.separator[?"@name"==\'electronic exchange-correlation\']',
     )
     add_mapping_annotation(
-        model_method.XCFunctional.components, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+        model_method.XCFunctional.components, DFT_OUTCAR_KEY, ('get_xc_functionals', ['.@'])
     )
 
 
 class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label,
-        XML_KEY,
+        DFT_XML_KEY,
         '.i[?"@name"==\'GGA\'] | [0].__value',
     )
     add_mapping_annotation(
-        model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
+        model_method.XCComponent.canonical_label, DFT_OUTCAR_KEY, '.name'
     )
 
 
@@ -94,12 +119,8 @@ class ModelMethod(model_method.ModelMethod):
     # TODO: Add KSpace mapping for OUTCAR k-points
     # add_mapping_annotation(numerical_settings.KSpace.m_def, OUTCAR_KEY, '@')
 
-    # pseudopotential numerical settings
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.m_def,
-        XML_KEY,
-        ('get_pseudopotentials_xml', ['@.atominfo.array[?"@name"==\'atomtypes\']']),
-    )
+    # Pseudopotential numerical settings: OUTCAR only (no XML extraction)
+    # XML lacks detailed POTCAR metadata - rely on OUTCAR for complete pseudopotential info
 
 
 class KSpace(numerical_settings.KSpace):
@@ -191,21 +212,21 @@ class Pseudopotential(numerical_settings.Pseudopotential):
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
 # These annotations are added in the context of ModelMethod to ensure the parser
 # creates Pseudopotential subsections in model_method.numerical_settings
+# Use both generic and DFT-specific keys so pseudopotentials populate into DFT objects
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
     ('get_pseudopotentials', ['@.pseudopotentials']),
 )
-
-# XML mapping: Extract basic pseudopotential data from atomtypes array
-# Note: vasprun.xml only contains name and n_valence_electrons, not detailed
-# POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, etc.)
-# TODO: Fix jmespath to correctly extract atomtypes.set.rc data structure
 add_mapping_annotation(
     Pseudopotential.m_def,
-    XML_KEY,
-    ('get_pseudopotentials', ['@.atominfo.array[?"@name"==\'atomtypes\']']),
+    DFT_OUTCAR_KEY,
+    ('get_pseudopotentials', ['@.pseudopotentials']),
 )
+
+# Pseudopotentials: OUTCAR only
+# vasprun.xml lacks detailed POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, SHA256, etc.)
+# Pseudopotentials are only extracted from OUTCAR files which contain complete POTCAR headers
 
 
 class ModelSystem(model_system.ModelSystem):

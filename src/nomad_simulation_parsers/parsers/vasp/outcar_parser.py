@@ -277,7 +277,7 @@ class OutcarTextParser(TextParser):
             ),  # TODO: deprecate
             Quantity(
                 'pseudopotentials',
-                r'(POTCAR:\s*.+?[\s\S]+?)(?=POTCAR:|end of INCAR parameters|\Z)',
+                r'(POTCAR:\s*.+?[\s\S]*?VRHFIN[\s\S]+?)(?=POTCAR:|end of INCAR parameters|\Z)',
                 repeats=True,
                 sub_parser=TextParser(
                     quantities=[
@@ -808,14 +808,18 @@ class OutcarArchiveWriter(ArchiveWriter):
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
         archive_data_parser.data_object = archive_data
-        archive_data_parser.annotation_key = vasp.OUTCAR_KEY
 
         # set up outcar parser
         source_parser = OutcarParser()
         source_parser.text_parser = OutcarTextParser()
         source_parser.filepath = self.mainfile
 
-        # convert
+        # DFT-specific key first to create DFT object
+        archive_data_parser.annotation_key = vasp.DFT_OUTCAR_KEY
+        source_parser.convert(archive_data_parser)
+
+        # Generic key for shared annotations (populate into existing DFT)
+        archive_data_parser.annotation_key = vasp.OUTCAR_KEY
         source_parser.convert(archive_data_parser)
 
         # Post-process pseudopotentials created by mapping annotations
