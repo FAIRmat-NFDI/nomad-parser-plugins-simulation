@@ -119,8 +119,14 @@ class ModelMethod(model_method.ModelMethod):
     # TODO: Add KSpace mapping for OUTCAR k-points
     # add_mapping_annotation(numerical_settings.KSpace.m_def, OUTCAR_KEY, '@')
 
-    # Pseudopotential numerical settings: OUTCAR only (no XML extraction)
-    # XML lacks detailed POTCAR metadata - rely on OUTCAR for complete pseudopotential info
+    # Pseudopotential numerical settings
+    # XML provides basic info (name, valence) via absolute path from modeling root
+    # OUTCAR provides complete POTCAR metadata
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        XML_KEY,
+        ('get_pseudopotentials_xml', ['modeling.atominfo.array[?"@name"==\'atomtypes\']']),
+    )
 
 
 class KSpace(numerical_settings.KSpace):
@@ -224,9 +230,14 @@ add_mapping_annotation(
     ('get_pseudopotentials', ['@.pseudopotentials']),
 )
 
-# Pseudopotentials: OUTCAR only
-# vasprun.xml lacks detailed POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, SHA256, etc.)
-# Pseudopotentials are only extracted from OUTCAR files which contain complete POTCAR headers
+# Pseudopotential collection mappings
+# XML: Basic info (name, valence) from atominfo array
+# OUTCAR: Complete POTCAR metadata (type, XC, cutoffs, SHA256, etc.)
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    XML_KEY,
+    ('get_pseudopotentials_xml', ['modeling.atominfo.array[?"@name"==\'atomtypes\']']),
+)
 
 
 class ModelSystem(model_system.ModelSystem):
