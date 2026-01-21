@@ -106,7 +106,7 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label,
         DFT_XML_KEY,
-        '.i[?"@name"==\'GGA\'] | [0].__value',
+        ('normalize_xc_label', ['.i[?"@name"==\'GGA\'] | [0].__value']),
     )
     add_mapping_annotation(
         model_method.XCComponent.canonical_label, DFT_OUTCAR_KEY, '.name'

@@ -73,6 +73,28 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
+    def normalize_xc_label(self, raw_label: str) -> str:
+        """
+        Normalize VASP XC codes to standard functional names.
+
+        Args:
+            raw_label: VASP LEXCH code (e.g., 'PE' for PBE)
+
+        Returns:
+            Normalized functional name (e.g., 'GGA_X_PBE')
+        """
+        # Map VASP codes to libxc-style functional names
+        vasp_xc_map = {
+            'PE': 'GGA_X_PBE',  # PBE GGA
+            'PS': 'GGA_X_PBE_SOL',  # PBEsol
+            'CA': 'LDA_C_PZ',  # Perdew-Zunger LDA
+            '91': 'GGA_X_PW91',  # Perdew-Wang 91
+            'AM': 'GGA_X_AM05',  # AM05
+            'RP': 'GGA_X_RPBE',  # RPBE
+            'PW': 'GGA_X_PW91',  # PW91 (same as 91)
+        }
+        return vasp_xc_map.get(raw_label, raw_label)
+
     def get_pseudopotentials_xml(
         self, atomtypes: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
