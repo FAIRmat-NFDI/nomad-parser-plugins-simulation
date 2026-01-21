@@ -277,7 +277,8 @@ class OutcarTextParser(TextParser):
             ),  # TODO: deprecate
             Quantity(
                 'pseudopotentials',
-                r'(POTCAR:\s*.+?[\s\S]*?VRHFIN[\s\S]+?)(?=POTCAR:|end of INCAR parameters|\Z)',
+                r'(POTCAR:\s*.+?[\s\S]*?VRHFIN[\s\S]+?)'
+                r'(?=POTCAR:|end of INCAR parameters|\Z)',
                 repeats=True,
                 sub_parser=TextParser(
                     quantities=[

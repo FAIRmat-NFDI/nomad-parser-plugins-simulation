@@ -98,7 +98,9 @@ class XCFunctional(model_method.XCFunctional):
         '.separator[?"@name"==\'electronic exchange-correlation\']',
     )
     add_mapping_annotation(
-        model_method.XCFunctional.components, DFT_OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+        model_method.XCFunctional.components,
+        DFT_OUTCAR_KEY,
+        ('get_xc_functionals', ['.@']),
     )
 
 
@@ -125,7 +127,10 @@ class ModelMethod(model_method.ModelMethod):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.m_def,
         XML_KEY,
-        ('get_pseudopotentials_xml', ['modeling.atominfo.array[?"@name"==\'atomtypes\']']),
+        (
+            'get_pseudopotentials_xml',
+            ['modeling.atominfo.array[?"@name"==\'atomtypes\']'],
+        ),
     )
 
 
