@@ -134,10 +134,12 @@ class VasprunParser(XMLParser):
             c_elements = rc.get('c', [])
             if len(c_elements) >= ATOMTYPE_RC_EXPECTED_LENGTH:
                 # Format: [atomspertype, element, mass, valence, pseudopotential_name]
-                pseudopotentials.append({
-                    'name': c_elements[4].strip(),
-                    'n_valence_electrons': float(c_elements[3]),
-                })
+                pseudopotentials.append(
+                    {
+                        'name': c_elements[4].strip(),
+                        'n_valence_electrons': float(c_elements[3]),
+                    }
+                )
 
         return pseudopotentials
 
@@ -179,7 +181,9 @@ class XMLArchiveWriter(ArchiveWriter):
             parser_data = outcar_parser.data
             if parser_data and 'pseudopotentials' in parser_data:
                 # Get transformer to process raw PP data
-                raw_pps = outcar_parser.get_pseudopotentials(parser_data.get('pseudopotentials', []))
+                raw_pps = outcar_parser.get_pseudopotentials(
+                    parser_data.get('pseudopotentials', [])
+                )
 
                 # Manually create Pseudopotential instances from OUTCAR
                 model_method = data_parser.data_object.model_method[0]
@@ -210,8 +214,7 @@ class XMLArchiveWriter(ArchiveWriter):
                 # Post-process to add derived fields (type, XC, cutoffs)
                 outcar_writer = OutcarArchiveWriter()
                 outcar_writer._process_pseudopotentials(
-                    data_parser.data_object,
-                    parser_data
+                    data_parser.data_object, parser_data
                 )
 
             outcar_parser.close()

@@ -122,8 +122,8 @@ class ModelMethod(model_method.ModelMethod):
     # add_mapping_annotation(numerical_settings.KSpace.m_def, OUTCAR_KEY, '@')
 
     # Note: Pseudopotential parsing is done only from OUTCAR auxiliary file
-    # XML doesn't contain complete POTCAR metadata (LPAW, LULTRA, LEXCH, cutoffs, SHA256)
-    # So we only create pseudopotentials when OUTCAR is available
+    # XML doesn't contain complete POTCAR metadata (LPAW, LULTRA, LEXCH,
+    # cutoffs, SHA256). So we only create pseudopotentials when OUTCAR is available
 
 
 class KSpace(numerical_settings.KSpace):
