@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -10,6 +11,12 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLPa
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
+from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
+    OutcarArchiveWriter,
+    OutcarParser,
+    OutcarTextParser,
+)
 from nomad_simulation_parsers.schema_packages import vasp
 
 LOGGER = get_logger(__name__)
@@ -153,14 +160,61 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
 
-        self.archive.data = data_parser.data_object
+        # Search for OUTCAR auxiliary file to supplement pseudopotential metadata
+        maindir = os.path.dirname(self.mainfile)
+        outcar_files = search_files('OUTCAR', maindir)
 
-        # TODO: Add POTCAR parser for complete pseudopotential metadata
-        # Currently vasprun.xml provides only basic info (name, valence) while OUTCAR
-        # contains full POTCAR headers. Direct POTCAR parsing would enable complete
-        # pseudopotential support (LPAW, LULTRA, LEXCH, ENMAX/ENMIN, RCORE, VRHFIN,
-        # SHA256) regardless of which mainfile is used. This would allow proper type
-        # determination and XC functional resolution from vasprun.xml-only uploads.
+        if outcar_files and data_parser.data_object.model_method:
+            LOGGER.info(f'Parsing OUTCAR auxiliary file: {outcar_files[0]}')
+
+            # Parse OUTCAR and create pseudopotentials
+            outcar_parser = OutcarParser()
+            outcar_parser.text_parser = OutcarTextParser()
+            outcar_parser.filepath = outcar_files[0]
+
+            # Parse OUTCAR data and manually create Pseudopotential instances
+            parser_data = outcar_parser.data
+
+            if parser_data and 'pseudopotentials' in parser_data:
+                # Get transformer to process raw PP data
+                raw_pps = outcar_parser.get_pseudopotentials(parser_data.get('pseudopotentials', []))
+
+                # Manually create Pseudopotential instances from OUTCAR
+                model_method = data_parser.data_object.model_method[0]
+                for raw_pp in raw_pps:
+                    pp = vasp.Pseudopotential()
+
+                    # Set basic fields from OUTCAR
+                    if 'titel' in raw_pp:
+                        pp.name = raw_pp['titel']
+                    if 'zval' in raw_pp:
+                        pp.n_valence_electrons = raw_pp['zval']
+                    if 'vrhfin' in raw_pp:
+                        pp.reference_configuration = raw_pp['vrhfin']
+                    if 'rcore' in raw_pp:
+                        pp.r_core = raw_pp['rcore']
+                    if 'lmax' in raw_pp:
+                        pp.l_max = raw_pp['lmax']
+                    if 'lmmax' in raw_pp:
+                        pp.lm_max = raw_pp['lmmax']
+                    if 'sha256' in raw_pp:
+                        pp.sha256 = raw_pp['sha256']
+
+                    # Add to numerical_settings
+                    if not model_method.numerical_settings:
+                        model_method.numerical_settings = []
+                    model_method.numerical_settings.append(pp)
+
+                # Call post-processing to add derived fields (type, XC, cutoffs)
+                outcar_writer = OutcarArchiveWriter()
+                outcar_writer._process_pseudopotentials(
+                    data_parser.data_object,
+                    parser_data
+                )
+
+            outcar_parser.close()
+
+        self.archive.data = data_parser.data_object
 
         # close file objects
         data_parser.close()
