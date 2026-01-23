@@ -167,14 +167,16 @@ class XMLArchiveWriter(ArchiveWriter):
         if outcar_files and data_parser.data_object.model_method:
             LOGGER.info(f'Parsing OUTCAR auxiliary file: {outcar_files[0]}')
 
-            # Parse OUTCAR and create pseudopotentials
+            # Parse OUTCAR and manually create pseudopotentials
+            # Note: Collection-level annotations require data_object to be the parent
+            # section, but using root Simulation doesn't work because the annotation
+            # system can't determine which model_method[index] to populate into.
+            # Manual creation is the most explicit and reliable approach.
             outcar_parser = OutcarParser()
             outcar_parser.text_parser = OutcarTextParser()
             outcar_parser.filepath = outcar_files[0]
 
-            # Parse OUTCAR data and manually create Pseudopotential instances
             parser_data = outcar_parser.data
-
             if parser_data and 'pseudopotentials' in parser_data:
                 # Get transformer to process raw PP data
                 raw_pps = outcar_parser.get_pseudopotentials(parser_data.get('pseudopotentials', []))
@@ -205,7 +207,7 @@ class XMLArchiveWriter(ArchiveWriter):
                         model_method.numerical_settings = []
                     model_method.numerical_settings.append(pp)
 
-                # Call post-processing to add derived fields (type, XC, cutoffs)
+                # Post-process to add derived fields (type, XC, cutoffs)
                 outcar_writer = OutcarArchiveWriter()
                 outcar_writer._process_pseudopotentials(
                     data_parser.data_object,
