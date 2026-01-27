@@ -93,6 +93,18 @@ fhiaims_parser = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
+lammps_parser = EntryPoint(
+    name='parsers/lammps',
+    aliases=['parsers/lammps'],
+    description='NOMAD parser for LAMMPS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
+    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
+    code_name='LAMMPS',
+    code_homepage='https://lammps.sandia.gov/',
+    code_category='Atomistic code',
+)
+
 gpaw_parser = EntryPoint(
     name='parsers/gpaw',
     aliases=['parsers/gpaw'],
@@ -103,6 +115,18 @@ gpaw_parser = EntryPoint(
     parser_class_name='nomad_simulation_parsers.parsers.gpaw.parser.GPAWParser',
     code_name='GPAW',
     code_homepage='https://wiki.fysik.dtu.dk/gpaw/',
+    code_category='Atomistic code',
+)
+
+gromacs_parser = EntryPoint(
+    name='parsers/gromacs',
+    aliases=['parsers/gromacs'],
+    description='NOMAD parser for GROMACS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'gmx mdrun, (VERSION|version)[\s\S]*Input Parameters:',
+    parser_class_name='nomad_simulation_parsers.parsers.gromacs.parser.GromacsParser',
+    code_name='GROMACS',
+    code_homepage='http://www.gromacs.org/',
     code_category='Atomistic code',
 )
 

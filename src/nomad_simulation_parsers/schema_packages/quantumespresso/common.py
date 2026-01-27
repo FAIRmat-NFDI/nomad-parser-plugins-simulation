@@ -20,16 +20,22 @@ class Program(general.Program):
     ).update(dict(out=Mapper(mapper=('get_datetime', ['.start_date_time']))))
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.XC_functional_name')))
+class XCComponent(model_method.XCComponent):
+    model_method.XCComponent.canonical_label.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper='.XC_functional_name')))
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.xc_functional']))))
+class XCFunctional(model_method.XCFunctional):
+    model_method.XCFunctional.components.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.xc_functional']))))
+
+
+class DFT(model_method.DFT):
+    model_method.DFT.xc.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
+        dict(out=Mapper(mapper='.@'))
+    )
 
 
 class AtomsState(model_system.AtomsState):
@@ -38,8 +44,8 @@ class AtomsState(model_system.AtomsState):
     ).update(dict(out=Mapper(mapper='.@')))
 
 
-class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
+class Representation(model_system.Representation):
+    model_system.Representation.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@')))
 
@@ -67,7 +73,7 @@ class ModelSystem(model_system.ModelSystem):
             )
         )
     )
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
+    model_system.Representation.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(out=Mapper(mapper=('get_value', ['.@'], dict(key='simulation_cell'))))

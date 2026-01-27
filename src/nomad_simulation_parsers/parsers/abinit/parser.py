@@ -475,7 +475,7 @@ class MainfileParser(TextParser):
 
     def get_input_var(self, name, n_dataset=1, default=None, scalar=False) -> Any:
         val = self.data_object.input_vars.get(name)
-        if val is None or val[n_dataset - 1] is None:
+        if val is None or n_dataset > len(val) or val[n_dataset - 1] is None:
             val = [default] * n_dataset
         val = val[n_dataset - 1]
         if scalar and isinstance(val, np.ndarray | list):
@@ -629,7 +629,7 @@ class AbinitArchiveWriter(ArchiveWriter):
     metainfo_parser = AbinitMetainfoParser()
     dos_parser = DosParser()
     code_name = 'ABINIT'
-    annotation_key = 'out'
+    annotation_key = abinit.OUT_KEY
 
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
@@ -657,7 +657,7 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.mainfile_parser.convert(self.metainfo_parser)
 
         # parse dos from dos file
-        self.metainfo_parser.annotation_key = 'dos'
+        self.metainfo_parser.annotation_key = abinit.DOS_KEY
         # DS2_DOS files
         file_root = self.mainfile_parser.data_object.get('x_abinit_output_files_root')
         if file_root is None:

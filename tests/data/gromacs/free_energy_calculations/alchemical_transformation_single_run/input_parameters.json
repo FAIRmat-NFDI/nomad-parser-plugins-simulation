@@ -1,0 +1,292 @@
+{
+  "integrator": "md",
+  "tinit": 0,
+  "dt": 0.02,
+  "nsteps": 50000,
+  "init-step": 0,
+  "simulation-part": 1,
+  "mts": false,
+  "comm-mode": "linear",
+  "nstcomm": 10,
+  "bd-fric": 0,
+  "ld-seed": -547375363.0,
+  "emtol": 10,
+  "emstep": 0.01,
+  "niter": 20,
+  "fcstep": 0,
+  "nstcgsteep": 1000,
+  "nbfgscorr": 10,
+  "rtpi": 0.05,
+  "nstxout": 0,
+  "nstvout": 0,
+  "nstfout": 0,
+  "nstlog": 10000,
+  "nstcalcenergy": 10,
+  "nstenergy": 10000,
+  "nstxout-compressed": 10000,
+  "compressed-x-precision": 1000,
+  "cutoff-scheme": "verlet",
+  "nstlist": 20,
+  "pbc": "xyz",
+  "periodic-molecules": false,
+  "verlet-buffer-tolerance": 0.005,
+  "rlist": 1.214,
+  "coulombtype": "reaction-field",
+  "coulomb-modifier": "potential-shift",
+  "rcoulomb-switch": 0,
+  "rcoulomb": 1.1,
+  "epsilon-r": 15,
+  "epsilon-rf": "inf",
+  "vdw-type": "cut-off",
+  "vdw-modifier": "potential-shift",
+  "rvdw-switch": 0,
+  "rvdw": 1.1,
+  "DispCorr": "no",
+  "table-extension": 1,
+  "fourierspacing": 0.12,
+  "fourier-nx": 0,
+  "fourier-ny": 0,
+  "fourier-nz": 0,
+  "pme-order": 4,
+  "ewald-rtol": 1e-05,
+  "ewald-rtol-lj": 0.001,
+  "lj-pme-comb-rule": "geometric",
+  "ewald-geometry": "3d",
+  "epsilon-surface": 0,
+  "ensemble-temperature-setting": "constant",
+  "ensemble-temperature": 300,
+  "tcoupl": "v-rescale",
+  "nsttcouple": 10,
+  "nh-chain-length": 0,
+  "print-nose-hoover-chain-variables": false,
+  "pcoupl": "parrinello-rahman",
+  "pcoupltype": "isotropic",
+  "nstpcouple": 10,
+  "tau-p": 4,
+  "compressibility": [
+    [
+      4.5e-05,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      4.5e-05,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      4.5e-05
+    ]
+  ],
+  "ref-p": [
+    [
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      1
+    ]
+  ],
+  "refcoord-scaling": "no",
+  "posres-com": [
+    0,
+    0,
+    0
+  ],
+  "posres-comB": [
+    0,
+    0,
+    0
+  ],
+  "QMMM": false,
+  "qm-opts": {
+    "ngQM": 0,
+    "constraint-algorithm": "Lincs",
+    "continuation": false,
+    "Shake-SOR": false,
+    "shake-tol": 0.0001,
+    "lincs-order": 4,
+    "lincs-iter": 1,
+    "lincs-warnangle": 30,
+    "nwall": 0,
+    "wall-type": "9-3",
+    "wall-r-linpot": -1.0,
+    "wall-atomtype": [
+      -1,
+      -1
+    ],
+    "wall-density": [
+      0,
+      0
+    ],
+    "wall-ewald-zfac": 3,
+    "pull": false,
+    "awh": false,
+    "rotation": false,
+    "interactiveMD": false,
+    "disre": "No",
+    "disre-weighting": "Conservative",
+    "disre-mixed": false,
+    "dr-fc": 1000,
+    "dr-tau": 0,
+    "nstdisreout": 100,
+    "orire-fc": 0,
+    "orire-tau": 0,
+    "nstorireout": 100,
+    "free-energy": "yes",
+    "init-lambda": -1.0,
+    "init-lambda-state": 7,
+    "delta-lambda": 0,
+    "nstdhdl": 10,
+    "n-lambdas": 11,
+    "separate-dvdl": {
+      "fep-lambdas": false,
+      "mass-lambdas": false,
+      "coul-lambdas": false,
+      "vdw-lambdas": true,
+      "bonded-lambdas": false
+    },
+    "restraint-lambdas": false
+  },
+  "temperature-lambdas": "0           0           0           0           0           0           0           0           0           0           0",
+  "all-lambdas": {
+    "fep-lambdas": "0           0           0           0           0           0           0           0           0           0           0",
+    "mass-lambdas": "0           0           0           0           0           0           0           0           0           0           0",
+    "coul-lambdas": "0           0           0           0           0           0           0           0           0           0           0",
+    "vdw-lambdas": "0         0.1         0.2         0.3         0.4         0.5         0.6         0.7         0.8         0.9           1",
+    "bonded-lambdas": "0           0           0           0           0           0           0           0           0           0           0",
+    "restraint-lambdas": "0           0           0           0           0           0           0           0           0           0           0"
+  },
+  "calc-lambda-neighbors": -1.0,
+  "dhdl-print-energy": "total",
+  "sc-alpha": 0.5,
+  "sc-power": 1,
+  "sc-r-power": 6,
+  "sc-sigma": 0.3,
+  "sc-sigma-min": 0.3,
+  "sc-coul": false,
+  "dh-hist-size": 0,
+  "dh-hist-spacing": 0.1,
+  "separate-dhdl-file": "yes",
+  "dhdl-derivatives": "yes",
+  "sc-function": "beutler",
+  "sc-gapsys-scale-linpoint-lj": 0.85,
+  "sc-gapsys-scale-linpoint-q": 0.3,
+  "sc-gapsys-sigma-lj": 0.3,
+  "cos-acceleration": 0,
+  "deform": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "simulated-tempering": false,
+  "swapcoords": "no",
+  "userint1": 0,
+  "userint2": 0,
+  "userint3": 0,
+  "userint4": 0,
+  "userreal1": 0,
+  "userreal2": 0,
+  "userreal3": 0,
+  "userreal4": 0,
+  "applied-forces": {
+    "electric-field": {
+      "x": {
+        "E0": 0,
+        "omega": 0,
+        "t0": 0,
+        "sigma": 0
+      },
+      "y": {
+        "E0": 0,
+        "omega": 0,
+        "t0": 0,
+        "sigma": 0
+      },
+      "z": {
+        "E0": 0,
+        "omega": 0,
+        "t0": 0,
+        "sigma": 0
+      }
+    },
+    "density-guided-simulation": {
+      "active": false,
+      "group": "protein",
+      "similarity-measure": "inner-product",
+      "atom-spreading-weight": "unity",
+      "force-constant": 1000000000.0,
+      "gaussian-transform-spreading-width": 0.2,
+      "gaussian-transform-spreading-range-in-multiples-of-width": 4,
+      "reference-density-filename": "reference.mrc",
+      "nst": 1,
+      "normalize-densities": true,
+      "adaptive-force-scaling": false,
+      "adaptive-force-scaling-time-constant": 4
+    },
+    "qmmm-cp2k": {
+      "active": false,
+      "qmgroup": "System",
+      "qmmethod": "PBE",
+      "qmcharge": 0,
+      "qmmultiplicity": 1
+    }
+  },
+  "grpopts": {
+    "nrdf": 4683,
+    "ref-t": 300,
+    "tau-t": 1
+  },
+  "annealing": "no",
+  "annealing-npoints": 0,
+  "acc": "0           0           0",
+  "nfreeze": "n           n           n",
+  "mdp_unique_params": {
+    "implicit-solvent": "no",
+    "tc-grps": "system",
+    "Pcoupl": "parrinello-rahman",
+    "gen-vel": "no",
+    "gen-temp": 300,
+    "gen-seed": 536706428,
+    "constraints": "none",
+    "morse": "no",
+    "disre-fc": 1000,
+    "disre-tau": 0,
+    "orire": "no",
+    "couple-moltype": "p6",
+    "couple-lambda0": "vdw",
+    "couple-lambda1": "none",
+    "couple-intramol": "no",
+    "simulated-tempering-scaling": "geometric",
+    "sim-temp-low": 300,
+    "sim-temp-high": 300,
+    "adress": "no",
+    "electric-field-x": "0 0 0 0",
+    "electric-field-y": "0 0 0 0",
+    "electric-field-z": "0 0 0 0",
+    "density-guided-simulation-active": "false",
+    "qmmm-cp2k-active": "false"
+  }
+}

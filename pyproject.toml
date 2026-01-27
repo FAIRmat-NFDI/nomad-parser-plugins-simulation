@@ -37,12 +37,19 @@ dependencies = [
     "nomad-schema-plugin-simulation-workflow>=1.0.10",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
+    "mdanalysis>=2.8.0,<3.0.0 ; python_full_version >= '3.10'",
+    "mdanalysis<2.8 ; python_full_version < '3.10'",
+    "panedr>=0.2",
 ]
 
 [project.urls]
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.optional-dependencies]
+md = [
+    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "MDAnalysis>=2.4.0",
+]
 dev = ["ruff", "pytest", "structlog"]
 
 [tool.ruff]
@@ -140,8 +147,11 @@ fhiaims_parser = "nomad_simulation_parsers.parsers:fhiaims_parser"
 fhiaims_schema_package = "nomad_simulation_parsers.schema_packages:fhiaims_schema_package"
 gpaw_parser = "nomad_simulation_parsers.parsers:gpaw_parser"
 gpaw_schema_package = "nomad_simulation_parsers.schema_packages:gpaw_schema_package"
+gromacs_parser = "nomad_simulation_parsers.parsers:gromacs_parser"
+gromacs_schema_package = "nomad_simulation_parsers.schema_packages:gromacs_schema_package"
 h5md_parser = "nomad_simulation_parsers.parsers:h5md_parser"
 h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_package"
+lammps_parser = "nomad_simulation_parsers.parsers:lammps_parser"
 octopus_parser = "nomad_simulation_parsers.parsers:octopus_parser"
 octopus_schema_package = "nomad_simulation_parsers.schema_packages:octopus_schema_package"
 phonopy_parser = "nomad_simulation_parsers.parsers:phonopy_parser"
@@ -152,7 +162,6 @@ vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
 wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
 wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
-
 
 
 [tool.cruft]
