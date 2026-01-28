@@ -350,14 +350,14 @@ class ExcitingArchiveWriter(ArchiveWriter):
             data_parser.data_object = GeometryOptimization(
                 model=GeometryOptimizationMethod()
             )
-            data_parser.annotation_key = 'geo_opt'
+            data_parser.annotation_key = exciting.GEO_OPT_KEY
             info_parser.convert(data_parser)
             self.archive.workflow2 = data_parser.data_object
         else: # here should come more standard workflows - for now only single point
             data_parser.data_object = SinglePoint(
                 model=SinglePointMethod()
             )
-            data_parser.annotation_key = 'info'
+            data_parser.annotation_key = exciting.INFO_KEY
             info_parser.convert(data_parser)
             self.archive.workflow2 = data_parser.data_object
             
