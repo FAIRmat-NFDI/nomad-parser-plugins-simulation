@@ -23,7 +23,7 @@ class GeometryOptimizationMethod(
         OUT_KEY,
         ('get_workflow_method', []),
     )
-    add_mapping_annotation(
+"""    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
         OUT_KEY,
         ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
@@ -36,38 +36,12 @@ class GeometryOptimizationMethod(
         unit='hartree/bohr',
     )
 """
-
 # Geometry Optimization
 
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.m_def, OUT_KEY, '@'
 )
 add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
-
-workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_workflow_method', []))))
-
-workflow.geometry_optimization.GeometryOptimizationMethod.convergence.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_geometry_convergence', []))))
-
-workflow.general.WorkflowConvergenceTarget.convergence_parameter_name.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.convergence_parameter_name')))
-
-workflow.general.WorkflowConvergenceTarget.convergence_threshold.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.convergence_threshold')))
-
-workflow.general.WorkflowConvergenceTarget.threshold_type.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.threshold_type')))
-
-workflow.general.WorkflowConvergenceTarget.threshold_unit.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.convergence_threshold_unit')))
-
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
