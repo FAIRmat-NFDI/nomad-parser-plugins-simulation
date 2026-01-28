@@ -145,6 +145,31 @@ class VasprunParser(XMLParser):
 
 
 class XMLArchiveWriter(ArchiveWriter):
+    def _supplement_pseudopotentials_from_outcar(
+        self,
+        archive_data: Simulation,
+        outcar_parser_data: dict[str, Any],
+    ) -> None:
+        """
+        Post-process pseudopotentials after OUTCAR supplementing.
+
+        This method delegates to OutcarArchiveWriter._process_pseudopotentials
+        to handle complex transformations:
+        - Add PPCutoff from ENMAX/ENMIN
+        - Determine type from LPAW/LULTRA flags
+        - Map LEXCH codes to standard XC functionals
+        - Link pseudopotentials to AtomsState
+
+        Args:
+            archive_data: The simulation archive being populated
+            outcar_parser_data: Raw parsed OUTCAR data containing lpaw, lultra, lexch flags
+        """
+        # Delegate to OutcarArchiveWriter's post-processing logic
+        # This ensures consistent behavior between standalone OUTCAR parsing
+        # and XML+OUTCAR supplementing
+        outcar_writer = OutcarArchiveWriter()
+        outcar_writer._process_pseudopotentials(archive_data, outcar_parser_data)
+
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()
@@ -155,69 +180,38 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.DFT_XML_KEY
         xml_parser.convert(data_parser)
 
-        # Generic keys for shared annotations (populate into existing DFT)
+        # Parse OUTCAR FIRST to create pseudopotentials in empty numerical_settings
+        # This avoids positional merge bug where OUTCAR data would merge into XML's KSpace
+        maindir = os.path.dirname(self.mainfile)
+        outcar_files = search_files('OUTCAR', maindir)
+
+        if outcar_files and data_parser.data_object.model_method:
+            LOGGER.info(f'Parsing OUTCAR auxiliary file for pseudopotentials: {outcar_files[0]}')
+
+            outcar_parser = OutcarParser()
+            outcar_parser.text_parser = OutcarTextParser()
+            outcar_parser.filepath = outcar_files[0]
+
+            # Parse with default update_mode='merge' (PPs go into empty list)
+            data_parser.annotation_key = vasp.OUTCAR_KEY
+            outcar_parser.convert(data_parser)
+
+            # Post-process pseudopotentials to add derived fields
+            # (type, XC functional, cutoffs, atom linking)
+            self._supplement_pseudopotentials_from_outcar(
+                data_parser.data_object, outcar_parser.data
+            )
+
+            outcar_parser.close()
+
+        # Parse XML_KEY AFTER OUTCAR
+        # NOTE: XML_KEY collection annotations (KSpace) will not be added due to positional
+        # merge bug. KSpace creation would need manual handling if required.
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
-
-        # Search for OUTCAR auxiliary file to supplement pseudopotential metadata
-        maindir = os.path.dirname(self.mainfile)
-        outcar_files = search_files('OUTCAR', maindir)
-
-        if outcar_files and data_parser.data_object.model_method:
-            LOGGER.info(f'Parsing OUTCAR auxiliary file: {outcar_files[0]}')
-
-            # Parse OUTCAR and manually create pseudopotentials
-            # Note: Collection-level annotations require data_object to be the parent
-            # section, but using root Simulation doesn't work because the annotation
-            # system can't determine which model_method[index] to populate into.
-            # Manual creation is the most explicit and reliable approach.
-            outcar_parser = OutcarParser()
-            outcar_parser.text_parser = OutcarTextParser()
-            outcar_parser.filepath = outcar_files[0]
-
-            parser_data = outcar_parser.data
-            if parser_data and 'pseudopotentials' in parser_data:
-                # Get transformer to process raw PP data
-                raw_pps = outcar_parser.get_pseudopotentials(
-                    parser_data.get('pseudopotentials', [])
-                )
-
-                # Manually create Pseudopotential instances from OUTCAR
-                model_method = data_parser.data_object.model_method[0]
-                for raw_pp in raw_pps:
-                    pp = vasp.Pseudopotential()
-
-                    # Set basic fields from OUTCAR
-                    if 'titel' in raw_pp:
-                        pp.name = raw_pp['titel']
-                    if 'zval' in raw_pp:
-                        pp.n_valence_electrons = raw_pp['zval']
-                    if 'vrhfin' in raw_pp:
-                        pp.reference_configuration = raw_pp['vrhfin']
-                    if 'rcore' in raw_pp:
-                        pp.r_core = raw_pp['rcore']
-                    if 'lmax' in raw_pp:
-                        pp.l_max = raw_pp['lmax']
-                    if 'lmmax' in raw_pp:
-                        pp.lm_max = raw_pp['lmmax']
-                    if 'sha256' in raw_pp:
-                        pp.sha256 = raw_pp['sha256']
-
-                    # Add to numerical_settings
-                    if not model_method.numerical_settings:
-                        model_method.numerical_settings = []
-                    model_method.numerical_settings.append(pp)
-
-                # Post-process to add derived fields (type, XC, cutoffs)
-                outcar_writer = OutcarArchiveWriter()
-                outcar_writer._process_pseudopotentials(
-                    data_parser.data_object, parser_data
-                )
-
-            outcar_parser.close()
 
         self.archive.data = data_parser.data_object
 

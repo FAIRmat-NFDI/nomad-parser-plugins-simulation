@@ -36,6 +36,8 @@ add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 # DFT-specific keys use same root paths as generic keys
 add_mapping_annotation(general.Simulation.m_def, DFT_XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, DFT_OUTCAR_KEY, '@')
+# Pseudopotential supplemental key uses OUTCAR root path
+add_mapping_annotation(general.Simulation.m_def, OUTCAR_PSEUDOPOT_KEY, '@')
 
 
 class Simulation(general.Simulation):
@@ -179,19 +181,17 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     # They're used internally by the parser to derive `type` and `is_norm_conserving`.
 
     # Mapping annotations
-    # OUTCAR provides complete POTCAR metadata
+    # Note: XML field annotations removed - they were interfering with OUTCAR collection
+    # annotations. Since XML has no collection annotation for Pseudopotential, field
+    # annotations had no effect anyway.
+
+    # OUTCAR provides complete POTCAR metadata (for standalone OUTCAR parsing)
+    # These annotations are used in the second pass with OUTCAR_KEY
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.titel'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_KEY, '.zval'
-    )
-    # vasprun.xml provides basic pseudopotential info (name and valence only)
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons,
-        XML_KEY,
-        '.n_valence_electrons',
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.reference_configuration,
@@ -207,19 +207,15 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, '.lmmax'
     )
-    # PPCutoff subsections - ENMAX and ENMIN will be populated via custom parser logic
-    # in get_pseudopotentials() rather than direct mapping annotations
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
 
-    # OUTCAR_PSEUDOPOT_KEY: Supplemental annotations for merging OUTCAR data into
-    # existing pseudopotentials created by XML parsing (field-level only, no collection)
+    # OUTCAR_PSEUDOPOT_KEY provides supplemental annotations for XML+OUTCAR parsing
+    # These duplicate OUTCAR_KEY but use a different key for supplementing XML data
     add_mapping_annotation(
         numerical_settings.Pseudopotential.name, OUTCAR_PSEUDOPOT_KEY, '.titel'
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons,
-        OUTCAR_PSEUDOPOT_KEY,
-        '.zval',
+        numerical_settings.Pseudopotential.n_valence_electrons, OUTCAR_PSEUDOPOT_KEY, '.zval'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.reference_configuration,
@@ -227,10 +223,7 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         '.vrhfin',
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.r_core,
-        OUTCAR_PSEUDOPOT_KEY,
-        '.rcore',
-        unit='angstrom',
+        numerical_settings.Pseudopotential.r_core, OUTCAR_PSEUDOPOT_KEY, '.rcore', unit='angstrom'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.l_max, OUTCAR_PSEUDOPOT_KEY, '.lmax'
@@ -240,26 +233,24 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
     add_mapping_annotation(sha256, OUTCAR_PSEUDOPOT_KEY, '.sha256')
 
+    # PPCutoff subsections - ENMAX and ENMIN will be populated via custom parser logic
+    # in get_pseudopotentials() rather than direct mapping annotations
+
 
 # Pseudopotential collection mapping - must be after Pseudopotential class definition
 # These annotations are added in the context of ModelMethod to ensure the parser
 # creates Pseudopotential subsections in model_method.numerical_settings
-# Use both generic and DFT-specific keys so pseudopotentials populate into DFT objects
+
+# OUTCAR_KEY creates pseudopotentials during standalone OUTCAR parsing (second pass)
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
     ('get_pseudopotentials', ['@.pseudopotentials']),
 )
-add_mapping_annotation(
-    Pseudopotential.m_def,
-    DFT_OUTCAR_KEY,
-    ('get_pseudopotentials', ['@.pseudopotentials']),
-)
-add_mapping_annotation(
-    Pseudopotential.m_def,
-    OUTCAR_PSEUDOPOT_KEY,
-    ('get_pseudopotentials', ['@.pseudopotentials']),
-)
+
+# Note: OUTCAR_PSEUDOPOT_KEY has NO collection annotation - it only supplements
+# existing pseudopotentials created by XML_KEY via field-level annotations.
+# Adding a collection annotation would replace XML pseudopotentials instead of merging.
 
 # Note: XML pseudopotential collection annotation is in ModelMethod class above
 # to avoid duplicate registration conflicts
