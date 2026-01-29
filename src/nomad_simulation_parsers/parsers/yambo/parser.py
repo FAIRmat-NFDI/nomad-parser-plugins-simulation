@@ -56,14 +56,14 @@ class YamboNetCDFParser(MappingParser):
     def get_positions(self) -> np.ndarray | None:
         positions = self.data.get('ATOM_POS', [])
         max_n_atoms = self.data.get('MAX_ATOMS', [0])[0]
-        if not max_n_atoms:
-            return None
         n_atoms = self.data.get('N_ATOMS', [])
+        if not max_n_atoms or not n_atoms or len(positions) == 0:
+            return None
         # We split the positions array into blocks, each corresponding
         # to a chemical species, we extract the first n_atoms only
         # (value of n_atoms for each chemical species present in the system)
         # from each block, and we reassemble the modified blocks
-        # into to corrected positions array
+        # into the corrected positions array
         positions = np.array(positions)
         selected = []
         positions = positions.reshape(-1, 3)
@@ -82,9 +82,12 @@ class YamboNetCDFParser(MappingParser):
 
     def get_labels(self) -> list[str]:
         n_atoms = self.data.get('N_ATOMS', [])
+        atomic_numbers = self.data.get('atomic_numbers', [])
+        if not n_atoms or not atomic_numbers:
+            return []
         atom_numbers = np.hstack(
             [
-                [self.netcdf_parser.atomic_numbers[int(n)]] * int(n_atoms[int(n)])
+                [atomic_numbers[int(n)]] * int(n_atoms[int(n)])
                 for n in range(len(n_atoms))
             ]
         )
@@ -104,14 +107,17 @@ class YamboNetCDFParser(MappingParser):
 
     def get_eigenvalues(self) -> list[dict[str, np.ndarray]]:
         eigenvalues = []
+        qp_table = self.data.get('QP_table')
+        n_spin = qp_table.shape[1] // 2 if qp_table is not None else 0
         if (qp_e := self.data.get('EIGENVALUES')) is not None:
             eigenvalues.extend(
                 [dict(energies=eig * ureg.eV) for n, eig in enumerate(qp_e)]
             )
-        if (qp_e_eo_z := self.data.get('QP_E_Eo_Z')) is not None or (
-            qp_e := self.data.get('QP_E')
-        ) is not None:
-            n_spin = self.data.get('QP_table').shape[1] // 2
+        if (
+            (qp_e_eo_z := self.data.get('QP_E_Eo_Z')) is not None
+            or (qp_e := self.data.get('QP_E')) is not None
+            and n_spin
+        ):
             if qp_e_eo_z is not None:
                 qp_energy, bare_energy, z = qp_e_eo_z[0].T
             else:
@@ -133,10 +139,11 @@ class YamboNetCDFParser(MappingParser):
                     for n in range(n_spin)
                 ]
             )
-        if (sx_vxc := self.data.get('Sx_Vxc')) is not None or (
-            sx := self.data.get('Sx')
-        ) is not None:
-            n_spin = self.data.get('QP_table').shape[1] // 2
+        if (
+            (sx_vxc := self.data.get('Sx_Vxc')) is not None
+            or (sx := self.data.get('Sx')) is not None
+            and n_spin
+        ):
             if sx_vxc is not None:
                 if sx_vxc.shape[0] % 8 == 0:
                     qp = sx_vxc.reshape(-1, 8).T
@@ -167,7 +174,7 @@ class YamboMainfileParser(TextParser):
     def logger(self):
         return LOGGER
 
-    def get_wallstart(self, parsed: str) -> str | None:
+    def get_wallstart(self, parsed: str) -> float:
         return datetime.strptime(parsed, '%d/%m/%Y %H:%M').timestamp()
 
     def get_outputs(
@@ -289,9 +296,12 @@ class YamboArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)
 
+        data_parser.close()
+        netcdf_parser.close()
+
 
 class YamboParser(MatchingParser):
-    archive_archive_writer = YamboArchiveWriter()
+    archive_writer = YamboArchiveWriter()
 
     def parse(
         self,
@@ -303,4 +313,4 @@ class YamboParser(MatchingParser):
         # reload schema to load yambo annotations
         reload(yambo)
 
-        self.archive_archive_writer.write(mainfile, archive, logger, child_archives)
+        self.archive_writer.write(mainfile, archive, logger, child_archives)

@@ -100,4 +100,7 @@ add_mapping_annotation(general.Simulation.m_def, NETCDF_KEY, '@')
 try:
     m_package.__init_metainfo__()
 except Exception:
+    # Metainfo initialization errors are intentionally ignored here to avoid
+    # failing on import in environments where the NOMAD metainfo registry or
+    # plugin infrastructure is not fully configured.
     pass
