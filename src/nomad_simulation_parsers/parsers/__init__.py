@@ -222,3 +222,15 @@ wannier90_parser = Wannier90ParserEntryPoint(
     code_homepage='http://www.wannier.org/',
     code_category='Atomistic code',
 )
+
+yambo_parser = EntryPoint(
+    name='parsers/yambo',
+    aliases=['parsers/yambo'],
+    description='NOMAD parser for YAMBO.',
+    parser_class_name='nomad_simulation_parsers.parsers.yambo.parser.YamboParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'Build.+\s+http://www\.yambo-code\.org',
+    code_name='YAMBO',
+    code_homepage='http://www.yambo-code.org/',
+    code_category='Atomistic code',
+)
