@@ -70,6 +70,9 @@ class YamboNetCDFParser(MappingParser):
         n_points = positions.shape[0]
         n_blocks = int(n_points / max_n_atoms)
 
+        if n_blocks != len(n_atoms):
+            return None
+
         for i in range(n_blocks):
             start_idx = int(i * max_n_atoms)
             end_idx = int((i + 1) * max_n_atoms)
@@ -253,11 +256,9 @@ class YamboMainfileParser(TextParser):
 
         outputs.extend(unpack_modules(modules or []))
 
-        if (
-            qp_properties := get_qp_properties(
-                transferred_momenta.get('qp_properties', {})
-            )
-        ) is not None:
+        if qp_properties := get_qp_properties(
+            transferred_momenta.get('qp_properties', {})
+        ):
             outputs.append(dict(eigenvalues=qp_properties))
 
         outputs.extend(unpack_modules(transferred_momenta.get('modules', [])))
