@@ -119,4 +119,3 @@ yambo_schema_package = EntryPoint(
     description='Schema package for Yambo.',
     module='nomad_simulation_parsers.schema_packages.yambo',
 )
-

@@ -1,26 +1,30 @@
+import os
+from datetime import datetime
 from importlib import reload
 from typing import Any
-import os
-import numpy as np
-from nomad.datamodel.metainfo.simulation.calculation import BandEnergies
-from nomad.units import ureg
 
-from nomad.datamodel import EntryArchive
-from nomad.parsing.parser import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from structlog.stdlib import BoundLogger
-from nomad.utils import get_logger
-from datetime import datetime
-from netCDF4 import Dataset
+import numpy as np
 from ase.data import chemical_symbols
+from netCDF4 import Dataset
+from nomad.datamodel import EntryArchive
+from nomad.parsing.file_parser import ArchiveWriter
+from nomad.parsing.file_parser.mapping_parser import (
+    MappingParser,
+    MetainfoParser,
+    TextParser,
+)
+from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
+from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import yambo
-from nomad_simulations.schema_packages.general import Simulation
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser, MappingParser
 
 from .file_parsers import MainfileParser, NetCDFParser
 
 LOGGER = get_logger(__name__)
+
 
 # TODO temporary fix for structlog unable to propagate logger
 class YamboMetainfoParser(MetainfoParser):
@@ -51,7 +55,7 @@ class YamboNetCDFParser(MappingParser):
 
     def get_positions(self) -> np.ndarray | None:
         positions = self.data.get('ATOM_POS', [])
-        max_n_atoms = self.data.get('MAX_ATOMS',[0])[0]
+        max_n_atoms = self.data.get('MAX_ATOMS', [0])[0]
         if not max_n_atoms:
             return None
         n_atoms = self.data.get('N_ATOMS', [])
@@ -64,7 +68,7 @@ class YamboNetCDFParser(MappingParser):
         selected = []
         positions = positions.reshape(-1, 3)
         n_points = positions.shape[0]
-        n_blocks = int( n_points / max_n_atoms )
+        n_blocks = int(n_points / max_n_atoms)
 
         for i in range(n_blocks):
             start_idx = int(i * max_n_atoms)
@@ -101,11 +105,12 @@ class YamboNetCDFParser(MappingParser):
     def get_eigenvalues(self) -> list[dict[str, np.ndarray]]:
         eigenvalues = []
         if (qp_e := self.data.get('EIGENVALUES')) is not None:
-            eigenvalues.extend([dict(energies=eig * ureg.eV) for n, eig in enumerate(qp_e)])
-        if (
-            (qp_e_eo_z := self.data.get('QP_E_Eo_Z')) is not None
-            or (qp_e := self.data.get('QP_E')) is not None
-        ):
+            eigenvalues.extend(
+                [dict(energies=eig * ureg.eV) for n, eig in enumerate(qp_e)]
+            )
+        if (qp_e_eo_z := self.data.get('QP_E_Eo_Z')) is not None or (
+            qp_e := self.data.get('QP_E')
+        ) is not None:
             n_spin = self.data.get('QP_table').shape[1] // 2
             if qp_e_eo_z is not None:
                 qp_energy, bare_energy, z = qp_e_eo_z[0].T
@@ -118,8 +123,19 @@ class YamboNetCDFParser(MappingParser):
             value_qp = np.reshape(qp_energy, shape) * ureg.hartree
             value_ks = np.reshape(bare_energy, shape) * ureg.hartree
             qp_linearization_prefactor = np.reshape(z, shape)
-            eigenvalues.extend([dict(value_qp=value_qp[n], value_ks=value_ks[n], qp_linearization_prefactor=qp_linearization_prefactor[n]) for n in range(n_spin)])
-        if (sx_vxc := self.data.get('Sx_Vxc')) is not None or (sx := self.data.get('Sx')) is not None:
+            eigenvalues.extend(
+                [
+                    dict(
+                        value_qp=value_qp[n],
+                        value_ks=value_ks[n],
+                        qp_linearization_prefactor=qp_linearization_prefactor[n],
+                    )
+                    for n in range(n_spin)
+                ]
+            )
+        if (sx_vxc := self.data.get('Sx_Vxc')) is not None or (
+            sx := self.data.get('Sx')
+        ) is not None:
             n_spin = self.data.get('QP_table').shape[1] // 2
             if sx_vxc is not None:
                 if sx_vxc.shape[0] % 8 == 0:
@@ -134,7 +150,15 @@ class YamboNetCDFParser(MappingParser):
             shape = (n_spin, 1, len(sx) // n_spin)
             value_exchange = np.reshape(sx, shape)
             value_xc_potential = np.reshape(vxc, shape)
-            eigenvalues.extend([dict(value_exchange=value_exchange[n] * ureg.hartree, value_xc_potential=value_xc_potential[n] * ureg.hartree) for n in range(n_spin)])
+            eigenvalues.extend(
+                [
+                    dict(
+                        value_exchange=value_exchange[n] * ureg.hartree,
+                        value_xc_potential=value_xc_potential[n] * ureg.hartree,
+                    )
+                    for n in range(n_spin)
+                ]
+            )
         return eigenvalues
 
 
@@ -146,7 +170,12 @@ class YamboMainfileParser(TextParser):
     def get_wallstart(self, parsed: str) -> str | None:
         return datetime.strptime(parsed, '%d/%m/%Y %H:%M').timestamp()
 
-    def get_outputs(self, energies_occupations: dict[str, Any], modules: list[dict[str, Any]], transferred_momenta: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_outputs(
+        self,
+        energies_occupations: dict[str, Any],
+        modules: list[dict[str, Any]],
+        transferred_momenta: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         outputs = []
         data = {}
         for key, val in energies_occupations.items():
@@ -168,7 +197,9 @@ class YamboMainfileParser(TextParser):
                     )
                     * ureg.eV
                 )
-                data['eigenvalues'] = [dict(energies=energies[n]) for n in range(n_spin)]
+                data['eigenvalues'] = [
+                    dict(energies=energies[n]) for n in range(n_spin)
+                ]
             else:
                 data[key] = val
         if data:
@@ -181,16 +212,21 @@ class YamboMainfileParser(TextParser):
             energies = np.transpose([q.band for q in qp_energy])
             qp_energy = energies[2].T
             n_spin = 1
-            value_qp = (
-                np.reshape(qp_energy, (n_spin, *np.shape(qp_energy))) * ureg.eV
-            )
+            value_qp = np.reshape(qp_energy, (n_spin, *np.shape(qp_energy))) * ureg.eV
             value_ks = (
                 np.reshape(energies[1].T, (n_spin, *np.shape(qp_energy))) * ureg.eV
             )
             qp_linearization_prefactor = np.reshape(
                 energies[4].T, (n_spin, *np.shape(qp_energy))
             )
-            return [dict(value_qp=value_qp[n], value_ks=value_ks[n], qp_linearization_prefactor=qp_linearization_prefactor[n]) for n in range(n_spin)]
+            return [
+                dict(
+                    value_qp=value_qp[n],
+                    value_ks=value_ks[n],
+                    qp_linearization_prefactor=qp_linearization_prefactor[n],
+                )
+                for n in range(n_spin)
+            ]
 
         def unpack_modules(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
             module_names = ['dyson', 'local_xc_nonlocal_fock', 'bare_xc']
@@ -210,7 +246,11 @@ class YamboMainfileParser(TextParser):
 
         outputs.extend(unpack_modules(modules or []))
 
-        if (qp_properties := get_qp_properties(transferred_momenta.get('qp_properties', {}))) is not None:
+        if (
+            qp_properties := get_qp_properties(
+                transferred_momenta.get('qp_properties', {})
+            )
+        ) is not None:
             outputs.append(dict(eigenvalues=qp_properties))
 
         outputs.extend(unpack_modules(transferred_momenta.get('modules', [])))
@@ -236,16 +276,18 @@ class YamboArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = yambo.OUT_KEY
         mainfile_parser.convert(data_parser)
 
-        netcdf_file = mainfile_parser.data.get(
-            'cpu_files_io', {}).get('input', {}).get('file', '')
+        netcdf_file = (
+            mainfile_parser.data.get('cpu_files_io', {})
+            .get('input', {})
+            .get('file', '')
+        )
         if netcdf_file:
-        # set up parser for yambo netcdf file
-            netcdf_parser = YamboNetCDFParser(filepath=os.path.join(
-                os.path.dirname(self.mainfile), netcdf_file
-            ))
+            # set up parser for yambo netcdf file
+            netcdf_parser = YamboNetCDFParser(
+                filepath=os.path.join(os.path.dirname(self.mainfile), netcdf_file)
+            )
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)
-
 
 
 class YamboParser(MatchingParser):
