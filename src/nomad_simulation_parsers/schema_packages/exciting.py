@@ -13,11 +13,11 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-INFO_KEY = 'info'
-INPUT_XML_KEY = 'input_xml'
-EIGVAL_KEY = 'eigval'
-BANDSTRUCTURE_XML_KEY = 'bandstructure_xml'
-DOS_XML_KEY = 'dos_xml'
+INFO_KEY = 'exciting_info'
+INPUT_XML_KEY = 'exciting_input_xml'
+EIGVAL_KEY = 'exciting_eigval'
+BANDSTRUCTURE_XML_KEY = 'exciting_bandstructure_xml'
+DOS_XML_KEY = 'exciting_dos_xml'
 
 # simulation
 add_mapping_annotation(general.Simulation.m_def, INFO_KEY, '@')

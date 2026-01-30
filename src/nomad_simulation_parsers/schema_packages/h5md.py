@@ -36,7 +36,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-HDF5_KEY = 'hdf5'
+HDF5_KEY = 'h5md_hdf5'
 
 # Global list of standard H5MD observables to exclude from custom outputs
 STANDARD_H5MD_OBSERVABLES = [

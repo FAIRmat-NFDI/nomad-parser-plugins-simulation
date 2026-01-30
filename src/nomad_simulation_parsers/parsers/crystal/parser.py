@@ -1,7 +1,6 @@
 import datetime
 import os
 import re
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -207,9 +206,6 @@ class CrystalArchiveWriter(ArchiveWriter):
     archive_parser = CrystalMetainfoParser()
 
     def write_to_archive(self):
-        # reload schema to update annotations
-        reload(crystal)
-
         # main output file
         self.archive_parser.annotation_key = crystal.OUT_KEY
         self.archive_parser.data_object = Simulation(program=Program(name='Crystal'))
