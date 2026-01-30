@@ -86,7 +86,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, OUT_KEY, '.@', cache=True)
 
 
-add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '.@')
+add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
 
 try:
