@@ -66,7 +66,7 @@ class ModelSystem(model_system.ModelSystem):
     )
 
 
-class TotalEmergy(outputs.TotalEnergy):
+class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(
         outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total', unit='rydberg'
     )
