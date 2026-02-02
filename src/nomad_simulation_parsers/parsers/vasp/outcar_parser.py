@@ -317,6 +317,32 @@ class OutcarTextParser(TextParser):
                     ]
                 ),
             ),
+            Quantity(
+                'pseudopotentials',
+                r'POTCAR:\s*([\s\S]+?)(?:POTCAR:|local pseudopotential:|END)',
+                repeats=True,
+                str_operation=lambda val_in: {
+                    key: value.strip() if isinstance(value, str) else value
+                    for key, value in [
+                        ('TITEL', re.search(r'TITEL\s*=\s*(.+)', val_in)),
+                        ('VRHFIN', re.search(r'VRHFIN\s*=(.+?)(?:\n|$)', val_in)),
+                        ('LEXCH', re.search(r'LEXCH\s*=\s*(\w+)', val_in)),
+                        ('ZVAL', re.search(r'POMASS\s*=[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)', val_in)),
+                        ('RCORE', re.search(r'RCORE\s*=\s*([\d\.]+)', val_in)),
+                        ('ENMAX', re.search(r'ENMAX\s*=\s*([\d\.]+)', val_in)),
+                        ('ENMIN', re.search(r'ENMIN\s*=\s*([\d\.]+)', val_in)),
+                        ('LPAW', re.search(r'LPAW\s*=\s*([TF])', val_in)),
+                        ('LULTRA', re.search(r'LULTRA\s*=\s*([TF])', val_in)),
+                        ('LMAX', re.search(r'LMAX\s*=\s*(\d+)', val_in)),
+                        ('LMMAX', re.search(r'LMMAX\s*=\s*(\d+)', val_in)),
+                        ('SHA256', re.search(r'SHA256\s*=\s*(\w+)', val_in)),
+                    ]
+                    if value is not None
+                    for key, value in [(key, value.group(1) if value else None)]
+                    if value is not None
+                },
+                convert=False,
+            ),
         ]
 
 
@@ -464,6 +490,105 @@ class OutcarParser(MappingTextParser):
             for functional in functionals:
                 xc_functionals.append({'name': functional})
         return xc_functionals
+
+    def get_pseudopotentials(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Idiomatic transformer: Extract and derive all pseudopotential metadata from OUTCAR.
+
+        Performs ALL derivations here (type, XC functional, cutoffs) - no post-processing needed.
+        Returns plain dicts that the mapping framework converts to Pseudopotential instances.
+
+        Args:
+            source: List of raw POTCAR header dicts from OUTCAR parser
+
+        Returns:
+            list[dict]: List of complete pseudopotential dicts ready for schema population
+        """
+        pseudopotentials = []
+
+        for raw_pp in source:
+            # Extract basic metadata
+            pp_data = {
+                'name': raw_pp.get('TITEL'),
+                'n_valence_electrons': float(raw_pp['ZVAL']) if 'ZVAL' in raw_pp else None,
+                'reference_configuration': raw_pp.get('VRHFIN'),
+                'r_core': float(raw_pp['RCORE']) if 'RCORE' in raw_pp else None,
+                'l_max': int(raw_pp['LMAX']) if 'LMAX' in raw_pp else None,
+                'lm_max': int(raw_pp['LMMAX']) if 'LMMAX' in raw_pp else None,
+                'sha256': raw_pp.get('SHA256'),
+            }
+
+            # Derive type from LPAW/LULTRA flags and name patterns (idiomatic)
+            pp_data['type'] = self._derive_pp_type(raw_pp)
+            pp_data['is_norm_conserving'] = pp_data['type'] in ['NC', 'NC-PAW', 'NC-PAW-GW']
+            pp_data['is_gw_optimized'] = '_GW' in (raw_pp.get('TITEL') or '')
+
+            # Derive XC functional from LEXCH parameter (idiomatic)
+            pp_data['xc_functional'] = self._derive_pp_xc_functional(raw_pp)
+
+            # Derive cutoffs from ENMAX/ENMIN (idiomatic)
+            pp_data['cutoffs'] = self._derive_pp_cutoffs(raw_pp)
+
+            pseudopotentials.append(pp_data)
+
+        return pseudopotentials
+
+    def _derive_pp_type(self, raw_pp: dict[str, Any]) -> str | None:
+        """Derive pseudopotential type from LPAW/LULTRA flags and name patterns."""
+        lpaw = raw_pp.get('LPAW') == 'T'
+        lultra = raw_pp.get('LULTRA') == 'T'
+        name = raw_pp.get('TITEL', '')
+
+        # Check for GW-optimized NC-PAW
+        if '_GW' in name:
+            return 'NC-PAW-GW'
+
+        # Check LPAW and LULTRA flags
+        if lpaw:
+            # PAW with norm-conserving check (heuristic: some PAW files have NC in name)
+            if 'NC' in name or lultra:
+                return 'NC-PAW'
+            return 'PAW'
+        elif lultra:
+            return 'US'  # Ultrasoft
+
+        # Default to norm-conserving
+        return 'NC'
+
+    def _derive_pp_xc_functional(self, raw_pp: dict[str, Any]) -> dict[str, Any] | None:
+        """Derive XC functional from LEXCH parameter using VASP mapping."""
+        lexch = raw_pp.get('LEXCH')
+        if not lexch:
+            return None
+
+        # Map LEXCH code to LibXC components
+        functionals = self.xc_functional_mapping.get(lexch, [])
+        if not functionals:
+            return None
+
+        return {'components': [{'name': func} for func in functionals]}
+
+    def _derive_pp_cutoffs(self, raw_pp: dict[str, Any]) -> list[dict[str, Any]]:
+        """Derive cutoff energy recommendations from ENMAX/ENMIN."""
+        cutoffs = []
+
+        enmax = raw_pp.get('ENMAX')
+        if enmax is not None:
+            cutoffs.append({
+                'cutoff_kind': 'wavefunction',
+                'cutoff_role': 'recommended',
+                'value': float(enmax),
+            })
+
+        enmin = raw_pp.get('ENMIN')
+        if enmin is not None:
+            cutoffs.append({
+                'cutoff_kind': 'wavefunction',
+                'cutoff_role': 'recommended_min',
+                'value': float(enmin),
+            })
+
+        return cutoffs
 
 
 class OutcarArchiveWriter(ArchiveWriter):

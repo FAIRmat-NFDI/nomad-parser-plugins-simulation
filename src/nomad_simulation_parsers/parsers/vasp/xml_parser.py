@@ -69,6 +69,67 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
+    def get_pseudopotentials_xml(self, atomtypes_array: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Idiomatic transformer: Extract limited pseudopotential metadata from vasprun.xml.
+
+        Note: vasprun.xml contains very limited pseudopotential information compared to OUTCAR.
+        Only name (TITEL) and valence electrons (ZVAL) are available. Other fields like type,
+        XC functional, and cutoffs must be supplemented from OUTCAR via multi-pass parsing.
+
+        Args:
+            atomtypes_array: The atominfo.array with @name='atomtypes' from vasprun.xml
+
+        Returns:
+            list[dict]: List of pseudopotential dicts with limited metadata (name and n_valence_electrons only)
+        """
+        if not atomtypes_array:
+            return []
+
+        pseudopotentials = []
+
+        # Extract atomtypes data - vasprun.xml stores as array of rc/c elements
+        # Structure: array[@name='atomtypes'] -> set -> rc with c elements for atomspertype, element, pseudopotential, valence
+        for atomtype_set in atomtypes_array:
+            if not isinstance(atomtype_set, dict):
+                continue
+
+            # Get the 'set' element which contains 'rc' elements for each atom type
+            rc_elements = atomtype_set.get('set', {}).get('rc', [])
+            if not isinstance(rc_elements, list):
+                rc_elements = [rc_elements] if rc_elements else []
+
+            for rc in rc_elements:
+                if not isinstance(rc, dict):
+                    continue
+
+                # Each rc has 'c' elements: c[0]=atomspertype, c[1]=element, c[2]=pseudopotential name, c[3]=valence
+                c_elements = rc.get('c', [])
+                if not isinstance(c_elements, list) or len(c_elements) < 4:
+                    continue
+
+                # Extract name and valence electrons from c elements
+                pp_name = c_elements[2] if len(c_elements) > 2 else None
+                valence_str = c_elements[3] if len(c_elements) > 3 else None
+
+                # Parse valence electrons
+                n_valence = None
+                if valence_str is not None:
+                    try:
+                        n_valence = float(valence_str)
+                    except (ValueError, TypeError):
+                        pass
+
+                # Create pseudopotential dict with limited metadata
+                pp_data = {
+                    'name': pp_name,
+                    'n_valence_electrons': n_valence,
+                }
+
+                pseudopotentials.append(pp_data)
+
+        return pseudopotentials
+
 
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:

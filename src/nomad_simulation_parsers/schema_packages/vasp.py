@@ -275,6 +275,89 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     )
 
 
+class Pseudopotential(numerical_settings.Pseudopotential):
+    """
+    VASP-specific pseudopotential metadata extracted from POTCAR headers in OUTCAR and vasprun.xml.
+
+    Extends base Pseudopotential class with SHA256 hash for POTCAR file identification.
+    All field derivations (type, XC functional, cutoffs) are performed idiomatically in parser
+    transformers, not in post-processing.
+    """
+
+    from nomad.metainfo import Quantity
+    import numpy as np
+
+    sha256 = Quantity(
+        type=str,
+        description="""
+        SHA256 hash of the POTCAR file content. Uniquely identifies the pseudopotential
+        file and enables verification that the correct POTCAR was used. This hash can be
+        matched against pseudopotential library databases for automatic library detection.
+        """,
+    )
+
+    # Collection annotation: creates Pseudopotential instances from transformer output
+    # The transformer returns list[dict], framework creates instances and populates fields
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        OUTCAR_KEY,
+        ('get_pseudopotentials', ['@.pseudopotentials']),
+    )
+
+    # Field annotations: map dict keys from transformer to schema fields
+    # All derivations (type, xc_functional, cutoffs) done in transformer
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.name')
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.type, OUTCAR_KEY, '.type'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        OUTCAR_KEY,
+        '.n_valence_electrons',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.reference_configuration,
+        OUTCAR_KEY,
+        '.reference_configuration',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.is_norm_conserving,
+        OUTCAR_KEY,
+        '.is_norm_conserving',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.is_gw_optimized,
+        OUTCAR_KEY,
+        '.is_gw_optimized',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.r_core', unit='angstrom'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, '.l_max'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.xc_functional, OUTCAR_KEY, '.xc_functional'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.cutoffs, OUTCAR_KEY, '.cutoffs'
+    )
+    add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
+
+    # XML annotations for limited metadata (name and valence electrons only)
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        XML_KEY,
+        ('get_pseudopotentials_xml', ['.atominfo.array[?"@name"==\'atomtypes\']']),
+    )
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        XML_KEY,
+        '.n_valence_electrons',
+    )
+
+
 try:
     m_package.__init_metainfo__()
 except Exception:
