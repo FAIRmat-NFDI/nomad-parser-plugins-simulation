@@ -29,6 +29,11 @@ m_package = SchemaPackage()
             )
         )
     )
+    add_mapping_annotation(
+        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
+        OUT_KEY,
+        ('get_geometry_convergence', []),
+    )
 """    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
         OUT_KEY,

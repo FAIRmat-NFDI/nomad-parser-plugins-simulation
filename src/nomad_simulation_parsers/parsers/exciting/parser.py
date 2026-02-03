@@ -13,6 +13,12 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+    PotentialConvergenceTarget,
+    ChargeConvergenceTarget,
+)
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
     GeometryOptimizationMethod,
@@ -35,23 +41,23 @@ LOGGER = get_logger(__name__)
 
 convergence_threshold_mapping = {
     'x_exciting_effective_potential_convergence': {
-        'name': 'potential', 
-        'type': 'rms',
+        'class': PotentialConvergenceTarget, 
+        'convergence_type': 'rms',
         'unit': 'joule'
         }, 
     'x_exciting_energy_convergence': {
-        'name': 'energy', 
-        'type': 'absolute',
+        'class': EnergyConvergenceTarget, 
+        'convergence_type': 'absolute',
         'unit': 'joule'
         },
     'x_exciting_charge_convergence': {
-        'name': 'charge', 
-        'type': 'absolute',
-        'unit': 'coulomb'
+        'class': ChargeConvergenceTarget, 
+        'convergence_type': 'absolute',
+        'unit': None  # dimensionless
         },
     'x_exciting_IBS_force_convergence': {
-        'name': 'force', 
-        'type': 'absolute',
+        'class': ForceConvergenceTarget, 
+        'convergence_type': 'absolute',
         'unit': 'newton'
         }
 }
@@ -133,36 +139,40 @@ class InfoParser(TextParser):
             lattice_vectors=lattice_vectors,
         )
     
-    def get_geometry_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
+    def get_geometry_convergence(self, source : dict[str, Any]) -> list[ForceConvergenceTarget]:
         structure_optimization=source.get('structure_optimization')
         if structure_optimization is None:
-            return
+            return []
         threshold = structure_optimization.get('force_target')
         if threshold is None:
-            return
-        threshold = threshold.to('newton')
-        convergence = [{
-                'convergence_parameter_name': 'force',
-                'threshold_type' : 'maximum',
-                'convergence_threshold' : threshold,
-                'convergence_threshold_unit' : 'newton'
-            }]
+            return []
+        threshold = threshold.to('newton').magnitude
+        convergence = [
+            ForceConvergenceTarget(
+                threshold=threshold,
+                convergence_type='maximum',
+            )
+        ]
         #convergence.extend(self.get_single_point_convergence(source))
         return convergence
 
-    def get_single_point_convergence(self, source : dict[str, Any]) -> dict[str, Any]:
+    def get_single_point_convergence(self, source : dict[str, Any]) -> list:
         last_iteration = source.get('groundstate').get('scf_iteration')[-1]
         convergence_targets = []
         for key_, info_ in convergence_threshold_mapping.items():
             quantity = last_iteration.get(key_, None)
             if quantity is None:
                 continue
-            convergence_targets.append({
-                'convergence_parameter_name': info_['name'],
-                'threshold_type': info_['type'],
-                'convergence_threshold': quantity[1].to(info_['unit']),
-                'convergence_threshold_unit' : info_['unit']
-            })
+            # Extract threshold value and convert to appropriate unit
+            unit = info_['unit']
+            threshold_value = quantity[1].to(unit).magnitude if unit else float(quantity[1])
+            
+            # Instantiate the appropriate convergence target class
+            target = info_['class'](
+                threshold=threshold_value,
+                convergence_type=info_['convergence_type'],
+            )
+            convergence_targets.append(target)
         return convergence_targets
 
     def get_scf_steps(self, source : dict[str, Any]) -> dict[str, Any]:
