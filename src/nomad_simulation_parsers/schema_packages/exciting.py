@@ -138,34 +138,14 @@ add_mapping_annotations(
     (workflow.GeometryOptimization.m_def, GEO_OPT_KEY, '@'),
     (workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
      GEO_OPT_KEY, '.@'),
-    (workflow.geometry_optimization.GeometryOptimizationMethod.convergence,
+    (workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
      GEO_OPT_KEY, ('get_geometry_convergence', ['.@'])),
-    (workflow.geometry_optimization.GeometryOptimizationMethod.single_point_convergence,
+    (workflow.geometry_optimization.GeometryOptimizationMethod.single_point_convergence_targets,
      GEO_OPT_KEY, ('get_single_point_convergence', ['.@'])),
     (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
     (workflow.SinglePoint.m_def, INFO_KEY, '.@'),
-    (workflow.single_point.SinglePointMethod.convergence, 
+    (workflow.single_point.SinglePointMethod.convergence_targets, 
      INFO_KEY, ('get_single_point_convergence', ['.@']))
-)
-
-# convergence mapping
-add_mapping_annotations(
-    (workflow.general.WorkflowConvergenceTarget.convergence_parameter_name, 
-     INFO_KEY, '.convergence_parameter_name'),
-    (workflow.general.WorkflowConvergenceTarget.convergence_threshold,
-     INFO_KEY, '.convergence_threshold'),
-    (workflow.general.WorkflowConvergenceTarget.threshold_type,
-     INFO_KEY, '.threshold_type'),
-    (workflow.general.WorkflowConvergenceTarget.threshold_unit,
-     INFO_KEY, '.convergence_threshold_unit'),
-    (workflow.general.WorkflowConvergenceTarget.convergence_parameter_name, 
-     GEO_OPT_KEY, '.convergence_parameter_name'),
-    (workflow.general.WorkflowConvergenceTarget.convergence_threshold,
-     GEO_OPT_KEY, '.convergence_threshold'),
-    (workflow.general.WorkflowConvergenceTarget.threshold_type,
-     GEO_OPT_KEY, '.threshold_type'),
-    (workflow.general.WorkflowConvergenceTarget.threshold_unit,
-     GEO_OPT_KEY, '.convergence_threshold_unit')
 )
 
 # scf steps

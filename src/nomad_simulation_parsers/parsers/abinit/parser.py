@@ -17,6 +17,10 @@ from nomad_simulations.schema_packages.workflow import (
     MolecularDynamics,
     SinglePoint,
 )
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
     GeometryOptimizationMethod,
@@ -583,25 +587,18 @@ class MainfileParser(TextParser):
     def get_geometry_convergence(self):
         # TODO Add `is_reached` when it is parsed correctly
         # TODO consider to do this for each dataset and not only the first one
+        tolmxde = self.get_input_var('tolmxde', n_dataset=1, default=0.0, scalar=True)
+        tolmxf = self.get_input_var(name='tolmxf', n_dataset=1, default=0.0, scalar=True)
+        
         return [
-            {
-                'convergence_parameter_name': 'energy',
-                'threshold_type' : 'relative',
-                'convergence_threshold_unit' : 'hartree',
-                'convergence_threshold' : self.get_input_var('tolmxde', 
-                                                             n_dataset=1, 
-                                                             default=0.0, 
-                                                             scalar=True),
-            },
-            {
-                'convergence_parameter_name': 'force',
-                'threshold_type' : 'maximum',
-                'convergence_threshold_unit' : 'hartree/bohr',
-                'convergence_threshold' : self.get_input_var(name='tolmxf', 
-                                                             n_dataset=1, 
-                                                             default=0.0, 
-                                                             scalar=True),
-            }
+            EnergyConvergenceTarget(
+                threshold=tolmxde,
+                convergence_type='relative',
+            ),
+            ForceConvergenceTarget(
+                threshold=tolmxf,
+                convergence_type='maximum',
+            )
         ]
 
 
