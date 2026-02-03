@@ -100,6 +100,35 @@ class InfoParser(TextParser):
             rank=[3],
         )
 
+    def get_energies(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract total energies from all configurations (groundstate, hybrid, optimization steps)."""
+        energies = []
+        
+        # Get energies from groundstate and hybrid calculations
+        for key in ['groundstate', 'hybrid']:
+            config = source.get(key)
+            if config:
+                # Check if there's a final section with energy_total
+                final = config.get('final', {})
+                if final.get('energy_total'):
+                    energies.append({'energy_total': final['energy_total']})
+                # Otherwise check if energy_total is directly in the config
+                elif config.get('energy_total'):
+                    energies.append({'energy_total': config['energy_total']})
+        
+        # Get energies from geometry optimization steps
+        optimization = source.get('structure_optimization')
+        if optimization:
+            opt_steps = optimization.get('optimization_step', [])
+            for step in opt_steps:
+                if step.get('energy_total'):
+                    energies.append({'energy_total': step['energy_total']})
+            # Add final optimization energy
+            if optimization.get('energy_total'):
+                energies.append({'energy_total': optimization['energy_total']})
+        
+        return energies
+
     def get_configurations(self, root: dict[str, Any]) -> list[dict[str, Any]]:
         configurations = [
             root[key] for key in ['groundstate', 'hybrid'] if root.get(key)
@@ -176,7 +205,7 @@ class InfoParser(TextParser):
             # Extract threshold value and convert to appropriate unit
             unit = info_['unit']
             threshold_value = (
-                quantity[1].to(unit).magnitude if unit else float(quantity[1])
+                quantity[1].to(unit).magnitude if unit else quantity[1].magnitude
             )
 
             # Instantiate the appropriate convergence target class
@@ -384,6 +413,26 @@ class ExcitingArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = exciting.GEO_OPT_KEY
             info_parser.convert(data_parser)
 
+            # TODO: Investigate if mapping annotations can be made to work for object instantiation.
+            # Currently, convergence targets are populated manually because:
+            # 1. The mapping annotation system expects dict data from parsed files
+            # 2. Our get_geometry_convergence() returns fully-formed metainfo objects
+            # 3. The mapper can't directly assign these objects - it tries to map their fields
+            # Options to explore:
+            # - Modify mapper to detect and handle object instances
+            # - Change parser methods to return dicts that mapper can transform
+            # - Keep manual population (current approach - clearer and more explicit)
+            source_data = info_parser.data
+            if source_data:
+                convergence_targets = info_parser.get_geometry_convergence(source_data)
+                if convergence_targets:
+                    workflow.method.convergence_targets = convergence_targets
+
+                # Also get single point convergence targets
+                sp_convergence = info_parser.get_single_point_convergence(source_data)
+                if sp_convergence:
+                    workflow.method.single_point_convergence_targets = sp_convergence
+
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
             self.archive.workflow2 = workflow
@@ -395,6 +444,13 @@ class ExcitingArchiveWriter(ArchiveWriter):
             data_parser.data_object = workflow.method
             data_parser.annotation_key = exciting.INFO_KEY
             info_parser.convert(data_parser)
+
+            # TODO: Same as above - manually populate convergence targets
+            source_data = info_parser.data
+            if source_data:
+                sp_convergence = info_parser.get_single_point_convergence(source_data)
+                if sp_convergence:
+                    workflow.method.convergence_targets = sp_convergence
 
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
