@@ -20,6 +20,40 @@ from .xml_parser import XMLArchiveWriter
 
 
 class VASPParser(MatchingParser):
+    def is_mainfile(
+        self,
+        filename: str,
+        mime: str,
+        buffer: bytes,
+        decoded_buffer: str,
+        compression: str = None,
+    ) -> bool:
+        """
+        Override mainfile detection to recognize OUTCAR files.
+
+        OUTCAR files don't match the default XML pattern but are valid mainfiles.
+        This method validates OUTCAR by checking for VASP-specific content signatures.
+
+        Args:
+            filename: Name of the file being checked
+            mime: MIME type of the file
+            buffer: Raw file contents as bytes
+            decoded_buffer: Decoded file contents as string
+            compression: Compression format if any
+
+        Returns:
+            True if this is a valid VASP mainfile (OUTCAR or vasprun.xml)
+        """
+        # Recognize OUTCAR files by checking filename and content
+        if 'OUTCAR' in filename:
+            # Validate it's a VASP OUTCAR by checking for VASP signatures
+            # OUTCAR files contain lines like "vasp.X.X.X" and "executed on"
+            buffer_lower = buffer.lower()
+            return b'vasp' in buffer_lower and b'executed on' in buffer_lower
+
+        # For vasprun.xml and other files, use default matching from entry point
+        return super().is_mainfile(filename, mime, buffer, decoded_buffer, compression)
+
     def parse(
         self,
         mainfile: str,

@@ -296,8 +296,14 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         """,
     )
 
-    # Collection annotation: creates Pseudopotential instances from transformer output
-    # The transformer returns list[dict], framework creates instances and populates fields
+    # Collection annotations: create Pseudopotential instances from transformers
+    # XML: limited metadata (name, n_valence_electrons)
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        XML_KEY,
+        ('get_pseudopotentials_xml', ['modeling.atominfo.array']),
+    )
+    # OUTCAR: complete metadata (all fields)
     add_mapping_annotation(
         numerical_settings.Pseudopotential.m_def,
         OUTCAR_KEY,
@@ -337,19 +343,36 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, '.l_max'
     )
     add_mapping_annotation(
+        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, '.lm_max'
+    )
+
+    # XC functional: map dict to subsection
+    # Transformer returns dict like {'functional_key': 'GGA_X_PBE+GGA_C_PBE'}
+    # The framework will create XCFunctional subsection instance
+    add_mapping_annotation(
         numerical_settings.Pseudopotential.xc_functional, OUTCAR_KEY, '.xc_functional'
     )
+
+    # Map XC functional dict fields to XCFunctional schema fields
+    # The functional_key will be expanded to components during normalization
+    from nomad_simulations.schema_packages import model_method
+    add_mapping_annotation(model_method.XCFunctional.functional_key, OUTCAR_KEY, '.functional_key')
+
+    # Cutoffs: map list of dicts to repeating subsection
+    # Transformer returns list like [{'cutoff_kind': 'wavefunction', 'cutoff_role': 'recommended', 'value': 172.237}, ...]
+    # The framework will create PPCutoff instances for each dict in the list
     add_mapping_annotation(
         numerical_settings.Pseudopotential.cutoffs, OUTCAR_KEY, '.cutoffs'
     )
+
+    # Map cutoff dict fields to PPCutoff schema fields
+    add_mapping_annotation(numerical_settings.PPCutoff.cutoff_kind, OUTCAR_KEY, '.cutoff_kind')
+    add_mapping_annotation(numerical_settings.PPCutoff.cutoff_role, OUTCAR_KEY, '.cutoff_role')
+    add_mapping_annotation(numerical_settings.PPCutoff.value, OUTCAR_KEY, '.value', unit='eV')
+
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
 
-    # XML annotations for limited metadata (name and valence electrons only)
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.m_def,
-        XML_KEY,
-        ('get_pseudopotentials_xml', ['.atominfo.array[?"@name"==\'atomtypes\']']),
-    )
+    # XML field annotations for basic metadata (name and valence electrons only)
     add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,

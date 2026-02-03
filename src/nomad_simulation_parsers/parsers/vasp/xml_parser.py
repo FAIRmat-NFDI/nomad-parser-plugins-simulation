@@ -69,7 +69,7 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
-    def get_pseudopotentials_xml(self, atomtypes_array: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def get_pseudopotentials_xml(self, arrays: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Idiomatic transformer: Extract limited pseudopotential metadata from vasprun.xml.
 
@@ -78,11 +78,21 @@ class VasprunParser(XMLParser):
         XC functional, and cutoffs must be supplemented from OUTCAR via multi-pass parsing.
 
         Args:
-            atomtypes_array: The atominfo.array with @name='atomtypes' from vasprun.xml
+            arrays: List of arrays from atominfo, need to filter for @name='atomtypes'
 
         Returns:
             list[dict]: List of pseudopotential dicts with limited metadata (name and n_valence_electrons only)
         """
+        if not arrays:
+            return []
+
+        # Find the atomtypes array
+        atomtypes_array = None
+        for arr in arrays:
+            if isinstance(arr, dict) and arr.get(f'{self.attribute_prefix}name') == 'atomtypes':
+                atomtypes_array = arr
+                break
+
         if not atomtypes_array:
             return []
 
@@ -90,7 +100,7 @@ class VasprunParser(XMLParser):
 
         # Extract atomtypes data - vasprun.xml stores as array of rc/c elements
         # Structure: array[@name='atomtypes'] -> set -> rc with c elements for atomspertype, element, pseudopotential, valence
-        for atomtype_set in atomtypes_array:
+        for atomtype_set in [atomtypes_array]:
             if not isinstance(atomtype_set, dict):
                 continue
 
