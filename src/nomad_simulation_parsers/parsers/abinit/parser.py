@@ -585,7 +585,6 @@ class MainfileParser(TextParser):
         return bandstructures
 
     def get_geometry_convergence(self):
-        # TODO Add `is_reached` when it is parsed correctly
         # TODO consider to do this for each dataset and not only the first one
         tolmxde = self.get_input_var('tolmxde', n_dataset=1, default=0.0, scalar=True)
         tolmxf = self.get_input_var(
