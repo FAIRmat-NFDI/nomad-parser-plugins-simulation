@@ -504,10 +504,10 @@ class H5MDArchiveWriter(MDParser):
         # TODO consider using a single parser for the whole archive
         # create metainfo parsers
         self.simulation_parser.annotation_key = h5md.HDF5_KEY
-        simulation_data = Simulation()
+        simulation_data = h5md.Simulation()
         self.simulation_parser.data_object = simulation_data
         self.workflow_parser.annotation_key = h5md.HDF5_KEY
-        workflow_data = MolecularDynamics()
+        workflow_data = h5md.MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
         # map from h5 source to metainfo target

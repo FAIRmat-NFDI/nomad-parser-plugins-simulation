@@ -266,6 +266,13 @@ class CustomProperty(physical_property.PhysicalProperty):
     )
     add_mapping_annotation(name, HDF5_KEY, '.name')
 
+    contribution_type = Quantity(
+        type=str,
+        description="""
+        Type of contribution to the physical property.
+        """,
+    )
+
     value = Quantity(
         type=np.dtype(np.float64),
         shape=[],
