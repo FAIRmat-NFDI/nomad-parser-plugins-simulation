@@ -17,10 +17,10 @@ from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow.general import (
+    ChargeConvergenceTarget,
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
     PotentialConvergenceTarget,
-    ChargeConvergenceTarget,
 )
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -47,26 +47,27 @@ LOGGER = get_logger(__name__)
 
 convergence_threshold_mapping = {
     'x_exciting_effective_potential_convergence': {
-        'class': PotentialConvergenceTarget, 
-        'convergence_type': 'rms',
-        'unit': 'joule'
-        }, 
+        'class': PotentialConvergenceTarget,
+        'threshold_type': 'rms',
+        'unit': 'joule',
+    },
     'x_exciting_energy_convergence': {
-        'class': EnergyConvergenceTarget, 
-        'convergence_type': 'absolute',
-        'unit': 'joule'
-        },
+        'class': EnergyConvergenceTarget,
+        'threshold_type': 'absolute',
+        'unit': 'joule',
+    },
     'x_exciting_charge_convergence': {
-        'class': ChargeConvergenceTarget, 
-        'convergence_type': 'absolute',
-        'unit': None  # dimensionless
-        },
+        'class': ChargeConvergenceTarget,
+        'threshold_type': 'absolute',
+        'unit': None,  # dimensionless
+    },
     'x_exciting_IBS_force_convergence': {
-        'class': ForceConvergenceTarget, 
-        'convergence_type': 'absolute',
-        'unit': 'newton'
-        }
+        'class': ForceConvergenceTarget,
+        'threshold_type': 'absolute',
+        'unit': 'newton',
+    },
 }
+
 
 class ExcitingMetainfoParser(MetainfoParser):
     @property
@@ -144,9 +145,11 @@ class InfoParser(TextParser):
             atoms=atoms,
             lattice_vectors=lattice_vectors,
         )
-    
-    def get_geometry_convergence(self, source : dict[str, Any]) -> list[ForceConvergenceTarget]:
-        structure_optimization=source.get('structure_optimization')
+
+    def get_geometry_convergence(
+        self, source: dict[str, Any]
+    ) -> list[ForceConvergenceTarget]:
+        structure_optimization = source.get('structure_optimization')
         if structure_optimization is None:
             return []
         threshold = structure_optimization.get('force_target')
@@ -156,14 +159,21 @@ class InfoParser(TextParser):
         convergence = [
             ForceConvergenceTarget(
                 threshold=threshold,
-                convergence_type='maximum',
+                threshold_type='maximum',
             )
         ]
-        #convergence.extend(self.get_single_point_convergence(source))
+        # convergence.extend(self.get_single_point_convergence(source))
         return convergence
 
-    def get_single_point_convergence(self, source : dict[str, Any]) -> list:
-        last_iteration = source.get('groundstate').get('scf_iteration')[-1]
+    def get_single_point_convergence(self, source: dict[str, Any]) -> list:
+        groundstate = source.get('groundstate')
+        if groundstate is None:
+            return []
+        scf_iterations = groundstate.get('scf_iteration', [])
+        if not scf_iterations:
+            return []
+        last_iteration = scf_iterations[-1]
+
         convergence_targets = []
         for key_, info_ in convergence_threshold_mapping.items():
             quantity = last_iteration.get(key_, None)
@@ -171,17 +181,19 @@ class InfoParser(TextParser):
                 continue
             # Extract threshold value and convert to appropriate unit
             unit = info_['unit']
-            threshold_value = quantity[1].to(unit).magnitude if unit else float(quantity[1])
-            
+            threshold_value = (
+                quantity[1].to(unit).magnitude if unit else float(quantity[1])
+            )
+
             # Instantiate the appropriate convergence target class
             target = info_['class'](
                 threshold=threshold_value,
-                convergence_type=info_['convergence_type'],
+                threshold_type=info_['threshold_type'],
             )
             convergence_targets.append(target)
         return convergence_targets
 
-    def get_scf_steps(self, source : dict[str, Any]) -> dict[str, Any]:
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_steps = source.get('groundstate', {}).get('scf_iteration', [])
         energies = []
         wall_times = []
@@ -189,18 +201,24 @@ class InfoParser(TextParser):
         delta_potential = []
         delta_charge = []
         delta_force = []
+
         def safe_append(source, value_name, unit_conversion, out):
             # Append values only if they exist for the current step
             value = source.get(value_name)
             if value is None:
                 return
             out.append(value.to(unit_conversion)[0])
+
         for idx, step in enumerate(scf_steps):
             energies.append(step.get('energy_total').to('joule'))
             wall_times.append(step.get('time_physical').to('seconds').magnitude)
             safe_append(step, 'x_exciting_energy_convergence', 'joule', delta_energies)
-            safe_append(step, 'x_exciting_effective_potential_convergence', 
-                        'joule', delta_potential)
+            safe_append(
+                step,
+                'x_exciting_effective_potential_convergence',
+                'joule',
+                delta_potential,
+            )
             safe_append(step, 'x_exciting_charge_convergence', 'coulomb', delta_charge)
             safe_append(step, 'x_exciting_IBS_force_convergence', 'newton', delta_force)
         durations = []
@@ -209,22 +227,23 @@ class InfoParser(TextParser):
             if idx == 0:
                 duration = time
             else:
-                duration = time - wall_times[idx-1]
+                duration = time - wall_times[idx - 1]
             durations.append(duration)
-        out = {
-            'energies_total': energies,
-            'durations': durations
-        }
+        out = {'energies_total': energies, 'durations': durations}
         for name, values in zip(
-            ['delta_energies_total', 'delta_potential_rms', 
-             'delta_density_rms', 'delta_force_abs'],
-            [delta_energies, delta_potential,
-             delta_charge, delta_force]
+            [
+                'delta_energies_total',
+                'delta_potential_rms',
+                'delta_density_rms',
+                'delta_force_abs',
+            ],
+            [delta_energies, delta_potential, delta_charge, delta_force],
         ):
             if len(values) > 0:
                 out[name] = values
-        return out 
-    
+        return out
+
+
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -362,21 +381,30 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         # workflow section
         # populate geometry optimization if present
-        if info_parser.text_parser.has_geometry_optimization():            
-            data_parser.data_object = GeometryOptimization(
-                model=GeometryOptimizationMethod()
-            )
+        if info_parser.text_parser.has_geometry_optimization():
+            workflow = GeometryOptimization()
+            workflow.method = GeometryOptimizationMethod()
+
+            # Populate method using GEO_OPT_KEY annotations
+            data_parser.data_object = workflow.method
             data_parser.annotation_key = exciting.GEO_OPT_KEY
             info_parser.convert(data_parser)
-            self.archive.workflow2 = data_parser.data_object
-        else: # here should come more standard workflows - for now only single point
-            data_parser.data_object = SinglePoint(
-                model=SinglePointMethod()
-            )
+
+            # Set the workflow with populated method
+            workflow.method = data_parser.data_object
+            self.archive.workflow2 = workflow
+        else:  # here should come more standard workflows - for now only single point
+            workflow = SinglePoint()
+            workflow.method = SinglePointMethod()
+
+            # Populate method using INFO_KEY annotations
+            data_parser.data_object = workflow.method
             data_parser.annotation_key = exciting.INFO_KEY
             info_parser.convert(data_parser)
-            self.archive.workflow2 = data_parser.data_object
-            
+
+            # Set the workflow with populated method
+            workflow.method = data_parser.data_object
+            self.archive.workflow2 = workflow
 
         # close parsers
         info_parser.close()
