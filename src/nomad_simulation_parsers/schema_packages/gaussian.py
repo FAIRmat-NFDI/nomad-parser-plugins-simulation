@@ -21,9 +21,12 @@ m_package = SchemaPackage()
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
-add_mapping_annotation(general.Simulation.program, OUT_KEY, '.@')
+add_mapping_annotation(
+    general.Simulation.program, OUT_KEY, ('get_program_data', ['.@'])
+)
 
-add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
+add_mapping_annotation(general.Program.name, OUT_KEY, '.name')
+add_mapping_annotation(general.Program.version, OUT_KEY, '.version')
 
 ############# Atoms / ModelSystem ###################
 
@@ -37,6 +40,12 @@ add_mapping_annotation(
     model_system.ModelSystem.positions,
     OUT_KEY,
     '.positions',
+)
+
+add_mapping_annotation(
+    model_system.ModelSystem.particle_states,
+    OUT_KEY,
+    '.particle_states',
 )
 
 add_mapping_annotation(
