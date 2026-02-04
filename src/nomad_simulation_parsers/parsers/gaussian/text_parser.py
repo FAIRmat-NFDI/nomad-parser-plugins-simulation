@@ -628,7 +628,9 @@ class GaussianOutReader(TextParser):
             ),
             Quantity(
                 'run',
-                r'(-{10}\s*#[\s\S]+?Normal termination.*\n)',
+                # Capture each Gaussian job block ending in a "Normal termination" line.
+                # Accepts files with or without a trailing newline.
+                r'(-{10}\s*#[\s\S]+?Normal termination.*(?:\n|$))',
                 repeats=True,
                 sub_parser=TextParser(quantities=run_quantities),
             ),
