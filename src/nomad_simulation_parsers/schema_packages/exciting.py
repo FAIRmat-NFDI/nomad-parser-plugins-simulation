@@ -25,6 +25,17 @@ def add_mapping_annotations(*args):
     for mapping_tuple in args:
         add_mapping_annotation(*mapping_tuple)
 
+# TODO Use this structure?:
+# add_mapping_annotations(
+#     model_method.DFT.m_def,
+#     [
+#         (INFO_KEY, '.initialization.xc_functional'),
+#         (INPUT_XML_KEY, '.input.groundstate'),
+#         (BANDSTRUCTURE_XML_KEY, '.@')
+#     ],
+# )
+
+
 # simulation
 
 add_mapping_annotations(
