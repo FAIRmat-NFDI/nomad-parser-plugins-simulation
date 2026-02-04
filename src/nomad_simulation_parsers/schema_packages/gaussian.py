@@ -8,6 +8,8 @@ from nomad_simulations.schema_packages import (
     atoms_state,
     general,
     model_system,
+    model_method,
+    outputs,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -59,6 +61,26 @@ add_mapping_annotation(
     OUT_KEY,
     '.atomic_number',
 )
+
+############# Outputs ###################
+add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
+add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.total_energies')
+add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.total_forces')
+add_mapping_annotation(outputs.TotalEnergy.value, OUT_KEY, '.value')
+add_mapping_annotation(outputs.TotalForce.value, OUT_KEY, '.value')
+
+############# Method (DFT) ###################
+
+add_mapping_annotation(
+    general.Simulation.model_method,
+    OUT_KEY,
+    ('get_dft_method', ['.@']),
+)
+
+add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.@')
+add_mapping_annotation(model_method.ModelMethod.name, OUT_KEY, '.name')
+add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.xc')
+add_mapping_annotation(model_method.XCFunctional.functional_key, OUT_KEY, '.functional_key')
 
 try:
     m_package.__init_metainfo__()
