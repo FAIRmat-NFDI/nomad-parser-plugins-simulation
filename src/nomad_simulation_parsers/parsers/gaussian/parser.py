@@ -78,14 +78,12 @@ class OutParser(MappingTextParser):
             or system.get('z_matrix_orientation')
         )
 
-    def get_systems(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_atoms(self, src):
         runs = src.get('run') or []
         runs = runs if isinstance(runs, list) else [runs]
-        systems: list[dict[str, Any]] = []
+        systems = []
 
         for run in runs:
-            charge = run.get('charge')
-            total_spin = self._get_total_spin(run.get('spin_target'))
             for system in run.get('system', []) or []:
                 orientation = self._select_orientation(system)
                 if orientation is None:
@@ -96,21 +94,9 @@ class OutParser(MappingTextParser):
 
                 positions = arr[:, -3:]
                 atomic_numbers = arr[:, 1].astype(int) if arr.shape[1] > 1 else []
-                particle_states = []
-                for z in atomic_numbers:
-                    symbol = (
-                        chemical_symbols[z] if 0 <= z < len(chemical_symbols) else None
-                    )
-                    particle_states.append({'chemical_symbol': symbol})
+                atoms = [{'atomic_number': int(z)} for z in atomic_numbers]
+                systems.append({'positions': positions, 'particle_states': atoms})
 
-                systems.append(
-                    dict(
-                        positions=positions,
-                        particle_states=particle_states,
-                        total_charge=charge,
-                        total_spin=total_spin,
-                    )
-                )
         return systems
 
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
@@ -154,7 +140,9 @@ class GaussianParser(MatchingParser):
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
-        # meta.max_nested_level = 1
+        # Need to traverse Simulation -> ModelSystem -> particle_states
+        # Depth: Simulation (0) -> model_system (1) -> particle_states (2) -> AtomsState quantities (3)
+        meta.max_nested_level = 3
 
         reader.convert(meta)
         archive.data = meta.data_object
