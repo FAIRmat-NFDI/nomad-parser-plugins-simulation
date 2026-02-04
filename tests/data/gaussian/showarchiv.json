@@ -1,0 +1,557 @@
+{
+  "data": {
+    "m_def": "nomad_simulations.schema_packages.general.Simulation",
+    "representative_system_index": -1,
+    "program": {
+      "name": "Gaussian",
+      "datetime": "2026-02-04T14:45:30.865854+00:00",
+      "version": "16 ES64L-G16RevA.03 25-Dec-2016 4-Sep-2018"
+    },
+    "model_system": [
+      {
+        "branch_depth": 0,
+        "positions": [
+          [
+            2.700183,
+            -0.972164,
+            -0.246613
+          ],
+          [
+            1.740049,
+            -0.504405,
+            0.277966
+          ],
+          [
+            0.487931,
+            -0.693827,
+            -0.214259
+          ],
+          [
+            -0.569199,
+            -0.007106,
+            0.442235
+          ],
+          [
+            -0.539787,
+            1.50142,
+            0.101706
+          ],
+          [
+            0.428591,
+            2.038444,
+            -0.353034
+          ],
+          [
+            -1.84757,
+            -0.591277,
+            0.071571
+          ],
+          [
+            -2.930577,
+            -1.005636,
+            -0.238253
+          ],
+          [
+            1.754362,
+            0.088546,
+            1.210872
+          ],
+          [
+            -0.445214,
+            -0.069528,
+            1.537884
+          ],
+          [
+            -1.479384,
+            2.039219,
+            0.341794
+          ],
+          [
+            -3.880897,
+            -1.395843,
+            -0.510654
+          ]
+        ]
+      },
+      {
+        "branch_depth": 0,
+        "positions": [
+          [
+            2.700183,
+            -0.972164,
+            -0.246613
+          ],
+          [
+            1.740049,
+            -0.504405,
+            0.277966
+          ],
+          [
+            0.487931,
+            -0.693827,
+            -0.214259
+          ],
+          [
+            -0.569199,
+            -0.007106,
+            0.442235
+          ],
+          [
+            -0.539787,
+            1.50142,
+            0.101706
+          ],
+          [
+            0.428591,
+            2.038444,
+            -0.353034
+          ],
+          [
+            -1.84757,
+            -0.591277,
+            0.071571
+          ],
+          [
+            -2.930577,
+            -1.005636,
+            -0.238253
+          ],
+          [
+            1.754362,
+            0.088546,
+            1.210872
+          ],
+          [
+            -0.445214,
+            -0.069528,
+            1.537884
+          ],
+          [
+            -1.479384,
+            2.039219,
+            0.341794
+          ],
+          [
+            -3.880897,
+            -1.395843,
+            -0.510654
+          ]
+        ]
+      },
+      {
+        "branch_depth": 0,
+        "positions": [
+          [
+            2.700183,
+            -0.972164,
+            -0.246613
+          ],
+          [
+            1.740049,
+            -0.504405,
+            0.277966
+          ],
+          [
+            0.487931,
+            -0.693827,
+            -0.214259
+          ],
+          [
+            -0.569199,
+            -0.007106,
+            0.442235
+          ],
+          [
+            -0.539787,
+            1.50142,
+            0.101706
+          ],
+          [
+            0.428591,
+            2.038444,
+            -0.353034
+          ],
+          [
+            -1.84757,
+            -0.591277,
+            0.071571
+          ],
+          [
+            -2.930577,
+            -1.005636,
+            -0.238253
+          ],
+          [
+            1.754362,
+            0.088546,
+            1.210872
+          ],
+          [
+            -0.445214,
+            -0.069528,
+            1.537884
+          ],
+          [
+            -1.479384,
+            2.039219,
+            0.341794
+          ],
+          [
+            -3.880897,
+            -1.395843,
+            -0.510654
+          ]
+        ]
+      },
+      {
+        "branch_depth": 0,
+        "positions": [
+          [
+            2.700183,
+            -0.972164,
+            -0.246613
+          ],
+          [
+            1.740049,
+            -0.504405,
+            0.277966
+          ],
+          [
+            0.487931,
+            -0.693827,
+            -0.214259
+          ],
+          [
+            -0.569199,
+            -0.007106,
+            0.442235
+          ],
+          [
+            -0.539787,
+            1.50142,
+            0.101706
+          ],
+          [
+            0.428591,
+            2.038444,
+            -0.353034
+          ],
+          [
+            -1.84757,
+            -0.591277,
+            0.071571
+          ],
+          [
+            -2.930577,
+            -1.005636,
+            -0.238253
+          ],
+          [
+            1.754362,
+            0.088546,
+            1.210872
+          ],
+          [
+            -0.445214,
+            -0.069528,
+            1.537884
+          ],
+          [
+            -1.479384,
+            2.039219,
+            0.341794
+          ],
+          [
+            -3.880897,
+            -1.395843,
+            -0.510654
+          ]
+        ]
+      },
+      {
+        "is_representative": true,
+        "branch_depth": 0,
+        "positions": [
+          [
+            2.700183,
+            -0.972164,
+            -0.246613
+          ],
+          [
+            1.740049,
+            -0.504405,
+            0.277966
+          ],
+          [
+            0.487931,
+            -0.693827,
+            -0.214259
+          ],
+          [
+            -0.569199,
+            -0.007106,
+            0.442235
+          ],
+          [
+            -0.539787,
+            1.50142,
+            0.101706
+          ],
+          [
+            0.428591,
+            2.038444,
+            -0.353034
+          ],
+          [
+            -1.84757,
+            -0.591277,
+            0.071571
+          ],
+          [
+            -2.930577,
+            -1.005636,
+            -0.238253
+          ],
+          [
+            1.754362,
+            0.088546,
+            1.210872
+          ],
+          [
+            -0.445214,
+            -0.069528,
+            1.537884
+          ],
+          [
+            -1.479384,
+            2.039219,
+            0.341794
+          ],
+          [
+            -3.880897,
+            -1.395843,
+            -0.510654
+          ]
+        ]
+      }
+    ]
+  },
+  "metadata": {
+    "entry_name": "dsgdb9nsd_009999.log",
+    "mainfile": "/home/ebb/DEVELOP/nomad-distro-dev/packages/nomad-parser-plugins-simulation/tests/data/gaussian/dsgdb9nsd_009999.log",
+    "text_search_contents": [
+      "16 ES64L-G16RevA.03 25-Dec-2016 4-Sep-2018",
+      "Gaussian"
+    ],
+    "domain": "dft",
+    "n_quantities": 31,
+    "quantities": [
+      "",
+      "data",
+      "data.model_system",
+      "data.model_system.branch_depth",
+      "data.model_system.is_representative",
+      "data.model_system.positions",
+      "data.program",
+      "data.program.datetime",
+      "data.program.name",
+      "data.program.version",
+      "data.representative_system_index",
+      "metadata",
+      "metadata.domain",
+      "metadata.entry_name",
+      "metadata.mainfile",
+      "metadata.quantities",
+      "metadata.section_defs",
+      "metadata.section_defs.definition_id",
+      "metadata.section_defs.definition_qualified_name",
+      "metadata.section_defs.used_directly",
+      "metadata.sections",
+      "results",
+      "results.eln",
+      "results.eln.names",
+      "results.eln.sections",
+      "results.properties"
+    ],
+    "sections": [
+      "nomad.datamodel.datamodel.EntryArchive",
+      "nomad.datamodel.datamodel.EntryMetadata",
+      "nomad.datamodel.results.ELN",
+      "nomad.datamodel.results.Properties",
+      "nomad.datamodel.results.Results",
+      "nomad_simulations.schema_packages.general.Program",
+      "nomad_simulations.schema_packages.general.Simulation",
+      "nomad_simulations.schema_packages.model_system.ModelSystem"
+    ],
+    "section_defs": [
+      {
+        "definition_qualified_name": "nomad.datamodel.data.ArchiveSection",
+        "definition_id": "7047cbff9980abff17cce4b1b6b0d1c783505b7f",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.data.EntryData",
+        "definition_id": "538f52fd8d52b29372066f878319c6aeb03b74d2",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.datamodel.EntryArchive",
+        "definition_id": "1e2eb58a8e18a63195c5dc4d4b5a3622153fb053",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.datamodel.EntryMetadata",
+        "definition_id": "5ce5980b4131f76b56d33321cab35cf794bc241c",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v1.Activity",
+        "definition_id": "f10e73406ba5e32e6569029b1c983e0fd4c4be97",
+        "used_directly": false
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v1.BaseSection",
+        "definition_id": "106bafb5140238b4afe8128b8c341b5b3e927838",
+        "used_directly": false
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v1.Entity",
+        "definition_id": "8d478d6cfa9d129aeafe2e6f77d6fe3da6c000a0",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v2.BaseSection",
+        "definition_id": "106bafb5140238b4afe8128b8c341b5b3e927838",
+        "used_directly": false
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v2.Entity",
+        "definition_id": "8d478d6cfa9d129aeafe2e6f77d6fe3da6c000a0",
+        "used_directly": false
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.metainfo.basesections.v2.System",
+        "definition_id": "bec10ed95b1f703a9f7374bde5eaf3f298cdefc4",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.results.ELN",
+        "definition_id": "eeed330bd18d40f3a2a00cc35ba6f58808d0c543",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.results.Properties",
+        "definition_id": "0e5e98fb2e282a21aca55b77904d8425ff17a42b",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad.datamodel.results.Results",
+        "definition_id": "78f05f196cf71a44dd935798c0ef74a77c97ecd6",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.common.SimulationTime",
+        "definition_id": "4185dde8e204e9fecf344ec5531e35949f82ab7c",
+        "used_directly": false
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.general.BaseSimulation",
+        "definition_id": "1ef9e4361ec11a6adeda801380a3ccfabbbfa43b",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.general.Program",
+        "definition_id": "f5313c253f8da21c9cc7d0179376bd65468d1a34",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.general.Simulation",
+        "definition_id": "c31aaca7f46a54e1f7513fce22bfba7369b410cd",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.model_system.ModelSystem",
+        "definition_id": "36c09ddecd1bbd233f366da88ae3ee4847d249a9",
+        "used_directly": true
+      },
+      {
+        "definition_qualified_name": "nomad_simulations.schema_packages.model_system.Representation",
+        "definition_id": "4e85bfab3f187c4723c0ec558639fa6ed02a3b87",
+        "used_directly": true
+      }
+    ],
+    "search_quantities": [
+      {
+        "id": "data.model_system.branch_depth#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.branch_depth",
+        "path_archive": "data.model_system.0.branch_depth",
+        "int_value": 0
+      },
+      {
+        "id": "data.model_system.branch_depth#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.branch_depth",
+        "path_archive": "data.model_system.1.branch_depth",
+        "int_value": 0
+      },
+      {
+        "id": "data.model_system.branch_depth#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.branch_depth",
+        "path_archive": "data.model_system.2.branch_depth",
+        "int_value": 0
+      },
+      {
+        "id": "data.model_system.branch_depth#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.branch_depth",
+        "path_archive": "data.model_system.3.branch_depth",
+        "int_value": 0
+      },
+      {
+        "id": "data.model_system.is_representative#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.is_representative",
+        "path_archive": "data.model_system.4.is_representative",
+        "bool_value": true
+      },
+      {
+        "id": "data.model_system.branch_depth#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.model_system.ModelSystem.branch_depth",
+        "path_archive": "data.model_system.4.branch_depth",
+        "int_value": 0
+      },
+      {
+        "id": "data.program.name#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.general.Program.name",
+        "path_archive": "data.program.name",
+        "str_value": "Gaussian"
+      },
+      {
+        "id": "data.program.version#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.general.Program.version",
+        "path_archive": "data.program.version",
+        "str_value": "16 ES64L-G16RevA.03 25-Dec-2016 4-Sep-2018"
+      },
+      {
+        "id": "data.program.datetime#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad.datamodel.metainfo.basesections.v1.BaseSection.datetime",
+        "path_archive": "data.program.datetime",
+        "datetime_value": "2026-02-04T14:45:30.865854+00:00"
+      },
+      {
+        "id": "data.representative_system_index#nomad_simulations.schema_packages.general.Simulation",
+        "definition": "nomad_simulations.schema_packages.general.Simulation.representative_system_index",
+        "path_archive": "data.representative_system_index",
+        "int_value": -1
+      }
+    ]
+  },
+  "results": {
+    "properties": {},
+    "eln": {
+      "sections": [
+        "Program"
+      ],
+      "names": [
+        "Gaussian"
+      ]
+    }
+  }
+}
