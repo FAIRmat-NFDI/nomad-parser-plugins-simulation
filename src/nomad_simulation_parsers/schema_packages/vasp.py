@@ -89,6 +89,18 @@ class XCComponent(model_method.XCComponent):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    # pseudopotentials from vasprun.xml
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        XML_KEY,
+        ('get_pseudopotentials_xml', ['modeling.atominfo.array']),
+    )
+    # pseudopotentials from OUTCAR
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def,
+        OUTCAR_KEY,
+        ('get_pseudopotentials', ['@.pseudopotentials']),
+    )
 
 
 class KSpace(numerical_settings.KSpace):
@@ -294,20 +306,6 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         file and enables verification that the correct POTCAR was used. This hash can be
         matched against pseudopotential library databases for automatic library detection.
         """,
-    )
-
-    # Collection annotations: create Pseudopotential instances from transformers
-    # XML: limited metadata (name, n_valence_electrons)
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.m_def,
-        XML_KEY,
-        ('get_pseudopotentials_xml', ['modeling.atominfo.array']),
-    )
-    # OUTCAR: complete metadata (all fields)
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.m_def,
-        OUTCAR_KEY,
-        ('get_pseudopotentials', ['@.pseudopotentials']),
     )
 
     # Field annotations: map dict keys from transformer to schema fields

@@ -113,14 +113,14 @@ class VasprunParser(XMLParser):
                 if not isinstance(rc, dict):
                     continue
 
-                # Each rc has 'c' elements: c[0]=atomspertype, c[1]=element, c[2]=pseudopotential name, c[3]=valence
+                # Each rc has 'c' elements: c[0]=atomspertype, c[1]=element, c[2]=mass, c[3]=valence, c[4]=pseudopotential
                 c_elements = rc.get('c', [])
-                if not isinstance(c_elements, list) or len(c_elements) < 4:
+                if not isinstance(c_elements, list) or len(c_elements) < 5:
                     continue
 
                 # Extract name and valence electrons from c elements
-                pp_name = c_elements[2] if len(c_elements) > 2 else None
-                valence_str = c_elements[3] if len(c_elements) > 3 else None
+                pp_name = c_elements[4] if len(c_elements) > 4 else None  # pseudopotential name
+                valence_str = c_elements[3] if len(c_elements) > 3 else None  # valence
 
                 # Parse valence electrons
                 n_valence = None
