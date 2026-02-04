@@ -1,4 +1,6 @@
 from typing import TYPE_CHECKING, Any
+import os
+from pathlib import Path as PathLib
 
 import numpy as np
 
@@ -148,14 +150,48 @@ class XMLArchiveWriter(ArchiveWriter):
 
         xml_parser = VasprunParser(filepath=self.mainfile)
 
+        # First pass: XML_KEY for basic structure
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 
+        # Second pass: XML2_KEY for additional XML data
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
+
+        # Third pass: OUTCAR_KEY to extend with OUTCAR data if available
+        # This allows OUTCAR to supplement vasprun.xml pseudopotentials with detailed metadata
+        outcar_path = self._find_outcar()
+        if outcar_path and os.path.exists(outcar_path):
+            LOGGER.info(
+                f"Found OUTCAR at {outcar_path}, extending vasprun.xml data with detailed pseudopotential metadata"
+            )
+            from nomad_simulation_parsers.parsers.vasp.outcar_parser import OutcarParser, OutcarTextParser
+
+            outcar_parser = OutcarParser()
+            outcar_parser.text_parser = OutcarTextParser()
+            outcar_parser.filepath = outcar_path
+
+            data_parser.annotation_key = vasp.OUTCAR_KEY
+            outcar_parser.convert(data_parser)
+
+            outcar_parser.close()
 
         self.archive.data = data_parser.data_object
 
         # close file objects
         data_parser.close()
         xml_parser.close()
+
+    def _find_outcar(self) -> str | None:
+        """Find OUTCAR file in the same directory as vasprun.xml."""
+        mainfile_path = PathLib(self.mainfile)
+        mainfile_dir = mainfile_path.parent
+
+        # Check for OUTCAR in same directory
+        outcar_candidates = ['OUTCAR', 'outcar', 'OUTCAR.gz', 'outcar.gz']
+        for candidate in outcar_candidates:
+            outcar_path = mainfile_dir / candidate
+            if outcar_path.exists():
+                return str(outcar_path)
+
+        return None
