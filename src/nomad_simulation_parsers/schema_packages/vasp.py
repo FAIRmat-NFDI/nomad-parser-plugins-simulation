@@ -93,7 +93,7 @@ class ModelMethod(model_method.ModelMethod):
     add_mapping_annotation(
         numerical_settings.Pseudopotential.m_def,
         XML_KEY,
-        ('get_pseudopotentials_xml', ['modeling.atominfo.array']),
+        ('get_pseudopotentials_xml', ['atominfo.array']),
     )
     # pseudopotentials from OUTCAR
     add_mapping_annotation(
