@@ -11,12 +11,13 @@ if TYPE_CHECKING:
 from importlib import reload
 
 import numpy as np
-from ase.data import chemical_symbols
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.atoms_state import AtomsState
 
 from nomad_simulation_parsers.schema_packages import gaussian
 from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
@@ -34,6 +35,16 @@ class OutParser(MappingTextParser):
 
     def __init__(self):
         super().__init__(text_parser=GaussianOutReader())
+        # Parse everything; helper getters rely on full data presence.
+        self.parse_only_required = False
+        self.text_parser.parse_only_required = False
+        self.text_parser.findlazy = False
+
+    def load_file(self):
+        if self.filepath:
+            self.text_parser.findlazy = False
+            self.text_parser.mainfile = self.filepath
+        return self.text_parser
 
     def get_program_data(self, src: dict[str, Any]) -> dict[str, Any]:
         program = src.get('program')
@@ -72,11 +83,21 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _select_orientation(system: dict[str, Any]) -> Any:
-        return (
-            system.get('standard_orientation')
-            or system.get('input_orientation')
-            or system.get('z_matrix_orientation')
-        )
+        for key in ('standard_orientation', 'input_orientation', 'z_matrix_orientation'):
+            ori = system.get(key)
+            if ori is None:
+                continue
+            # Avoid numpy truth-value ambiguity
+            try:
+                if hasattr(ori, 'size'):
+                    if ori.size == 0:
+                        continue
+                elif hasattr(ori, '__len__') and len(ori) == 0:
+                    continue
+            except Exception:
+                pass
+            return ori
+        return None
 
     def get_atoms(self, src):
         runs = src.get('run') or []
@@ -94,32 +115,13 @@ class OutParser(MappingTextParser):
 
                 positions = arr[:, -3:]
                 atomic_numbers = arr[:, 1].astype(int) if arr.shape[1] > 1 else []
-                atoms = [{'atomic_number': int(z)} for z in atomic_numbers]
+                atoms = []
+                for z in atomic_numbers:
+                    z_int = int(z)
+                    atoms.append({'atomic_number': z_int})
                 systems.append({'positions': positions, 'particle_states': atoms})
 
         return systems
-
-    def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        runs = src.get('run') or []
-        runs = runs if isinstance(runs, list) else [runs]
-        outputs: list[dict[str, Any]] = []
-
-        for run in runs:
-            for system in run.get('system', []) or []:
-                output: dict[str, Any] = {}
-
-                energy = self._get_last(system.get('energy_total'))
-                if energy is not None:
-                    output['total_energies'] = [dict(value=energy)]
-
-                forces = system.get('forces')
-                if forces is not None:
-                    output['total_forces'] = [dict(value=forces)]
-
-                if output:
-                    outputs.append(output)
-
-        return outputs
 
 
 class GaussianParser(MatchingParser):
@@ -140,9 +142,6 @@ class GaussianParser(MatchingParser):
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
-        # Need to traverse Simulation -> ModelSystem -> particle_states
-        # Depth: Simulation (0) -> model_system (1) -> particle_states (2) -> AtomsState quantities (3)
-        meta.max_nested_level = 3
 
         reader.convert(meta)
         archive.data = meta.data_object
