@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Any
 import os
 from pathlib import Path as PathLib
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -71,19 +71,25 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
-    def get_pseudopotentials_xml(self, arrays: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def get_pseudopotentials_xml(
+        self, arrays: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
-        Idiomatic transformer: Extract limited pseudopotential metadata from vasprun.xml.
+        Idiomatic transformer: Extract limited pseudopotential metadata from
+        vasprun.xml.
 
-        Note: vasprun.xml contains very limited pseudopotential information compared to OUTCAR.
-        Only name (TITEL) and valence electrons (ZVAL) are available. Other fields like type,
-        XC functional, and cutoffs must be supplemented from OUTCAR via multi-pass parsing.
+        Note: vasprun.xml contains very limited pseudopotential information
+        compared to OUTCAR. Only name (TITEL) and valence electrons (ZVAL) are
+        available. Other fields like type, XC functional, and cutoffs must be
+        supplemented from OUTCAR via multi-pass parsing.
 
         Args:
-            arrays: List of arrays from atominfo, need to filter for @name='atomtypes'
+            arrays: List of arrays from atominfo, need to filter for
+                @name='atomtypes'
 
         Returns:
-            list[dict]: List of pseudopotential dicts with limited metadata (name and n_valence_electrons only)
+            list[dict]: List of pseudopotential dicts with limited metadata
+                (name and n_valence_electrons only)
         """
         if not arrays:
             return []
@@ -91,7 +97,10 @@ class VasprunParser(XMLParser):
         # Find the atomtypes array
         atomtypes_array = None
         for arr in arrays:
-            if isinstance(arr, dict) and arr.get(f'{self.attribute_prefix}name') == 'atomtypes':
+            if (
+                isinstance(arr, dict)
+                and arr.get(f'{self.attribute_prefix}name') == 'atomtypes'
+            ):
                 atomtypes_array = arr
                 break
 
@@ -101,7 +110,8 @@ class VasprunParser(XMLParser):
         pseudopotentials = []
 
         # Extract atomtypes data - vasprun.xml stores as array of rc/c elements
-        # Structure: array[@name='atomtypes'] -> set -> rc with c elements for atomspertype, element, pseudopotential, valence
+        # Structure: array[@name='atomtypes'] -> set -> rc with c elements for
+        # atomspertype, element, pseudopotential, valence
         for atomtype_set in [atomtypes_array]:
             if not isinstance(atomtype_set, dict):
                 continue
@@ -115,14 +125,22 @@ class VasprunParser(XMLParser):
                 if not isinstance(rc, dict):
                     continue
 
-                # Each rc has 'c' elements: c[0]=atomspertype, c[1]=element, c[2]=mass, c[3]=valence, c[4]=pseudopotential
+                # Each rc has 'c' elements: c[0]=atomspertype, c[1]=element,
+                # c[2]=mass, c[3]=valence, c[4]=pseudopotential
                 c_elements = rc.get('c', [])
-                if not isinstance(c_elements, list) or len(c_elements) < 5:
+                min_elements = 5  # Need indices 0-4 for all pseudopotential data
+                if not isinstance(c_elements, list) or len(c_elements) < min_elements:
                     continue
 
                 # Extract name and valence electrons from c elements
-                pp_name = c_elements[4] if len(c_elements) > 4 else None  # pseudopotential name
-                valence_str = c_elements[3] if len(c_elements) > 3 else None  # valence
+                idx_pp_name = 4  # Index for pseudopotential name
+                idx_valence = 3  # Index for valence electrons
+                pp_name = (
+                    c_elements[idx_pp_name] if len(c_elements) > idx_pp_name else None
+                )
+                valence_str = (
+                    c_elements[idx_valence] if len(c_elements) > idx_valence else None
+                )
 
                 # Parse valence electrons
                 n_valence = None
@@ -159,13 +177,18 @@ class XMLArchiveWriter(ArchiveWriter):
         xml_parser.convert(data_parser)
 
         # Third pass: OUTCAR_KEY to extend with OUTCAR data if available
-        # This allows OUTCAR to supplement vasprun.xml pseudopotentials with detailed metadata
+        # This allows OUTCAR to supplement vasprun.xml pseudopotentials with
+        # detailed metadata
         outcar_path = self._find_outcar()
         if outcar_path and os.path.exists(outcar_path):
             LOGGER.info(
-                f"Found OUTCAR at {outcar_path}, extending vasprun.xml data with detailed pseudopotential metadata"
+                f'Found OUTCAR at {outcar_path}, extending vasprun.xml data '
+                'with detailed pseudopotential metadata'
             )
-            from nomad_simulation_parsers.parsers.vasp.outcar_parser import OutcarParser, OutcarTextParser
+            from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
+                OutcarParser,
+                OutcarTextParser,
+            )
 
             outcar_parser = OutcarParser()
             outcar_parser.text_parser = OutcarTextParser()

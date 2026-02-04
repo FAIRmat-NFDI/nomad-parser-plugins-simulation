@@ -37,7 +37,9 @@ class Simulation(general.Simulation):
         'modeling.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    add_mapping_annotation(general.Simulation.model_system, XML_KEY, 'modeling.calculation')
+    add_mapping_annotation(
+        general.Simulation.model_system, XML_KEY, 'modeling.calculation'
+    )
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, 'modeling.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, 'modeling.calculation')
@@ -289,31 +291,31 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 class Pseudopotential(numerical_settings.Pseudopotential):
     """
-    VASP-specific pseudopotential metadata extracted from POTCAR headers in OUTCAR and vasprun.xml.
+    VASP-specific pseudopotential metadata extracted from POTCAR headers in
+    OUTCAR and vasprun.xml.
 
-    Extends base Pseudopotential class with SHA256 hash for POTCAR file identification.
-    All field derivations (type, XC functional, cutoffs) are performed idiomatically in parser
-    transformers, not in post-processing.
+    Extends base Pseudopotential class with SHA256 hash for POTCAR file
+    identification. All field derivations (type, XC functional, cutoffs) are
+    performed idiomatically in parser transformers, not in post-processing.
     """
 
-    from nomad.metainfo import Quantity
     import numpy as np
+    from nomad.metainfo import Quantity
 
     sha256 = Quantity(
         type=str,
         description="""
-        SHA256 hash of the POTCAR file content. Uniquely identifies the pseudopotential
-        file and enables verification that the correct POTCAR was used. This hash can be
-        matched against pseudopotential library databases for automatic library detection.
+        SHA256 hash of the POTCAR file content. Uniquely identifies the
+        pseudopotential file and enables verification that the correct POTCAR
+        was used. This hash can be matched against pseudopotential library
+        databases for automatic library detection.
         """,
     )
 
     # Field annotations: map dict keys from transformer to schema fields
     # All derivations (type, xc_functional, cutoffs) done in transformer
     add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.name')
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.type, OUTCAR_KEY, '.type'
-    )
+    add_mapping_annotation(numerical_settings.Pseudopotential.type, OUTCAR_KEY, '.type')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,
         OUTCAR_KEY,
@@ -335,7 +337,10 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         '.is_gw_optimized',
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.r_core, OUTCAR_KEY, '.r_core', unit='angstrom'
+        numerical_settings.Pseudopotential.r_core,
+        OUTCAR_KEY,
+        '.r_core',
+        unit='angstrom',
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, '.l_max'
@@ -354,19 +359,29 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     # Map XC functional dict fields to XCFunctional schema fields
     # The functional_key will be expanded to components during normalization
     from nomad_simulations.schema_packages import model_method
-    add_mapping_annotation(model_method.XCFunctional.functional_key, OUTCAR_KEY, '.functional_key')
+
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key, OUTCAR_KEY, '.functional_key'
+    )
 
     # Cutoffs: map list of dicts to repeating subsection
-    # Transformer returns list like [{'cutoff_kind': 'wavefunction', 'cutoff_role': 'recommended', 'value': 172.237}, ...]
+    # Transformer returns list like [{'cutoff_kind': 'wavefunction',
+    # 'cutoff_role': 'recommended', 'value': 172.237}, ...]
     # The framework will create PPCutoff instances for each dict in the list
     add_mapping_annotation(
         numerical_settings.Pseudopotential.cutoffs, OUTCAR_KEY, '.cutoffs'
     )
 
     # Map cutoff dict fields to PPCutoff schema fields
-    add_mapping_annotation(numerical_settings.PPCutoff.cutoff_kind, OUTCAR_KEY, '.cutoff_kind')
-    add_mapping_annotation(numerical_settings.PPCutoff.cutoff_role, OUTCAR_KEY, '.cutoff_role')
-    add_mapping_annotation(numerical_settings.PPCutoff.value, OUTCAR_KEY, '.value', unit='eV')
+    add_mapping_annotation(
+        numerical_settings.PPCutoff.cutoff_kind, OUTCAR_KEY, '.cutoff_kind'
+    )
+    add_mapping_annotation(
+        numerical_settings.PPCutoff.cutoff_role, OUTCAR_KEY, '.cutoff_role'
+    )
+    add_mapping_annotation(
+        numerical_settings.PPCutoff.value, OUTCAR_KEY, '.value', unit='eV'
+    )
 
     add_mapping_annotation(sha256, OUTCAR_KEY, '.sha256')
 

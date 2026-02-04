@@ -328,21 +328,42 @@ class OutcarTextParser(TextParser):
                             ('TITEL', re.search(r'TITEL\s*=\s*(.+)', val_in)),
                             ('VRHFIN', re.search(r'VRHFIN\s*=(.+?)(?:\n|$)', val_in)),
                             ('LEXCH', re.search(r'LEXCH\s*=\s*(\w+)', val_in)),
-                            ('ZVAL', re.search(r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)', val_in)),
+                            (
+                                'ZVAL',
+                                re.search(
+                                    r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)',
+                                    val_in,
+                                ),
+                            ),
                             ('RCORE', re.search(r'RCORE\s*=\s*([\d\.]+)', val_in)),
                             ('ENMAX', re.search(r'ENMAX\s*=\s*([\d\.]+)', val_in)),
                             ('ENMIN', re.search(r'ENMIN\s*=\s*([\d\.]+)', val_in)),
                             ('LPAW', re.search(r'LPAW\s*=\s*([TF])', val_in)),
                             ('LULTRA', re.search(r'LULTRA\s*=\s*([TF])', val_in)),
-                            ('LMAX', re.search(r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', val_in)),
-                            ('LMMAX', re.search(r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', val_in)),
+                            (
+                                'LMAX',
+                                re.search(
+                                    r'number of l-projection\s+operators is '
+                                    r'LMAX\s*=\s*(\d+)',
+                                    val_in,
+                                ),
+                            ),
+                            (
+                                'LMMAX',
+                                re.search(
+                                    r'number of lm-projection\s+operators is '
+                                    r'LMMAX\s*=\s*(\d+)',
+                                    val_in,
+                                ),
+                            ),
                             ('SHA256', re.search(r'SHA256\s*=\s*(\w+)', val_in)),
                         ]
                         if value is not None
                         for key, value in [(key, value.group(1) if value else None)]
                         if value is not None
                     }
-                    if 'VRHFIN' in val_in else {}  # Only process detailed sections with VRHFIN
+                    if 'VRHFIN' in val_in
+                    else {}  # Only process detailed sections with VRHFIN
                 ),
                 convert=False,
             ),
@@ -494,18 +515,23 @@ class OutcarParser(MappingTextParser):
                 xc_functionals.append({'name': functional})
         return xc_functionals
 
-    def get_pseudopotentials(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def get_pseudopotentials(
+        self, source: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
-        Idiomatic transformer: Extract and derive all pseudopotential metadata from OUTCAR.
+        Idiomatic transformer: Extract and derive all pseudopotential metadata
+        from OUTCAR.
 
-        Performs ALL derivations here (type, XC functional, cutoffs) - no post-processing needed.
-        Returns plain dicts that the mapping framework converts to Pseudopotential instances.
+        Performs ALL derivations here (type, XC functional, cutoffs) - no
+        post-processing needed. Returns plain dicts that the mapping framework
+        converts to Pseudopotential instances.
 
         Args:
             source: List of raw POTCAR header dicts from OUTCAR parser
 
         Returns:
-            list[dict]: List of complete pseudopotential dicts ready for schema population
+            list[dict]: List of complete pseudopotential dicts ready for schema
+                population
         """
         pseudopotentials = []
 
@@ -517,7 +543,9 @@ class OutcarParser(MappingTextParser):
             # Extract basic metadata
             pp_data = {
                 'name': raw_pp.get('TITEL'),
-                'n_valence_electrons': float(raw_pp['ZVAL']) if 'ZVAL' in raw_pp else None,
+                'n_valence_electrons': float(raw_pp['ZVAL'])
+                if 'ZVAL' in raw_pp
+                else None,
                 'reference_configuration': raw_pp.get('VRHFIN'),
                 'r_core': float(raw_pp['RCORE']) if 'RCORE' in raw_pp else None,
                 'l_max': int(raw_pp['LMAX']) if 'LMAX' in raw_pp else None,
@@ -527,10 +555,15 @@ class OutcarParser(MappingTextParser):
 
             # Derive type from LPAW/LULTRA flags and name patterns (idiomatic)
             pp_data['type'] = self._derive_pp_type(raw_pp)
-            pp_data['is_norm_conserving'] = pp_data['type'] in ['NC', 'NC-PAW', 'NC-PAW-GW']
+            pp_data['is_norm_conserving'] = pp_data['type'] in [
+                'NC',
+                'NC-PAW',
+                'NC-PAW-GW',
+            ]
             pp_data['is_gw_optimized'] = '_GW' in (raw_pp.get('TITEL') or '')
 
-            # Derive XC functional dict (will be instantiated as XCFunctional subsection)
+            # Derive XC functional dict (will be instantiated as XCFunctional
+            # subsection)
             xc_key = self._derive_pp_xc_functional_key(raw_pp)
             if xc_key:
                 pp_data['xc_functional'] = {'functional_key': xc_key}
@@ -567,7 +600,8 @@ class OutcarParser(MappingTextParser):
     def _derive_pp_xc_functional_key(self, raw_pp: dict[str, Any]) -> str | None:
         """Derive XC functional_key from LEXCH parameter using VASP mapping.
 
-        Returns standard functional aliases that will be expanded to LibXC components by normalization.
+        Returns standard functional aliases that will be expanded to LibXC
+        components by normalization.
         """
         lexch = raw_pp.get('LEXCH')
         if not lexch:
@@ -576,11 +610,11 @@ class OutcarParser(MappingTextParser):
         # Map VASP LEXCH codes to standard functional aliases
         # These aliases are expanded to LibXC labels during XCFunctional.normalize()
         lexch_mapping = {
-            'PE': 'PBE',          # Perdew-Burke-Ernzerhof -> XC_GGA_X_PBE + XC_GGA_C_PBE
-            'CA': 'CA',           # Ceperley-Alder (Teter parametrization)
-            'PW': 'PW91',         # Perdew-Wang 91
-            'HL': 'HL',           # Hedin-Lundqvist
-            'WI': 'WI',           # Wigner interpolation
+            'PE': 'PBE',  # Perdew-Burke-Ernzerhof -> XC_GGA_X_PBE + XC_GGA_C_PBE
+            'CA': 'CA',  # Ceperley-Alder (Teter parametrization)
+            'PW': 'PW91',  # Perdew-Wang 91
+            'HL': 'HL',  # Hedin-Lundqvist
+            'WI': 'WI',  # Wigner interpolation
         }
 
         return lexch_mapping.get(lexch)
@@ -591,19 +625,23 @@ class OutcarParser(MappingTextParser):
 
         enmax = raw_pp.get('ENMAX')
         if enmax is not None:
-            cutoffs.append({
-                'cutoff_kind': 'wavefunction',
-                'cutoff_role': 'recommended',
-                'value': float(enmax),
-            })
+            cutoffs.append(
+                {
+                    'cutoff_kind': 'wavefunction',
+                    'cutoff_role': 'recommended',
+                    'value': float(enmax),
+                }
+            )
 
         enmin = raw_pp.get('ENMIN')
         if enmin is not None:
-            cutoffs.append({
-                'cutoff_kind': 'wavefunction',
-                'cutoff_role': 'recommended_min',
-                'value': float(enmin),
-            })
+            cutoffs.append(
+                {
+                    'cutoff_kind': 'wavefunction',
+                    'cutoff_role': 'recommended_min',
+                    'value': float(enmin),
+                }
+            )
 
         return cutoffs
 
