@@ -28,19 +28,19 @@ add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
+    add_mapping_annotation(general.Simulation.program, XML_KEY, 'modeling.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     # dft method
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        '.parameters.separator[?"@name"==\'electronic\']',
+        'modeling.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.model_system, XML_KEY, 'modeling.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML_KEY, 'modeling.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, 'modeling.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
 
 
