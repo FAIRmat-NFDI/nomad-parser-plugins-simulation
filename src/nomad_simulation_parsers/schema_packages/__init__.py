@@ -78,6 +78,12 @@ gpaw_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.gpaw',
 )
 
+gromacs_schema_package = EntryPoint(
+    name='GromacsSchemaPackage',
+    description='Schema package for Gromacs.',
+    module='nomad_simulation_parsers.schema_packages.gromacs',
+)
+
 h5md_schema_package = EntryPoint(
     name='H5MDSchemaPackage',
     description='Schema package for H5MD.',
@@ -112,4 +118,10 @@ wannier90_schema_package = EntryPoint(
     name='Wannier90SchemaPackage',
     description='Schema package for Wannier90.',
     module='nomad_simulation_parsers.schema_packages.wannier90',
+)
+
+yambo_schema_package = EntryPoint(
+    name='YamboSchemaPackage',
+    description='Schema package for Yambo.',
+    module='nomad_simulation_parsers.schema_packages.yambo',
 )

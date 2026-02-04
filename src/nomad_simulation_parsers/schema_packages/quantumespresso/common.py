@@ -44,8 +44,8 @@ class AtomsState(model_system.AtomsState):
     ).update(dict(out=Mapper(mapper='.@')))
 
 
-class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
+class Representation(model_system.Representation):
+    model_system.Representation.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@')))
 
@@ -73,7 +73,7 @@ class ModelSystem(model_system.ModelSystem):
             )
         )
     )
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
+    model_system.Representation.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(out=Mapper(mapper=('get_value', ['.@'], dict(key='simulation_cell'))))

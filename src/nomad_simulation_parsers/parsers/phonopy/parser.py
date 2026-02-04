@@ -10,7 +10,7 @@ from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_system import (
-    AtomicCell,
+    AlternativeRepresentation,
     AtomsState,
     ModelSystem,
 )
@@ -82,16 +82,16 @@ def create_system(
     supercell: np.ndarray = None,
 ) -> ModelSystem:
     sec_system = ModelSystem()
-    sec_cell = AtomicCell()
-    sec_system.cell.append(sec_cell)
+    sec_representation = AlternativeRepresentation()
+    sec_system.representations.append(sec_representation)
 
-    sec_cell.periodic_boundary_conditions = [True, True, True]
+    sec_representation.periodic_boundary_conditions = [True, True, True]
     for symbol in symbols:
         sec_system.particle_states.append(AtomsState(chemical_symbol=symbol))
 
     sec_system.positions = positions * ureg.angstrom
-    sec_cell.lattice_vectors = cell * ureg.angstrom
-    sec_cell.supercell_matrix = supercell
+    sec_representation.lattice_vectors = cell * ureg.angstrom
+    sec_representation.supercell_matrix = supercell
     return sec_system
 
 

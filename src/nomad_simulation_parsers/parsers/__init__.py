@@ -131,6 +131,18 @@ gpaw_parser = EntryPoint(
     code_category='Atomistic code',
 )
 
+gromacs_parser = EntryPoint(
+    name='parsers/gromacs',
+    aliases=['parsers/gromacs'],
+    description='NOMAD parser for GROMACS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'gmx mdrun, (VERSION|version)[\s\S]*Input Parameters:',
+    parser_class_name='nomad_simulation_parsers.parsers.gromacs.parser.GromacsParser',
+    code_name='GROMACS',
+    code_homepage='http://www.gromacs.org/',
+    code_category='Atomistic code',
+)
+
 h5md_parser = EntryPoint(
     name='parsers/h5md',
     aliases=['parsers/h5md'],
@@ -221,5 +233,17 @@ wannier90_parser = Wannier90ParserEntryPoint(
     mainfile_contents_re=r'\|\s*WANNIER90\s*\|',
     code_name='Wannier90',
     code_homepage='http://www.wannier.org/',
+    code_category='Atomistic code',
+)
+
+yambo_parser = EntryPoint(
+    name='parsers/yambo',
+    aliases=['parsers/yambo'],
+    description='NOMAD parser for YAMBO.',
+    parser_class_name='nomad_simulation_parsers.parsers.yambo.parser.YamboParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'Build[\s\S]+?http://www\.yambo-code\.org',
+    code_name='YAMBO',
+    code_homepage='http://www.yambo-code.org/',
     code_category='Atomistic code',
 )
