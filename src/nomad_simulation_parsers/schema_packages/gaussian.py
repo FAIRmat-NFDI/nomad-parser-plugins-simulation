@@ -44,12 +44,7 @@ add_mapping_annotation(
     '.positions',
 )
 
-add_mapping_annotation(
-    model_system.ModelSystem.particle_states,
-    OUT_KEY,
-    '.particle_states',
-)
-
+# Map particle states produced by get_atoms
 add_mapping_annotation(
     atoms_state.AtomsState.m_def,
     OUT_KEY,
@@ -60,6 +55,12 @@ add_mapping_annotation(
     atoms_state.AtomsState.atomic_number,
     OUT_KEY,
     '.atomic_number',
+)
+
+add_mapping_annotation(
+    atoms_state.AtomsState.chemical_symbol,
+    OUT_KEY,
+    '.chemical_symbol',
 )
 
 ############# Outputs ###################
