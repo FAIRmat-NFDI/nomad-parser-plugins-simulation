@@ -18,14 +18,6 @@ from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages import model_method
-from nomad_simulations.schema_packages.workflow.general import (
-    SimulationWorkflow,
-    SimulationWorkflowMethod,
-)
-from nomad_simulations.schema_packages.workflow.geometry_optimization import (
-    GeometryOptimization,
-)
-from nomad_simulations.schema_packages.workflow.single_point import SinglePoint
 from nomad_simulations.schema_packages.atoms_state import AtomsState
 from nomad.units import ureg
 
@@ -310,42 +302,6 @@ class GaussianParser(MatchingParser):
 
         reader.convert(meta)
         archive.data = meta.data_object
-
-        # Replace/augment model_method with parsed DFT info
-        archive.data.model_method = reader.get_dft_method(reader.data)
-
-        # Set representative system as last geometry if available
-        if archive.data.model_system:
-            archive.data.representative_system_index = len(archive.data.model_system) - 1
-
-        # Attach model_system references to outputs (aligned order)
-        if archive.data.outputs and archive.data.model_system:
-            for out, sys in zip(archive.data.outputs, archive.data.model_system):
-                try:
-                    out.model_system_ref = sys
-                except Exception:
-                    pass
-
-        # Build workflow: geometry optimization if multiple steps, else single point
-        wf = None
-        n_steps = len(archive.data.outputs or [])
-        if n_steps > 1:
-            wf = SimulationWorkflow()
-        elif n_steps == 1:
-            wf = SinglePoint()
-        if wf:
-            wf.method = SimulationWorkflowMethod(
-                initial_system=archive.data.model_system[0]
-                if archive.data.model_system
-                else None,
-                initial_method=archive.data.model_method[0]
-                if archive.data.model_method
-                else None,
-            )
-            wf.map_inputs(archive)
-            wf.map_outputs(archive)
-            wf.map_tasks(archive)
-            archive.workflow2 = wf
 
         meta.close()
         reader.close()
