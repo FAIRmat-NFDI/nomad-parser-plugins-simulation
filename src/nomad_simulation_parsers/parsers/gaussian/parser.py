@@ -270,12 +270,8 @@ class OutParser(MappingTextParser):
 
                 positions = arr[:, -3:]
                 atomic_numbers = arr[:, 1].astype(int) if arr.shape[1] > 1 else []
-                atoms = []
-                for z in atomic_numbers:
-                    z_int = int(z)
-                    atoms.append(AtomsState(atomic_number=z_int))
+                atoms = [{'atomic_number': int(z)} for z in atomic_numbers]
                 systems.append({'positions': positions, 'particle_states': atoms})
-
         return systems
 
 
@@ -298,7 +294,8 @@ class GaussianParser(MatchingParser):
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
         # Traverse nested sections (model_system, outputs, particle_states, etc.)
-        meta.max_nested_level = 3
+        meta.max_nested_level = 6
+        meta.parse_only_required = False
 
         reader.convert(meta)
         archive.data = meta.data_object
