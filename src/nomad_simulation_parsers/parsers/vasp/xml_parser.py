@@ -172,7 +172,9 @@ class XMLArchiveWriter(ArchiveWriter):
             outcar_parser.filepath = outcar_path
 
             data_parser.annotation_key = vasp.OUTCAR_KEY
-            outcar_parser.convert(data_parser)
+            # Merge by index position: OUTCAR PP[0] extends XML PP[0], etc.
+            # This preserves XML structure while adding OUTCAR's detailed metadata
+            outcar_parser.convert(data_parser, update_mode='merge')
 
             outcar_parser.close()
 
