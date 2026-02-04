@@ -69,6 +69,9 @@ class GaussianOutReader(TextParser):
                 unit = re.sub(u_gauss, u_pint, unit)
             return ureg(unit)
 
+        def normalize_calc_type(val_in: str) -> str:
+            return ' '.join(val_in.split())
+
         orientation_quantities = [
             Quantity(
                 'standard_orientation',
@@ -620,7 +623,8 @@ class GaussianOutReader(TextParser):
             Quantity(
                 'calc_type',
                 r'\s-+\n\sGaussian ([\w\s]+)\n',
-                convert=lambda x: ' '.join(x),
+                str_operation=normalize_calc_type,
+                flatten=False,
             ),
             Quantity(
                 'run',
