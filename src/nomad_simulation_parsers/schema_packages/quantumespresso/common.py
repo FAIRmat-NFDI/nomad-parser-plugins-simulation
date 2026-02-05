@@ -12,6 +12,8 @@ m_package = SchemaPackage()
 
 OUT_KEY = 'quantumespresso_out'
 XML_KEY = 'quantumespresso_xml'
+GIPAW_OUT_KEY = 'quantumespresso_gipaw_out'
+GIPAW_XML_KEY = 'quantumespresso_gipaw_xml'
 
 
 class Program(general.Program):

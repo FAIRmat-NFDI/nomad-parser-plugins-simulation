@@ -325,6 +325,8 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
             program=Program(name='Quantum Espresso')
         )
         # convert
+        from devtools import debug
+        debug(self.simulation_parser.annotation_key)
         self.mainfile_parser.convert(self.simulation_parser)
         # set the parsed data to archive
         archive.data = self.simulation_parser.data_object
@@ -410,21 +412,26 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
         if self._mainfile_parser is None:
             basename, ext = self.mainfile.rsplit('.', 1)
-            self.simulation_parser.annotation_key = ext
-            self._mainfile_parser = dict(
-                out=self._text_parser, xml=self._xml_parser
-            ).get(ext)
-            if ext == 'xml':
+            self._mainfile_parser = dict(out=self._text_parser, xml=self._xml_parser).get(ext)
+            self._mainfile_parser.filepath = self.mainfile
+            keys = list(self._mainfile_parser.data.keys())
+
+            if "gipaw" not in self.simulation_parser.annotation_key:
+                self.simulation_parser.annotation_key = ext
+
+            if "program" not in keys:
+                if len(keys) == 1 and "gipaw" in keys[0]:
+                    self.simulation_parser.annotation_key = 'gipaw_xml'
                 return self._mainfile_parser
+
+            program = self._mainfile_parser.data.get('program')
+            name_version = get_program_name_version(program[0][:30])
+            if name_version[0] == 'gipaw':
+                if ext == 'out':
+                    self.simulation_parser.annotation_key = 'gipaw_out'
 
             # special handling for GIPAW to parse xml if available for version >= 7.4.1
             # check version
-            self._mainfile_parser.filepath = self.mainfile
-            program = self._mainfile_parser.data.get('program')
-            if not program:
-                return self._mainfile_parser
-
-            name_version = get_program_name_version(program[0][:30])
             if name_version[0] != 'gipaw':
                 return self._mainfile_parser
 
@@ -433,7 +440,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 # check if xml file exists
                 xml_file = f'{basename}.xml'
                 if os.path.isfile(xml_file):
-                    self.simulation_parser.annotation_key = 'xml'
+                    self.simulation_parser.annotation_key = 'gipaw_xml'
                     self._mainfile_parser = self._xml_parser
                     self._mainfile_parser.filepath = xml_file
         return self._mainfile_parser
