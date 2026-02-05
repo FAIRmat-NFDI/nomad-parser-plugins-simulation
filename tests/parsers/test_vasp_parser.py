@@ -1,15 +1,10 @@
-import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
+from tests.parsers.utils import approx
 
 LOGGER = get_logger(__name__)
-
-
-def approx(value, abs=0, rel=1e-6):
-    """Helper for floating-point comparisons."""
-    return pytest.approx(value, abs=abs, rel=rel)
 
 
 def test_vasprun():

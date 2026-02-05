@@ -517,135 +517,73 @@ class OutcarParser(MappingTextParser):
                 xc_functionals.append({'name': functional})
         return xc_functionals
 
-    def get_pseudopotentials(
-        self, source: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def get_raw_pseudopotentials(self, source: list[Any]) -> list[dict[str, Any]]:
         """
-        Idiomatic transformer: Extract and derive all pseudopotential metadata
-        from OUTCAR.
+        Minimal passthrough transformer: return raw POTCAR dicts unchanged.
 
-        Performs ALL derivations here (type, XC functional, cutoffs) - no
-        post-processing needed. Returns plain dicts that the mapping framework
-        converts to Pseudopotential instances.
+        Field-level transformers and direct annotations handle all field mapping
+        and derivations. This just creates the Pseudopotential instances.
 
         Args:
-            source: List of raw POTCAR header dicts from OUTCAR parser
+            source: List of raw POTCAR dicts from str_operation (parse_potcar_section)
+                    May include empty dicts from header-only POTCAR lines
 
         Returns:
-            list[dict]: List of complete pseudopotential dicts ready for schema
-                population
+            list[dict]: Non-empty raw POTCAR dicts with original keys (TITEL, ZVAL, etc.)
         """
-        pseudopotentials = []
+        if not source:
+            return []
 
-        for raw_pp in source:
-            # Skip empty entries (summary lines without detailed data)
-            if not raw_pp or 'TITEL' not in raw_pp:
-                continue
+        # Filter out empty dicts from header-only POTCAR lines (lack VRHFIN)
+        return [pp for pp in source if pp]
 
-            # Extract basic metadata
-            pp_data = {
-                'name': raw_pp.get('TITEL'),
-                'n_valence_electrons': float(raw_pp['ZVAL'])
-                if 'ZVAL' in raw_pp
-                else None,
-                'reference_configuration': raw_pp.get('VRHFIN'),
-                'r_core': float(raw_pp['RCORE']) if 'RCORE' in raw_pp else None,
-                'l_max': int(raw_pp['LMAX']) if 'LMAX' in raw_pp else None,
-                'lm_max': int(raw_pp['LMMAX']) if 'LMMAX' in raw_pp else None,
-                'sha256': raw_pp.get('SHA256'),
-            }
+    # Field-level transformers for type conversion (per-instance)
+    def to_float(self, value: str) -> float | None:
+        """Convert string value to float."""
+        return float(value) if value is not None else None
 
-            # Derive type from LPAW/LULTRA flags and name patterns (idiomatic)
-            pp_data['type'] = self._derive_pp_type(raw_pp)
-            pp_data['is_norm_conserving'] = pp_data['type'] in [
-                'NC',
-                'NC-PAW',
-                'NC-PAW-GW',
-            ]
-            pp_data['is_gw_optimized'] = '_GW' in (raw_pp.get('TITEL') or '')
+    def to_int(self, value: str) -> int | None:
+        """Convert string value to int."""
+        return int(value) if value is not None else None
 
-            # Derive XC functional dict (will be instantiated as XCFunctional
-            # subsection)
-            xc_key = self._derive_pp_xc_functional_key(raw_pp)
-            if xc_key:
-                pp_data['xc_functional'] = {'functional_key': xc_key}
+    # Field-level transformers for derived fields (per-instance)
+    def derive_pp_type(self, lpaw: str, lultra: str, titel: str) -> str:
+        """
+        Derive pseudopotential type from LPAW, LULTRA, and TITEL fields.
 
-            # Derive cutoffs from ENMAX/ENMIN (idiomatic)
-            pp_data['cutoffs'] = self._derive_pp_cutoffs(raw_pp)
+        This transformer is called once per pseudopotential instance.
 
-            pseudopotentials.append(pp_data)
+        Args:
+            lpaw: LPAW flag ('T' = PAW, 'F' = other)
+            lultra: LULTRA flag ('T' = ultrasoft, 'F' = other)
+            titel: TITEL string (may contain type hints like '_GW', 'NC')
 
-        return pseudopotentials
-
-    def _derive_pp_type(self, raw_pp: dict[str, Any]) -> str | None:
-        """Derive pseudopotential type from LPAW/LULTRA flags and name patterns."""
-        lpaw = raw_pp.get('LPAW') == 'T'
-        lultra = raw_pp.get('LULTRA') == 'T'
-        name = raw_pp.get('TITEL', '')
-
+        Returns:
+            PP type: 'PAW', 'US', 'NC', 'NC-PAW', or 'NC-PAW-GW'
+        """
         # Check for GW-optimized NC-PAW
-        if '_GW' in name:
+        if titel and '_GW' in titel:
             return 'NC-PAW-GW'
-
         # Check LPAW and LULTRA flags
-        if lpaw:
-            # PAW with norm-conserving check (heuristic: some PAW files have NC in name)
-            if 'NC' in name or lultra:
+        elif lpaw == 'T':
+            # PAW with norm-conserving check
+            if (titel and 'NC' in titel) or lultra == 'T':
                 return 'NC-PAW'
-            return 'PAW'
-        elif lultra:
+            else:
+                return 'PAW'
+        elif lultra == 'T':
             return 'US'  # Ultrasoft
+        else:
+            return 'NC'  # Default norm-conserving
 
-        # Default to norm-conserving
-        return 'NC'
+    def derive_is_norm_conserving(self, pp_type: str) -> bool:
+        """Determine if norm-conserving from type (per-instance)."""
+        return pp_type in ['NC', 'NC-PAW', 'NC-PAW-GW']
 
-    def _derive_pp_xc_functional_key(self, raw_pp: dict[str, Any]) -> str | None:
-        """Derive XC functional_key from LEXCH parameter using VASP mapping.
+    def derive_is_gw_optimized(self, titel: str) -> bool:
+        """Determine if GW-optimized from TITEL (per-instance)."""
+        return titel is not None and '_GW' in titel
 
-        Returns standard functional aliases that will be expanded to LibXC
-        components by normalization.
-        """
-        lexch = raw_pp.get('LEXCH')
-        if not lexch:
-            return None
-
-        # Map VASP LEXCH codes to standard functional aliases
-        # These aliases are expanded to LibXC labels during XCFunctional.normalize()
-        lexch_mapping = {
-            'PE': 'PBE',  # Perdew-Burke-Ernzerhof -> XC_GGA_X_PBE + XC_GGA_C_PBE
-            'CA': 'CA',  # Ceperley-Alder (Teter parametrization)
-            'PW': 'PW91',  # Perdew-Wang 91
-            'HL': 'HL',  # Hedin-Lundqvist
-            'WI': 'WI',  # Wigner interpolation
-        }
-
-        return lexch_mapping.get(lexch)
-
-    def _derive_pp_cutoffs(self, raw_pp: dict[str, Any]) -> list[dict[str, Any]]:
-        """Derive cutoff energy recommendations from ENMAX/ENMIN."""
-        cutoffs = []
-
-        enmax = raw_pp.get('ENMAX')
-        if enmax is not None:
-            cutoffs.append(
-                {
-                    'cutoff_kind': 'wavefunction',
-                    'cutoff_role': 'recommended',
-                    'value': float(enmax),
-                }
-            )
-
-        enmin = raw_pp.get('ENMIN')
-        if enmin is not None:
-            cutoffs.append(
-                {
-                    'cutoff_kind': 'wavefunction',
-                    'cutoff_role': 'recommended_min',
-                    'value': float(enmin),
-                }
-            )
-
-        return cutoffs
 
 
 class OutcarArchiveWriter(ArchiveWriter):
