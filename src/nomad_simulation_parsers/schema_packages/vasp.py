@@ -407,11 +407,11 @@ add_mapping_annotation(
     XML_KEY,
     ('get_pseudopotentials_xml', ['atominfo.array']),
 )
-# From OUTCAR - passthrough transformer, field annotations handle mapping
+# From OUTCAR - direct path, field annotations handle mapping
 add_mapping_annotation(
     Pseudopotential.m_def,
     OUTCAR_KEY,
-    ('get_raw_pseudopotentials', ['@.pseudopotentials']),
+    '@.pseudopotentials',
 )
 
 

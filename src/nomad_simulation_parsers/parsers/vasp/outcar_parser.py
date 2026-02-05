@@ -51,7 +51,7 @@ def get_key_values(val_in):
     return data
 
 
-def parse_potcar_section(val_in: str) -> dict[str, Any]:
+def parse_potcar_section(val_in: str) -> dict[str, Any] | None:
     """
     Extract pseudopotential metadata from a POTCAR section in OUTCAR.
 
@@ -64,11 +64,11 @@ def parse_potcar_section(val_in: str) -> dict[str, Any]:
 
     Returns:
         dict: Extracted metadata fields (TITEL, VRHFIN, LEXCH, ZVAL, etc.)
-              Returns empty dict if section lacks VRHFIN (summary line)
+        None: If section lacks VRHFIN (header-only line, should be skipped)
     """
     # Only process detailed sections with VRHFIN
     if 'VRHFIN' not in val_in:
-        return {}
+        return None
 
     # Extract fields using regex patterns
     fields = {
@@ -516,26 +516,6 @@ class OutcarParser(MappingTextParser):
             for functional in functionals:
                 xc_functionals.append({'name': functional})
         return xc_functionals
-
-    def get_raw_pseudopotentials(self, source: list[Any]) -> list[dict[str, Any]]:
-        """
-        Minimal passthrough transformer: return raw POTCAR dicts unchanged.
-
-        Field-level transformers and direct annotations handle all field mapping
-        and derivations. This just creates the Pseudopotential instances.
-
-        Args:
-            source: List of raw POTCAR dicts from str_operation (parse_potcar_section)
-                    May include empty dicts from header-only POTCAR lines
-
-        Returns:
-            list[dict]: Non-empty raw POTCAR dicts with original keys (TITEL, ZVAL, etc.)
-        """
-        if not source:
-            return []
-
-        # Filter out empty dicts from header-only POTCAR lines (lack VRHFIN)
-        return [pp for pp in source if pp]
 
     # Field-level transformers for type conversion (per-instance)
     def to_float(self, value: str) -> float | None:
