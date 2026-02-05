@@ -30,7 +30,6 @@ add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, XML_KEY, 'modeling.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
-    # dft method
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
@@ -89,7 +88,6 @@ class XCComponent(model_method.XCComponent):
 
 
 class ModelMethod(model_method.ModelMethod):
-    # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
 
 
@@ -129,7 +127,6 @@ class KMesh(numerical_settings.KMesh):
 
 
 class ModelSystem(model_system.ModelSystem):
-    # atomic cell
     add_mapping_annotation(model_system.Representation.m_def, XML_KEY, '.structure')
     add_mapping_annotation(model_system.Representation.m_def, OUTCAR_KEY, '.@')
     add_mapping_annotation(
@@ -194,8 +191,6 @@ class Outputs(outputs.Outputs):
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
-    # value is already defined in TotalEnergy since they use the same def
-    # get_energy function should be able to handle extraction from both sources
     add_mapping_annotation(
         properties.energies.TotalEnergy.value,
         XML_KEY,
@@ -278,64 +273,40 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 
 class Pseudopotential(numerical_settings.Pseudopotential):
-    """
-    VASP-specific pseudopotential metadata extracted from POTCAR headers in
-    OUTCAR and vasprun.xml.
-
-    Extends base Pseudopotential class with VASP-specific fields including
-    SHA256 hash, LPAW/LULTRA flags, and LEXCH code. Basic fields are mapped
-    directly from POTCAR data. Type and related properties are derived using
-    field-level transformers.
-    """
+    """VASP-specific pseudopotential with POTCAR metadata."""
 
     import numpy as np
     from nomad.metainfo import Quantity
 
     sha256 = Quantity(
         type=str,
-        description="""
-        SHA256 hash of the POTCAR file content. Uniquely identifies the
-        pseudopotential file and enables verification that the correct POTCAR
-        was used. This hash can be matched against pseudopotential library
-        databases for automatic library detection.
-        """,
-    )
-
-    # VASP-specific raw fields from POTCAR headers
-    lpaw = Quantity(
-        type=str,
-        description='LPAW flag from POTCAR (T=PAW, F=other)',
-    )
-    lultra = Quantity(
-        type=str,
-        description='LULTRA flag from POTCAR (T=ultrasoft, F=other)',
-    )
-    lexch = Quantity(
-        type=str,
-        description='LEXCH exchange-correlation code from POTCAR',
-    )
-    enmax = Quantity(
-        type=np.float64,
-        unit='eV',
-        description='ENMAX: maximum kinetic energy cutoff recommendation',
-    )
-    enmin = Quantity(
-        type=np.float64,
-        unit='eV',
-        description='ENMIN: minimum kinetic energy cutoff recommendation',
-    )
-
-    # Direct field mappings from raw POTCAR keys using relative paths
-    # String fields - direct mapping
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL')
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.reference_configuration,
-        OUTCAR_KEY,
-        '.VRHFIN',
+        description='SHA256 hash of POTCAR file for library identification',
     )
     add_mapping_annotation(sha256, OUTCAR_KEY, '.SHA256')
 
-    # Numeric fields - use type conversion transformers
+    lpaw = Quantity(type=str, description='LPAW flag (T=PAW, F=other)')
+    add_mapping_annotation(lpaw, OUTCAR_KEY, '.LPAW')
+
+    lultra = Quantity(type=str, description='LULTRA flag (T=ultrasoft, F=other)')
+    add_mapping_annotation(lultra, OUTCAR_KEY, '.LULTRA')
+
+    lexch = Quantity(type=str, description='LEXCH exchange-correlation code')
+    add_mapping_annotation(lexch, OUTCAR_KEY, '.LEXCH')
+
+    enmax = Quantity(
+        type=np.float64, unit='eV', description='ENMAX cutoff recommendation'
+    )
+    add_mapping_annotation(enmax, OUTCAR_KEY, ('to_float', ['.ENMAX']))
+
+    enmin = Quantity(
+        type=np.float64, unit='eV', description='ENMIN cutoff recommendation'
+    )
+    add_mapping_annotation(enmin, OUTCAR_KEY, ('to_float', ['.ENMIN']))
+
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL')
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.reference_configuration, OUTCAR_KEY, '.VRHFIN'
+    )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,
         OUTCAR_KEY,
@@ -348,50 +319,27 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         unit='angstrom',
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.l_max,
-        OUTCAR_KEY,
-        ('to_int', ['.LMAX'])
+        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, ('to_int', ['.LMAX'])
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.lm_max,
-        OUTCAR_KEY,
-        ('to_int', ['.LMMAX'])
+        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, ('to_int', ['.LMMAX'])
     )
-
-    # VASP-specific fields
-    add_mapping_annotation(lpaw, OUTCAR_KEY, '.LPAW')
-    add_mapping_annotation(lultra, OUTCAR_KEY, '.LULTRA')
-    add_mapping_annotation(lexch, OUTCAR_KEY, '.LEXCH')
-    add_mapping_annotation(
-        enmax,
-        OUTCAR_KEY,
-        ('to_float', ['.ENMAX'])
-    )
-    add_mapping_annotation(
-        enmin,
-        OUTCAR_KEY,
-        ('to_float', ['.ENMIN'])
-    )
-
-    # Derived fields using field-level transformers (per-instance)
     add_mapping_annotation(
         numerical_settings.Pseudopotential.type,
         OUTCAR_KEY,
-        ('derive_pp_type', ['.LPAW', '.LULTRA', '.TITEL'])
+        ('derive_pp_type', ['.LPAW', '.LULTRA', '.TITEL']),
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.is_norm_conserving,
         OUTCAR_KEY,
-        ('derive_is_norm_conserving', ['.type'])
+        ('derive_is_norm_conserving', ['.type']),
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.is_gw_optimized,
         OUTCAR_KEY,
-        ('derive_is_gw_optimized', ['.TITEL'])
+        ('derive_is_gw_optimized', ['.TITEL']),
     )
 
-    # XML field annotations for basic metadata (name and valence electrons only)
-    # Extract from c array: c[4]=name, c[3]=valence
     add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.c[4]')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,
@@ -400,20 +348,10 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
 
 
-# Collection annotations for Pseudopotential - added after class definition
-# so that Pseudopotential.m_def references the custom VASP class
-# From vasprun.xml - JMESPath to extract atomtypes array then rc elements
 add_mapping_annotation(
-    Pseudopotential.m_def,
-    XML_KEY,
-    "atominfo.array[?@name=='atomtypes'] | [0].set.rc",
+    Pseudopotential.m_def, XML_KEY, "atominfo.array[?@name=='atomtypes'] | [0].set.rc"
 )
-# From OUTCAR - direct path, field annotations handle mapping
-add_mapping_annotation(
-    Pseudopotential.m_def,
-    OUTCAR_KEY,
-    '@.pseudopotentials',
-)
+add_mapping_annotation(Pseudopotential.m_def, OUTCAR_KEY, '@.pseudopotentials')
 
 
 try:
