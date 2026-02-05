@@ -45,16 +45,14 @@ class GIPAWFileParser(TextParser):
             return res
 
         def parse_tensor_block(val_in: str):
+            min_length = 3
             lines = [
-                line.strip()
-                for line
-                in val_in.strip().splitlines()
-                if line.strip()
+                line.strip() for line in val_in.strip().splitlines() if line.strip()
             ]
             result = []
             for i in range(0, len(lines), 3):
-                block = lines[i:i+3]
-                if len(block) < 3:
+                block = lines[i : i + 3]
+                if len(block) < min_length:
                     continue
 
                 values = []
@@ -72,16 +70,12 @@ class GIPAWFileParser(TextParser):
             return result
 
         def parse_scalar_block(val):
-            lines = [
-                line.strip()
-                for line
-                in val.strip().splitlines()
-                if line.strip()
-            ]
+            min_length = 6
+            lines = [line.strip() for line in val.strip().splitlines() if line.strip()]
             results = []
             for line in lines:
                 parts = line.split()
-                if len(parts) != 6:
+                if len(parts) != min_length:
                     continue
                 results.append([parts[0], int(parts[1]), float(parts[-1])])
             return results
@@ -128,13 +122,15 @@ class GIPAWFileParser(TextParser):
             ),
             Quantity(
                 'efg',
-                r'----- total EFG \(symmetrized\) -----\n((?:.*?\n)*?)\s+NQR/NMR SPECTROSCOPIC PARAMETERS:',
+                r'----- total EFG \(symmetrized\) -----\n((?:.*?\n)*?)\s+'
+                r'NQR/NMR SPECTROSCOPIC PARAMETERS:',
                 str_operation=parse_tensor_block,
                 convert=False,
             ),
             Quantity(
                 'hyperfine_dipolar',
-                r'----- total dipolar -----\n((?:.*?\n)*?)\s+----- total dipolar \(symmetrized\) -----',
+                r'----- total dipolar -----\n((?:.*?\n)*?)\s+----- '
+                r'total dipolar \(symmetrized\) -----',
                 str_operation=parse_tensor_block,
                 convert=False,
             ),
@@ -145,17 +141,17 @@ class GIPAWFileParser(TextParser):
                 convert=False,
             ),
             Quantity(
-                "delta_g_total_paratec",
-                rf"Delta_g total \(SOO a la Paratec\):\s*-+\s*\n"
-                rf"((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})",
+                'delta_g_total_paratec',
+                rf'Delta_g total \(SOO a la Paratec\):\s*-+\s*\n'
+                rf'((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})',
                 repeats=False,
                 str_operation=str_to_gtensor,
                 convert=False,
             ),
             Quantity(
-                "delta_g_total",
-                rf"Delta_g total \(SOO as in Eq\.\(7\)\):\s*-+\s*\n"
-                rf"((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})",
+                'delta_g_total',
+                rf'Delta_g total \(SOO as in Eq\.\(7\)\):\s*-+\s*\n'
+                rf'((?:\s*{re_float}\s+{re_float}\s+{re_float}\s*\n){{3}})',
                 repeats=False,
                 str_operation=str_to_gtensor,
                 convert=False,

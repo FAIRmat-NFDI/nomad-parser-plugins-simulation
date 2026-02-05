@@ -2,8 +2,8 @@ from typing import Any
 
 import numpy as np
 from nomad.datamodel import EntryArchive
-from nomad.utils import get_logger
 from nomad.units import ureg
+from nomad.utils import get_logger
 
 from nomad_simulation_parsers.schema_packages.quantumespresso import gipaw
 
@@ -28,20 +28,18 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             for atom_data in ms_list:
                 values = np.reshape(atom_data[2:], (3, 3))
                 FACTOR = 1e-6
-                magnetic_shieldings.append(values * FACTOR * ureg("dimensionless"))
-            out["magnetic_shieldings"] = [dict(value=m) for m in magnetic_shieldings ]
+                magnetic_shieldings.append(values * FACTOR * ureg('dimensionless'))
+            out['magnetic_shieldings'] = [dict(value=m) for m in magnetic_shieldings]
 
         # magnetic_susceptibilities
-        chi_bare_pGv = source.get("chi_bare_pGv", None)
-        chi_bare_vGv = source.get("chi_bare_vGv", None)
+        chi_bare_pGv = source.get('chi_bare_pGv', None)
+        chi_bare_vGv = source.get('chi_bare_vGv', None)
 
         if chi_bare_pGv is not None and chi_bare_pGv is not None:
             sus = (chi_bare_pGv + chi_bare_vGv) / 2
-            out["magnetic_susceptibilities"] = dict(
-                value=sus,
-                value_vgv_approx = chi_bare_vGv,
-                value_pgv_approx = chi_bare_pGv
-                )
+            out['magnetic_susceptibilities'] = dict(
+                value=sus, value_vgv_approx=chi_bare_vGv, value_pgv_approx=chi_bare_pGv
+            )
 
         # electric_field_gradient
         efg = source.get('efg', None)
@@ -50,7 +48,9 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             for atom_data in efg:
                 values = np.reshape(atom_data[2:], (3, 3))
                 electric_field_gradients.append(values)
-            out['electric_field_gradients'] = [dict(value=item) for item in electric_field_gradients]
+            out['electric_field_gradients'] = [
+                dict(value=item) for item in electric_field_gradients
+            ]
 
         # hyperfine_dipolar
         hd = source.get('hyperfine_dipolar', None)
@@ -68,7 +68,9 @@ class GIPAWMainfileTextParser(MainfileTextParser):
             for atom_data in hfc:
                 values = atom_data[-1]
                 hyperfine_fermi_contact.append(values)
-            out['hyperfine_fermi_contact'] = [dict(value=item) for item in hyperfine_fermi_contact]
+            out['hyperfine_fermi_contact'] = [
+                dict(value=item) for item in hyperfine_fermi_contact
+            ]
 
         # delta_g_paratec
         delta_g_paratec = source.get('delta_g_total_paratec', None)
@@ -83,7 +85,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         return [out]
 
 
-
 class GIPAWMainfileXMLParser(MainfileXMLParser):
     _job: str | None = None
 
@@ -96,55 +97,52 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
     def job(self) -> str | None:
         if self._job is None:
             try:
-                self._job = self.data["input"]["job"]
+                self._job = self.data['input']['job']
             except Exception as exc:
-                self.logger.warning("Unable to get job from data: %s", exc)
+                self.logger.warning('Unable to get job from data: %s', exc)
         return self._job
 
-
     def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
-        if self.job != "nmr":
+        if self.job != 'nmr':
             return
-        value = np.reshape(atom.get("__value"), (3, 3))
+        value = np.reshape(atom.get('__value'), (3, 3))
         FACTOR = 1e-6
-        return value * FACTOR * ureg("dimensionless")
+        return value * FACTOR * ureg('dimensionless')
 
     def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
-        if self.job != "nmr":
+        if self.job != 'nmr':
             return
-        name = kwargs.get("name")
-        if name != "value":
+        name = kwargs.get('name')
+        if name != 'value':
             value = source.get(name, None)
-            return np.reshape(value.get("__value", None), (3, 3))
+            return np.reshape(value.get('__value', None), (3, 3))
 
-        value_vgv = source.get("susceptibility_low", None)
-        vgv = np.reshape(value_vgv.get("__value", None), (3, 3))
-        value_pgv = source.get("susceptibility_high", None)
-        pgv = np.reshape(value_pgv.get("__value", None), (3, 3))
+        value_vgv = source.get('susceptibility_low', None)
+        vgv = np.reshape(value_vgv.get('__value', None), (3, 3))
+        value_pgv = source.get('susceptibility_high', None)
+        pgv = np.reshape(value_pgv.get('__value', None), (3, 3))
         sus = (vgv + pgv) / 2
         return sus
 
     def get_efg(self, atom: dict[str, Any]) -> Any:
-        if self.job != "efg":
+        if self.job != 'efg':
             return
-        return np.reshape(atom.get("__value"), (3, 3))
+        return np.reshape(atom.get('__value'), (3, 3))
 
     def get_hyperfine_dipolar(self, atom: dict[str, Any]) -> Any:
-        if self.job != "hyperfine":
+        if self.job != 'hyperfine':
             return
-        return np.reshape(atom.get("__value"), (3, 3))
+        return np.reshape(atom.get('__value'), (3, 3))
 
     def get_hyperfine_fermi_contact(self, atom: dict[str, Any]) -> Any:
-        if self.job != "hyperfine":
+        if self.job != 'hyperfine':
             return
-        return atom.get("__value")
+        return atom.get('__value')
 
     def get_delta_g(self, source: dict[str, Any]) -> Any:
-        if self.job != "g-tensor":
+        if self.job != 'g-tensor':
             return
-        return np.reshape(source.get("__value"), (3, 3))
-
-
+        return np.reshape(source.get('__value'), (3, 3))
 
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
