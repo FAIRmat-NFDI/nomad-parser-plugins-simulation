@@ -209,14 +209,12 @@ class XMLArchiveWriter(ArchiveWriter):
 
     def _find_outcar(self) -> str | None:
         """Find OUTCAR file in the same directory as vasprun.xml."""
-        mainfile_path = PathLib(self.mainfile)
-        mainfile_dir = mainfile_path.parent
+        mainfile_dir = PathLib(self.mainfile).parent
 
-        # Check for OUTCAR in same directory
-        outcar_candidates = ['OUTCAR', 'outcar', 'OUTCAR.gz', 'outcar.gz']
-        for candidate in outcar_candidates:
-            outcar_path = mainfile_dir / candidate
-            if outcar_path.exists():
-                return str(outcar_path)
+        # Check for any file starting with 'outcar' (case-insensitive)
+        # Catches: OUTCAR, outcar, OUTCAR.gz, outcar.bz2, etc.
+        for file in mainfile_dir.iterdir():
+            if file.name.lower().startswith('outcar'):
+                return str(file)
 
         return None

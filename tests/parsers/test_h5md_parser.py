@@ -61,9 +61,9 @@ def assert_systems(archive: EntryArchive) -> None:
 
     assert sec_systems[2].positions[80][1].to('angstrom').magnitude == approx(28.748762)
     assert sec_systems[2].velocities[50][2].to('angstrom/ps').magnitude == approx(400.0)
-    assert sec_systems[3].lattice_vectors[2][2].to(
-        'angstrom'
-    ).magnitude == approx(68.22318)
+    assert sec_systems[3].lattice_vectors[2][2].to('angstrom').magnitude == approx(
+        68.22318
+    )
     assert sec_systems[3].periodic_boundary_conditions == [True, True, True]
     assert sec_systems[0].bond_list[200][0] == 198
     assert sec_systems[0].dimensionality == 3

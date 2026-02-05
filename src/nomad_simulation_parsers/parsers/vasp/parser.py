@@ -29,10 +29,16 @@ class VASPParser(MatchingParser):
         compression: str = None,
     ) -> bool:
         """
-        Override mainfile detection to recognize OUTCAR files.
+        Override mainfile detection to recognize standalone OUTCAR files.
 
-        OUTCAR files don't match the default XML pattern but are valid mainfiles.
-        This method validates OUTCAR by checking for VASP-specific content signatures.
+        This override is necessary because:
+        1. OUTCAR files don't match the XML pattern in the entry point regex
+        2. We need content validation for standalone OUTCAR (not just filename)
+        3. Works in conjunction with mainfile_alternative=True for auxiliary files
+
+        Two scenarios:
+        - Standalone OUTCAR: This method validates by content (vasp signature)
+        - Auxiliary OUTCAR: Discovered via _find_outcar() in xml_parser.py
 
         Args:
             filename: Name of the file being checked
@@ -44,8 +50,8 @@ class VASPParser(MatchingParser):
         Returns:
             True if this is a valid VASP mainfile (OUTCAR or vasprun.xml)
         """
-        # Recognize OUTCAR files by checking filename and content
-        if 'OUTCAR' in filename:
+        # Recognize standalone OUTCAR files by checking filename and content
+        if 'OUTCAR' in filename.upper():
             # Validate it's a VASP OUTCAR by checking for VASP signatures
             # OUTCAR files contain lines like "vasp.X.X.X" and "executed on"
             buffer_lower = buffer.lower()

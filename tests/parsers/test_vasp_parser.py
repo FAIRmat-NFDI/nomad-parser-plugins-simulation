@@ -1,7 +1,6 @@
 import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-from nomad.client import normalize_all
 
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 

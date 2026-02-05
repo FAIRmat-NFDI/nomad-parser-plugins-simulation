@@ -207,7 +207,7 @@ vasp_parser = EntryPoint(
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
     mainfile_name_re='.*[^/]*xml[^/]*',
-    mainfile_alternative=False,
+    mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
 )
 
