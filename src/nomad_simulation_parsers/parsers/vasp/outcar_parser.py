@@ -51,6 +51,51 @@ def get_key_values(val_in):
     return data
 
 
+def parse_potcar_section(val_in: str) -> dict[str, Any]:
+    """
+    Extract pseudopotential metadata from a POTCAR section in OUTCAR.
+
+    This function uses a common pattern for extracting key-value pairs from
+    VASP POTCAR sections. Each field is matched using individual regex patterns
+    optimized for the specific format of that field.
+
+    Args:
+        val_in: Text content of a POTCAR section from OUTCAR
+
+    Returns:
+        dict: Extracted metadata fields (TITEL, VRHFIN, LEXCH, ZVAL, etc.)
+              Returns empty dict if section lacks VRHFIN (summary line)
+    """
+    # Only process detailed sections with VRHFIN
+    if 'VRHFIN' not in val_in:
+        return {}
+
+    # Extract fields using regex patterns
+    fields = {
+        'TITEL': r'TITEL\s*=\s*(.+)',
+        'VRHFIN': r'VRHFIN\s*=(.+?)(?:\n|$)',
+        'LEXCH': r'LEXCH\s*=\s*(\w+)',
+        'ZVAL': r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)',
+        'RCORE': r'RCORE\s*=\s*([\d\.]+)',
+        'ENMAX': r'ENMAX\s*=\s*([\d\.]+)',
+        'ENMIN': r'ENMIN\s*=\s*([\d\.]+)',
+        'LPAW': r'LPAW\s*=\s*([TF])',
+        'LULTRA': r'LULTRA\s*=\s*([TF])',
+        'LMAX': r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)',
+        'LMMAX': r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)',
+        'SHA256': r'SHA256\s*=\s*(\w+)',
+    }
+
+    data = {}
+    for key, pattern in fields.items():
+        match = re.search(pattern, val_in)
+        if match:
+            value = match.group(1)
+            data[key] = value.strip() if isinstance(value, str) else value
+
+    return data
+
+
 # TODO temporary fix for structlog unable to propagate logger
 class VASPMetainfoParser(MetainfoParser):
     @property
@@ -321,50 +366,7 @@ class OutcarTextParser(TextParser):
                 'pseudopotentials',
                 r'POTCAR:([\s\S]+?)(?=\s*$|\s*POTCAR:|\s*local pseudopotential:)',
                 repeats=True,
-                str_operation=lambda val_in: (
-                    {
-                        key: value.strip() if isinstance(value, str) else value
-                        for key, value in [
-                            ('TITEL', re.search(r'TITEL\s*=\s*(.+)', val_in)),
-                            ('VRHFIN', re.search(r'VRHFIN\s*=(.+?)(?:\n|$)', val_in)),
-                            ('LEXCH', re.search(r'LEXCH\s*=\s*(\w+)', val_in)),
-                            (
-                                'ZVAL',
-                                re.search(
-                                    r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)',
-                                    val_in,
-                                ),
-                            ),
-                            ('RCORE', re.search(r'RCORE\s*=\s*([\d\.]+)', val_in)),
-                            ('ENMAX', re.search(r'ENMAX\s*=\s*([\d\.]+)', val_in)),
-                            ('ENMIN', re.search(r'ENMIN\s*=\s*([\d\.]+)', val_in)),
-                            ('LPAW', re.search(r'LPAW\s*=\s*([TF])', val_in)),
-                            ('LULTRA', re.search(r'LULTRA\s*=\s*([TF])', val_in)),
-                            (
-                                'LMAX',
-                                re.search(
-                                    r'number of l-projection\s+operators is '
-                                    r'LMAX\s*=\s*(\d+)',
-                                    val_in,
-                                ),
-                            ),
-                            (
-                                'LMMAX',
-                                re.search(
-                                    r'number of lm-projection\s+operators is '
-                                    r'LMMAX\s*=\s*(\d+)',
-                                    val_in,
-                                ),
-                            ),
-                            ('SHA256', re.search(r'SHA256\s*=\s*(\w+)', val_in)),
-                        ]
-                        if value is not None
-                        for key, value in [(key, value.group(1) if value else None)]
-                        if value is not None
-                    }
-                    if 'VRHFIN' in val_in
-                    else {}  # Only process detailed sections with VRHFIN
-                ),
+                str_operation=parse_potcar_section,
                 convert=False,
             ),
         ]
