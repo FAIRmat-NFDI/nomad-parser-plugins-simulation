@@ -391,21 +391,22 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
 
     # XML field annotations for basic metadata (name and valence electrons only)
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.name')
+    # Extract from c array: c[4]=name, c[3]=valence
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.c[4]')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,
         XML_KEY,
-        '.n_valence_electrons',
+        ('to_float', ['.c[3]']),
     )
 
 
 # Collection annotations for Pseudopotential - added after class definition
 # so that Pseudopotential.m_def references the custom VASP class
-# From vasprun.xml
+# From vasprun.xml - JMESPath to extract atomtypes array then rc elements
 add_mapping_annotation(
     Pseudopotential.m_def,
     XML_KEY,
-    ('get_pseudopotentials_xml', ['atominfo.array']),
+    "atominfo.array[?@name=='atomtypes'] | [0].set.rc",
 )
 # From OUTCAR - direct path, field annotations handle mapping
 add_mapping_annotation(
