@@ -659,6 +659,10 @@ class AbinitArchiveWriter(ArchiveWriter):
                 tasks=[self.archive.workflow2, gw_archive.workflow2]
             )
 
+        self.metainfo_parser.close()
+        self.mainfile_parser.close()
+        self.dos_parser.close()
+
 
 class AbinitParser(MatchingParser):
     """
