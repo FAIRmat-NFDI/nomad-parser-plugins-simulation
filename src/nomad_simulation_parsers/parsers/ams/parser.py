@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -78,9 +77,6 @@ class AMSArchiveWriter(ArchiveWriter):
     rkf_parser = RKFParser(text_parser=RKFTextParser())
 
     def write_to_archive(self):
-        # reload schema package to use correct annotations
-        reload(ams)
-
         self.metainfo_parser.annotation_key = ams.OUT_KEY
         self.archive.data = Simulation(program=Program(name='AMS'))
         self.metainfo_parser.data_object = self.archive.data

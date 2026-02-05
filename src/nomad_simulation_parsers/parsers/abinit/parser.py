@@ -1,7 +1,6 @@
 import os
 from collections.abc import Iterable
 from datetime import datetime
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -623,8 +622,6 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.mainfile_parser.convert(self.metainfo_parser)
 
     def write_to_archive(self):
-        reload(abinit)
-
         self.archive.data = Simulation(program=Program(name=self.code_name))
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.data
@@ -661,6 +658,10 @@ class AbinitArchiveWriter(ArchiveWriter):
             workflow_archive.workflow2 = DFTGWWorkflow(
                 tasks=[self.archive.workflow2, gw_archive.workflow2]
             )
+
+        self.metainfo_parser.close()
+        self.mainfile_parser.close()
+        self.dos_parser.close()
 
 
 class AbinitParser(MatchingParser):
