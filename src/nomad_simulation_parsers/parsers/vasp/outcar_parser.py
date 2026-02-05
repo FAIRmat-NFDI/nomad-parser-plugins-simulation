@@ -51,49 +51,21 @@ def get_key_values(val_in):
     return data
 
 
-def parse_potcar_section(val_in: str) -> dict[str, Any] | None:
-    """
-    Extract pseudopotential metadata from a POTCAR section in OUTCAR.
-
-    This function uses a common pattern for extracting key-value pairs from
-    VASP POTCAR sections. Each field is matched using individual regex patterns
-    optimized for the specific format of that field.
-
-    Args:
-        val_in: Text content of a POTCAR section from OUTCAR
-
-    Returns:
-        dict: Extracted metadata fields (TITEL, VRHFIN, LEXCH, ZVAL, etc.)
-        None: If section lacks VRHFIN (header-only line, should be skipped)
-    """
-    # Only process detailed sections with VRHFIN
-    if 'VRHFIN' not in val_in:
-        return None
-
-    # Extract fields using regex patterns
-    fields = {
-        'TITEL': r'TITEL\s*=\s*(.+)',
-        'VRHFIN': r'VRHFIN\s*=(.+?)(?:\n|$)',
-        'LEXCH': r'LEXCH\s*=\s*(\w+)',
-        'ZVAL': r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)',
-        'RCORE': r'RCORE\s*=\s*([\d\.]+)',
-        'ENMAX': r'ENMAX\s*=\s*([\d\.]+)',
-        'ENMIN': r'ENMIN\s*=\s*([\d\.]+)',
-        'LPAW': r'LPAW\s*=\s*([TF])',
-        'LULTRA': r'LULTRA\s*=\s*([TF])',
-        'LMAX': r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)',
-        'LMMAX': r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)',
-        'SHA256': r'SHA256\s*=\s*(\w+)',
-    }
-
-    data = {}
-    for key, pattern in fields.items():
-        match = re.search(pattern, val_in)
-        if match:
-            value = match.group(1)
-            data[key] = value.strip() if isinstance(value, str) else value
-
-    return data
+# POTCAR sub-parser for detailed sections
+potcar_quantities = [
+    Quantity('TITEL', r'TITEL\s*=\s*(.+)'),
+    Quantity('VRHFIN', r'VRHFIN\s*=(.+?)(?:\n|$)'),
+    Quantity('LEXCH', r'LEXCH\s*=\s*(\w+)'),
+    Quantity('ZVAL', r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)'),
+    Quantity('RCORE', r'RCORE\s*=\s*([\d\.]+)'),
+    Quantity('ENMAX', r'ENMAX\s*=\s*([\d\.]+)'),
+    Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)'),
+    Quantity('LPAW', r'LPAW\s*=\s*([TF])'),
+    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])'),
+    Quantity('LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int),
+    Quantity('LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int),
+    Quantity('SHA256', r'SHA256\s*=\s*(\w+)'),
+]
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -364,10 +336,9 @@ class OutcarTextParser(TextParser):
             ),
             Quantity(
                 'pseudopotentials',
-                r'POTCAR:([\s\S]+?)(?=\s*$|\s*POTCAR:|\s*local pseudopotential:)',
+                r'POTCAR:(?=[\s\S]*?VRHFIN)([\s\S]+?)(?=\s*$|\s*POTCAR:|\s*local pseudopotential:)',
                 repeats=True,
-                str_operation=parse_potcar_section,
-                convert=False,
+                sub_parser=TextParser(quantities=potcar_quantities),
             ),
         ]
 
