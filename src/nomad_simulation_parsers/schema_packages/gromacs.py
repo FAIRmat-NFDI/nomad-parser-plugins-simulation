@@ -14,9 +14,9 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 
-LOG_KEY = 'log'
-TPR_KEY = 'tpr'
-EDR_KEY = 'edr'
+LOG_KEY = 'gromacs_log'
+TPR_KEY = 'gromacs_tpr'
+EDR_KEY = 'gromacs_edr'
 
 
 class Program(general.Program):

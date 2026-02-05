@@ -1,7 +1,6 @@
 import os
 import re
 from collections.abc import Iterable
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -41,7 +40,6 @@ from nomad_simulation_parsers.parsers.utils.general import (
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import fhiaims
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .common import ControlParser, GeometryParser
 
@@ -446,9 +444,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     def write_to_archive(
         self,
     ) -> None:
-        # reload module to refresh annotations
-        reload(fhiaims)
-
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
         out_parser.filepath = self.mainfile
@@ -545,13 +540,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 )
 
         # close file contexts
-        self.out_parser = out_parser
-        self.archive_handler = archive_handler
-        # out_parser.close()
-        # archive_handler.close()
-
-        # remove annotations
-        remove_mapping_annotations(fhiaims.general.Simulation.m_def)
+        out_parser.close()
+        archive_handler.close()
 
 
 class FHIAimsParser(MatchingParser):
