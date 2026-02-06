@@ -244,10 +244,10 @@ class GPW2FileParser(FileParser):
             'eigenvalues': self.ulm.wave_functions.eigenvalues,
             'occupation': self.ulm.wave_functions.occupations,
             # TODO no koints data in ulm?
-            'kpoints': lambda: self.ulm.IBZKPoints,
-            'density': lambda: self.ulm.density.density,
-            'potential_effective': lambda: self.ulm.hamiltonian.potential,
-            'band_paths': self.ulm.wave_functions.band_paths.asdict,
+            'kpoints': self.ulm.IBZKPoints,
+            'density': self.ulm.density.density,
+            'potential_effective': self.ulm.hamiltonian.potential,
+            'band_paths': self.ulm.wave_functions.band_paths.asdict(),
         }
         try:
             if key in values:
