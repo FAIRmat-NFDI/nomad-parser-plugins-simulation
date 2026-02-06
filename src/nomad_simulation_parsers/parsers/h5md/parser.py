@@ -12,7 +12,6 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
 
