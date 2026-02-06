@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import numpy as np
@@ -5,9 +6,14 @@ from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
 
-from nomad_simulation_parsers.schema_packages.quantumespresso import gipaw
+from nomad_simulation_parsers.schema_packages.quantumespresso import common, gipaw
 
-from ..parser import MainfileTextParser, MainfileXMLParser, QuantumEspressoArchiveWriter
+from ..parser import (
+    MainfileTextParser,
+    MainfileXMLParser,
+    QuantumEspressoArchiveWriter,
+    get_program_name_version,
+)
 from .file_parser import GIPAWFileParser
 
 LOGGER = get_logger(__name__)
@@ -150,5 +156,35 @@ class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
     _text_parser = GIPAWMainfileTextParser(text_parser=GIPAWFileParser())
     _xml_parser = GIPAWMainfileXMLParser()
 
+    @property
+    def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
+        if self._mainfile_parser is None:
+            super().mainfile_parser
+            basename = self.mainfile.rsplit('.', 1)[0]
+            program = self._mainfile_parser.data.get('program')
+            if program is None:
+                # This is an xml mainfile, no futher version check necessary
+                return self._mainfile_parser
+
+            name_version = get_program_name_version(program[0][:30])
+            # special handling for GIPAW to parse xml if available for version >= 7.4.1
+            # check version
+            ref_version = (7, 4, 0)
+            if name_version[1] >= ref_version:
+                # check if xml file exists
+                xml_file = f'{basename}.xml'
+                if os.path.isfile(xml_file):
+                    self._mainfile_parser = self._xml_parser
+                    self._mainfile_parser.filepath = xml_file
+        return self._mainfile_parser
+
     def parse_program(self, archive: EntryArchive, index: int) -> None:
+        # parse with common annotations
         super().parse_program(archive, index)
+        # parse with gipaw specific annotations
+        self.simulation_parser.annotation_key = (
+            common.GIPAW_OUT_KEY
+            if isinstance(self.mainfile_parser, GIPAWMainfileTextParser)
+            else common.GIPAW_XML_KEY
+        )
+        self.mainfile_parser.convert(self.simulation_parser)
