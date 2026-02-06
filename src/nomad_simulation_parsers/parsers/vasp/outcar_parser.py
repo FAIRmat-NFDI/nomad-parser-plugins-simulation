@@ -336,7 +336,7 @@ class OutcarTextParser(TextParser):
             ),
             Quantity(
                 'pseudopotentials',
-                r'POTCAR:(?=[\s\S]*?VRHFIN)([\s\S]+?)(?=\s*$|\s*POTCAR:|\s*local pseudopotential:)',
+                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
                 repeats=True,
                 sub_parser=TextParser(quantities=potcar_quantities),
             ),

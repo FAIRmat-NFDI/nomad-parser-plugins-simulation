@@ -92,23 +92,36 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
 
-        # Third pass: OUTCAR_KEY to extend with OUTCAR data if available
+        # Third pass: OUTCAR_KEY to extend with OUTCAR pseudopotential metadata
         # This allows OUTCAR to supplement vasprun.xml pseudopotentials with
-        # detailed metadata
+        # detailed metadata (SHA256, LPAW, LULTRA, etc.)
         outcar_path = self._find_outcar()
         if outcar_path and os.path.exists(outcar_path):
             LOGGER.info(
-                f'Found OUTCAR at {outcar_path}, extending vasprun.xml data '
-                'with detailed pseudopotential metadata'
+                f'Found OUTCAR at {outcar_path}, extending vasprun.xml pseudopotentials '
+                'with detailed metadata'
+            )
+            from nomad.parsing.file_parser import Quantity, TextParser
+            from nomad.parsing.file_parser.mapping_parser import (
+                TextParser as MappingTextParser,
             )
             from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
-                OutcarParser,
-                OutcarTextParser,
+                potcar_quantities,
             )
 
-            outcar_parser = OutcarParser()
-            outcar_parser.text_parser = OutcarTextParser()
-            outcar_parser.filepath = outcar_path
+            outcar_supplement_parser = TextParser(
+                quantities=[
+                    Quantity(
+                        'pseudopotentials',
+                        r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                        repeats=True,
+                        sub_parser=TextParser(quantities=potcar_quantities),
+                    )
+                ]
+            )
+
+            outcar_parser = MappingTextParser(filepath=outcar_path)
+            outcar_parser.text_parser = outcar_supplement_parser
 
             data_parser.annotation_key = vasp.OUTCAR_KEY
             # Merge by index position: OUTCAR PP[0] extends XML PP[0], etc.
@@ -124,13 +137,13 @@ class XMLArchiveWriter(ArchiveWriter):
         xml_parser.close()
 
     def _find_outcar(self) -> str | None:
-        """Find OUTCAR file in the same directory as vasprun.xml."""
+        """Find OUTCAR file in the same directory as vasprun.xml.
+
+        Matches any file starting with 'outcar' (case-insensitive):
+        OUTCAR, outcar, OUTCAR.gz, outcar.bz2, etc.
+        """
         mainfile_dir = PathLib(self.mainfile).parent
-
-        # Check for any file starting with 'outcar' (case-insensitive)
-        # Catches: OUTCAR, outcar, OUTCAR.gz, outcar.bz2, etc.
-        for file in mainfile_dir.iterdir():
-            if file.name.lower().startswith('outcar'):
-                return str(file)
-
-        return None
+        return next(
+            (str(f) for f in mainfile_dir.iterdir() if f.name.lower().startswith('outcar')),
+            None
+        )
