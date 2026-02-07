@@ -53,18 +53,18 @@ def get_key_values(val_in):
 
 # POTCAR sub-parser for detailed sections
 potcar_quantities = [
-    Quantity('TITEL', r'TITEL\s*=\s*(.+)'),
-    Quantity('VRHFIN', r'VRHFIN\s*=(.+?)(?:\n|$)'),
-    Quantity('LEXCH', r'LEXCH\s*=\s*(\w+)'),
-    Quantity('ZVAL', r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)'),
-    Quantity('RCORE', r'RCORE\s*=\s*([\d\.]+)'),
-    Quantity('ENMAX', r'ENMAX\s*=\s*([\d\.]+)'),
-    Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)'),
-    Quantity('LPAW', r'LPAW\s*=\s*([TF])'),
-    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])'),
+    Quantity('TITEL', r'TITEL\s*=\s*(.+)', dtype=str),
+    Quantity('VRHFIN', r'VRHFIN\s*=(.+?)(?:\n|$)', dtype=str),
+    Quantity('LEXCH', r'LEXCH\s*=\s*(\w+)', dtype=str),
+    Quantity('ZVAL', r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)', dtype=int),
+    Quantity('RCORE', r'RCORE\s*=\s*([\d\.]+)', dtype=float),
+    Quantity('ENMAX', r'ENMAX\s*=\s*([\d\.]+)', dtype=float),
+    Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)', dtype=float),
+    Quantity('LPAW', r'LPAW\s*=\s*([TF])', dtype=bool), ## doublecheck mapping
+    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])', dtype=bool), ## doublecheck mapping
     Quantity('LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int),
     Quantity('LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int),
-    Quantity('SHA256', r'SHA256\s*=\s*(\w+)'),
+    Quantity('SHA256', r'SHA256\s*=\s*(\w+)', dtype=str),
 ]
 
 

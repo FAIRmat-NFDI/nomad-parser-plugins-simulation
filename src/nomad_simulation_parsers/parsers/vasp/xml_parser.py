@@ -88,11 +88,29 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 
-        # Second pass: XML2_KEY for additional XML data
+        print(f'[DEBUG] After XML_KEY: model_method count = {len(data_parser.data_object.model_method) if data_parser.data_object.model_method else 0}')
+
+        # Second pass: KPOINTS_XML for KSpace numerical settings
+        data_parser.annotation_key = vasp.KPOINTS_XML
+        xml_parser.convert(data_parser)
+
+        print(f'[DEBUG] After KPOINTS_XML: numerical_settings count = {len(data_parser.data_object.model_method[0].numerical_settings) if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0 else 0}')
+
+        # Third pass: PP_XML for Pseudopotentials from XML
+        print(f'[DEBUG] Before PP_XML: annotation_key = {data_parser.annotation_key}')
+        data_parser.annotation_key = vasp.PP_XML
+        print(f'[DEBUG] PP_XML key set, about to convert')
+        xml_parser.convert(data_parser)
+        print(f'[DEBUG] After PP_XML: numerical_settings count = {len(data_parser.data_object.model_method[0].numerical_settings) if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0 else 0}')
+        if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0:
+            for i, ns in enumerate(data_parser.data_object.model_method[0].numerical_settings):
+                print(f'[DEBUG]   NS[{i}]: type={type(ns).__name__}')
+
+        # Fourth pass: XML2_KEY for additional XML data
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
 
-        # Third pass: OUTCAR_KEY to extend with OUTCAR pseudopotential metadata
+        # Fifth pass: PP_OUT to extend with OUTCAR pseudopotential metadata
         # This allows OUTCAR to supplement vasprun.xml pseudopotentials with
         # detailed metadata (SHA256, LPAW, LULTRA, etc.)
         outcar_path = self._find_outcar()
@@ -123,7 +141,7 @@ class XMLArchiveWriter(ArchiveWriter):
             outcar_parser = MappingTextParser(filepath=outcar_path)
             outcar_parser.text_parser = outcar_supplement_parser
 
-            data_parser.annotation_key = vasp.OUTCAR_KEY
+            data_parser.annotation_key = vasp.PP_OUT
             # Merge by index position: OUTCAR PP[0] extends XML PP[0], etc.
             # This preserves XML structure while adding OUTCAR's detailed metadata
             outcar_parser.convert(data_parser, update_mode='merge')

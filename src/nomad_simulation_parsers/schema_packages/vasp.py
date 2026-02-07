@@ -20,28 +20,46 @@ m_package = SchemaPackage()
 XML_KEY = 'xml'
 XML2_KEY = 'xml2'
 OUTCAR_KEY = 'outcar'
+KPOINTS_XML = 'kpoints_xml'
+PP_XML = 'xml_pseudopotentials'
+PP_OUT = 'outcar_pseudopotentials'
 
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, KPOINTS_XML, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, PP_XML, 'modeling')
+add_mapping_annotation(general.Simulation.m_def, PP_OUT, '@')
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotation(general.Simulation.program, XML_KEY, 'modeling.generator')
+    add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        'modeling.parameters.separator[?"@name"==\'electronic\']',
+        '.parameters.separator[?"@name"==\'electronic\']',
     )
-    add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
     add_mapping_annotation(
-        general.Simulation.model_system, XML_KEY, 'modeling.calculation'
+        model_method.DFT.m_def,
+        KPOINTS_XML,
+        '.parameters.separator[?"@name"==\'electronic\']',
+    )
+    add_mapping_annotation(
+        model_method.DFT.m_def,
+        PP_XML,
+        '.parameters.separator[?"@name"==\'electronic\']',
+    )
+    add_mapping_annotation(general.ModelMethod.m_def, KPOINTS_XML, '.@')
+    add_mapping_annotation(general.ModelMethod.m_def, PP_XML, '.@')
+    add_mapping_annotation(general.ModelMethod.m_def, PP_OUT, '.@')
+    add_mapping_annotation(
+        general.Simulation.model_system, XML_KEY, '.calculation'
     )
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML_KEY, 'modeling.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, 'modeling.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
 
 
@@ -57,6 +75,13 @@ class Program(general.Program):
         general.Program.compilation_host,
         XML_KEY,
         '.i[?"@name"==\'platform\'] | [0].__value',
+    )
+
+
+class ModelMethod(general.ModelMethod):
+    add_mapping_annotation(numerical_settings.KSpace.m_def, KPOINTS_XML, '.kpoints')
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.m_def, PP_XML, '.atominfo.array[?"@name"==\'atomtypes\'] | [0].set.rc'
     )
 
 
@@ -86,29 +111,24 @@ class XCComponent(model_method.XCComponent):
         model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
     )
 
-
-class ModelMethod(model_method.ModelMethod):
-    add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
-
-
 class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, KPOINTS_XML, '.@')
 
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(
         numerical_settings.KMesh.grid,
-        XML_KEY,
+        KPOINTS_XML,
         '.generation.v[?"@name"==\'divisions\'] | [0].__value',
     )
     add_mapping_annotation(
         numerical_settings.KMesh.offset,
-        XML_KEY,
+        KPOINTS_XML,
         '.generation.v[?"@name"==\'shift\'] | [0].__value',
     )
     add_mapping_annotation(
         numerical_settings.KMesh.points,
-        XML_KEY,
+        KPOINTS_XML,
         (
             'reshape_array',
             ['.varray[?"@name"==\'kpointlist\'].v | [0]'],
@@ -117,7 +137,7 @@ class KMesh(numerical_settings.KMesh):
     )
     add_mapping_annotation(
         numerical_settings.KMesh.weights,
-        XML_KEY,
+        KPOINTS_XML,
         (
             'reshape_array',
             ['.varray[?"@name"==\'weights\'].v | [0]'],
@@ -282,76 +302,69 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         type=str,
         description='SHA256 hash of POTCAR file for library identification',
     )
-    add_mapping_annotation(sha256, OUTCAR_KEY, '.SHA256')
+    add_mapping_annotation(sha256, PP_OUT, '.SHA256')
 
     lpaw = Quantity(type=str, description='LPAW flag (T=PAW, F=other)')
-    add_mapping_annotation(lpaw, OUTCAR_KEY, '.LPAW')
+    add_mapping_annotation(lpaw, PP_OUT, '.LPAW')
 
     lultra = Quantity(type=str, description='LULTRA flag (T=ultrasoft, F=other)')
-    add_mapping_annotation(lultra, OUTCAR_KEY, '.LULTRA')
+    add_mapping_annotation(lultra, PP_OUT, '.LULTRA')
 
     lexch = Quantity(type=str, description='LEXCH exchange-correlation code')
-    add_mapping_annotation(lexch, OUTCAR_KEY, '.LEXCH')
+    add_mapping_annotation(lexch, PP_OUT, '.LEXCH')
 
     enmax = Quantity(
         type=np.float64, unit='eV', description='ENMAX cutoff recommendation'
     )
-    add_mapping_annotation(enmax, OUTCAR_KEY, ('to_float', ['.ENMAX']))
+    add_mapping_annotation(enmax, PP_OUT, '.ENMAX')
 
     enmin = Quantity(
         type=np.float64, unit='eV', description='ENMIN cutoff recommendation'
     )
-    add_mapping_annotation(enmin, OUTCAR_KEY, ('to_float', ['.ENMIN']))
+    add_mapping_annotation(enmin, PP_OUT, '.ENMIN')
 
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL')
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, PP_OUT, '.TITEL')
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, PP_XML, '.c[4]')
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.reference_configuration, OUTCAR_KEY, '.VRHFIN'
+        numerical_settings.Pseudopotential.reference_configuration, PP_OUT, '.VRHFIN'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,
-        OUTCAR_KEY,
-        ('to_float', ['.ZVAL']),
+        PP_OUT,
+        '.ZVAL',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        PP_XML,
+        '.c[3]',
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.r_core,
-        OUTCAR_KEY,
-        ('to_float', ['.RCORE']),
+        PP_OUT,
+        '.RCORE',
         unit='angstrom',
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, ('to_int', ['.LMAX'])
+        numerical_settings.Pseudopotential.l_max, PP_OUT, '.LMAX'
     )
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, ('to_int', ['.LMMAX'])
+        numerical_settings.Pseudopotential.lm_max, PP_OUT, '.LMMAX'
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.type,
-        OUTCAR_KEY,
+        PP_OUT,
         ('derive_pp_type', ['.LPAW', '.LULTRA', '.TITEL']),
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.is_norm_conserving,
-        OUTCAR_KEY,
+        PP_OUT,
         ('derive_is_norm_conserving', ['.type']),
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.is_gw_optimized,
-        OUTCAR_KEY,
+        PP_OUT,
         ('derive_is_gw_optimized', ['.TITEL']),
     )
-
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.c[4]')
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.n_valence_electrons,
-        XML_KEY,
-        ('to_float', ['.c[3]']),
-    )
-
-
-add_mapping_annotation(
-    Pseudopotential.m_def, XML_KEY, "atominfo.array[?@name=='atomtypes'] | [0].set.rc"
-)
-add_mapping_annotation(Pseudopotential.m_def, OUTCAR_KEY, '@.pseudopotentials')
 
 
 try:
