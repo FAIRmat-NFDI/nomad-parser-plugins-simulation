@@ -260,9 +260,10 @@ class MainfileTextParser(TextParser):
                 self.logger.error('Parser not found for program.')
                 continue
             writer.mainfile = self.filepath
-            writer.mainfile_parser.data_object.mainfile = self.filepath
-            # parse only the relevant program
-            writer.mainfile_parser.data_object._file_handler = program.encode()
+            if isinstance(writer.mainfile_parser, TextParser):
+                writer.mainfile_parser.data_object.mainfile = self.filepath
+                # parse only the relevant program
+                writer.mainfile_parser.data_object._file_handler = program.encode()
             yield writer
 
 
@@ -537,12 +538,12 @@ class QuantumEspressoParser(MatchingParser):
                     for f in search_files(
                         f'*.{ext}', os.path.dirname(filename), include_all=True
                     ):
-                        basename = os.path.basename(f).rsplit('.', 1)[1]
+                        basename = os.path.basename(f).rsplit('.', 1)[0]
                         if basename not in basenames:
+                            basenames.append(basename)
                             qe_files.append(f)
                 if len(qe_files) > 1:
                     # generate workflow only if there is one scf file
-                    qe_files = []
                     other_programs = []
                     for f in qe_files:
                         other_programs.extend([p.lower() for p in get_program_types(f)])

@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 import numpy as np
+import pint
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
@@ -12,7 +13,6 @@ from ..parser import (
     MainfileTextParser,
     MainfileXMLParser,
     QuantumEspressoArchiveWriter,
-    get_program_name_version,
 )
 from .file_parser import GIPAWFileParser
 
@@ -41,7 +41,7 @@ class GIPAWMainfileTextParser(MainfileTextParser):
         chi_bare_pGv = source.get('chi_bare_pGv', None)
         chi_bare_vGv = source.get('chi_bare_vGv', None)
 
-        if chi_bare_pGv is not None and chi_bare_pGv is not None:
+        if chi_bare_pGv is not None and chi_bare_vGv is not None:
             sus = (chi_bare_pGv + chi_bare_vGv) / 2
             out['magnetic_susceptibilities'] = dict(
                 value=sus, value_vgv_approx=chi_bare_vGv, value_pgv_approx=chi_bare_pGv
@@ -104,18 +104,20 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         if self._job is None:
             try:
                 self._job = self.data['input']['job']
-            except Exception as exc:
-                self.logger.warning('Unable to get job from data: %s', exc)
+            except Exception:
+                self.logger.warning('Unable to get job from data')
         return self._job
 
-    def get_magnetic_shieldings(self, atom: dict[str, Any]) -> Any:
+    def get_magnetic_shieldings(self, atom: dict[str, Any]) -> pint.Quantity | None:
         if self.job != 'nmr':
             return
         value = np.reshape(atom.get('__value'), (3, 3))
         FACTOR = 1e-6
         return value * FACTOR * ureg('dimensionless')
 
-    def get_magnetic_susceptibilities(self, source: dict[str, Any], **kwargs) -> Any:
+    def get_magnetic_susceptibilities(
+        self, source: dict[str, Any], **kwargs
+    ) -> None | np.ndarray:
         if self.job != 'nmr':
             return
         name = kwargs.get('name')
@@ -130,22 +132,22 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
         sus = (vgv + pgv) / 2
         return sus
 
-    def get_efg(self, atom: dict[str, Any]) -> Any:
+    def get_efg(self, atom: dict[str, Any]) -> None | np.ndarray:
         if self.job != 'efg':
             return
         return np.reshape(atom.get('__value'), (3, 3))
 
-    def get_hyperfine_dipolar(self, atom: dict[str, Any]) -> Any:
+    def get_hyperfine_dipolar(self, atom: dict[str, Any]) -> None | np.ndarray:
         if self.job != 'hyperfine':
             return
         return np.reshape(atom.get('__value'), (3, 3))
 
-    def get_hyperfine_fermi_contact(self, atom: dict[str, Any]) -> Any:
+    def get_hyperfine_fermi_contact(self, atom: dict[str, Any]) -> float | None:
         if self.job != 'hyperfine':
             return
         return atom.get('__value')
 
-    def get_delta_g(self, source: dict[str, Any]) -> Any:
+    def get_delta_g(self, source: dict[str, Any]) -> None | np.ndarray:
         if self.job != 'g-tensor':
             return
         return np.reshape(source.get('__value'), (3, 3))
@@ -161,21 +163,30 @@ class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
         if self._mainfile_parser is None:
             super().mainfile_parser
             basename = self.mainfile.rsplit('.', 1)[0]
-            program = self._mainfile_parser.data.get('program')
+            program = self._mainfile_parser.data.get('header', {}).get(
+                'program_name_version'
+            )
             if program is None:
                 # This is an xml mainfile, no futher version check necessary
                 return self._mainfile_parser
 
-            name_version = get_program_name_version(program[0][:30])
             # special handling for GIPAW to parse xml if available for version >= 7.4.1
             # check version
             ref_version = (7, 4, 0)
-            if name_version[1] >= ref_version:
+            if (
+                tuple(int(v) for v in program[1].split('.') if v.isdecimal())
+                >= ref_version
+            ):
                 # check if xml file exists
                 xml_file = f'{basename}.xml'
                 if os.path.isfile(xml_file):
                     self._mainfile_parser = self._xml_parser
                     self._mainfile_parser.filepath = xml_file
+                    # we expect only one calculation
+                    self._mainfile_parser._data = list(
+                        self.mainfile_parser.data.values()
+                    )[0]
+                    self.simulation_parser.annotation_key = common.XML_KEY
         return self._mainfile_parser
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
