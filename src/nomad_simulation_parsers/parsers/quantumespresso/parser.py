@@ -268,7 +268,7 @@ class MainfileTextParser(TextParser):
 
 
 class MainfileXMLParser(XMLParser):
-    _units_map = {'Hartree atomic units': dict(energy='hartee', length='bohr')}
+    _units_map = {'Hartree atomic units': dict(energy='hartree', length='bohr')}
 
     # TODO temporary fix for structlog unable to propagate logger
     @property
@@ -279,7 +279,7 @@ class MainfileXMLParser(XMLParser):
         return datetime.strptime(f'{date}{time}'.replace(' ', ''), '%d%b%Y%H:%M:%S')
 
     def apply_unit(self, value: np.ndarray | float, **kwargs) -> Any:
-        unit = self._units_map.get(self.data.get('@Units')).get(kwargs.get('name'))
+        unit = self._units_map.get(self.data.get('@Units'), {}).get(kwargs.get('name'))
         if not unit or value is None:
             return value
         return value * ureg(unit)
