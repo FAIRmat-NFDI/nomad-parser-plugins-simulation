@@ -5,9 +5,6 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoParser,
 )
 
-from devtools import debug
-
-
 LOGGER = get_logger(__name__)
 
 
@@ -15,14 +12,16 @@ def test_pwscf():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
     parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
-    debug(archive.data.outputs)
 
 
 def test_pwscf_xml():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
-    parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml', archive, LOGGER)
-    debug(archive.data.outputs)
+    parser.parse(
+        'tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml',
+        archive,
+        LOGGER,
+    )
 
 
 def test_epw():
@@ -55,7 +54,6 @@ def test_gipaw_nmr_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
 
 
 def test_gipaw_nmr_xml():
@@ -66,7 +64,6 @@ def test_gipaw_nmr_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
 
 
 def test_gipaw_efg_text():
@@ -77,7 +74,6 @@ def test_gipaw_efg_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
 
 
 def test_gipaw_efg_xml():
@@ -88,7 +84,6 @@ def test_gipaw_efg_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
 
 
 def test_gipaw_epr_hyperfine_text():
@@ -99,7 +94,6 @@ def test_gipaw_epr_hyperfine_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
 
 
 def test_gipaw_epr_hyperfine_xml():
@@ -110,8 +104,7 @@ def test_gipaw_epr_hyperfine_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
-    
+
 
 def test_gipaw_epr_deltag_text():
     parser = QuantumEspressoParser()
@@ -121,8 +114,6 @@ def test_gipaw_epr_deltag_text():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
-
 
 def test_gipaw_epr_deltag_xml():
     parser = QuantumEspressoParser()
@@ -132,12 +123,3 @@ def test_gipaw_epr_deltag_xml():
         archive,
         LOGGER,
     )
-    debug(archive.data.outputs)
-
-
-   
-
-
-
-
-
