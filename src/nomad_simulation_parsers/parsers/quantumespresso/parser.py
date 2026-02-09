@@ -329,96 +329,113 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         # set the parsed data to archive
         archive.data = self.simulation_parser.data_object
 
-    def parse_workflow(self) -> None:
-        if self.archive.workflow2:
+        if not archive.workflow2:
+            # set workflow to single point by default
+            archive.workflow2 = SinglePoint()
+
+    def _link_modules(self) -> None:
+        """
+        Link archives created from multiple modules in one mainfile.
+        """
+
+        workflow_archive = self.child_archives.get('workflow_modules')
+        if not workflow_archive:
             return
 
-        self.archive.workflow2 = SinglePoint()
-
-        # multi run file
-        multirun_workflow_archive = self.child_archives.get('workflow_multirun')
-        if multirun_workflow_archive is not None:
-            multirun_workflow_archive.workflow2 = SerialWorkflow(
-                tasks=[TaskReference(task=self.archive.workflow2)]
+        workflow_archive.workflow2 = SerialWorkflow(
+            tasks=[TaskReference(task=self.archive.workflow2)]
+        )
+        for key, child_archive in self.child_archives.items():
+            if key.startswith('workflow'):
+                continue
+            workflow_archive.workflow2.tasks.append(
+                TaskReference(task=child_archive.workflow2)
             )
-            for key, child_archive in self.child_archives.items():
-                if key.startswith('workflow'):
-                    continue
-                multirun_workflow_archive.workflow2.tasks.append(
-                    TaskReference(task=child_archive.workflow2)
+
+    def _link_files(self) -> None:
+        """
+        Link archives created from separate mainfiles in the same upload.
+        """
+        workflow_archive = self.child_archives.get('workflow_generic')
+        if workflow_archive is None or self.archive.metadata.main_author is None:
+            return
+
+        from nomad.app.v1.models import MetadataRequired  # noqa
+        from nomad.search import search  # noqa
+
+        parent_archive = self.child_archives.get('workflow_modules') or self.archive
+        # add current archive workflow to generic workflow tasks
+        workflow_archive.workflow2 = SimulationWorkflow(
+            tasks=[TaskReference(task=parent_archive.workflow2)]
+        )
+
+        upload_id = self.archive.metadata.upload_id
+        metadata = search(
+            owner='visible',
+            user_id=self.archive.metadata.main_author.user_id,
+            query={'upload_id': upload_id},
+            required=MetadataRequired(include=['entry_id', 'mainfile', 'parser_name']),
+        ).data
+        parent_file = self.mainfile.split('raw/')[-1]
+        parent_dir = os.path.dirname(parent_file)
+        for result in metadata:
+            # include only qe calculations
+            if 'quantumespresso' not in result.get('parser_name'):
+                continue
+
+            entry_id = result.get('entry_id')
+            if not entry_id or entry_id == self.archive.metadata.entry_id:
+                # skip the current entry
+                continue
+
+            # link only entries in the same directory or sub-directories
+            mainfile = result.get('mainfile')
+            if mainfile and mainfile.startswith(parent_dir):
+                entry_archive: EntryArchive = self.archive.m_context.load_archive(
+                    entry_id, upload_id, None
                 )
-
-        # mainfiles in the same upload
-        generic_workflow_archive = self.child_archives.get('workflow_generic')
-        if (
-            generic_workflow_archive is not None
-            and self.archive.metadata.main_author is not None
-        ):
-            from nomad.app.v1.models import MetadataRequired  # noqa
-            from nomad.search import search  # noqa
-
-            parent_archive = multirun_workflow_archive or self.archive
-            # add current archive workflow to generic workflow tasks
-            generic_workflow_archive.workflow2 = SimulationWorkflow(
-                tasks=[TaskReference(task=parent_archive.workflow2)]
-            )
-
-            upload_id = self.archive.metadata.upload_id
-            metadata = search(
-                owner='visible',
-                user_id=self.archive.metadata.main_author.user_id,
-                query={'upload_id': upload_id},
-                required=MetadataRequired(
-                    include=['entry_id', 'mainfile', 'parser_name']
-                ),
-            ).data
-            parent_file = self.mainfile.split('raw/')[-1]
-            parent_dir = os.path.dirname(parent_file)
-            for result in metadata:
-                parser_name = result.get('parser_name')
-                # include only qe calculations
-                if 'quantumespresso' not in parser_name:
+                if not entry_archive.workflow2:
+                    continue
+                if (
+                    entry_archive.metadata.entry_id
+                    == workflow_archive.metadata.entry_id
+                ):
                     continue
 
-                entry_id = result.get('entry_id')
-                if not entry_id or entry_id == self.archive.metadata.entry_id:
-                    # skip the current entry
-                    continue
+                if entry_archive.data and entry_archive.data.outputs:
+                    # add model_system refs
+                    if self.archive.data.model_system:
+                        entry_archive.data.outputs[
+                            0
+                        ].model_system_ref = self.archive.data.model_system[0]
 
-                # link only entries in the same directory or sub-directories
-                mainfile = result.get('mainfile')
-                if mainfile and mainfile.startswith(parent_dir):
-                    entry_archive: EntryArchive = self.archive.m_context.load_archive(
-                        entry_id, upload_id, None
+                # add workflow to generic workflow tasks
+                workflow_archive.workflow2.tasks.append(
+                    TaskReference(task=entry_archive.workflow2)
+                )
+                # add parent scf as input to task
+                if entry_archive.workflow2:
+                    entry_archive.workflow2.inputs.append(
+                        Link(section=parent_archive.workflow2)
                     )
-                    if not entry_archive.workflow2:
-                        continue
-                    if (
-                        entry_archive.metadata.entry_id
-                        == generic_workflow_archive.metadata.entry_id
-                    ):
-                        continue
 
-                    # add workflow to generic workflow tasks
-                    generic_workflow_archive.workflow2.tasks.append(
-                        TaskReference(task=entry_archive.workflow2)
-                    )
-                    # add parent scf as input to task
-                    if entry_archive.workflow2:
-                        entry_archive.workflow2.inputs.append(
-                            Link(section=parent_archive.workflow2)
-                        )
+    def parse_workflow(self) -> None:
+        self._link_modules()
+        self._link_files()
 
     @property
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
         if self._mainfile_parser is None:
-            ext = self.mainfile.rsplit('.', 1)[-1]
+            ext = self.mainfile.rsplit('.', 1)[-1].lower()
             self._mainfile_parser = dict(
-                out=self._text_parser, xml=self._xml_parser
+                out=self._text_parser, log=self._text_parser, xml=self._xml_parser
             ).get(ext)
+            if self._mainfile_parser is None:
+                self.logger.error('Parser not found for mainfile extension.')
+                return None
             self._mainfile_parser.filepath = self.mainfile
             self.simulation_parser.annotation_key = dict(
-                out=common.OUT_KEY, xml=common.XML_KEY
+                out=common.OUT_KEY, log=common.OUT_KEY, xml=common.XML_KEY
             ).get(ext)
         return self._mainfile_parser
 
@@ -429,13 +446,17 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 self.archive
                 if n == 0
                 else self.child_archives.get(
-                    f'{n} {writer.mainfile_parser.program_name}'
+                    f'{n} {writer.mainfile_parser.program_name.lower()}'
                 )
             )
             if archive is None:
                 self.logger.error('Archive not found for program.')
                 continue
             writer.parse_program(archive, n)
+            writer.mainfile_parser.close()
+
+        self.mainfile_parser.close()
+        self.simulation_parser.close()
 
         self.parse_workflow()
 
@@ -490,8 +511,7 @@ class QuantumEspressoParser(MatchingParser):
     PWSCF, Phonon, EPW and XSpectra.
     """
 
-    archive_writer = QuantumEspressoArchiveWriter()
-    _supported_exts = ['out', 'xml']
+    _supported_exts = ['out', 'log', 'xml']
 
     def is_mainfile(
         self,
@@ -535,7 +555,12 @@ class QuantumEspressoParser(MatchingParser):
 
             if len(programs) > 1:
                 # create separate entries for each program instance
-                children.extend(['workflow_multirun', *programs[1:]])
+                children.extend(
+                    [
+                        'workflow_modules',
+                        *[f'{n + 1} {name}' for n, name in enumerate(programs[1:])],
+                    ]
+                )
 
             self.creates_children = len(children) > 0
 
@@ -551,4 +576,5 @@ class QuantumEspressoParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
         self.level = len(child_archives)
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
+        archive_writer = QuantumEspressoArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)

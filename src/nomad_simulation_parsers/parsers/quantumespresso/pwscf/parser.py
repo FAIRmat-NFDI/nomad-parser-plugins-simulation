@@ -8,7 +8,7 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoArchiveWriter,
 )
-from nomad_simulation_parsers.schema_packages.quantumespresso import common, pwscf
+from nomad_simulation_parsers.schema_packages.quantumespresso import pwscf
 
 from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFFileParser
@@ -78,5 +78,4 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     _xml_parser = PWSCFMainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        self.simulation_parser.annotation_key = common.OUT_KEY
         super().parse_program(archive, index)
