@@ -18,9 +18,10 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import yambo
 
-from .file_parsers import MainfileParser, NetCDFParser
+from .file_parsers import MainfileParser, NetCDFParser, SpectraParser
 
 
 class YamboMetainfoParser(MetainfoParser):
@@ -309,6 +310,15 @@ class YamboMainfileParser(TextParser):
         return [dict(value=value)]
 
 
+class YamboSpectraParser(TextParser):
+    @property
+    def logger(self):
+        return LOGGER
+
+    def get_spectra(self, data: np.ndarray) -> dict[str, Any]:
+        return dict(excitation_energies=data[:, 0], intensities=data[:, 1])
+
+
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
         data = Simulation(program=Program(name='YAMBO'))
@@ -344,9 +354,30 @@ class YamboArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)
 
+        # spectra files
+        spectra_files = search_files('o*', os.path.dirname(self.mainfile))
+        spectra_parser = YamboSpectraParser(text_parser=SpectraParser())
+        absorption_spectra_parser = YamboMetainfoParser()
+        absorption_spectra_parser.data_object = yambo.outputs.AbsorptionSpectrum()
+        absorption_spectra_parser.annotation_key = yambo.SPECTRA_KEY
+        for spectra_file in spectra_files:
+            spectra_parser.filepath = spectra_file
+            spectra_parser.convert(absorption_spectra_parser)
+            # add to simulation outputs.absorption_spectra
+            outputs = (
+                data.outputs[-1]
+                if data.outputs
+                else data.m_create(yambo.outputs.Outputs)
+            )
+            outputs.m_append(
+                yambo.outputs.AbsorptionSpectrum.m_def,
+                absorption_spectra_parser.data_object,
+            )
+
         data_parser.close()
         if netcdf_parser is not None:
             netcdf_parser.close()
+        spectra_parser.close()
 
 
 class YamboParser(MatchingParser):
