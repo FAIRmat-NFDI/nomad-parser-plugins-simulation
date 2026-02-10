@@ -1,4 +1,4 @@
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import SchemaPackage, Quantity
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -60,6 +60,11 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 
 class Outputs(outputs.Outputs):
+    # TODO add description
+    sp_type = Quantity(type=str)
+
+    add_mapping_annotation(sp_type, OUT_KEY, 'sp_type')
+
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         NETCDF_KEY,
@@ -80,7 +85,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.model_method, NETCDF_KEY, '.@')
     add_mapping_annotation(general.Simulation.outputs, NETCDF_KEY, '.@')
     add_mapping_annotation(
-        general.Simulation.outputs,
+        Outputs.m_def,
         OUT_KEY,
         (
             'get_outputs',

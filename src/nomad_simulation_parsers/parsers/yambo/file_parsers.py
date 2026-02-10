@@ -472,6 +472,11 @@ class MainfileParser(TextParser):
                 ),
             ),
             Quantity(
+                'sp_type',
+                r'(EELS|Polarizability|Absorption)',
+                repeats=False,
+            ),
+            Quantity(
                 'transferred_momenta',
                 r'Transferred momenta grid([\s\S]+?)\n *\[\d+\]',
                 sub_parser=TextParser(
