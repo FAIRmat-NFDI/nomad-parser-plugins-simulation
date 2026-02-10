@@ -53,7 +53,7 @@ def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
 
 
 def log(
-    function: Callable = None,
+    function: 'Callable' = None,
     logger: 'BoundLogger' = DEFAULT_LOGGER,
     exc_msg: str = None,
     exc_raise: bool = False,
