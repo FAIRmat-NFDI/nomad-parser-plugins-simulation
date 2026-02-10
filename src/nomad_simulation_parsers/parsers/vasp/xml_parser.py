@@ -88,23 +88,13 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
 
-        print(f'[DEBUG] After XML_KEY: model_method count = {len(data_parser.data_object.model_method) if data_parser.data_object.model_method else 0}')
-
         # Second pass: KPOINTS_XML for KSpace numerical settings
         data_parser.annotation_key = vasp.KPOINTS_XML
         xml_parser.convert(data_parser)
 
-        print(f'[DEBUG] After KPOINTS_XML: numerical_settings count = {len(data_parser.data_object.model_method[0].numerical_settings) if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0 else 0}')
-
         # Third pass: PP_XML for Pseudopotentials from XML
-        print(f'[DEBUG] Before PP_XML: annotation_key = {data_parser.annotation_key}')
         data_parser.annotation_key = vasp.PP_XML
-        print(f'[DEBUG] PP_XML key set, about to convert')
         xml_parser.convert(data_parser)
-        print(f'[DEBUG] After PP_XML: numerical_settings count = {len(data_parser.data_object.model_method[0].numerical_settings) if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0 else 0}')
-        if data_parser.data_object.model_method and len(data_parser.data_object.model_method) > 0:
-            for i, ns in enumerate(data_parser.data_object.model_method[0].numerical_settings):
-                print(f'[DEBUG]   NS[{i}]: type={type(ns).__name__}')
 
         # Fourth pass: XML2_KEY for additional XML data
         data_parser.annotation_key = vasp.XML2_KEY

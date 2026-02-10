@@ -39,7 +39,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        '.parameters.separator[?"@name"==\'electronic\']',
+        'modeling.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(
         model_method.DFT.m_def,
@@ -79,13 +79,15 @@ class Program(general.Program):
 
 
 class ModelMethod(general.ModelMethod):
-    add_mapping_annotation(numerical_settings.KSpace.m_def, KPOINTS_XML, '.kpoints')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.m_def, PP_XML, '.atominfo.array[?"@name"==\'atomtypes\'] | [0].set.rc'
     )
 
 
 class DFT(model_method.DFT):
+    # KSpace: use absolute path from KPOINTS_XML root context (modeling)
+    # because kpoints is at modeling.kpoints, not inside the electronic separator
+    add_mapping_annotation(numerical_settings.KSpace.m_def, KPOINTS_XML, 'kpoints')
     add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
     add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
