@@ -2,9 +2,13 @@ import numpy as np
 from netCDF4 import Dataset  # pylint: disable=no-name-in-module
 from nomad.units import ureg
 from nomad_file_parser import FileParser
-from nomad_file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser, DataTextParser
 
 RE_FLOAT = r'[-+]*\d*\.\d+[Ee]*[-+]*\d*'
+
+
+class SpectraParser(DataTextParser):
+    pass
 
 
 class InputParser(TextParser):
