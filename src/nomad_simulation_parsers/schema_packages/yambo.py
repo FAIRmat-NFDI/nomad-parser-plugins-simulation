@@ -65,7 +65,7 @@ class AbsorptionSpectra(outputs.AbsorptionSpectrum):
         outputs.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
     )
     add_mapping_annotation(
-        outputs.AbsorptionSpectrum.energies, OUT_KEY, '.excitation_energies'
+        outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
     )
 
 
