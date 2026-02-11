@@ -5,8 +5,12 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    BarostatParameters,
+    MolecularDynamicsMethod,
+    ThermostatParameters,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
@@ -30,18 +34,279 @@ class LammpsArchiveWriter(MDParser):
             topology_format='DATA', format='LAMMPSDUMP'
         )
         self._data_parser = DataParser()
+        self._bond_list = None
+
+    _magic_three: int = 3
+    _magic_four: int = 4
+    _magic_five: int = 5
 
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
             value = value * self._log_parser.units.get(unit, 1)
         return value
 
+    def _extract_temp_params(
+        self, fix_cmd: list[str], temp_idx: int, coupling_idx: int
+    ) -> tuple[Any, Any] | None:
+        """Extract temperature and coupling constant from fix command."""
+        if temp_idx + coupling_idx >= len(fix_cmd):
+            return None
+        try:
+            temp = self.apply_unit(float(fix_cmd[temp_idx]), 'temperature')
+            coupling = self.apply_unit(float(fix_cmd[coupling_idx]), 'time')
+            _temp_params = (temp, coupling)
+        except (ValueError, IndexError, TypeError):
+            _temp_params = None
+        return _temp_params
+
+    def _extract_thermostat_settings(
+        self, fix_commands: list[list[str]] | None
+    ) -> ThermostatParameters | None:
+        """
+        Extract thermostat parameters from LAMMPS fix commands.
+
+        Supports fix nvt, fix langevin, fix temp/berendsen, fix temp/rescale.
+
+        Args:
+            fix_commands: List of fix command arguments from log parser
+
+        Returns:
+            ThermostatParameters object or None if no thermostat found
+        """
+        if fix_commands is None:
+            return None
+        thermostat_map = {
+            'nvt': 'nose_hoover',
+            'npt': 'nose_hoover',
+            'langevin': 'langevin_leap_frog',
+            'temp/berendsen': 'berendsen',
+            'temp/rescale': 'velocity_rescaling',
+        }
+        for fix_cmd in fix_commands:
+            if len(fix_cmd) < self._magic_four:
+                continue
+            fix_type = fix_cmd[2]
+            if fix_type not in thermostat_map:
+                continue
+            params = ThermostatParameters()
+            params.thermostat_type = thermostat_map[fix_type]
+            if fix_type in ['nvt', 'npt'] and 'temp' in fix_cmd:
+                temp_idx = fix_cmd.index('temp')
+                temp_params = self._extract_temp_params(
+                    fix_cmd, temp_idx + 1, temp_idx + 3
+                )
+                if temp_params:
+                    params.reference_temperature, params.coupling_constant = temp_params
+            elif fix_type in ['langevin', 'temp/berendsen']:
+                temp_params = self._extract_temp_params(fix_cmd, 3, 5)
+                if temp_params:
+                    params.reference_temperature, params.coupling_constant = temp_params
+            elif fix_type == 'temp/rescale' and len(fix_cmd) > self._magic_four:
+                try:
+                    params.reference_temperature = self.apply_unit(
+                        float(fix_cmd[4]), 'temperature'
+                    )
+                except (ValueError, TypeError):
+                    pass
+            return params
+        return None
+
+    def _extract_pressure_params(
+        self, fix_cmd: list[str], style_idx: int, offset: int
+    ) -> tuple[Any, Any] | None:
+        """Extract pressure and coupling matrices from fix command."""
+        if style_idx + offset >= len(fix_cmd):
+            return None
+        try:
+            press = self.apply_unit(float(fix_cmd[style_idx + 1]), 'pressure')
+            coupling = self.apply_unit(float(fix_cmd[style_idx + offset]), 'time')
+            _pressure_params = (np.eye(3) * press, np.eye(3) * coupling)
+        except (ValueError, IndexError, TypeError):
+            _pressure_params = None
+        return _pressure_params
+
+    def _extract_timestep(self) -> Any | None:
+        """Extract integration timestep from log parser."""
+        timestep_value = self._log_parser.get('timestep')
+        if timestep_value is None:
+            return None
+        if isinstance(timestep_value, list):
+            timestep_value = timestep_value[-1]
+        try:
+            _timestep = self.apply_unit(float(timestep_value), 'time')
+        except (ValueError, TypeError):
+            _timestep = None
+        return _timestep
+
+    def _extract_n_steps(self) -> int | None:
+        """Extract number of steps from run command."""
+        run_command = self._log_parser.get('run')
+        if run_command is None:
+            return None
+        if isinstance(run_command, list) and isinstance(run_command[0], list):
+            run_command = run_command[-1]
+        try:
+            _n_steps = int(
+                run_command[0] if isinstance(run_command, list) else run_command
+            )
+        except (ValueError, TypeError, IndexError):
+            _n_steps = None
+        return _n_steps
+
+    def _extract_thermo_frequency(self) -> int | None:
+        """Extract thermodynamics output frequency."""
+        thermo_freq = self._log_parser.get('thermo')
+        if thermo_freq is None:
+            return None
+        if isinstance(thermo_freq, list):
+            thermo_freq = thermo_freq[-1]
+        try:
+            _thermo_freq = int(thermo_freq)
+        except (ValueError, TypeError):
+            _thermo_freq = None
+        return _thermo_freq
+
+    def _extract_masses(self) -> np.ndarray | None:
+        """Extract particle masses from data file."""
+        masses_data = self._data_parser.get('Masses', None)
+        if (
+            not masses_data
+            or not isinstance(masses_data, list)
+            or len(masses_data) == 0
+        ):
+            return None
+        return masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
+
+    def _set_parser_masses(self, masses: np.ndarray | None) -> None:
+        """Set masses on trajectory parsers."""
+        for parser in self.traj_parsers._parsers:
+            if isinstance(parser, TrajParser):
+                parser.masses = masses
+
+    def _extract_barostat_settings(
+        self, fix_commands: list[list[str]] | None
+    ) -> BarostatParameters | None:
+        """
+        Extract barostat parameters from LAMMPS fix commands.
+
+        Supports fix npt, fix nph, fix press/berendsen.
+
+        Args:
+            fix_commands: List of fix command arguments from log parser
+
+        Returns:
+            BarostatParameters object or None if no barostat found
+        """
+        if fix_commands is None:
+            return None
+        coupling_styles = {
+            'iso': 'isotropic',
+            'aniso': 'anisotropic',
+            'tri': 'anisotropic',
+        }
+        for fix_cmd in fix_commands:
+            if len(fix_cmd) < self._magic_four:
+                continue
+            fix_type = fix_cmd[2]
+            if fix_type not in ['npt', 'nph', 'press/berendsen']:
+                continue
+            params = BarostatParameters()
+            params.barostat_type = (
+                'nose_hoover' if fix_type in ['npt', 'nph'] else 'berendsen'
+            )
+            offset = 3 if fix_type in ['npt', 'nph'] else 2
+            for style, coupling_type in coupling_styles.items():
+                if style not in fix_cmd:
+                    continue
+                params.coupling_type = coupling_type
+                style_idx = fix_cmd.index(style)
+                pressure_params = self._extract_pressure_params(
+                    fix_cmd, style_idx, offset
+                )
+                if pressure_params:
+                    params.reference_pressure, params.coupling_constant = (
+                        pressure_params
+                    )
+                break
+            return params
+        return None
+
+    def _determine_ensemble(
+        self, has_thermostat: bool, has_barostat: bool
+    ) -> str | None:
+        """
+        Determine thermodynamic ensemble from presence of thermostat and barostat.
+
+        Args:
+            has_thermostat: Whether thermostat parameters were found
+            has_barostat: Whether barostat parameters were found
+
+        Returns:
+            Ensemble type string ('NVE', 'NVT', 'NPH', 'NPT') or None
+        """
+        result = None
+        if not has_thermostat and not has_barostat:
+            result = 'NVE'
+        elif has_thermostat and not has_barostat:
+            result = 'NVT'
+        elif not has_thermostat and has_barostat:
+            result = 'NPH'
+        elif has_thermostat and has_barostat:
+            result = 'NPT'
+        return result
+
+    def _extract_dump_frequencies(
+        self, dump_commands: list[list[str]] | None
+    ) -> dict[str, int | None]:
+        """
+        Extract save frequencies from LAMMPS dump commands.
+
+        Args:
+            dump_commands: List of dump command arguments from log parser
+
+        Returns:
+            Dictionary with coordinate/velocity/force save frequencies
+        """
+        result = {
+            'coordinate': None,
+            'velocity': None,
+            'force': None,
+        }
+        if dump_commands is None:
+            return result
+        for dump_cmd in dump_commands:
+            if len(dump_cmd) < self._magic_five:
+                continue
+            try:
+                frequency = int(dump_cmd[1])
+            except (ValueError, IndexError):
+                continue
+            dump_vars = dump_cmd[5:] if len(dump_cmd) > self._magic_five else []
+            has_coords = any(
+                var in dump_vars for var in ['x', 'y', 'z', 'xu', 'yu', 'zu']
+            )
+            has_velocities = any(var in dump_vars for var in ['vx', 'vy', 'vz'])
+            has_forces = any(var in dump_vars for var in ['fx', 'fy', 'fz'])
+            if has_coords and result['coordinate'] is None:
+                result['coordinate'] = frequency
+            if has_velocities and result['velocity'] is None:
+                result['velocity'] = frequency
+            if has_forces and result['force'] is None:
+                result['force'] = frequency
+        return result
+
     def parse_method(self, simulation: Simulation) -> None:
         """
         Parse method information from data file and log file.
 
-        TODO: Migrate from legacy parser
-        - Still extract and set masses and charges on AtomParameters, or deprecated?
+        Extracts:
+        - Integration parameters (timestep, n_steps, integrator_type)
+        - Thermostat parameters from fix commands (nvt, langevin, temp/berendsen, etc.)
+        - Barostat parameters from fix commands (npt, nph, press/berendsen)
+        - Thermodynamic ensemble (NVE, NVT, NPH, NPT)
+        - Save frequencies from dump/thermo commands
+
+        TODO: Still to migrate from legacy parser
         - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
           bond_coeffs, angle_coeffs, etc.) using MDAnalysis
         - Set ForceField with Model containing interactions
@@ -54,10 +319,6 @@ class LammpsArchiveWriter(MDParser):
           * neigh_modify: extract neighbor_update_frequency from 'every' parameter
 
         Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations schemas instead of runschema
-        - Adapt to new ModelSystem structure
-        - Integrate with existing masses extraction (lines 47-57)
         """
 
         if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
@@ -66,36 +327,46 @@ class LammpsArchiveWriter(MDParser):
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        method = ModelMethod()
-        # force_field = ForceField()
+        method = MolecularDynamicsMethod()
+        method.integrator_type = 'velocity_verlet'
 
-        masses_data = self._data_parser.get('Masses', None)
-        # Extract array from DataParser format: [(None, np.ndarray)]
-        if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
-            masses = (
-                masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
-            )
-        else:
-            masses = None
+        timestep = self._extract_timestep()
+        if timestep is not None:
+            method.integration_timestep = timestep
 
-        # Set masses on all trajectory parsers since eval() can return from any parser
-        for parser in self.traj_parsers._parsers:
-            if isinstance(parser, TrajParser):
-                parser.masses = masses
+        n_steps = self._extract_n_steps()
+        if n_steps is not None:
+            method.n_steps = n_steps
 
-        # TODO: find best place for first attempt to set _bond_list
-        # Extract bond list from MDAnalysis universe if available
-        if (
-            self._mdanalysistraj_parser.mainfile is not None
-            and self._mdanalysistraj_parser.universe is not None
-        ):
-            self._bond_list = [
-                tuple(interaction['atom_indices'])
-                for interaction in self._mdanalysistraj_parser.get_interactions()
-                if interaction['type'] == 'bond'
-            ]
-        else:
-            self._bond_list = None
+        fix_commands = self._log_parser.get('fix')
+        thermostat = self._extract_thermostat_settings(fix_commands)
+        if thermostat is not None:
+            method.thermostat_parameters = [thermostat]
+
+        barostat = self._extract_barostat_settings(fix_commands)
+        if barostat is not None:
+            method.barostat_parameters = [barostat]
+
+        ensemble = self._determine_ensemble(
+            thermostat is not None, barostat is not None
+        )
+        if ensemble is not None:
+            method.thermodynamic_ensemble = ensemble
+
+        frequencies = self._extract_dump_frequencies(self._log_parser.get('dump'))
+        if frequencies['coordinate'] is not None:
+            method.coordinate_save_frequency = frequencies['coordinate']
+        if frequencies['velocity'] is not None:
+            method.velocity_save_frequency = frequencies['velocity']
+        if frequencies['force'] is not None:
+            method.force_save_frequency = frequencies['force']
+
+        thermo_freq = self._extract_thermo_frequency()
+        if thermo_freq is not None:
+            method.thermodynamics_save_frequency = thermo_freq
+
+        masses = self._extract_masses()
+        self._set_parser_masses(masses)
 
         simulation.model_method.append(method)
 
