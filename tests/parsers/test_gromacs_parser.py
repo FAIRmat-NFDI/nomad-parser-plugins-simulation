@@ -334,7 +334,8 @@ def test_get_force_field_contributions_transformation():
 
 
 def test_get_coordinate_save_frequency():
-    """Test coordinate save frequency extraction with compressed/uncompressed priority."""
+    """Test coordinate save frequency extraction with compressed/uncompressed
+    priority."""
     lp = gromacs_parser.GromacsLogParser()
 
     # Test nstxout-compressed takes priority
