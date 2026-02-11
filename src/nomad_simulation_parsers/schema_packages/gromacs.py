@@ -155,6 +155,112 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
         '.input_parameters.dt',
         unit='picosecond',
     )
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.n_steps,
+        LOG_KEY,
+        '.input_parameters.nsteps',
+    )
+
+    # Trajectory output frequencies
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.coordinate_save_frequency,
+        LOG_KEY,
+        ('get_coordinate_save_frequency', ['.input_parameters']),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.velocity_save_frequency,
+        LOG_KEY,
+        '.input_parameters.nstvout',
+    )
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.force_save_frequency,
+        LOG_KEY,
+        '.input_parameters.nstfout',
+    )
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.thermodynamics_save_frequency,
+        LOG_KEY,
+        '.input_parameters.nstenergy',
+    )
+
+    # Thermodynamic ensemble
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble,
+        LOG_KEY,
+        ('get_thermodynamic_ensemble', ['.input_parameters']),
+    )
+
+    # Thermostat subsection
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.thermostat_parameters,
+        LOG_KEY,
+        '@',
+    )
+
+    # Barostat subsection
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.barostat_parameters,
+        LOG_KEY,
+        '@',
+    )
+
+
+## ThermostatParameters annotations
+
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.thermostat_type,
+    LOG_KEY,
+    ('get_thermostat_type', ['.input_parameters.tcoupl']),
+)
+
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.reference_temperature,
+    LOG_KEY,
+    ('get_reference_temperature', ['.input_parameters']),
+    unit='kelvin',
+)
+
+add_mapping_annotation(
+    molecular_dynamics.ThermostatParameters.coupling_constant,
+    LOG_KEY,
+    ('get_thermostat_coupling_constant', ['.input_parameters']),
+    unit='picosecond',
+)
+
+## BarostatParameters annotations
+
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.barostat_type,
+    LOG_KEY,
+    ('get_barostat_type', ['.input_parameters.pcoupl']),
+)
+
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.coupling_type,
+    LOG_KEY,
+    ('get_barostat_coupling_type', ['.input_parameters.pcoupltype']),
+)
+
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.reference_pressure,
+    LOG_KEY,
+    ('get_reference_pressure', ['.input_parameters']),
+    unit='bar',
+)
+
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.coupling_constant,
+    LOG_KEY,
+    ('get_barostat_coupling_constant', ['.input_parameters']),
+    unit='picosecond',
+)
+
+add_mapping_annotation(
+    molecular_dynamics.BarostatParameters.compressibility,
+    LOG_KEY,
+    ('get_compressibility', ['.input_parameters']),
+    unit='1/bar',
+)
 
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):

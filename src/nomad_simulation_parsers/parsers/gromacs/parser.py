@@ -207,6 +207,201 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         result = coulomb_map.get(coulombtype_lower)
         return result
 
+    def get_coordinate_save_frequency(self, input_params: dict[str, Any]) -> int | None:
+        """Get coordinate save frequency, preferring compressed output."""
+        result = None
+        if not input_params:
+            return result
+
+        # Prefer nstxout-compressed over nstxout
+        nstxout_compressed = input_params.get('nstxout-compressed')
+        nstxout = input_params.get('nstxout')
+
+        if nstxout_compressed is not None and nstxout_compressed > 0:
+            result = nstxout_compressed
+        elif nstxout is not None and nstxout > 0:
+            result = nstxout
+
+        return result
+
+    def get_thermodynamic_ensemble(self, input_params: dict[str, Any]) -> str | None:
+        """Determine thermodynamic ensemble from thermostat and barostat settings."""
+        result = None
+        if input_params is None:
+            return result
+
+        tcoupl = (input_params.get('tcoupl', '') or 'no').lower()
+        pcoupl = (input_params.get('pcoupl', '') or 'no').lower()
+
+        has_thermostat = tcoupl != 'no'
+        has_barostat = pcoupl != 'no'
+
+        if has_thermostat and has_barostat:
+            result = 'NPT'
+        elif has_thermostat:
+            result = 'NVT'
+        elif has_barostat:
+            result = 'NPH'
+        else:
+            result = 'NVE'
+
+        return result
+
+    def get_thermostat_type(self, tcoupl: str) -> str | None:
+        """Map GROMACS tcoupl to NOMAD thermostat_type enum."""
+        result = None
+        if not tcoupl:
+            return result
+
+        tcoupl_lower = tcoupl.lower()
+        if tcoupl_lower == 'no':
+            return result
+
+        thermostat_map = {
+            'berendsen': 'berendsen',
+            'nose-hoover': 'nose_hoover',
+            'v-rescale': 'velocity_rescaling',
+            'andersen': 'andersen',
+            'andersen-massive': 'andersen_massive',
+        }
+        result = thermostat_map.get(tcoupl_lower)
+        return result
+
+    def get_reference_temperature(self, input_params: dict[str, Any]) -> float | None:
+        """Extract reference temperature from ref_t (handle scalar or array)."""
+        result = None
+        if not input_params:
+            return result
+
+        ref_t = input_params.get('ref-t') or input_params.get('ref_t')
+        if ref_t is None:
+            return result
+
+        # Handle array (take first value) or scalar
+        if isinstance(ref_t, list):
+            result = ref_t[0] if len(ref_t) > 0 else None
+        else:
+            result = ref_t
+
+        return result
+
+    def get_thermostat_coupling_constant(
+        self, input_params: dict[str, Any]
+    ) -> float | None:
+        """Extract thermostat coupling constant from tau_t (handle scalar or array)."""
+        result = None
+        if not input_params:
+            return result
+
+        tau_t = input_params.get('tau-t') or input_params.get('tau_t')
+        if tau_t is None:
+            return result
+
+        # Handle array (take first value) or scalar
+        if isinstance(tau_t, list):
+            result = tau_t[0] if len(tau_t) > 0 else None
+        else:
+            result = tau_t
+
+        return result
+
+    def get_barostat_type(self, pcoupl: str) -> str | None:
+        """Map GROMACS pcoupl to NOMAD barostat_type enum."""
+        result = None
+        if not pcoupl:
+            return result
+
+        pcoupl_lower = pcoupl.lower()
+        if pcoupl_lower == 'no':
+            return result
+
+        barostat_map = {
+            'berendsen': 'berendsen',
+            'parrinello-rahman': 'parrinello_rahman',
+            'mttk': 'mttk',
+            'c-rescale': 'c_rescale',
+        }
+        result = barostat_map.get(pcoupl_lower)
+        return result
+
+    def get_barostat_coupling_type(self, pcoupltype: str) -> str | None:
+        """Map GROMACS pcoupltype to NOMAD coupling_type enum."""
+        result = None
+        if not pcoupltype:
+            return result
+
+        pcoupltype_lower = pcoupltype.lower()
+        coupling_map = {
+            'isotropic': 'isotropic',
+            'semiisotropic': 'semi_isotropic',
+            'anisotropic': 'anisotropic',
+            'surface-tension': 'surface_tension',
+        }
+        result = coupling_map.get(pcoupltype_lower)
+        return result
+
+    def get_reference_pressure(self, input_params: dict[str, Any]) -> float | None:
+        """Extract reference pressure from ref_p (handle scalar or matrix)."""
+        result = None
+        if not input_params:
+            return result
+
+        ref_p = input_params.get('ref-p') or input_params.get('ref_p')
+        if ref_p is None:
+            return result
+
+        # Handle matrix/array (take first value) or scalar
+        if isinstance(ref_p, list):
+            if isinstance(ref_p[0], list):
+                # Matrix: take [0][0]
+                result = ref_p[0][0] if len(ref_p) > 0 and len(ref_p[0]) > 0 else None
+            else:
+                # Array: take first value
+                result = ref_p[0] if len(ref_p) > 0 else None
+        else:
+            result = ref_p
+
+        return result
+
+    def get_barostat_coupling_constant(
+        self, input_params: dict[str, Any]
+    ) -> float | None:
+        """Extract barostat coupling constant from tau_p."""
+        result = None
+        if not input_params:
+            return result
+
+        tau_p = input_params.get('tau-p') or input_params.get('tau_p')
+        if tau_p is not None:
+            result = tau_p
+
+        return result
+
+    def get_compressibility(self, input_params: dict[str, Any]) -> float | None:
+        """Extract compressibility (handle scalar or matrix)."""
+        result = None
+        if not input_params:
+            return result
+
+        compressibility = input_params.get('compressibility')
+        if compressibility is None:
+            return result
+
+        # Handle matrix/array (take first value) or scalar
+        if isinstance(compressibility, list):
+            if len(compressibility) == 0:
+                result = None
+            elif isinstance(compressibility[0], list):
+                # Matrix: take [0][0]
+                result = compressibility[0][0] if len(compressibility[0]) > 0 else None
+            else:
+                # Array: take first value
+                result = compressibility[0]
+        else:
+            result = compressibility
+
+        return result
+
 
 class GromacsMDPParser(TextParser):
     # TODO: temporary fix for structlog unable to propagate logger

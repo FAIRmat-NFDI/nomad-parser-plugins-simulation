@@ -295,7 +295,7 @@ def test_get_force_field_contributions_transformation():
         (object,),
         {
             'get': lambda self, key: 'GROMACS 2024' if key == 'version' else None,
-            'get_interactions': lambda self, version: mock_interactions,
+            'get_interactions': lambda self: mock_interactions,
         },
     )()
 
@@ -331,3 +331,245 @@ def test_get_force_field_contributions_transformation():
             assert all(len(indices) == 3 for indices in contrib['particle_indices']), (
                 'Angles should have 3 particles'
             )
+
+
+def test_get_coordinate_save_frequency():
+    """Test coordinate save frequency extraction with compressed/uncompressed priority."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test nstxout-compressed takes priority
+    params = {'nstxout-compressed': 100, 'nstxout': 50}
+    assert lp.get_coordinate_save_frequency(params) == 100
+
+    # Test nstxout used when compressed not available
+    params = {'nstxout': 50}
+    assert lp.get_coordinate_save_frequency(params) == 50
+
+    # Test zero values are ignored
+    params = {'nstxout-compressed': 0, 'nstxout': 50}
+    assert lp.get_coordinate_save_frequency(params) == 50
+
+    # Test None when both missing
+    params = {}
+    assert lp.get_coordinate_save_frequency(params) is None
+
+    # Test None input
+    assert lp.get_coordinate_save_frequency(None) is None
+
+
+def test_get_thermodynamic_ensemble():
+    """Test ensemble determination from thermostat and barostat settings."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test NPT (both thermostat and barostat)
+    params = {'tcoupl': 'v-rescale', 'pcoupl': 'parrinello-rahman'}
+    assert lp.get_thermodynamic_ensemble(params) == 'NPT'
+
+    # Test NVT (thermostat only)
+    params = {'tcoupl': 'nose-hoover', 'pcoupl': 'no'}
+    assert lp.get_thermodynamic_ensemble(params) == 'NVT'
+
+    # Test NPH (barostat only)
+    params = {'tcoupl': 'no', 'pcoupl': 'berendsen'}
+    assert lp.get_thermodynamic_ensemble(params) == 'NPH'
+
+    # Test NVE (neither)
+    params = {'tcoupl': 'no', 'pcoupl': 'no'}
+    assert lp.get_thermodynamic_ensemble(params) == 'NVE'
+
+    # Test default values when missing
+    params = {}
+    assert lp.get_thermodynamic_ensemble(params) == 'NVE'
+
+    # Test None input
+    assert lp.get_thermodynamic_ensemble(None) is None
+
+
+@pytest.mark.parametrize(
+    'tcoupl,expected',
+    [
+        ('berendsen', 'berendsen'),
+        ('nose-hoover', 'nose_hoover'),
+        ('v-rescale', 'velocity_rescaling'),
+        ('andersen', 'andersen'),
+        ('andersen-massive', 'andersen_massive'),
+        ('no', None),
+        ('No', None),
+        ('unknown_type', None),
+        (None, None),
+    ],
+)
+def test_get_thermostat_type(tcoupl, expected):
+    """Test thermostat type mapping."""
+    lp = gromacs_parser.GromacsLogParser()
+    result = lp.get_thermostat_type(tcoupl)
+    assert result == expected
+
+
+def test_get_reference_temperature():
+    """Test reference temperature extraction from scalar or array."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test scalar value
+    params = {'ref-t': 300.0}
+    assert lp.get_reference_temperature(params) == 300.0
+
+    # Test array (take first value)
+    params = {'ref-t': [300.0, 310.0, 320.0]}
+    assert lp.get_reference_temperature(params) == 300.0
+
+    # Test underscore variant
+    params = {'ref_t': 298.0}
+    assert lp.get_reference_temperature(params) == 298.0
+
+    # Test empty array
+    params = {'ref-t': []}
+    assert lp.get_reference_temperature(params) is None
+
+    # Test missing
+    params = {}
+    assert lp.get_reference_temperature(params) is None
+
+    # Test None input
+    assert lp.get_reference_temperature(None) is None
+
+
+def test_get_thermostat_coupling_constant():
+    """Test thermostat coupling constant extraction from scalar or array."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test scalar value
+    params = {'tau-t': 0.1}
+    assert lp.get_thermostat_coupling_constant(params) == 0.1
+
+    # Test array (take first value)
+    params = {'tau-t': [0.1, 0.2, 0.3]}
+    assert lp.get_thermostat_coupling_constant(params) == 0.1
+
+    # Test underscore variant
+    params = {'tau_t': 0.5}
+    assert lp.get_thermostat_coupling_constant(params) == 0.5
+
+    # Test empty array
+    params = {'tau-t': []}
+    assert lp.get_thermostat_coupling_constant(params) is None
+
+    # Test missing
+    params = {}
+    assert lp.get_thermostat_coupling_constant(params) is None
+
+
+@pytest.mark.parametrize(
+    'pcoupl,expected',
+    [
+        ('berendsen', 'berendsen'),
+        ('parrinello-rahman', 'parrinello_rahman'),
+        ('mttk', 'mttk'),
+        ('c-rescale', 'c_rescale'),
+        ('no', None),
+        ('No', None),
+        ('unknown_type', None),
+        (None, None),
+    ],
+)
+def test_get_barostat_type(pcoupl, expected):
+    """Test barostat type mapping."""
+    lp = gromacs_parser.GromacsLogParser()
+    result = lp.get_barostat_type(pcoupl)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    'pcoupltype,expected',
+    [
+        ('isotropic', 'isotropic'),
+        ('semiisotropic', 'semi_isotropic'),
+        ('anisotropic', 'anisotropic'),
+        ('surface-tension', 'surface_tension'),
+        ('unknown_type', None),
+        (None, None),
+    ],
+)
+def test_get_barostat_coupling_type(pcoupltype, expected):
+    """Test barostat coupling type mapping."""
+    lp = gromacs_parser.GromacsLogParser()
+    result = lp.get_barostat_coupling_type(pcoupltype)
+    assert result == expected
+
+
+def test_get_reference_pressure():
+    """Test reference pressure extraction from scalar, array, or matrix."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test scalar value
+    params = {'ref-p': 1.0}
+    assert lp.get_reference_pressure(params) == 1.0
+
+    # Test array (take first value)
+    params = {'ref-p': [1.0, 1.0]}
+    assert lp.get_reference_pressure(params) == 1.0
+
+    # Test matrix (take [0][0])
+    params = {'ref-p': [[1.0, 0.0], [0.0, 1.0]]}
+    assert lp.get_reference_pressure(params) == 1.0
+
+    # Test underscore variant
+    params = {'ref_p': 1.5}
+    assert lp.get_reference_pressure(params) == 1.5
+
+    # Test empty array
+    params = {'ref-p': []}
+    assert lp.get_reference_pressure(params) is None
+
+    # Test empty matrix
+    params = {'ref-p': [[]]}
+    assert lp.get_reference_pressure(params) is None
+
+    # Test missing
+    params = {}
+    assert lp.get_reference_pressure(params) is None
+
+
+def test_get_barostat_coupling_constant():
+    """Test barostat coupling constant extraction."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test hyphen variant
+    params = {'tau-p': 2.0}
+    assert lp.get_barostat_coupling_constant(params) == 2.0
+
+    # Test underscore variant
+    params = {'tau_p': 5.0}
+    assert lp.get_barostat_coupling_constant(params) == 5.0
+
+    # Test missing
+    params = {}
+    assert lp.get_barostat_coupling_constant(params) is None
+
+    # Test None input
+    assert lp.get_barostat_coupling_constant(None) is None
+
+
+def test_get_compressibility():
+    """Test compressibility extraction from scalar, array, or matrix."""
+    lp = gromacs_parser.GromacsLogParser()
+
+    # Test scalar value
+    params = {'compressibility': 4.5e-5}
+    assert lp.get_compressibility(params) == 4.5e-5
+
+    # Test array (take first value)
+    params = {'compressibility': [4.5e-5, 4.5e-5]}
+    assert lp.get_compressibility(params) == 4.5e-5
+
+    # Test matrix (take [0][0])
+    params = {'compressibility': [[4.5e-5, 0.0], [0.0, 4.5e-5]]}
+    assert lp.get_compressibility(params) == 4.5e-5
+
+    # Test empty array
+    params = {'compressibility': []}
+    assert lp.get_compressibility(params) is None
+
+    # Test missing
+    params = {}
+    assert lp.get_compressibility(params) is None
