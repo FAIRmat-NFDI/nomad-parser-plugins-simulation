@@ -26,6 +26,7 @@ import numpy as np
 import pytest
 from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.units import ureg
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
@@ -836,6 +837,74 @@ def test_md_method_barostat_extraction():
     assert barostat is None
 
 
+def test_md_method_barostat_modulus_extraction():
+    """Test modulus extraction and conversion to compressibility."""
+
+    writer = LammpsArchiveWriter()
+    writer._log_parser = LogParser()
+    # Initialize units system for apply_unit to work
+    writer._log_parser._units = {
+        'pressure': ureg.atmosphere,
+        'time': ureg.femtosecond,
+    }
+
+    # Test NPT with modulus keyword (bulk modulus = 20000 atm)
+    # compressibility should be 1/20000 atm^-1
+    fix_npt_modulus = [
+        [
+            '1',
+            'all',
+            'npt',
+            'temp',
+            '300',
+            '300',
+            '100',
+            'iso',
+            '1.0',
+            '1.0',
+            '1000.0',
+            'modulus',
+            '20000.0',
+        ]
+    ]
+    barostat = writer._extract_barostat_settings(fix_npt_modulus)
+    assert barostat is not None
+    assert barostat.compressibility is not None
+
+    # Check compressibility value (1/20000 atm in SI units)
+    # 1 atm = 101325 Pa, so 1/20000 atm^-1 = 1/(20000*101325) Pa^-1
+    expected_compressibility = 1.0 / (20000.0 * 101325.0)  # Pa^-1
+    assert barostat.compressibility[0, 0].magnitude == pytest.approx(
+        expected_compressibility, rel=1e-6
+    )
+    assert barostat.compressibility[1, 1].magnitude == pytest.approx(
+        expected_compressibility, rel=1e-6
+    )
+    assert barostat.compressibility[2, 2].magnitude == pytest.approx(
+        expected_compressibility, rel=1e-6
+    )
+
+    # Test NPH with modulus
+    fix_nph_modulus = [
+        ['1', 'all', 'nph', 'iso', '1.0', '1.0', '1000.0', 'modulus', '10000.0']
+    ]
+    barostat = writer._extract_barostat_settings(fix_nph_modulus)
+    assert barostat is not None
+    assert barostat.compressibility is not None
+    expected_compressibility = 1.0 / (10000.0 * 101325.0)
+    assert barostat.compressibility[0, 0].magnitude == pytest.approx(
+        expected_compressibility, rel=1e-6
+    )
+
+    # Test without modulus (should be None)
+    fix_npt_no_modulus = [
+        ['1', 'all', 'npt', 'temp', '300', '300', '100', 'iso', '1.0', '1.0', '1000.0']
+    ]
+    barostat = writer._extract_barostat_settings(fix_npt_no_modulus)
+    assert barostat is not None
+    assert barostat.compressibility is None
+
+
 def test_md_method_ensemble_detection():
     """Test ensemble type detection."""
 
@@ -1014,3 +1083,61 @@ def test_md_method_helper_methods():
     writer._log_parser._results = {'thermo': [50, 100, 200]}
     thermo_freq = writer._extract_thermo_frequency()
     assert thermo_freq == 200
+
+
+def test_md_method_integrator_type_extraction():
+    """Test integrator type extraction from run_style command."""
+
+    class MockLogParser:
+        """Mock LogParser for testing."""
+
+        def __init__(self):
+            self._results = {}
+
+        def get(self, key, default=None):
+            return self._results.get(key, default)
+
+    writer = LammpsArchiveWriter()
+    writer._log_parser = MockLogParser()
+
+    # Test verlet
+    writer._log_parser._results = {'run_style': 'verlet'}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'velocity_verlet'
+
+    # Test verlet/split
+    writer._log_parser._results = {'run_style': 'verlet/split'}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'velocity_verlet_split'
+
+    # Test respa
+    writer._log_parser._results = {'run_style': 'respa'}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'respa'
+
+    # Test respa/omp
+    writer._log_parser._results = {'run_style': 'respa/omp'}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'respa'
+
+    # Test with command args (respa with levels)
+    writer._log_parser._results = {
+        'run_style': ['respa', '4', '2', '2', '2', 'bond', '1', 'kspace', '4']
+    }
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'respa'
+
+    # Test with nested list of commands (take last)
+    writer._log_parser._results = {'run_style': [['verlet'], ['respa', '4', '2']]}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'respa'
+
+    # Test None case
+    writer._log_parser._results = {}
+    integrator = writer._extract_integrator_type()
+    assert integrator is None
+
+    # Test unknown style (fallback to velocity_verlet)
+    writer._log_parser._results = {'run_style': 'unknown_style'}
+    integrator = writer._extract_integrator_type()
+    assert integrator == 'velocity_verlet'

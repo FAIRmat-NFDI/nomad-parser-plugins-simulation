@@ -125,6 +125,42 @@ class LammpsArchiveWriter(MDParser):
             _pressure_params = None
         return _pressure_params
 
+    def _extract_modulus(self, fix_cmd: list[str]) -> np.ndarray | None:
+        """Extract modulus (bulk modulus) from fix command and convert to compressibility.
+
+        LAMMPS uses 'modulus' keyword in fix npt/nph commands to specify bulk modulus.
+        Compressibility = 1 / modulus (in consistent units).
+
+        Args:
+            fix_cmd: Fix command arguments list
+
+        Returns:
+            3x3 compressibility matrix (1/pascal) or None if modulus not found
+        """
+        result = None
+        if 'modulus' not in fix_cmd:
+            return result
+
+        try:
+            modulus_idx = fix_cmd.index('modulus')
+            # Modulus value follows the 'modulus' keyword
+            modulus_value = float(fix_cmd[modulus_idx + 1])
+
+            # Apply pressure units to modulus (same units as pressure in LAMMPS)
+            modulus_with_units = self.apply_unit(modulus_value, 'pressure')
+
+            # Compressibility = 1 / modulus
+            # Units: 1/pascal = 1 / (kg/(m·s²)) = m·s²/kg = Pa⁻¹
+            compressibility_value = 1.0 / modulus_with_units.magnitude
+            compressibility_unit = 1.0 / modulus_with_units.units
+
+            # Create 3x3 diagonal matrix (isotropic compressibility)
+            result = np.eye(3) * compressibility_value * compressibility_unit
+        except (ValueError, IndexError, TypeError, ZeroDivisionError):
+            result = None
+
+        return result
+
     def _extract_timestep(self) -> Any | None:
         """Extract integration timestep from log parser."""
         timestep_value = self._log_parser.get('timestep')
@@ -183,6 +219,51 @@ class LammpsArchiveWriter(MDParser):
             if isinstance(parser, TrajParser):
                 parser.masses = masses
 
+    def _extract_integrator_type(self) -> str | None:
+        """Extract integrator type from run_style command.
+
+        LAMMPS run_style options: verlet, verlet/split, respa, respa/omp
+        Maps to NOMAD integrator_type enum.
+
+        Returns:
+            Integrator type string or None if not found
+        """
+        run_style = self._log_parser.get('run_style')
+        if run_style is None:
+            return None
+
+        # Handle nested list structure from multiple run_style commands
+        # E.g., [['verlet'], ['respa', '4', '2', ...]] -> take last command
+        if isinstance(run_style, list) and len(run_style) > 0:
+            if isinstance(run_style[0], list):
+                # Nested list: take last command
+                run_style = run_style[-1]
+
+        # Extract style name from command arguments
+        # E.g., ['respa', '4', '2', ...] -> 'respa'
+        #       'verlet' -> 'verlet'
+        if isinstance(run_style, list) and len(run_style) > 0:
+            style = run_style[0]
+        else:
+            style = run_style
+
+        if style is None:
+            return None
+
+        result = None
+        style_lower = str(style).lower()
+
+        # Map LAMMPS run_style to NOMAD integrator_type
+        integrator_map = {
+            'verlet': 'velocity_verlet',
+            'verlet/split': 'velocity_verlet_split',
+            'respa': 'respa',  # reversible reference system propagator algorithm
+            'respa/omp': 'respa',
+        }
+
+        result = integrator_map.get(style_lower, 'velocity_verlet')  # default fallback
+        return result
+
     def _extract_barostat_settings(
         self, fix_commands: list[list[str]] | None
     ) -> BarostatParameters | None:
@@ -228,6 +309,16 @@ class LammpsArchiveWriter(MDParser):
                         pressure_params
                     )
                 break
+            # Extract modulus and convert to compressibility
+            compressibility = self._extract_modulus(fix_cmd)
+            if compressibility is not None:
+                params.compressibility = compressibility
+
+            # Extract modulus and convert to compressibility
+            compressibility = self._extract_modulus(fix_cmd)
+            if compressibility is not None:
+                params.compressibility = compressibility
+
             return params
         return None
 
@@ -328,7 +419,10 @@ class LammpsArchiveWriter(MDParser):
             return
 
         method = MolecularDynamicsMethod()
-        method.integrator_type = 'velocity_verlet'
+
+        integrator_type = self._extract_integrator_type()
+        if integrator_type is not None:
+            method.integrator_type = integrator_type
 
         timestep = self._extract_timestep()
         if timestep is not None:
