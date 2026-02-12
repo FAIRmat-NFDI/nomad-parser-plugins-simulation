@@ -500,8 +500,10 @@ class LammpsArchiveWriter(MDParser):
             if bonds is None or bonds[0][1].size == 0:
                 self._bond_list = None
             else:
-                # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
-                self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
+                # Convert from 1-based (LAMMPS data file) to 0-based indexing (NOMAD)
+                # Extract columns 2:4 (atom IDs), convert to int, subtract 1
+                bond_array = bonds[0][1][:, 2:4].astype(int) - 1
+                self._bond_list = bond_array
 
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
@@ -531,7 +533,7 @@ class LammpsArchiveWriter(MDParser):
                     self.traj_parsers.eval('get_positions', traj_n), 'distance'
                 ),
                 'velocities': velocities,
-                'bond_list': self._bond_list if self._bond_list else None,
+                'bond_list': self._bond_list if self._bond_list is not None else None,
                 'dimensions': dimension,
             }
             self.parse_trajectory_step(particles_dict, simulation)
