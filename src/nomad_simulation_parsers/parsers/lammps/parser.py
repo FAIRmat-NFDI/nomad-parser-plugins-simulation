@@ -126,7 +126,8 @@ class LammpsArchiveWriter(MDParser):
         return _pressure_params
 
     def _extract_modulus(self, fix_cmd: list[str]) -> np.ndarray | None:
-        """Extract modulus (bulk modulus) from fix command and convert to compressibility.
+        """Extract modulus (bulk modulus) from fix command and convert to
+        compressibility.
 
         LAMMPS uses 'modulus' keyword in fix npt/nph commands to specify bulk modulus.
         Compressibility = 1 / modulus (in consistent units).
