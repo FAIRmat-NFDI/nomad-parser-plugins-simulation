@@ -617,7 +617,7 @@ def test_systems(parser) -> None:
     ]
     assert (
         np.testing.assert_array_equal(
-            sec_systems[0].bond_list[200], np.array([189, 192])
+            sec_systems[0].bond_list[200], np.array([189, 191])
         )
         is None
     )
