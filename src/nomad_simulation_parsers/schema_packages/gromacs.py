@@ -47,6 +47,7 @@ class AtomicCell(model_system.Representation):
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
+    add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
     add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
     add_mapping_annotation(model_system.Representation.m_def, LOG_KEY, '.@')
     add_mapping_annotation(model_system.Representation.m_def, TPR_KEY, '.@')

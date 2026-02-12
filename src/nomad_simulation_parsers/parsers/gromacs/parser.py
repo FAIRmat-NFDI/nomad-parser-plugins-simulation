@@ -539,17 +539,44 @@ class GromacsMDAnalysisParser(MappingParser):
             outputs.append(data)
         return outputs
 
+    def get_bond_list(self) -> np.ndarray | None:
+        """
+        Extract bond list from MDAnalysis interactions.
+        Returns numpy array of shape (n_bonds, 2) with atom indices.
+        """
+        result = None
+        interactions = self.data_object.get_interactions()
+        if not interactions:
+            return result
+
+        # Filter for bond interactions only
+        bonds = []
+        for interaction in interactions:
+            if interaction.get('type') == 'bond':
+                atom_indices = interaction.get('atom_indices')
+                if atom_indices is not None and len(atom_indices) == 2:
+                    bonds.append(list(atom_indices))
+
+        if bonds:
+            result = np.array(bonds, dtype=int)
+
+        return result
+
     def get_configurations(self) -> list[dict[str, Any]]:
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
-            configurations.append(
-                dict(
-                    labels=self.get_atom_labels(n),
-                    positions=self.data_object.get_positions(n),
-                    velocities=self.data_object.get_velocities(n),
-                    lattice_vectors=self.data_object.get_lattice_vectors(n),
-                )
+            config = dict(
+                labels=self.get_atom_labels(n),
+                positions=self.data_object.get_positions(n),
+                velocities=self.data_object.get_velocities(n),
+                lattice_vectors=self.data_object.get_lattice_vectors(n),
             )
+            # Add bond_list only to first configuration (topology is time-independent)
+            if n == 0:
+                bond_list = self.get_bond_list()
+                if bond_list is not None:
+                    config['bond_list'] = bond_list
+            configurations.append(config)
         return configurations
 
     def get_force_field_contributions(self) -> list[dict[str, Any]]:

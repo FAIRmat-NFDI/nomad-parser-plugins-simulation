@@ -31,6 +31,10 @@ class StubMDAnalysisDataObject:
         n = int(np.asarray(self._positions[idx]).shape[0])
         return ['H'] * n
 
+    def get_interactions(self):
+        # Return empty list for stub (no bonds by default)
+        return []
+
 
 @pytest.fixture
 def simple_mdanalysis_parser():
@@ -356,6 +360,148 @@ def test_get_coordinate_save_frequency():
 
     # Test None input
     assert lp.get_coordinate_save_frequency(None) is None
+
+
+def test_get_bond_list():
+    """Test bond list extraction from MDAnalysis interactions."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+
+    # Test with bond interactions
+    mock_interactions = [
+        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
+        {'type': 'bond', 'atom_indices': [0, 2], 'atom_labels': ['O', 'H']},
+        {'type': 'bond', 'atom_indices': [3, 4], 'atom_labels': ['O', 'H']},
+        {'type': 'angle', 'atom_indices': [1, 0, 2], 'atom_labels': ['H', 'O', 'H']},
+    ]
+
+    mdap.data_object = type(
+        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
+    )()
+
+    bond_list = mdap.get_bond_list()
+
+    assert bond_list is not None
+    assert isinstance(bond_list, np.ndarray)
+    assert bond_list.shape == (3, 2)
+    assert np.array_equal(bond_list[0], [0, 1])
+    assert np.array_equal(bond_list[1], [0, 2])
+    assert np.array_equal(bond_list[2], [3, 4])
+
+
+def test_get_bond_list_no_bonds():
+    """Test bond list extraction when no bonds are present."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+
+    # Only angles, no bonds
+    mock_interactions = [
+        {'type': 'angle', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
+    ]
+
+    mdap.data_object = type(
+        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
+    )()
+
+    bond_list = mdap.get_bond_list()
+    assert bond_list is None
+
+
+def test_get_bond_list_empty_interactions():
+    """Test bond list extraction with empty interactions."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+
+    mdap.data_object = type('obj', (object,), {'get_interactions': lambda self: []})()
+
+    bond_list = mdap.get_bond_list()
+    assert bond_list is None
+
+
+def test_get_bond_list_invalid_bond_indices():
+    """Test bond list extraction filters out invalid bond entries."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+
+    # Mix of valid and invalid bond interactions
+    mock_interactions = [
+        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
+        {'type': 'bond', 'atom_indices': None, 'atom_labels': ['O', 'H']},
+        {'type': 'bond', 'atom_indices': [2, 3, 4], 'atom_labels': ['O', 'H', 'C']},
+        {'type': 'bond', 'atom_indices': [4, 5], 'atom_labels': ['O', 'H']},
+    ]
+
+    mdap.data_object = type(
+        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
+    )()
+
+    bond_list = mdap.get_bond_list()
+
+    assert bond_list is not None
+    assert bond_list.shape == (2, 2)
+    assert np.array_equal(bond_list[0], [0, 1])
+    assert np.array_equal(bond_list[1], [4, 5])
+
+
+def test_integration_bond_list_in_parsed_system():
+    """Test that bond_list is populated in parsed model_system from TPR file."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    tpr_file = os.path.join(base, 'topol.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(tpr_file, archive)
+
+    assert archive.data is not None
+    assert len(archive.data.model_system) > 0
+
+    system = archive.data.model_system[0]
+    assert system.bond_list is not None, 'Bond list should be populated from TPR'
+    assert isinstance(system.bond_list, np.ndarray)
+    assert system.bond_list.shape[1] == 2, 'Bond list should have shape (n_bonds, 2)'
+    assert system.bond_list.shape[0] > 0, 'Should have at least one bond'
+    # Water molecules have 2 O-H bonds each (432 bonds for 144 water molecules)
+    assert system.bond_list.shape[0] == 432
+
+
+def test_get_configurations_includes_bond_list():
+    """Test that get_configurations includes bond_list in first frame only."""
+    mdap = gromacs_parser.GromacsMDAnalysisParser()
+    mdap._trajectory_steps_sampled = [0, 1]
+
+    # Mock interactions with bonds
+    mock_interactions = [
+        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
+        {'type': 'bond', 'atom_indices': [0, 2], 'atom_labels': ['O', 'H']},
+    ]
+
+    # Mock data object
+    class MockDataObject:
+        def get_positions(self, idx):
+            return np.zeros((3, 3))
+
+        def get_velocities(self, idx):
+            return np.zeros((3, 3))
+
+        def get_lattice_vectors(self, idx):
+            return np.eye(3)
+
+        def get_atom_labels(self, idx):
+            return ['O', 'H', 'H']
+
+        def get_interactions(self):
+            return mock_interactions
+
+    mdap.data_object = MockDataObject()
+
+    configs = mdap.get_configurations()
+
+    assert len(configs) == 2
+    # First configuration should have bond_list
+    assert 'bond_list' in configs[0]
+    assert isinstance(configs[0]['bond_list'], np.ndarray)
+    assert configs[0]['bond_list'].shape == (2, 2)
+    # Second configuration should NOT have bond_list (topology is time-independent)
+    assert 'bond_list' not in configs[1]
 
 
 def test_get_thermodynamic_ensemble():
