@@ -20,6 +20,76 @@ TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
 
 
+# =============================================================================
+# FORCE FIELD PARSING - TPR FILE EXTENSION ROADMAP
+# =============================================================================
+#
+# CURRENT STATE:
+# -------------
+# - Bond topology (bond_list) is extracted from TPR via MDAnalysis
+# - Force field parameters are read but not fully connected to topology
+# - Contributions have particle_indices but lack parameter values
+#
+# TPR FILE CONTAINS:
+# -----------------
+# 1. Force field parameter sets (functypes array)
+#    - Each set has type ID (F_BONDS, F_ANGLES, etc.) and parameter values
+#    - Example: functype=F_BONDS, params=[k=500.0, r0=0.15]
+#
+# 2. Interaction lists (ilist section)
+#    - Maps atom pairs/triplets/quadruplets to parameter set indices
+#    - Example: bond 0-1 uses parameter set 3
+#
+# 3. Atom properties (charges, masses, atom types)
+#
+# FOR FULL IMPLEMENTATION:
+# -----------------------
+# 1. Extend MDAnalysis or implement custom TPR reader to access ilist
+# 2. Create mapping: interaction -> parameter set -> actual values
+# 3. Populate force_field.Potential subclasses:
+#    - HarmonicBond: bond_constant, reference_bond_length
+#    - MorseBond: dissociation_energy, width_parameter, reference_bond_length
+#    - HarmonicAngle: angle_constant, reference_angle
+#    - LennardJones: sigma, epsilon (or C6, C12)
+#
+# 4. Add schema annotations below to map TPR data to ForceField sections
+#
+# GROMACS TYPE -> NOMAD CLASS MAPPING:
+# ------------------------------------
+# F_BONDS (0) -> force_field.HarmonicBond
+# F_G96BONDS (1) -> force_field.HarmonicBond (different units)
+# F_MORSE (2) -> force_field.MorseBond
+# F_ANGLES (10) -> force_field.HarmonicAngle
+# F_PDIHS (19) -> force_field.ProperDihedral
+# F_RBDIHS (27) -> force_field.RyckaertBellemansDihedral
+# F_LJ (37) -> force_field.LennardJones
+# F_LJ14 (45) -> force_field.LennardJones (1-4 interactions)
+# F_SETTLE (64) -> force_field.Constraint (water geometry)
+# F_CONSTR (62) -> force_field.Constraint
+#
+# Example annotations (for future implementation):
+# ------------------------------------------------
+# class ForceField(force_field.ForceField):
+#     add_mapping_annotation(
+#         force_field.ForceField.contributions,
+#         TPR_KEY,
+#         ('get_force_field_contributions_with_params', []),
+#     )
+#
+# class HarmonicBond(force_field.HarmonicBond):
+#     add_mapping_annotation(
+#         force_field.HarmonicBond.bond_constant,
+#         TPR_KEY,
+#         '.bond_parameters.k'
+#     )
+#     add_mapping_annotation(
+#         force_field.HarmonicBond.reference_bond_length,
+#         TPR_KEY,
+#         '.bond_parameters.r0'
+#     )
+# =============================================================================
+
+
 class Program(general.Program):
     add_mapping_annotation(
         general.Program.version, LOG_KEY, ('get_version', ['.version'])
@@ -45,6 +115,23 @@ class AtomicCell(model_system.Representation):
 
 
 class ModelSystem(model_system.ModelSystem):
+    """
+    GROMACS model system with topology information extracted from TPR files.
+
+    IMPLEMENTED:
+    - positions, velocities: Particle coordinates and velocities
+    - bond_list: Bond topology (atom index pairs) extracted from MDAnalysis
+    - particle_states (AtomsState): Atom labels and types
+
+    The bond_list is extracted via MDAnalysis.universe.bonds which reads the
+    topology section of the TPR file. This provides connectivity information
+    but does NOT include force field parameters (see ForceField extension
+    roadmap above for details on adding parameter support).
+
+    Angles and dihedrals are extracted via get_force_field_contributions()
+    and stored in ForceField.contributions.
+    """
+
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')

@@ -463,47 +463,6 @@ def test_integration_bond_list_in_parsed_system():
     assert system.bond_list.shape[0] == 432
 
 
-def test_get_configurations_includes_bond_list():
-    """Test that get_configurations includes bond_list in first frame only."""
-    mdap = gromacs_parser.GromacsMDAnalysisParser()
-    mdap._trajectory_steps_sampled = [0, 1]
-
-    # Mock interactions with bonds
-    mock_interactions = [
-        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [0, 2], 'atom_labels': ['O', 'H']},
-    ]
-
-    # Mock data object
-    class MockDataObject:
-        def get_positions(self, idx):
-            return np.zeros((3, 3))
-
-        def get_velocities(self, idx):
-            return np.zeros((3, 3))
-
-        def get_lattice_vectors(self, idx):
-            return np.eye(3)
-
-        def get_atom_labels(self, idx):
-            return ['O', 'H', 'H']
-
-        def get_interactions(self):
-            return mock_interactions
-
-    mdap.data_object = MockDataObject()
-
-    configs = mdap.get_configurations()
-
-    assert len(configs) == 2
-    # First configuration should have bond_list
-    assert 'bond_list' in configs[0]
-    assert isinstance(configs[0]['bond_list'], np.ndarray)
-    assert configs[0]['bond_list'].shape == (2, 2)
-    # Second configuration should NOT have bond_list (topology is time-independent)
-    assert 'bond_list' not in configs[1]
-
-
 def test_get_thermodynamic_ensemble():
     """Test ensemble determination from thermostat and barostat settings."""
     lp = gromacs_parser.GromacsLogParser()

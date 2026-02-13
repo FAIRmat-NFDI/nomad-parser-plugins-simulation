@@ -551,10 +551,11 @@ class GromacsMDAnalysisParser(MappingParser):
 
         # Filter for bond interactions only
         bonds = []
+        n_bond_atoms: int = 2
         for interaction in interactions:
             if interaction.get('type') == 'bond':
                 atom_indices = interaction.get('atom_indices')
-                if atom_indices is not None and len(atom_indices) == 2:
+                if atom_indices is not None and len(atom_indices) == n_bond_atoms:
                     bonds.append(list(atom_indices))
 
         if bonds:
@@ -571,11 +572,13 @@ class GromacsMDAnalysisParser(MappingParser):
                 velocities=self.data_object.get_velocities(n),
                 lattice_vectors=self.data_object.get_lattice_vectors(n),
             )
-            # Add bond_list only to first configuration (topology is time-independent)
+            # Add topology lists only to first configuration
+            # (topology is time-independent)
             if n == 0:
                 bond_list = self.get_bond_list()
                 if bond_list is not None:
                     config['bond_list'] = bond_list
+
             configurations.append(config)
         return configurations
 
@@ -583,6 +586,47 @@ class GromacsMDAnalysisParser(MappingParser):
         """
         Transform MDAnalysis interactions into force field contributions.
         Groups interactions by type and creates one Potential per interaction type.
+
+        CURRENT IMPLEMENTATION:
+        ======================
+        - Extracts topology (bond/angle/dihedral connectivity) from MDAnalysis
+        - Groups by interaction type (e.g., all bonds together)
+        - Provides particle_indices and particle_labels
+        - Does NOT include force field parameters
+
+        LIMITATION:
+        ==========
+        Force field parameters are stored separately in TPR files (see
+        get_force_field_parameters() in mdanalysis_parser.py). Connecting them
+        requires parsing the interaction lists (ilist) that map each bond/angle
+        to its parameter set index.
+
+        Example TPR structure (gromacs/src/gromacs/fileio/tpxio.cpp):
+        - functypes = [F_BONDS, F_ANGLES, F_LJ, ...]  # parameter type IDs
+        - parameters = [[k1, r01], [k2, r02], ...]     # parameter values
+        - ilist[F_BONDS] = [[0, 1, 0], [1, 2, 1], ...]  # [atom_i, atom_j, param_idx]
+
+        For full implementation:
+        1. Parse ilist sections from TPR (requires custom reader or MDAnalysis
+           extension)
+        2. Match each interaction to parameter set: params[ilist[type][i][2]]
+        3. Populate Potential.parameters with actual force constants
+        4. Map GROMACS function types to NOMAD potential classes:
+           - F_BONDS (harmonic) -> HarmonicBond
+           - F_MORSE -> MorseBond
+           - F_ANGLES -> HarmonicAngle
+           - etc.
+
+        NOMAD Schema Mapping:
+        ====================
+        ForceField.contributions should contain:
+        - functional_form: 'harmonic_bond', 'morse_bond', etc.
+        - particle_indices: [[i, j], [k, l], ...] for each bond/angle
+        - particle_labels: [['O', 'H'], ...] (optional)
+        - parameters: Subsection with actual values (e.g., HarmonicBond.bond_constant)
+
+        Current output is suitable for topology visualization but lacks
+        force field parameter details.
         """
 
         interactions = self.data_object.get_interactions()
