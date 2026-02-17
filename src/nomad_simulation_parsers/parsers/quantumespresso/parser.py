@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import os
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import datetime
-from importlib import reload
 from types import ModuleType
 from typing import Any
 
@@ -12,7 +13,12 @@ from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, TextParser
+from nomad.parsing.file_parser.mapping_parser import (
+    MetainfoParser,
+    Path,
+    TextParser,
+    XMLParser,
+)
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -30,6 +36,9 @@ from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
 
 LOGGER = get_logger(__name__)
+PROGRAM_NAME_RE = re.compile(
+    r'(?:Program +(\w+) +v\.([\d\.]+))|(?:<creator NAME=\"(\w+?)\" VERSION=\"([\d\.]+))'
+)
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -70,7 +79,36 @@ class XCFunctionalParser:
         return out
 
 
-class MainfileParser(TextParser):
+def get_program_name_version(header: str) -> tuple[str, tuple[int]]:
+    match = PROGRAM_NAME_RE.search(header)
+    if not match:
+        return ('', ())
+    name = (match.group(1) or match.group(3)).lower()
+    version = tuple(
+        [int(v) for v in (match.group(2) or match.group(4)).split('.') if v.isdecimal()]
+    )
+    return name, version
+
+
+def load_writer(header: str) -> QuantumEspressoArchiveWriter:
+    from .epw.parser import EPWArchiveWriter  # noqa
+    from .gipaw.parser import GIPAWArchiveWriter  # noqa
+    from .phonon.parser import PhononArchiveWriter  # noqa
+    from .pwscf.parser import PWSCFArchiveWriter  # noqa
+    from .xspectra.parser import XSpectraArchiveWriter  # noqa
+
+    _writers = {
+        'pwscf': PWSCFArchiveWriter(),
+        'epw': EPWArchiveWriter(),
+        'phonon': PhononArchiveWriter(),
+        'xspectra': XSpectraArchiveWriter(),
+        'gipaw': GIPAWArchiveWriter(),
+    }
+    name = get_program_name_version(header)
+    return _writers.get(name[0] if name[0] else header)
+
+
+class MainfileTextParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -207,6 +245,70 @@ class MainfileParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    @property
+    def program_name(self) -> str:
+        return self.data_object.get('header', {}).get('program_name_version', [''])[0]
+
+    @property
+    def writers(self) -> Iterator[QuantumEspressoArchiveWriter]:
+        if not self.data_object.get('program'):
+            return
+
+        for program in self.data.get('program', []):
+            writer = load_writer(program[:30])
+            if writer is None:
+                self.logger.error('Parser not found for program.')
+                continue
+            writer.mainfile = self.filepath
+            if isinstance(writer.mainfile_parser, TextParser):
+                writer.mainfile_parser.data_object.mainfile = self.filepath
+                # parse only the relevant program
+                writer.mainfile_parser.data_object._file_handler = program.encode()
+            yield writer
+
+
+class MainfileXMLParser(XMLParser):
+    _units_map = {'Hartree atomic units': dict(energy='hartree', length='bohr')}
+
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+    def get_datetime(self, date: str, time: str) -> datetime:
+        return datetime.strptime(f'{date}{time}'.replace(' ', ''), '%d%b%Y%H:%M:%S')
+
+    def apply_unit(self, value: np.ndarray | float, **kwargs) -> Any:
+        unit = self._units_map.get(self.data.get('@Units'), {}).get(kwargs.get('name'))
+        if not unit or value is None:
+            return value
+        return value * ureg(unit)
+
+    def get_forces(self, source: np.ndarray):
+        return np.reshape(source, (np.size(source) // 3, 3))
+
+    def get_energy_contributions(self, source: dict[str, Any]):
+        return [
+            dict(value=val, name=key) for key, val in source.items() if key != 'etot'
+        ]
+
+    @property
+    def program_name(self) -> str:
+        keys = list(self.data.keys())
+        source = self.data if 'general_info' in keys else self.data[keys[0]]
+        return source.get('general_info', {}).get('creator', {}).get('@NAME', '')
+
+    @property
+    def writers(self) -> Iterator[QuantumEspressoArchiveWriter]:
+        for dct in self.data.values():
+            writer = load_writer(self.program_name.lower())
+            if writer is None:
+                self.logger.error('Parser not found for program.')
+                continue
+            writer.mainfile = self.filepath
+            writer.mainfile_parser._data = dct
+            yield writer
+
 
 class QuantumEspressoArchiveWriter(ArchiveWriter):
     """
@@ -215,11 +317,11 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
 
     schema: ModuleType = common
     simulation_parser = QuantumEspressoMetainfoParser()
-    mainfile_parser = MainfileParser(text_parser=QuantumEspressoFileParser())
+    _text_parser = MainfileTextParser(text_parser=QuantumEspressoFileParser())
+    _xml_parser = MainfileXMLParser()
+    _mainfile_parser = None
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        # reload the schema annotations
-        reload(self.schema)
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
         )
@@ -228,118 +330,134 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         # set the parsed data to archive
         archive.data = self.simulation_parser.data_object
 
-    def parse_workflow(self) -> None:
-        # multi run file
-        multirun_workflow_archive = self.child_archives.get('workflow_multirun')
-        if multirun_workflow_archive is not None:
-            multirun_workflow_archive.workflow2 = SerialWorkflow(
-                tasks=[TaskReference(task=self.archive.workflow2)]
-            )
-            for key, child_archive in self.child_archives.items():
-                if key.startswith('workflow'):
-                    continue
-                multirun_workflow_archive.workflow2.tasks.append(
-                    TaskReference(task=child_archive.workflow2)
-                )
+        if not archive.workflow2:
+            # set workflow to single point by default
+            archive.workflow2 = SinglePoint()
 
-        # mainfiles in the same upload
-        generic_workflow_archive = self.child_archives.get('workflow_generic')
-        if generic_workflow_archive is not None:
-            from nomad.app.v1.models import MetadataRequired  # noqa
-            from nomad.search import search  # noqa
+    def _link_modules(self) -> None:
+        """
+        Link archives created from multiple modules in one mainfile.
+        """
 
-            parent_archive = multirun_workflow_archive or self.archive
-            # add current archive workflow to generic workflow tasks
-            generic_workflow_archive.workflow2 = SimulationWorkflow(
-                tasks=[TaskReference(task=parent_archive.workflow2)]
-            )
-
-            upload_id = self.archive.metadata.upload_id
-            metadata = search(
-                owner='visible',
-                user_id=self.archive.metadata.main_author.user_id,
-                query={'upload_id': upload_id},
-                required=MetadataRequired(
-                    include=['entry_id', 'mainfile', 'parser_name']
-                ),
-            ).data
-            parent_file = self.mainfile.split('raw/')[-1]
-            parent_dir = os.path.dirname(parent_file)
-            for result in metadata:
-                parser_name = result.get('parser_name')
-                # include only qe calculations
-                if 'quantumespresso' not in parser_name:
-                    continue
-                mainfile = result.get('mainfile')
-                if not mainfile or mainfile == parent_file:
-                    # skip the current mainfile
-                    continue
-                entry_id = result.get('entry_id')
-                if not entry_id:
-                    continue
-                # link only entries in the same directory or sub-directories
-                if mainfile.startswith(parent_dir):
-                    entry_archive: EntryArchive = self.archive.m_context.load_archive(
-                        entry_id, upload_id, None
-                    )
-                    # add workflow to generic workflow tasks
-                    generic_workflow_archive.workflow2.tasks.append(
-                        TaskReference(task=entry_archive.workflow2)
-                    )
-                    # add parent scf as input to task
-                    if entry_archive.workflow2:
-                        entry_archive.workflow2.inputs.append(
-                            Link(section=parent_archive.workflow2)
-                        )
-
-    def write_to_archive(self) -> None:
-        from .epw.parser import EPWArchiveWriter  # noqa
-        from .phonon.parser import PhononArchiveWriter  # noqa
-        from .pwscf.parser import PWSCFArchiveWriter  # noqa
-        from .xspectra.parser import XSpectraArchiveWriter  # noqa
-
-        writers = {
-            'pwscf': PWSCFArchiveWriter(),
-            'epw': EPWArchiveWriter(),
-            'phonon': PhononArchiveWriter(),
-            'xspectra': XSpectraArchiveWriter(),
-        }
-
-        def load_writer(header: str) -> QuantumEspressoArchiveWriter:
-            match = re.match(r'Program +(\w+)', header)
-            return writers.get(match.group(1).lower()) if match else None
-
-        # set up mainfile parser
-        self.mainfile_parser.filepath = self.mainfile
-
-        if not self.mainfile_parser.data_object.get('program'):
+        workflow_archive = self.child_archives.get('workflow_modules')
+        if not workflow_archive:
             return
 
-        for n, program in enumerate(
-            self.mainfile_parser.data_object.get('program', [])
-        ):
-            writer = load_writer(program[:30])
-            if writer is None:
-                self.logger.error('Parser not found for program.')
+        workflow_archive.workflow2 = SerialWorkflow(
+            tasks=[TaskReference(task=self.archive.workflow2)]
+        )
+        for key, child_archive in self.child_archives.items():
+            if key.startswith('workflow'):
                 continue
-            writer.mainfile_parser.data_object.mainfile = self.mainfile
-            # parse only the relevant program
-            writer.mainfile_parser.data_object._file_handler = program.encode()
+            workflow_archive.workflow2.tasks.append(
+                TaskReference(task=child_archive.workflow2)
+            )
 
+    def _link_files(self) -> None:
+        """
+        Link archives created from separate mainfiles in the same upload.
+        """
+        workflow_archive = self.child_archives.get('workflow_generic')
+        if workflow_archive is None or self.archive.metadata.main_author is None:
+            return
+
+        from nomad.app.v1.models import MetadataRequired  # noqa
+        from nomad.search import search  # noqa
+
+        parent_archive = self.child_archives.get('workflow_modules') or self.archive
+        # add current archive workflow to generic workflow tasks
+        workflow_archive.workflow2 = SimulationWorkflow(
+            tasks=[TaskReference(task=parent_archive.workflow2)]
+        )
+
+        upload_id = self.archive.metadata.upload_id
+        metadata = search(
+            owner='visible',
+            user_id=self.archive.metadata.main_author.user_id,
+            query={'upload_id': upload_id},
+            required=MetadataRequired(include=['entry_id', 'mainfile', 'parser_name']),
+        ).data
+        parent_file = self.mainfile.split('raw/')[-1]
+        parent_dir = os.path.dirname(parent_file)
+        for result in metadata:
+            # include only qe calculations
+            if 'quantumespresso' not in result.get('parser_name'):
+                continue
+
+            entry_id = result.get('entry_id')
+            if not entry_id or entry_id == self.archive.metadata.entry_id:
+                # skip the current entry
+                continue
+
+            # link only entries in the same directory or sub-directories
+            mainfile = result.get('mainfile')
+            if mainfile and mainfile.startswith(parent_dir):
+                entry_archive: EntryArchive = self.archive.m_context.load_archive(
+                    entry_id, upload_id, None
+                )
+                if not entry_archive.workflow2:
+                    continue
+                if (
+                    entry_archive.metadata.entry_id
+                    == workflow_archive.metadata.entry_id
+                ):
+                    continue
+
+                if entry_archive.data and entry_archive.data.outputs:
+                    # add model_system refs
+                    if self.archive.data.model_system:
+                        entry_archive.data.outputs[
+                            0
+                        ].model_system_ref = self.archive.data.model_system[0]
+
+                # add workflow to generic workflow tasks
+                workflow_archive.workflow2.tasks.append(
+                    TaskReference(task=entry_archive.workflow2)
+                )
+                # add parent scf as input to task
+                if entry_archive.workflow2:
+                    entry_archive.workflow2.inputs.append(
+                        Link(section=parent_archive.workflow2)
+                    )
+
+    def parse_workflow(self) -> None:
+        self._link_modules()
+        self._link_files()
+
+    @property
+    def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
+        if self._mainfile_parser is None:
+            ext = self.mainfile.rsplit('.', 1)[-1].lower()
+            self._mainfile_parser = dict(
+                out=self._text_parser, log=self._text_parser, xml=self._xml_parser
+            ).get(ext)
+            if self._mainfile_parser is None:
+                self.logger.error('Parser not found for mainfile extension.')
+                return None
+            self._mainfile_parser.filepath = self.mainfile
+            self.simulation_parser.annotation_key = dict(
+                out=common.OUT_KEY, log=common.OUT_KEY, xml=common.XML_KEY
+            ).get(ext)
+        return self._mainfile_parser
+
+    def write_to_archive(self) -> None:
+        for n, writer in enumerate(self.mainfile_parser.writers):
             # write the first program to the main archive, the rest to child archives
-            program_name = writer.mainfile_parser.data_object.get('header', {}).get(
-                'program_name_version', ['']
-            )[0]
             archive = (
                 self.archive
                 if n == 0
-                else self.child_archives.get(f'{n} {program_name}')
+                else self.child_archives.get(
+                    f'{n} {writer.mainfile_parser.program_name.lower()}'
+                )
             )
             if archive is None:
                 self.logger.error('Archive not found for program.')
                 continue
             writer.parse_program(archive, n)
-            archive.workflow2 = SinglePoint()
+            writer.mainfile_parser.close()
+
+        self.mainfile_parser.close()
+        self.simulation_parser.close()
 
         self.parse_workflow()
 
@@ -349,7 +467,10 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
     Sort QE mainfiles based on execution time.
     """
     sorted_files = []
-    re_pattern = re.compile(r'starts on *(\w+) *at *([\d ]+\:[\d ]+\:[\d ]+)')
+    re_pattern = re.compile(
+        r'starts on *(\w+) *at *([\d ]+\:[\d ]+\:[\d ]+)|'
+        r'DATE\="(\w+)"\s+TIME\="([\d ]+\:[\d ]+\:[\d ]+)"'
+    )
     for name in filenames:
         with open(name) as f:
             head = f.read(config.process.parser_matching_size)
@@ -360,7 +481,8 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
                 (
                     name,
                     datetime.strptime(
-                        ''.join(match.groups()).replace(' ', ''), '%d%b%Y%H:%M:%S'
+                        ''.join([g for g in match.groups() if g]).replace(' ', ''),
+                        '%d%b%Y%H:%M:%S',
                     ),
                 )
             )
@@ -369,23 +491,28 @@ def sort_qe_files(filenames: list[str]) -> list[tuple[str, datetime]]:
     return sorted_files
 
 
+def get_program_types(filename: str, multiple=False) -> list[str]:
+    """
+    Determine type of program(s) in file. If multiple will read all programs.
+    """
+    programs = []
+    with open(filename) as f:
+        for line in f:
+            name_version = get_program_name_version(line)
+            if name_version[0]:
+                programs.append(name_version[0])
+                if not multiple:
+                    break
+    return programs
+
+
 class QuantumEspressoParser(MatchingParser):
     """
     Common parser for Quantum Espresso mainfiles including
     PWSCF, Phonon, EPW and XSpectra.
     """
 
-    archive_writer = QuantumEspressoArchiveWriter()
-    _levels = {}
-    _mainfile = None
-
-    @property
-    def level(self):
-        return self._levels.pop(self._mainfile, self._level)
-
-    @level.setter
-    def level(self, value: int):
-        self._level = value
+    _supported_exts = ['out', 'log', 'xml']
 
     def is_mainfile(
         self,
@@ -400,31 +527,41 @@ class QuantumEspressoParser(MatchingParser):
         )
         if is_mainfile:
             children = []
-            programs = []
-            program_re = re.compile(r'Program +(\w+)')
-            with open(filename) as f:
-                for line in f:
-                    match = program_re.search(line)
-                    if not match:
-                        continue
-                    programs.append(f'{len(programs)} {match.group(1)}')
+            programs = get_program_types(filename, multiple=True)
+            if not programs:
+                return True
             if 'pwscf' in programs[0].lower():
-                # TODO not possible at the moment to redefine level
-                self._levels[filename] = 2
-                self._mainfile = filename
-                # self.level = 2
                 # search all qe mainfiles in the directory and sub directories
-                qe_files = search_files(
-                    '*.out', os.path.dirname(filename), include_all=True
-                )
+                qe_files = []
+                basenames = []
+                for ext in self._supported_exts:
+                    for f in search_files(
+                        f'*.{ext}', os.path.dirname(filename), include_all=True
+                    ):
+                        basename = os.path.basename(f).rsplit('.', 1)[0]
+                        if basename not in basenames:
+                            basenames.append(basename)
+                            qe_files.append(f)
                 if len(qe_files) > 1:
-                    sorted_files = sort_qe_files(qe_files)
-                    if sorted_files and sorted_files[0][0] == filename:
+                    # generate workflow only if there is one scf file
+                    other_programs = []
+                    for f in qe_files:
+                        other_programs.extend([p.lower() for p in get_program_types(f)])
+                    if other_programs.count('pwscf') > 1:
+                        LOGGER.warning(
+                            """Found multiple PWSCF files. Not generating workflow"""
+                        )
+                    else:
                         children.append('workflow_generic')
 
             if len(programs) > 1:
                 # create separate entries for each program instance
-                children.extend(['workflow_multirun', *programs[1:]])
+                children.extend(
+                    [
+                        'workflow_modules',
+                        *[f'{n + 1} {name}' for n, name in enumerate(programs[1:])],
+                    ]
+                )
 
             self.creates_children = len(children) > 0
 
@@ -439,4 +576,6 @@ class QuantumEspressoParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
+        self.level = len(child_archives)
+        archive_writer = QuantumEspressoArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)

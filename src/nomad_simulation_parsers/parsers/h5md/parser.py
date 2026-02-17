@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -9,14 +8,10 @@ from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser,
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-
-# from nomad_simulations.schema_packages.workflow import molecular_dynamics
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import MolecularDynamics, Simulation
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 LOGGER = get_logger(__name__)
 
@@ -492,9 +487,6 @@ class H5MDArchiveWriter(MDParser):
         super().__init__(**kwargs)
 
     def write_to_archive(self) -> None:
-        # reload schema annotations
-        reload(h5md)
-
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 
@@ -509,10 +501,10 @@ class H5MDArchiveWriter(MDParser):
         # TODO consider using a single parser for the whole archive
         # create metainfo parsers
         self.simulation_parser.annotation_key = h5md.HDF5_KEY
-        simulation_data = Simulation()
+        simulation_data = h5md.Simulation()
         self.simulation_parser.data_object = simulation_data
         self.workflow_parser.annotation_key = h5md.HDF5_KEY
-        workflow_data = MolecularDynamics()
+        workflow_data = h5md.MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
         # map from h5 source to metainfo target
@@ -527,9 +519,6 @@ class H5MDArchiveWriter(MDParser):
         self.h5_parser.close()
         self.simulation_parser.close()
         self.workflow_parser.close()
-
-        # remove mapping annotations
-        remove_mapping_annotations(self.archive.data.m_def)
 
 
 class H5MDParser(MatchingParser):

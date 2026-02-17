@@ -14,6 +14,16 @@ def test_pwscf():
     parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
 
 
+def test_pwscf_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml',
+        archive,
+        LOGGER,
+    )
+
+
 def test_epw():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
@@ -31,6 +41,85 @@ def test_xspectra():
     archive = EntryArchive()
     parser.parse(
         'tests/data/quantumespresso/xspectra/ms-10734/Spectra-1-1-1/0/dipole1/xanes.out',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_nmr_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_nmr_out_741/quartz-nmr.out',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_nmr_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_nmr_xml/quartz-nmr.xml',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_efg_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_efg_out/quartz-efg.out',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_efg_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_efg_xml/quartz-efg.xml',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_epr_hyperfine_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_hyperfine.out',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_epr_hyperfine_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_hyperfine_xml/benzene-hyperfyne.xml',
+        archive,
+        LOGGER,
+    )
+
+
+def test_gipaw_epr_deltag_text():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_out_epr_out/H2O+_g-tensor.out',
+        archive,
+        LOGGER,
+    )
+
+def test_gipaw_epr_deltag_xml():
+    parser = QuantumEspressoParser()
+    archive = EntryArchive()
+    parser.parse(
+        'tests/data/quantumespresso/gipaw/scf_xml_delta_g_xml/benzene-delta_g.xml',
         archive,
         LOGGER,
     )

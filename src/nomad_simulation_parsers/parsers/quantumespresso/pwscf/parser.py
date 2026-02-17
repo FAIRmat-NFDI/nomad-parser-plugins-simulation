@@ -10,13 +10,13 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 )
 from nomad_simulation_parsers.schema_packages.quantumespresso import pwscf
 
-from ..parser import MainfileParser
+from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFFileParser
 
 LOGGER = get_logger(__name__)
 
 
-class PWSCFMainfileParser(MainfileParser):
+class PWSCFMainfileTextParser(MainfileTextParser):
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -66,10 +66,16 @@ class PWSCFMainfileParser(MainfileParser):
         return configurations
 
 
+class PWSCFMainfileXMLParser(MainfileXMLParser):
+    def get_configurations(self, source: dict[str, Any]):
+        keys = ['input', 'output']
+        return [source[key] for key in keys if source.get(key) is not None]
+
+
 class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     schema = pwscf
-    mainfile_parser = PWSCFMainfileParser(text_parser=PWSCFFileParser())
+    _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
+    _xml_parser = PWSCFMainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        self.simulation_parser.annotation_key = 'out'
         super().parse_program(archive, index)

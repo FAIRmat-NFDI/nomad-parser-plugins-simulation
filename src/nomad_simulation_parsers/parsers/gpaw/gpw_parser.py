@@ -234,24 +234,24 @@ class GPW2FileParser(FileParser):
         if self.ulm is None:
             return
         values = {
-            'unitcell': lambda: self.ulm.atoms.cell,
-            'atomicnumbers': lambda: self.ulm.atoms.numbers,
-            'atom_positions': lambda: self.ulm.atoms.positions,
-            'boundaryconditions': lambda: self.ulm.atoms.pbc,
-            'momenta': lambda: self.ulm.atoms.momenta,
-            'atom_forces_free_raw': lambda: self.ulm.results.forces,
-            'magneticmoments': lambda: self.ulm.results.magmoms,
-            'eigenvalues': lambda: self.ulm.wave_functions.eigenvalues,
-            'occupation': lambda: self.ulm.wave_functions.occupations,
+            'unitcell': self.ulm.atoms.cell,
+            'atomicnumbers': self.ulm.atoms.numbers,
+            'atom_positions': self.ulm.atoms.positions,
+            'boundaryconditions': self.ulm.atoms.pbc,
+            'momenta': self.ulm.atoms.momenta,
+            'atom_forces_free_raw': self.ulm.results.forces,
+            'magneticmoments': self.ulm.results.magmoms,
+            'eigenvalues': self.ulm.wave_functions.eigenvalues,
+            'occupation': self.ulm.wave_functions.occupations,
             # TODO no koints data in ulm?
-            'kpoints': lambda: self.ulm.IBZKPoints,
-            'density': lambda: self.ulm.density.density,
-            'potential_effective': lambda: self.ulm.hamiltonian.potential,
-            'band_paths': lambda: self.ulm.wave_functions.band_paths.asdict(),
+            'kpoints': self.ulm.IBZKPoints,
+            'density': self.ulm.density.density,
+            'potential_effective': self.ulm.hamiltonian.potential,
+            'band_paths': self.ulm.wave_functions.band_paths.asdict(),
         }
         try:
             if key in values:
-                val = values.get(key)()
+                val = values.get(key)
             else:
                 val = self.ulm.asdict().get(key, None)
         except Exception:

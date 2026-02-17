@@ -1,7 +1,6 @@
 import os
 import re
 from collections.abc import Iterable
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -481,9 +480,6 @@ class WannierArchiveWriter(ArchiveWriter):
         wband_parser.close()
 
     def write_to_archive(self) -> None:
-        # reload the schema annotations
-        reload(wannier90)
-
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
         # define mapping parser interface to OutParser

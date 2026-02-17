@@ -11,8 +11,8 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 
-OUT_KEY = 'out'
-F25_KEY = 'f25'
+OUT_KEY = 'crystal_out'
+F25_KEY = 'crystal_f25'
 
 
 class Program(general.Program):

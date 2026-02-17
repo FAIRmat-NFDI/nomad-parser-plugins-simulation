@@ -10,7 +10,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-GPW_KEY = 'gpw'
+GPW_KEY = 'gpaw_gpw'
 
 
 class Program(general.Program):

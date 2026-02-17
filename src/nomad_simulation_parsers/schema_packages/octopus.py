@@ -10,9 +10,9 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
-INFO_KEY = 'info'
-EIGENVALUES_KEY = 'eigenvalues'
+OUT_KEY = 'octopus_out'
+INFO_KEY = 'octopus_info'
+EIGENVALUES_KEY = 'octopus_eigenvalues'
 
 
 class Program(general.Program):

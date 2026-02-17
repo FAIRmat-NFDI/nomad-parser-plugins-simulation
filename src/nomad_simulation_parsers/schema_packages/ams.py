@@ -10,7 +10,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
+OUT_KEY = 'ams_out'
 
 
 class Program(general.Program):

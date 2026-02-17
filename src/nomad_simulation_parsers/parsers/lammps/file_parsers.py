@@ -435,7 +435,7 @@ class LogParser(TextParser):
 
     def init_quantities(self) -> None:
         def str_op(val: str) -> str | list[str]:
-            val = val.split('#')[0]
+            val = val.split('#', 1)[0]
             val = re.sub(f'&{RE_N}+', ' ', val)
             val = val.split()
             val = val if len(val) > 1 else val[0]

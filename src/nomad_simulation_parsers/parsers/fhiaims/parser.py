@@ -1,7 +1,6 @@
 import os
 import re
 from collections.abc import Iterable
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -10,12 +9,8 @@ from nomad.datamodel.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
-    MetainfoParser,
-)
-from nomad.parsing.file_parser.mapping_parser import (
-    TextParser as TextMappingParser,
-)
+from nomad.parsing.file_parser.mapping_parser import MetainfoParser
+from nomad.parsing.file_parser.mapping_parser import TextParser as TextMappingParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
@@ -25,9 +20,7 @@ from nomad_simulations.schema_packages.workflow import (
     Phonon,
     SinglePoint,
 )
-from nomad_simulations.schema_packages.workflow.general import (
-    SimulationTaskReference,
-)
+from nomad_simulations.schema_packages.workflow.general import SimulationTaskReference
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from structlog.stdlib import BoundLogger
@@ -37,11 +30,8 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
-from nomad_simulation_parsers.parsers.utils.general import (
-    search_files,
-)
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import fhiaims
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .common import ControlParser, GeometryParser
 
@@ -446,9 +436,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     def write_to_archive(
         self,
     ) -> None:
-        # reload module to refresh annotations
-        reload(fhiaims)
-
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
         out_parser.filepath = self.mainfile
@@ -545,13 +532,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 )
 
         # close file contexts
-        self.out_parser = out_parser
-        self.archive_handler = archive_handler
-        # out_parser.close()
-        # archive_handler.close()
-
-        # remove annotations
-        remove_mapping_annotations(fhiaims.general.Simulation.m_def)
+        out_parser.close()
+        archive_handler.close()
 
 
 class FHIAimsParser(MatchingParser):
