@@ -77,11 +77,10 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
         outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
     )
 
-
-# class Outputs(outputs.Outputs):
-#     outputs.Outputs.total_energies.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.@')))
+    # class Outputs(outputs.Outputs):
+    #     outputs.Outputs.total_energies.m_annotations.setdefault(
+    #         MAPPING_ANNOTATION_KEY, {}
+    #     ).update(dict(out=Mapper(mapper='.@')))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.@')))
