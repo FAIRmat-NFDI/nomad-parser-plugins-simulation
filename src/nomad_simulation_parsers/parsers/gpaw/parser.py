@@ -6,6 +6,11 @@ from nomad.parsing.file_parser.mapping_parser import MappingParser, MetainfoPars
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointMethod,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import gpaw
@@ -77,6 +82,33 @@ class GPWParser(MappingParser):
             for n, eigenvalue in enumerate(eigenvalues)
         ]
 
+    def get_scf_steps(self) -> dict[str, Any]:
+        code_specific_quantities = {}
+        converged = self.file_parser.parser.get_parameter('converged')
+        if converged is not None:
+            code_specific_quantities['converged'] = bool(converged)
+
+        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        if energy_error is not None:
+            code_specific_quantities['energyerror'] = float(energy_error)
+
+        if code_specific_quantities:
+            return {'code_specific_quantities': code_specific_quantities}
+        return {}
+
+    def build_workflow(self):
+        workflow = SinglePoint()
+        workflow.method = SinglePointMethod()
+        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        if energy_error is not None:
+            workflow.method.convergence_targets = [
+                EnergyConvergenceTarget(
+                    threshold=self.file_parser.apply_unit(energy_error, 'energyunit'),
+                    threshold_type='absolute',
+                )
+            ]
+        return workflow
+
 
 class GPAWMetainfoParser(MetainfoParser):
     @property
@@ -95,6 +127,7 @@ class GPAWArchiveWriter(ArchiveWriter):
 
         self.mainfile_parser.convert(self.archive_parser)
         self.archive.data = self.archive_parser.data_object
+        self.archive.workflow2 = self.mainfile_parser.build_workflow()
 
         self.mainfile_parser.close()
         self.archive_parser.close()
