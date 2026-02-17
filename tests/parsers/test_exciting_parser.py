@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 from nomad.datamodel import EntryArchive
@@ -93,7 +95,14 @@ def parser():
 def parsed_archive(request, parser):
     case = request.param
     archive = EntryArchive()
-    parser.parse(f'tests/data/exciting/{case}/INFO.OUT', archive, LOGGER)
+    mainfile = (
+        Path(__file__).resolve().parents[1]
+        / 'data'
+        / 'exciting'
+        / case
+        / 'INFO.OUT'
+    )
+    parser.parse(str(mainfile), archive, LOGGER)
     return case, archive
 
 

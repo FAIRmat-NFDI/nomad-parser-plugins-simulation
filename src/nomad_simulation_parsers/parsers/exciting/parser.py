@@ -34,7 +34,6 @@ from structlog.stdlib import (
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import exciting
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser
@@ -459,12 +458,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # close parsers
         info_parser.close()
         data_parser.close()
-
-        # remove annotations
-        remove_mapping_annotations(exciting.general.Simulation.m_def)
-        remove_mapping_annotations(exciting.workflow.GeometryOptimization.m_def)
-        remove_mapping_annotations(exciting.workflow.SinglePoint.m_def)
-
 
 class ExcitingParser(MatchingParser):
     """
