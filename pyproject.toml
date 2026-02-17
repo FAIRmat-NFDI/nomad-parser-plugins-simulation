@@ -33,13 +33,16 @@ maintainers = [
 license = { file = "LICENSE" }
 dependencies = [
     "nomad-lab>=1.3.16.dev100",
-    "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@multireference-qc",
+    "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "nomad-nmr-schema@git+https://github.com/FAIRmat-NFDI/nomad-schema-plugin-nmr@main",
     "nomad-schema-plugin-simulation-workflow>=1.0.10",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
     "mdanalysis>=2.8.0,<3.0.0 ; python_full_version >= '3.10'",
     "mdanalysis<2.8 ; python_full_version < '3.10'",
     "panedr>=0.2",
+    # issue with reading nc file in 1.7.3: https://github.com/Unidata/netcdf4-python/issues/1438
+    "netcdf4<=1.7.2",
 ]
 
 [project.urls]
@@ -47,7 +50,7 @@ Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.optional-dependencies]
 md = [
-    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@multireference-qc",
+    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "MDAnalysis>=2.4.0",
 ]
 dev = ["ruff", "pytest", "structlog"]
@@ -154,8 +157,6 @@ h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_pack
 lammps_parser = "nomad_simulation_parsers.parsers:lammps_parser"
 octopus_parser = "nomad_simulation_parsers.parsers:octopus_parser"
 octopus_schema_package = "nomad_simulation_parsers.schema_packages:octopus_schema_package"
-orca_parser = "nomad_simulation_parsers.parsers:orca_parser"
-orca_schema_package = "nomad_simulation_parsers.schema_packages:orca_schema_package"
 phonopy_parser = "nomad_simulation_parsers.parsers:phonopy_parser"
 phonopy_schema_package = "nomad_simulation_parsers.schema_packages:phonopy_schema_package"
 quantumespresso_parser = "nomad_simulation_parsers.parsers:quantumespresso_parser"
@@ -164,6 +165,8 @@ vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
 wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
 wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
+yambo_parser = "nomad_simulation_parsers.parsers:yambo_parser"
+yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_package"
 
 
 [tool.cruft]
