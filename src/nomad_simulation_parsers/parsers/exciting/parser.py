@@ -97,9 +97,12 @@ class InfoParser(TextParser):
         )
 
     def get_energies(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        """Extract total energies from all configurations (groundstate, hybrid, optimization steps)."""
+        """
+        Extract total energies from all configurations:
+        groundstate, hybrid, and optimization steps.
+        """
         energies = []
-        
+
         # Get energies from groundstate and hybrid calculations
         for key in ['groundstate', 'hybrid']:
             config = source.get(key)
@@ -111,7 +114,7 @@ class InfoParser(TextParser):
                 # Otherwise check if energy_total is directly in the config
                 elif config.get('energy_total'):
                     energies.append({'energy_total': config['energy_total']})
-        
+
         # Get energies from geometry optimization steps
         optimization = source.get('structure_optimization')
         if optimization:
@@ -122,7 +125,7 @@ class InfoParser(TextParser):
             # Add final optimization energy
             if optimization.get('energy_total'):
                 energies.append({'energy_total': optimization['energy_total']})
-        
+
         return energies
 
     def get_configurations(self, root: dict[str, Any]) -> list[dict[str, Any]]:
@@ -198,7 +201,8 @@ class InfoParser(TextParser):
             quantity = last_iteration.get(key_, None)
             if quantity is None:
                 continue
-            # Keep pint quantity; metainfo handles conversion based on target Quantity units.
+            # Keep pint quantity; metainfo handles conversion based on
+            # target Quantity units.
             threshold_value = quantity[1]
 
             target = info_['class'](
@@ -405,11 +409,13 @@ class ExcitingArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = exciting.GEO_OPT_KEY
             info_parser.convert(data_parser)
 
-            # TODO: Investigate if mapping annotations can be made to work for object instantiation.
+            # TODO: Investigate if mapping annotations can handle object
+            # instantiation.
             # Currently, convergence targets are populated manually because:
             # 1. The mapping annotation system expects dict data from parsed files
             # 2. Our get_geometry_convergence() returns fully-formed metainfo objects
-            # 3. The mapper can't directly assign these objects - it tries to map their fields
+            # 3. The mapper cannot directly assign these objects; it tries to map
+            # their fields.
             # Options to explore:
             # - Modify mapper to detect and handle object instances
             # - Change parser methods to return dicts that mapper can transform
