@@ -1,4 +1,6 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -60,8 +62,8 @@ class AtomsState(model_system.AtomsState):
     # ).update(dict(win=Mapper(mapper=('get_orbitals_state', ['.projection[1]']))))
 
 
-class AtomicCell(model_system.AtomicCell):
-    model_system.AtomicCell.lattice_vectors.m_annotations.setdefault(
+class AtomicCell(model_system.Representation):
+    model_system.Representation.lattice_vectors.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(

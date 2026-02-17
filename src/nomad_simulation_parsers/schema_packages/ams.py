@@ -1,4 +1,6 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -32,7 +34,7 @@ class ModelSystem(model_system.ModelSystem):
     model_system.AtomsState.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.labels_positions[0]')))
-    model_system.AtomicCell.m_def.m_annotations.setdefault(
+    model_system.Representation.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(out=Mapper(mapper='.lattice_vectors')))
 

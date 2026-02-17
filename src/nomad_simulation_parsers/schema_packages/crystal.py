@@ -1,4 +1,6 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
