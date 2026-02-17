@@ -55,10 +55,10 @@ class XCComponent(model_method.XCComponent):
 #     )
 
 
-# class TotalEnergy(outputs.TotalEnergy):
-#     outputs.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-#         out=Mapper(mapper='.energy')
-#     )
+class TotalEnergy(outputs.TotalEnergy):
+    outputs.TotalEnergy.value.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        crystal_out=Mapper(mapper='.energy')
+    )
 
 
 class TotalForces(outputs.TotalForce):
@@ -70,17 +70,20 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
 
 
 class Outputs(outputs.Outputs):
-    # outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-    #     out=Mapper(mapper='.@')
-    # )
+    outputs.Outputs.total_energies.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        crystal_out=Mapper(mapper='.@')
+    )
     outputs.Outputs.total_forces.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        out=Mapper(mapper='.@')
+        crystal_out=Mapper(mapper='.@')
+    )
+    outputs.Outputs.scf_steps.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+        crystal_out=Mapper(mapper='.scf_steps')
     )
     outputs.Outputs.electronic_dos.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-        f25=Mapper(mapper=('get_dos', ['.dos']))
+        crystal_f25=Mapper(mapper=('get_dos', ['.dos']))
     )
     outputs.Outputs.electronic_band_structures.m_annotations[MAPPING_ANNOTATION_KEY] = (
-        dict(out=Mapper(mapper=('get_band_structures', ['.band_structure'])))
+        dict(crystal_out=Mapper(mapper=('get_band_structures', ['.band_structure'])))
     )
 
 
@@ -98,6 +101,16 @@ class Simulation(general.Simulation):
     add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.dft')
     add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
     add_mapping_annotation(general.Simulation.outputs, F25_KEY, '.@')
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
+    )
 
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
