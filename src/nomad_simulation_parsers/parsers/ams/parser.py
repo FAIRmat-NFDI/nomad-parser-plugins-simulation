@@ -6,8 +6,24 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamics,
+)
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointMethod,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -56,6 +72,89 @@ class MainfileParser(TextParser):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
 
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        self_consistency = source.get('self_consistency', {})
+        energy_change = self_consistency.get('energy_change')
+        if energy_change is None:
+            return {}
+
+        delta_energies_total = [abs(value) for value in energy_change]
+        scf_steps = {'delta_energies_total': delta_energies_total}
+
+        scf_options = source.get('scf_options')
+        code_specific_quantities = {}
+        if hasattr(scf_options, 'get'):
+            n_scf_steps_max = scf_options.get('x_ams_ncyclx')
+            convrg = scf_options.get('x_ams_convrg')
+            if n_scf_steps_max is not None:
+                code_specific_quantities['n_scf_steps_max'] = int(n_scf_steps_max)
+            if convrg is not None:
+                code_specific_quantities['convrg'] = float(convrg)
+
+        if code_specific_quantities:
+            scf_steps['code_specific_quantities'] = code_specific_quantities
+
+        return scf_steps
+
+    def _get_scf_energy_threshold(self, source: dict[str, Any]):
+        scf_options = source.get('scf_options')
+        if not hasattr(scf_options, 'get'):
+            return None
+        convrg = scf_options.get('x_ams_convrg')
+        if convrg is None:
+            return None
+        return float(convrg) * ureg.hartree
+
+    def build_workflow(self, source: dict[str, Any]):
+        if (geometry := source.get('geometry_optimization')) is not None:
+            workflow = GeometryOptimization()
+            workflow.method = GeometryOptimizationMethod()
+            targets = []
+            force_thr = geometry.get('convergence_tolerance_force_maximum')
+            if force_thr is not None:
+                targets.append(
+                    ForceConvergenceTarget(
+                        threshold=force_thr,
+                        threshold_type='maximum',
+                    )
+                )
+            energy_thr = geometry.get('convergence_tolerance_energy_difference')
+            if energy_thr is not None:
+                targets.append(
+                    EnergyConvergenceTarget(
+                        threshold=energy_thr,
+                        threshold_type='absolute',
+                    )
+                )
+            if targets:
+                workflow.method.convergence_targets = targets
+
+            scf_threshold = self._get_scf_energy_threshold(geometry)
+            if scf_threshold is not None:
+                workflow.method.single_point_convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=scf_threshold,
+                        threshold_type='absolute',
+                    )
+                ]
+            return workflow
+
+        if source.get('molecular_dynamics') is not None:
+            return MolecularDynamics()
+
+        workflow = SinglePoint()
+        workflow.method = SinglePointMethod()
+        single_point = source.get('single_point', source)
+        scf_threshold = self._get_scf_energy_threshold(single_point)
+        if scf_threshold is not None:
+            workflow.method.convergence_targets = [
+                EnergyConvergenceTarget(
+                    threshold=scf_threshold,
+                    threshold_type='absolute',
+                )
+            ]
+        return workflow
+
 
 class RKFParser(MainfileParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -92,6 +191,7 @@ class AMSArchiveWriter(ArchiveWriter):
             self.parser.data_object.parse()
 
         self.parser.convert(self.metainfo_parser)
+        self.archive.workflow2 = self.parser.build_workflow(self.parser.data)
 
 
 class AMSParser(MatchingParser):
