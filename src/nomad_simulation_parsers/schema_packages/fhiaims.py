@@ -255,28 +255,6 @@ class GeometryOptimizationMethod(
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
-# class MolecularDynamicsModel(workflow.molecular_dynamics.MolecularDynamicsModel):
-#     workflow.molecular_dynamics.MolecularDynamicsModel.integration_timestep.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_timestep')))
-#     workflow.molecular_dynamics.MolecularDynamicsModel.thermodynamic_ensemble.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(md_workflow=Mapper(mapper='.control_inout.md_run[0]')))
-
-
-# class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-#     workflow.molecular_dynamics.MolecularDynamicsResults.temperature.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             md_workflow=Mapper(
-#                 mapper='molecular_dynamics[*].md_calculation_info.'
-#                 '"Temperature (nuclei)"'
-#             )
-#         )
-#     )
-
-
 try:
     m_package.__init_metainfo__()
 except Exception:
