@@ -156,13 +156,15 @@ add_mapping_annotations(
         GEO_OPT_KEY,
         '.@',
     ),
-    # TODO: Mapping annotations don't work for convergence targets because the parser methods
-    # return fully-formed metainfo objects, not dictionaries. The mapper expects dict data.
-    # Convergence targets are now populated manually in the parser. Consider refactoring
-    # the mapping annotation system to support object instantiation or keep manual approach.
+    # TODO: Mapping annotations don't work for convergence targets because
+    # parser methods return fully-formed metainfo objects, not dictionaries.
+    # The mapper expects dict data. Convergence targets are now populated
+    # manually in the parser. Consider refactoring the mapping annotation
+    # system to support object instantiation or keep manual approach.
     # (workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
     #  GEO_OPT_KEY, ('get_geometry_convergence', ['.@'])),
-    # (workflow.geometry_optimization.GeometryOptimizationMethod.single_point_convergence_targets,
+    # (workflow.geometry_optimization
+    #  .GeometryOptimizationMethod.single_point_convergence_targets,
     #  GEO_OPT_KEY, ('get_single_point_convergence', ['.@'])),
     (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
     (workflow.SinglePoint.m_def, INFO_KEY, '.@'),

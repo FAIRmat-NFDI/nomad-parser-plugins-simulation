@@ -549,7 +549,7 @@ class InfoFileParser(TextParser):
                             repeats=False,
                             dtype=float,
                             unit=ureg.hartree / ureg.bohr,
-                        )
+                        ),
                     ]
                 ),
                 repeats=False,

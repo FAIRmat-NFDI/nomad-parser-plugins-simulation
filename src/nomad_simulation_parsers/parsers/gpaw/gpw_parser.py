@@ -247,7 +247,7 @@ class GPW2FileParser(FileParser):
             'kpoints': lambda: self.ulm.IBZKPoints,
             'density': lambda: self.ulm.density.density,
             'potential_effective': lambda: self.ulm.hamiltonian.potential,
-            'band_paths': lambda: self.ulm.wave_functions.band_paths.asdict(),
+            'band_paths': self.ulm.wave_functions.band_paths.asdict,
         }
         try:
             if key in values:

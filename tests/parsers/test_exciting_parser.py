@@ -27,7 +27,10 @@ CASES = {
             }
         },
         'scf_expectations': {
-            'delta_energies_total': {'len': 10, 'last': (4.3213092127361915e-25, 'joule')},
+            'delta_energies_total': {
+                'len': 10,
+                'last': (4.3213092127361915e-25, 'joule'),
+            },
             'delta_potential_rms': {'len': 10, 'last': (1.41636334713761e-26, 'joule')},
             'delta_density_rms': {'len': 10, 'last': (3.77314199483634e-28, 'coulomb')},
             'delta_force_abs': None,
@@ -62,9 +65,15 @@ CASES = {
             },
         },
         'scf_expectations': {
-            'delta_energies_total': {'len': 24, 'last': (1.4699010123263138e-23, 'joule')},
+            'delta_energies_total': {
+                'len': 24,
+                'last': (1.4699010123263138e-23, 'joule'),
+            },
             'delta_potential_rms': {'len': 24, 'last': (2.13237730209986e-25, 'joule')},
-            'delta_density_rms': {'len': 24, 'last': (6.666224386382819e-27, 'coulomb')},
+            'delta_density_rms': {
+                'len': 24,
+                'last': (6.666224386382819e-27, 'coulomb'),
+            },
             'delta_force_abs': {'len': 24, 'last': (1.047809093229533e-13, 'newton')},
         },
     },

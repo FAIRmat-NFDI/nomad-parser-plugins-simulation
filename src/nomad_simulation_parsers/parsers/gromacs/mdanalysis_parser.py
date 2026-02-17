@@ -157,7 +157,11 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                 'Interactions will not be stored'
             )
             return []
-        gromacs_version = gromacs_version.split('.')[0] if gromacs_version else None
+        gromacs_version = (
+            gromacs_version.split('.', maxsplit=1)[0]
+            if gromacs_version
+            else None
+        )
         if gromacs_version == '2024':
             self.logger.warning(
                 'Reading force field from tpr not yet supported for Gromacs 2024.'

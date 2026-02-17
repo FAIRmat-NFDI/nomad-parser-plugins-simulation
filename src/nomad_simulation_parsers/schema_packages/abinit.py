@@ -28,6 +28,8 @@ class GeometryOptimizationMethod(
         OUT_KEY,
         ('get_geometry_convergence', []),
     )
+
+
 """    add_mapping_annotation(
         workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
         OUT_KEY,
@@ -47,6 +49,7 @@ add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.m_def, OUT_KEY, '@'
 )
 add_mapping_annotation(workflow.GeometryOptimization.m_def, OUT_KEY, '@')
+
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
