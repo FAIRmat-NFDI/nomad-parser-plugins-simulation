@@ -462,7 +462,9 @@ class MainfileParser(TextParser):
     def logger(self):
         return LOGGER
 
-    text_parser = AbinitOutParser()
+    def __init__(self):
+        super().__init__()
+        self.text_parser = AbinitOutParser()
 
     def get_workflow_method(self) -> str:
         ionmov = self.get_input_var('ionmov', 1, 0, scalar=True)
@@ -658,7 +660,9 @@ class DosParser(TextParser):
     def logger(self):
         return LOGGER
 
-    text_parser = DataTextParser()
+    def __init__(self):
+        super().__init__()
+        self.text_parser = DataTextParser()
 
     def get_dos(self, source: np.ndarray) -> list[dict[str, Any]]:
         nsp = self.data.get('nspinpol')
@@ -672,11 +676,14 @@ class DosParser(TextParser):
 
 
 class AbinitArchiveWriter(ArchiveWriter):
-    mainfile_parser = MainfileParser()
-    metainfo_parser = AbinitMetainfoParser()
-    dos_parser = DosParser()
     code_name = 'ABINIT'
     annotation_key = abinit.OUT_KEY
+
+    def __init__(self):
+        super().__init__()
+        self.mainfile_parser = MainfileParser()
+        self.metainfo_parser = AbinitMetainfoParser()
+        self.dos_parser = DosParser()
 
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
@@ -748,8 +755,6 @@ class AbinitParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = AbinitArchiveWriter()
-
     def is_mainfile(
         self,
         filename: str,
@@ -783,4 +788,5 @@ class AbinitParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
+        archive_writer = AbinitArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)

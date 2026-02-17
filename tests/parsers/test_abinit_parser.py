@@ -7,18 +7,21 @@ from nomad_simulation_parsers.parsers.abinit.parser import AbinitParser
 LOGGER = get_logger(__name__)
 
 
-def test_parse_file():
-    """Test basic parsing without crashing."""
+def _parse(mainfile: str) -> EntryArchive:
     parser = AbinitParser()
     archive = EntryArchive()
-    parser.parse('tests/data/abinit/Fe/Fe.out', archive, LOGGER)
+    parser.parse(mainfile, archive, LOGGER)
+    return archive
+
+
+def test_parse_file():
+    """Test basic parsing without crashing."""
+    _parse('tests/data/abinit/Fe/Fe.out')
 
 
 def test_convergence_targets_parsing():
     """Test that convergence targets are parsed and mapped correctly."""
-    parser = AbinitParser()
-    archive = EntryArchive()
-    parser.parse('tests/data/abinit/Fe/Fe.out', archive, LOGGER)
+    archive = _parse('tests/data/abinit/Fe/Fe.out')
 
     # Check if workflow exists
     if archive.workflow2 is not None:
@@ -48,9 +51,7 @@ def test_convergence_targets_parsing():
 
 
 def test_scf_steps_parsing():
-    parser = AbinitParser()
-    archive = EntryArchive()
-    parser.parse('tests/data/abinit/Fe/Fe.out', archive, LOGGER)
+    archive = _parse('tests/data/abinit/Fe/Fe.out')
 
     outputs = archive.data.outputs
     assert outputs is not None
@@ -80,3 +81,41 @@ def test_scf_steps_parsing():
         'hartree'
     ).magnitude
     assert second_delta_last == approx(0.0)
+
+
+def test_single_point_workflow_convergence_section():
+    archive = _parse('tests/data/abinit/Fe/Fe.out')
+
+    assert archive.workflow2 is not None
+    assert archive.workflow2.m_def.name == 'SinglePoint'
+    # Fe sample does not expose toldfe, so no explicit method targets are populated.
+    assert archive.workflow2.method is None
+
+
+def test_geometry_optimization_workflow_convergence_section():
+    archive = _parse('tests/data/abinit/H2/H2.out')
+
+    workflow = archive.workflow2
+    assert workflow is not None
+    assert workflow.m_def.name == 'GeometryOptimization'
+    assert workflow.method is not None
+
+    method = workflow.method
+    assert method.optimization_method == 'bfgs'
+
+    targets = method.convergence_targets
+    assert targets is not None
+    assert len(targets) == 2
+
+    targets_by_name = {target.m_def.name: target for target in targets}
+    assert set(targets_by_name.keys()) == {
+        'EnergyConvergenceTarget',
+        'ForceConvergenceTarget',
+    }
+
+    energy_target = targets_by_name['EnergyConvergenceTarget']
+    force_target = targets_by_name['ForceConvergenceTarget']
+    assert energy_target.threshold_type == 'relative'
+    assert energy_target.threshold.to('joule').magnitude == approx(0.0)
+    assert force_target.threshold_type == 'maximum'
+    assert force_target.threshold.to('newton').magnitude == approx(5.0e-4)
