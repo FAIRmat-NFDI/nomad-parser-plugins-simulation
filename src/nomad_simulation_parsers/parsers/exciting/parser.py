@@ -43,22 +43,18 @@ convergence_threshold_mapping = {
     'x_exciting_effective_potential_convergence': {
         'class': PotentialConvergenceTarget,
         'threshold_type': 'rms',
-        'unit': 'joule',
     },
     'x_exciting_energy_convergence': {
         'class': EnergyConvergenceTarget,
         'threshold_type': 'absolute',
-        'unit': 'joule',
     },
     'x_exciting_charge_convergence': {
         'class': ChargeConvergenceTarget,
         'threshold_type': 'absolute',
-        'unit': None,  # dimensionless
     },
     'x_exciting_IBS_force_convergence': {
         'class': ForceConvergenceTarget,
         'threshold_type': 'absolute',
-        'unit': 'newton',
     },
 }
 
@@ -202,13 +198,9 @@ class InfoParser(TextParser):
             quantity = last_iteration.get(key_, None)
             if quantity is None:
                 continue
-            # Extract threshold value and convert to appropriate unit
-            unit = info_['unit']
-            threshold_value = (
-                quantity[1].to(unit).magnitude if unit else quantity[1].magnitude
-            )
+            # Keep pint quantity; metainfo handles conversion based on target Quantity units.
+            threshold_value = quantity[1]
 
-            # Instantiate the appropriate convergence target class
             target = info_['class'](
                 threshold=threshold_value,
                 threshold_type=info_['threshold_type'],
