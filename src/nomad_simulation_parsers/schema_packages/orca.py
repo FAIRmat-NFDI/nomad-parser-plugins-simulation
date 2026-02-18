@@ -71,15 +71,19 @@ add_mapping_annotation(
     OUT_KEY,
     '.global_exact_exchange',
 )
+add_mapping_annotation(
+    model_method.XCFunctional.functional_key,
+    OUT_KEY,
+    '.functional_key',
+)
 
 ############# Multireference (CAS) ###################
 
 add_mapping_annotation(
-    general.Simulation.model_method,
+    model_method.MultireferenceSCF.m_def,
     OUT_KEY,
     ('get_multireference_methods', ['.@']),
 )
-add_mapping_annotation(model_method.MultireferenceSCF.m_def, OUT_KEY, '.@')
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
 add_mapping_annotation(
     model_method.MultireferenceSCF.reference_type, OUT_KEY, '.reference_type'

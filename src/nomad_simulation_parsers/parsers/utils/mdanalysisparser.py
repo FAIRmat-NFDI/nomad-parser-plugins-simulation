@@ -170,9 +170,11 @@ class MDAnalysisParser(FileParser):
             ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
-                lambda: self.get_fragtypes()
-                if hasattr(self.universe.atoms, 'fragments')
-                else None,
+                lambda: (
+                    self.get_fragtypes()
+                    if hasattr(self.universe.atoms, 'fragments')
+                    else None
+                ),
             ),
             ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
             ('resnames', lambda: self._results['atoms_info'].get('resids')),

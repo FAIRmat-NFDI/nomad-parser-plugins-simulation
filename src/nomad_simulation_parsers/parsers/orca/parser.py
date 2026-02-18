@@ -83,8 +83,7 @@ class OutParser(MappingTextParser):
 
     def get_dft(self, src: dict[str, Any]) -> dict[str, Any]:
         """
-        Minimal DFT getter
-
+        Build DFT model method data from ORCA SCF settings.
         """
         scf_settings = (
             src.get('single_point', {})
@@ -94,12 +93,32 @@ class OutParser(MappingTextParser):
         if not scf_settings:
             return {}
 
+        exchange = scf_settings.get('exchange_functional')
+        correlation = scf_settings.get('correlation_functional') or scf_settings.get(
+            'correl_functional'
+        )
         hf_frac = scf_settings.get('fraction_hf_exchange')
 
-        if hf_frac is None:
+        functional_key = None
+        if isinstance(exchange, str) and isinstance(correlation, str):
+            if exchange and correlation:
+                functional_key = (
+                    exchange if exchange == correlation else f'{exchange}+{correlation}'
+                )
+        elif isinstance(exchange, str) and exchange:
+            functional_key = exchange
+        elif isinstance(correlation, str) and correlation:
+            functional_key = correlation
+
+        xc = {}
+        if functional_key:
+            xc['functional_key'] = functional_key
+        if hf_frac is not None:
+            xc['global_exact_exchange'] = hf_frac
+        if not xc:
             return {}
 
-        return {'xc': {'global_exact_exchange': hf_frac}}
+        return {'xc': xc}
 
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_convergence = (
