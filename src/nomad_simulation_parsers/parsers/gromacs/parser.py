@@ -129,7 +129,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                     if abs(val) == np.inf:
                         input_dict[key] = 'inf' if val > 0 else '-inf'
 
-        input_parameters = data_object.get('input_parameters', {})
+        input_parameters = data_object.get('input_parameters') or {}
         normalize(input_parameters)
         data_object._results['input_parameters'] = input_parameters
 
@@ -421,7 +421,7 @@ class GromacsMDPParser(TextParser):
                         return True
             return False
 
-        input_parameters = data_object.get('input_parameters', {})
+        input_parameters = data_object.get('input_parameters') or {}
         # parameters that are unique to the mdp file
         input_parameters['mdp_unique_params'] = {}
         for key, param in input_parameters.items():
@@ -431,6 +431,8 @@ class GromacsMDPParser(TextParser):
                     param.lower() if isinstance(param, str) else param
                 )
 
+        if data_object._results is None:
+            data_object._results = {}
         data_object._results['input_parameters'] = input_parameters
         return data_object
 
