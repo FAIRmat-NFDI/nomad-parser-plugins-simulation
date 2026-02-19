@@ -239,6 +239,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             else None
         )
 
+<<<<<<< HEAD
     def get_coulomb_type(self, coulombtype: str) -> str | None:
         normalized = coulombtype.lower().replace('_', '-') if coulombtype else None
         return self._map_enum(
@@ -253,6 +254,26 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                 'reaction-field-zero': 'reaction_field',
             },
         )
+=======
+    def get_coulomb_type(self, coulombtype: str) -> str:
+        """Map GROMACS coulombtype to NOMAD schema enum."""
+        result = None
+        if not coulombtype:
+            return result
+
+        coulombtype_lower = coulombtype.lower().replace('_', '-')
+        coulomb_map = {
+            'cut-off': 'cutoff',
+            'cutoff': 'cutoff',
+            'ewald': 'ewald',
+            'pme': 'particle_mesh_ewald',
+            'p3m-ad': 'particle_particle_particle_mesh',
+            'reaction-field': 'reaction_field',
+            'reaction-field-zero': 'reaction_field',
+        }
+        result = coulomb_map.get(coulombtype_lower)
+        return result
+>>>>>>> ac95493 (Gromacs parser model method (#130))
 
     def get_coordinate_save_frequency(self, input_params: dict[str, Any]) -> int | None:
         """Get coordinate save frequency, preferring compressed output."""
@@ -329,6 +350,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
     def get_thermostat_coupling_constant(
         self, input_params: dict[str, Any]
     ) -> float | None:
+<<<<<<< HEAD
         return self._get_grpopts_scalar(input_params, 'tau-t')
 
     @staticmethod
@@ -401,6 +423,80 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             params = None
 
         result = params
+=======
+        """Extract thermostat coupling constant from tau_t (handle scalar or array)."""
+        result = None
+        if not input_params:
+            return result
+
+        tau_t = input_params.get('tau-t') or input_params.get('tau_t')
+        if tau_t is None:
+            return result
+
+        # Handle array (take first value) or scalar
+        if isinstance(tau_t, list):
+            result = tau_t[0] if len(tau_t) > 0 else None
+        else:
+            result = tau_t
+
+        return result
+
+    def get_barostat_type(self, pcoupl: str) -> str | None:
+        """Map GROMACS pcoupl to NOMAD barostat_type enum."""
+        result = None
+        if not pcoupl:
+            return result
+
+        pcoupl_lower = pcoupl.lower()
+        if pcoupl_lower == 'no':
+            return result
+
+        barostat_map = {
+            'berendsen': 'berendsen',
+            'parrinello-rahman': 'parrinello_rahman',
+            'mttk': 'mttk',
+            'c-rescale': 'c_rescale',
+        }
+        result = barostat_map.get(pcoupl_lower)
+        return result
+
+    def get_barostat_coupling_type(self, pcoupltype: str) -> str | None:
+        """Map GROMACS pcoupltype to NOMAD coupling_type enum."""
+        result = None
+        if not pcoupltype:
+            return result
+
+        pcoupltype_lower = pcoupltype.lower()
+        coupling_map = {
+            'isotropic': 'isotropic',
+            'semiisotropic': 'semi_isotropic',
+            'anisotropic': 'anisotropic',
+            'surface-tension': 'surface_tension',
+        }
+        result = coupling_map.get(pcoupltype_lower)
+        return result
+
+    def get_reference_pressure(self, input_params: dict[str, Any]) -> float | None:
+        """Extract reference pressure from ref_p (handle scalar or matrix)."""
+        result = None
+        if not input_params:
+            return result
+
+        ref_p = input_params.get('ref-p') or input_params.get('ref_p')
+        if ref_p is None:
+            return result
+
+        # Handle matrix/array (take first value) or scalar
+        if isinstance(ref_p, list):
+            if isinstance(ref_p[0], list):
+                # Matrix: take [0][0]
+                result = ref_p[0][0] if len(ref_p) > 0 and len(ref_p[0]) > 0 else None
+            else:
+                # Array: take first value
+                result = ref_p[0] if len(ref_p) > 0 else None
+        else:
+            result = ref_p
+>>>>>>> ac95493 (Gromacs parser model method (#130))
 
         return result
 
@@ -412,12 +508,17 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if not input_params:
             return result
 
+<<<<<<< HEAD
         tau_p = input_params.get('tau-p')
+=======
+        tau_p = input_params.get('tau-p') or input_params.get('tau_p')
+>>>>>>> ac95493 (Gromacs parser model method (#130))
         if tau_p is not None:
             result = tau_p
 
         return result
 
+<<<<<<< HEAD
     def get_free_energy_calc_type(
         self, input_params: dict[str, Any] | None
     ) -> str | None:
@@ -529,6 +630,31 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                 result = idx
         except (TypeError, ValueError):
             self.logger.warning('Could not parse init-lambda-state value.', value=value)
+=======
+    def get_compressibility(self, input_params: dict[str, Any]) -> float | None:
+        """Extract compressibility (handle scalar or matrix)."""
+        result = None
+        if not input_params:
+            return result
+
+        compressibility = input_params.get('compressibility')
+        if compressibility is None:
+            return result
+
+        # Handle matrix/array (take first value) or scalar
+        if isinstance(compressibility, list):
+            if len(compressibility) == 0:
+                result = None
+            elif isinstance(compressibility[0], list):
+                # Matrix: take [0][0]
+                result = compressibility[0][0] if len(compressibility[0]) > 0 else None
+            else:
+                # Array: take first value
+                result = compressibility[0]
+        else:
+            result = compressibility
+
+>>>>>>> ac95493 (Gromacs parser model method (#130))
         return result
 
 
@@ -750,7 +876,11 @@ class GromacsMDAnalysisParser(MappingParser):
         labels = list(self.data_object.get_atom_labels(index) or [])
         try:
             symbols2numbers(labels)
+<<<<<<< HEAD
         except (KeyError, TypeError, ValueError):
+=======
+        except Exception:
+>>>>>>> ac95493 (Gromacs parser model method (#130))
             labels = ['CGX'] * len(labels)
         return labels
 
@@ -839,6 +969,7 @@ class GromacsMDAnalysisParser(MappingParser):
         if not interactions:
             return result
 
+<<<<<<< HEAD
         # Filter for bond interactions only: bonds have exactly 2 particle indices.
         # The 'type' field carries inter.btype (a topology-specific string such as
         # 'CT-CT'), not the literal 'bond', so we identify bonds by particle count.
@@ -851,6 +982,16 @@ class GromacsMDAnalysisParser(MappingParser):
                 and len(particle_indices) == n_bond_particles
             ):
                 bonds.append(list(particle_indices))
+=======
+        # Filter for bond interactions only
+        bonds = []
+        n_bond_atoms: int = 2
+        for interaction in interactions:
+            if interaction.get('type') == 'bond':
+                atom_indices = interaction.get('atom_indices')
+                if atom_indices is not None and len(atom_indices) == n_bond_atoms:
+                    bonds.append(list(atom_indices))
+>>>>>>> ac95493 (Gromacs parser model method (#130))
 
         if bonds:
             result = np.array(bonds, dtype=int)
@@ -865,6 +1006,7 @@ class GromacsMDAnalysisParser(MappingParser):
 
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
+<<<<<<< HEAD
             # get_frame_data performs a single trajectory seek for all per-frame data.
             frame_data = self.data_object.get_frame_data(n)
             config = dict(
@@ -876,6 +1018,21 @@ class GromacsMDAnalysisParser(MappingParser):
             )
             if n == 0 and bond_list is not None:
                 config['bond_list'] = bond_list
+=======
+            config = dict(
+                labels=self.get_atom_labels(n),
+                positions=self.data_object.get_positions(n),
+                velocities=self.data_object.get_velocities(n),
+                lattice_vectors=self.data_object.get_lattice_vectors(n),
+            )
+            # Add topology lists only to first configuration
+            # (topology is time-independent)
+            if n == 0:
+                bond_list = self.get_bond_list()
+                if bond_list is not None:
+                    config['bond_list'] = bond_list
+
+>>>>>>> ac95493 (Gromacs parser model method (#130))
             configurations.append(config)
         return configurations
 
@@ -945,12 +1102,21 @@ class GromacsMDAnalysisParser(MappingParser):
             all_indices = []
             all_labels = []
             for inter in int_list:
+<<<<<<< HEAD
                 particle_indices = inter.get('atom_indices')
                 particle_labels = inter.get('atom_labels')
                 if particle_indices is not None and len(particle_indices) > 0:
                     all_indices.append(list(particle_indices))
                 if particle_labels is not None and len(particle_labels) > 0:
                     all_labels.append(list(particle_labels))
+=======
+                atom_indices = inter.get('atom_indices')
+                atom_labels = inter.get('atom_labels')
+                if atom_indices is not None and len(atom_indices) > 0:
+                    all_indices.append(list(atom_indices))
+                if atom_labels is not None and len(atom_labels) > 0:
+                    all_labels.append(list(atom_labels))
+>>>>>>> ac95493 (Gromacs parser model method (#130))
 
             if len(all_indices) == 0:
                 continue
@@ -966,6 +1132,7 @@ class GromacsMDAnalysisParser(MappingParser):
 
         return contributions
 
+<<<<<<< HEAD
     def get_sub_systems(
         self, source: dict[str, Any] = None, **kwargs
     ) -> list[dict[str, Any]]:
@@ -977,6 +1144,8 @@ class GromacsMDAnalysisParser(MappingParser):
             return []
         return list(particles_groups.values())
 
+=======
+>>>>>>> ac95493 (Gromacs parser model method (#130))
 
 class GromacsArchiveWriter(MDParser):
     def __init__(self, **kwargs):
@@ -1209,7 +1378,7 @@ class GromacsArchiveWriter(MDParser):
 
         self._parse_data_section()
 
-        self._parse_workflow_section()
+        # self._parse_workflow_section()
 
         for parser in [
             self._simulation_parser,
