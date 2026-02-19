@@ -501,6 +501,7 @@ class GromacsMDAnalysisParser(MappingParser):
     _trajectory_steps_sampled: list[int] = []
     _trajectory_steps: list[int] = []
     _thermodynamic_steps: list[int] = []
+    _subsystems_hierarchy: list[dict[str, Any]] = []
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -510,8 +511,47 @@ class GromacsMDAnalysisParser(MappingParser):
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
             self.data_object.parse()
-            return self.data_object._results
+            result = self.data_object._results
+
+            # Build complete nested subsystem structure and store as parser attribute
+            # get_subsystems_from_dict will access this to extract system hierarchy
+            self._subsystems_hierarchy = self.get_sub_systems()
+            self.logger.info(
+                'to_dict: Built %d subsystems', len(self._subsystems_hierarchy)
+            )
+
+            return result
         return {}
+
+    def get_subsystems_from_dict(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """
+        Extract subsystems from source dict.
+
+        This is called by MappingParser for both top-level and nested ModelSystems.
+        For the root call, returns the full hierarchy from self._subsystems_hierarchy.
+        For nested calls, it extracts 'sub_systems' key from the source dict.
+
+        Args:
+            source: Source dictionary containing subsystem data
+            **kwargs: Additional arguments (unused)
+
+        Returns:
+            List of subsystem dicts from this level
+        """
+
+        # Root call: return the full hierarchy
+        if hasattr(self, '_subsystems_hierarchy') and self._subsystems_hierarchy:
+            # Check if this is the root call by looking at source keys
+            if 'n_atoms' in source and 'sub_systems' not in source:
+                result = self._subsystems_hierarchy
+                return result
+
+        # Nested call: extract from dict's sub_systems key
+        subsystems = source.get('sub_systems', []) if isinstance(source, dict) else []
+
+        return subsystems
 
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
@@ -569,13 +609,12 @@ class GromacsMDAnalysisParser(MappingParser):
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
             config = dict(
+                n_atoms=self.data_object.get_n_atoms(n),
                 labels=self.get_atom_labels(n),
                 positions=self.data_object.get_positions(n),
                 velocities=self.data_object.get_velocities(n),
                 lattice_vectors=self.data_object.get_lattice_vectors(n),
             )
-            # Add topology lists only to first configuration
-            # (topology is time-independent)
             if n == 0:
                 bond_list = self.get_bond_list()
                 if bond_list is not None:
@@ -670,6 +709,15 @@ class GromacsMDAnalysisParser(MappingParser):
             contributions.append(contribution)
 
         return contributions
+
+    def get_sub_systems(
+        self, source: dict[str, Any] = None, **kwargs
+    ) -> list[dict[str, Any]]:
+
+        particles_groups = self.mdanalysis_parser.parse_molecular_hierarchy()
+        source = list(group for group in particles_groups.values())
+
+        return source
 
 
 class GromacsArchiveWriter(MDParser):
