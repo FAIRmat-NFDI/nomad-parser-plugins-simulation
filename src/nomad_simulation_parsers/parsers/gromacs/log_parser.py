@@ -115,7 +115,7 @@ class GromacsLogParser(TextParser):
             ),
             Quantity(
                 'step_info',
-                rf'{RE_N}\s*(Step.+\n[\d\.\- ]+)',
+                rf'{RE_N}\s*(Step\s+Time\s*\n[\d\.\- ]+)',
                 str_operation=str_to_step_info,
                 convert=False,
             ),

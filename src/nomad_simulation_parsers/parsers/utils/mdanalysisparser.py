@@ -81,6 +81,7 @@ class MDAnalysisParser(FileParser):
         self._kwargs = kwargs
         self._atomsgroup_info = None
         self._results = None
+        self.universe_error = None
 
     @property
     def auxilliary_files(self):
@@ -104,13 +105,17 @@ class MDAnalysisParser(FileParser):
     def universe(self) -> MDAUniverse | None:
         if not _check_mda_dependency('universe'):
             return None
+        # Avoid repeatedly retrying and re-logging after a known init failure.
+        if self._file_handler is None and self.universe_error is not None:
+            return None
         if self._file_handler is None:
             try:
                 self._file_handler = MDAnalysis.Universe(
                     self.mainfile, *self.auxilliary_files, **self.options
                 )
             except Exception as e:
-                self.logger.error('Error creating MDAnalysis universe.', exc_info=e)
+                self.logger.warning('Error creating MDAnalysis universe.', exc_info=e)
+                self.universe_error = e
         return self._file_handler
 
     @property
@@ -434,16 +439,22 @@ class MDAnalysisParser(FileParser):
         """
         True if trajectory is present.
         """
+        universe = self.universe
         return (
-            self.universe.trajectory is not None and len(self.universe.trajectory) > 0
+            universe is not None
+            and universe.trajectory is not None
+            and len(universe.trajectory) > 0
         )
 
     def get_frame(self, frame_index):
         """
         Returns the frame in the trajectory with index frame_index.
         """
+        universe = self.universe
+        if universe is None:
+            return None
         try:
-            return self.universe.trajectory[frame_index]
+            return universe.trajectory[frame_index]
         except Exception as e:
             self.logger.warning('Error accessing frame.', exc_info=e)
             return None
@@ -478,17 +489,21 @@ class MDAnalysisParser(FileParser):
         Returns the step of the frame with index frame_index.
         """
         frame = self.get_frame(frame_index)
-        dt = frame.dt if frame.dt else getattr(self.universe.trajectory, 'dt')
+        if frame is None:
+            return None
+        dt = frame.dt if frame.dt else getattr(self.universe.trajectory, 'dt', None)
         if not dt:
             return
-        if frame:
-            return round(frame.time / dt)
+        return round(frame.time / dt)
 
     def get_lattice_vectors(self, frame_index):
         """
         Returns the lattice vectors of the frame with index frame_index.
         """
-        lattice_vectors = self.get_frame(frame_index).triclinic_dimensions
+        frame = self.get_frame(frame_index)
+        if frame is None:
+            return None
+        lattice_vectors = frame.triclinic_dimensions
         return lattice_vectors * ureg.angstrom if lattice_vectors is not None else None
 
     def get_pbc(self, frame_index):

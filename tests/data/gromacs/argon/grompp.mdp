@@ -69,7 +69,7 @@ energygrps               = Argon
 
 ; NEIGHBORSEARCHING PARAMETERS
 ; cut-off scheme (group: using charge groups, Verlet: particle based cut-offs)
-cutoff-scheme            = Group
+cutoff-scheme            = Verlet
 ; nblist update frequency
 nstlist                  = 1
 ; ns algorithm (simple or grid)
@@ -80,6 +80,8 @@ periodic-molecules       = no
 ; Allowed energy drift due to the Verlet buffer in kJ/mol/ps per atom,
 ; a value of -1 means: use rlist
 verlet-buffer-drift      = 0.005
+; Allowed error in the average pressure due to the Verlet buffer for LJ interactions
+verlet-buffer-pressure-tolerance = -1
 ; nblist cut-off        
 rlist                    = 2.5
 ; long-range cut-off for switched potentials
@@ -167,30 +169,6 @@ ref_p                    = 1.0
 ; Scaling of reference coordinates, No, All or COM
 refcoord-scaling         = No
 
-; OPTIONS FOR QMMM calculations
-QMMM                     = no
-; Groups treated Quantum Mechanically
-QMMM-grps                = 
-; QM method             
-QMmethod                 = 
-; QMMM scheme           
-QMMMscheme               = normal
-; QM basisset           
-QMbasis                  = 
-; QM charge             
-QMcharge                 = 
-; QM multiplicity       
-QMmult                   = 
-; Surface Hopping       
-SH                       = 
-; CAS space options     
-CASorbitals              = 
-CASelectrons             = 
-SAon                     = 
-SAoff                    = 
-SAsteps                  = 
-; Scale factor for MM charges
-MMChargeScaleFactor      = 1
 ; Optimization of QM subsystem
 bOPT                     = 
 bTS                      = 
