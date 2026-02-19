@@ -553,7 +553,7 @@ class LammpsArchiveWriter(MDParser):
         else:
             # TODO: Assumes the extension is always a valid lammps dump format, improve
             # Fallback to file extension
-            file_type = traj_file.rsplit('.', 1)[-1]
+            file_type = traj_file.split('.', 1)[-1]
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:

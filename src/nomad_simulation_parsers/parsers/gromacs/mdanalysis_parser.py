@@ -9,6 +9,61 @@ from MDAnalysis.topology.tpr import utils as tpr_utils
 
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
+# =============================================================================
+# GROMACS TPR PARSING WITH MDANALYSIS
+# =============================================================================
+#
+# WHAT MDANALYSIS PROVIDES:
+# -------------------------
+# 1. Topology connectivity:
+#    - universe.bonds: Bond pairs (atom indices)
+#    - universe.angles: Angle triplets
+#    - universe.dihedrals: Dihedral quadruplets
+#    - universe.impropers: Improper dihedral quadruplets
+#
+# 2. Atom properties:
+#    - Atom names, types, residues
+#    - Charges, masses
+#
+# 3. Coordinates:
+#    - Positions, velocities, forces (if present in TPR)
+#
+# 4. System properties:
+#    - Box dimensions
+#    - Number of atoms
+#
+# WHAT MDANALYSIS DOES NOT PROVIDE:
+# ---------------------------------
+# 1. Force field parameters:
+#    - Bond force constants and equilibrium lengths
+#    - Angle force constants and equilibrium angles
+#    - Dihedral parameters
+#    - Lennard-Jones σ, ε values
+#
+# 2. Parameter-to-topology mapping:
+#    - Which bond uses which parameter set
+#    - Parameter set indices from ilist section
+#
+# 3. Numerical settings:
+#    - Cutoff distances (read from mdp/log instead)
+#    - Neighbor list parameters
+#    - PME grid settings
+#
+# CUSTOM IMPLEMENTATION BELOW:
+# ---------------------------
+# - get_force_field_parameters(): Reads parameter VALUES from TPR
+#   Uses MDAnalysis TPXUnpacker to access binary data directly
+#   Returns parameter arrays but cannot connect them to specific interactions
+#
+# - get_interactions(): Inherited from MDAnalysisParser
+#   Provides topology (atom indices) without parameters
+#
+# For full force field support, would need to:
+# 1. Parse ilist section (not exposed by MDAnalysis)
+# 2. Match each interaction to its parameter set index
+# 3. Combine topology + parameters into complete ForceField objects
+# =============================================================================
+
 
 class GromacsMDAnalysisParser(MDAnalysisParser):
     def reset(self):
@@ -137,7 +192,7 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         try:
             interactions.extend(self.get_force_field_parameters(gromacs_version))
         except Exception:
-            self.logger.error('Error parsing force field parameters.')
+            self.logger.warning('Error parsing force field parameters.')
 
         self._results['interactions'] = interactions
 
@@ -147,7 +202,67 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         self, gromacs_version: str = None
     ) -> list[dict[str, Any]]:
         """
-        Read force field parameters not saved by MDAnalysis
+        Read force field parameters from GROMACS TPR binary file.
+
+        TPR FILE STRUCTURE:
+        ==================
+        The TPR file stores force field parameters in a compact binary format:
+
+        1. HEADER: Version info, system size, flags (bTop, bBox, bX, bV, bF)
+        2. TOPOLOGY SECTION (if bTop == True):
+           - Symbol table (atom/residue names)
+           - ntypes: number of parameter sets
+           - functypes[ntypes]: array of function type IDs
+           - reppow: repulsion power (double)
+           - fudgeQQ: 1-4 Coulomb scaling factor (real)
+           - For each functype:
+             * Read N parameters based on type specification
+             * Store as {'type': name, 'parameters': [...]}
+
+        PARAMETER TYPES:
+        ===============
+        Each functype ID determines the interaction type and parameter count:
+
+        F_BONDS (0):          4 reals - Harmonic bond (k, r0, ?, ?)
+        F_G96BONDS (1):       4 reals - GROMOS96 bond
+        F_MORSE (2):          2-6 reals - Morse potential (D, alpha, r0, ...)
+        F_ANGLES (10):        4 reals - Harmonic angle (k, θ0, ?, ?)
+        F_PDIHS (19):         4R + 1I - Proper dihedral (φs, kφ, mult)
+        F_RBDIHS (27):        12R - Ryckaert-Bellemans dihedral
+        F_LJ (37):            2 reals - Lennard-Jones (C6, C12 or σ, ε)
+        F_LJ14 (45):          4 reals - LJ 1-4 interactions
+        F_CONSTR (62):        2 reals - Bond constraint (b0, tolerance)
+        F_SETTLE (64):        2 reals - Water constraint (dOH, dHH)
+
+        CURRENT LIMITATION:
+        ==================
+        This implementation extracts parameter VALUES only, not their assignments.
+        The TPR file contains:
+        - Parameter sets (this function extracts these)
+        - Topology lists (bonds, angles, dihedrals) with atom indices + functype index
+
+        For full force field parsing, we would need to:
+        1. Parse interaction lists (ilist section after topology)
+        2. Match each interaction (e.g., bond 0-1) to its parameter set
+        3. Create proper ForceField.contributions with:
+           - functional_form (e.g., 'harmonic_bond')
+           - particle_indices from topology
+           - parameters from this function
+        4. Handle version-dependent formats and unit conversions
+
+        The interaction lists are stored later in the TPR file structure:
+        - ilist[F_BONDS]: list of [atom_i, atom_j, param_index]
+        - ilist[F_ANGLES]: list of [atom_i, atom_j, atom_k, param_index]
+        - etc.
+
+        Currently, MDAnalysis reads the topology and provides interactions via
+        universe.bonds, universe.angles, etc., but does NOT connect them to the
+        parameter values extracted here. That would require extending MDAnalysis
+        or implementing a custom TPR reader.
+
+        RETURNS:
+        =======
+        List of dicts: [{'type': 'LJ (SR)', 'parameters': [C6, C12]}, ...]
         """
         # copied from MDAnalysis.topology.tpr.utils
         # TODO Revamp interactions section to only extract meaningful info
@@ -157,12 +272,18 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                 'Interactions will not be stored'
             )
             return []
-        gromacs_version = gromacs_version.split('.', 1)[0] if gromacs_version else None
-        if gromacs_version == '2024':
-            self.logger.warning(
-                'Reading force field from tpr not yet supported for Gromacs 2024.'
-                ' Interactions will not be stored'
-            )
+        if not self.universe:
+            if isinstance(self.universe_error, NotImplementedError):
+                self.logger.warning(
+                    'GROMACS TPR file version currently not supported by MDAnalysis. '
+                    'Force field interactions will not be stored.'
+                )
+            elif self.universe_error:
+                self.logger.warning(
+                    'Failed to read TPR file: %s. '
+                    'Force field interactions will not be stored.',
+                    str(self.universe_error),
+                )
             return []
 
         with open(self.mainfile, 'rb') as f:
