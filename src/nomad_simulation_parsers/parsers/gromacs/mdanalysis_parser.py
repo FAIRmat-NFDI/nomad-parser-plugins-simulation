@@ -192,7 +192,7 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         try:
             interactions.extend(self.get_force_field_parameters(gromacs_version))
         except Exception:
-            self.logger.error('Error parsing force field parameters.')
+            self.logger.warning('Error parsing force field parameters.')
 
         self._results['interactions'] = interactions
 
