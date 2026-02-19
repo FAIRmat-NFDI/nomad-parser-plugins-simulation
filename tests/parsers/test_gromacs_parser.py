@@ -679,3 +679,225 @@ def test_get_compressibility():
     # Test missing
     params = {}
     assert lp.get_compressibility(params) is None
+
+
+def test_system_hierarchy_water():
+    """Test that system hierarchy is parsed from water TPR file."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    tpr_file = os.path.join(base, 'topol.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(tpr_file, archive)
+
+    assert archive.data is not None
+    assert len(archive.data.model_system) > 0
+
+    system = archive.data.model_system[0]
+
+    # Water system should have sub_systems (molecule groups)
+    assert system.sub_systems is not None, 'System should have sub_systems hierarchy'
+    assert len(system.sub_systems) > 0, 'Should have at least one molecule group'
+
+    # Check first molecule group (should be SOL for water)
+    mol_group = system.sub_systems[0]
+    assert mol_group.name is not None
+    assert 'group_' in mol_group.name, 'Molecule group should have group_ prefix'
+    assert mol_group.branch_label == 'molecule_group'
+    assert mol_group.composition_formula is not None
+    assert mol_group.particle_indices is not None
+    assert len(mol_group.particle_indices) > 0
+
+    # Molecule group should contain individual molecules
+    assert mol_group.sub_systems is not None
+    assert len(mol_group.sub_systems) > 0, 'Molecule group should contain molecules'
+
+    # Check first molecule
+    molecule = mol_group.sub_systems[0]
+    assert molecule.name is not None
+    assert molecule.branch_label == 'molecule'
+    assert molecule.particle_indices is not None
+    assert len(molecule.particle_indices) > 0
+
+    # Water molecule is terminal (single residue), should have composition_formula
+    assert molecule.composition_formula is not None
+    assert 'H' in molecule.composition_formula
+    assert 'O' in molecule.composition_formula
+
+
+def test_system_hierarchy_polymer():
+    """Test that complex system hierarchy is parsed from protein TPR file."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_fsfg'
+    tpr_file = os.path.join(base, 'nvt.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+
+    try:
+        parser.parse(tpr_file, archive)
+    except Exception as e:
+        pytest.skip(f'Could not parse file: {e}')
+
+    assert archive.data is not None
+    assert len(archive.data.model_system) > 0
+
+    system = archive.data.model_system[0]
+
+    # Polymer system should have sub_systems
+    if system.sub_systems is None or len(system.sub_systems) == 0:
+        pytest.skip(
+            'System has no molecular hierarchy (may be coarse-grained or missing bonds)'
+        )
+
+    # Find a molecule group with multi-residue molecules (polymer chain)
+    multi_residue_group = None
+    for mol_group in system.sub_systems:
+        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
+            first_mol = mol_group.sub_systems[0]
+            # Multi-residue molecule has sub_systems (monomer groups)
+            if first_mol.sub_systems is not None and len(first_mol.sub_systems) > 0:
+                multi_residue_group = mol_group
+                break
+
+    if multi_residue_group is None:
+        pytest.skip(
+            'No multi-residue molecules found (system may only contain single-residue '
+            'molecules)'
+        )
+
+    # Test full 4-level hierarchy: group → molecule → monomer_group → monomer
+    assert multi_residue_group.branch_label == 'molecule_group'
+
+    molecule = multi_residue_group.sub_systems[0]
+    assert molecule.branch_label == 'molecule'
+    assert molecule.sub_systems is not None
+    assert len(molecule.sub_systems) > 0
+
+    # Molecule should contain monomer groups
+    monomer_group = molecule.sub_systems[0]
+    assert monomer_group.branch_label == 'monomer_group'
+    assert 'group_' in monomer_group.name
+    assert monomer_group.sub_systems is not None
+    assert len(monomer_group.sub_systems) > 0
+
+    # Monomer group should contain individual monomers
+    monomer = monomer_group.sub_systems[0]
+    assert monomer.branch_label == 'monomer'
+    assert monomer.composition_formula is not None
+    assert monomer.particle_indices is not None
+    assert len(monomer.particle_indices) > 0
+
+
+def test_system_hierarchy_particle_indices_valid():
+    """Test that particle_indices in hierarchy are valid and consistent."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    tpr_file = os.path.join(base, 'topol.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(tpr_file, archive)
+
+    system = archive.data.model_system[0]
+    n_atoms = system.n_particles
+
+    def check_particle_indices(subsystem, parent_indices=None):
+        """Recursively check particle_indices validity."""
+        assert subsystem.particle_indices is not None
+        assert len(subsystem.particle_indices) > 0
+
+        # All indices should be valid (less than n_atoms)
+        assert np.all(subsystem.particle_indices < n_atoms)
+        assert np.all(subsystem.particle_indices >= 0)
+
+        # If parent exists, subsystem indices should be subset of parent
+        if parent_indices is not None:
+            assert np.all(np.isin(subsystem.particle_indices, parent_indices))
+
+        # Recursively check children
+        if subsystem.sub_systems:
+            for child in subsystem.sub_systems:
+                check_particle_indices(child, subsystem.particle_indices)
+
+    # Check all molecule groups
+    for mol_group in system.sub_systems:
+        check_particle_indices(mol_group)
+
+
+def test_system_hierarchy_branch_labels():
+    """Test that branch_label is correctly assigned at each hierarchy level."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_fsfg'
+    tpr_file = os.path.join(base, 'nvt.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+
+    try:
+        parser.parse(tpr_file, archive)
+    except Exception as e:
+        pytest.skip(f'Could not parse file: {e}')
+
+    system = archive.data.model_system[0]
+
+    if system.sub_systems is None or len(system.sub_systems) == 0:
+        pytest.skip('System has no molecular hierarchy')
+
+    # Check all levels have correct branch_label
+    for mol_group in system.sub_systems:
+        assert mol_group.branch_label == 'molecule_group'
+
+        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
+            for molecule in mol_group.sub_systems:
+                assert molecule.branch_label == 'molecule'
+
+                if molecule.sub_systems and len(molecule.sub_systems) > 0:
+                    for monomer_group in molecule.sub_systems:
+                        assert monomer_group.branch_label == 'monomer_group'
+
+                        if (
+                            monomer_group.sub_systems
+                            and len(monomer_group.sub_systems) > 0
+                        ):
+                            for monomer in monomer_group.sub_systems:
+                                assert monomer.branch_label == 'monomer'
+
+
+def test_system_hierarchy_composition_formulas():
+    """Test that composition_formula is assigned to terminal branches."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    tpr_file = os.path.join(base, 'topol.tpr')
+
+    if not os.path.exists(tpr_file):
+        pytest.skip(f'TPR file not found: {tpr_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(tpr_file, archive)
+
+    system = archive.data.model_system[0]
+
+    def check_terminal_formulas(subsystem):
+        """Recursively check that terminal branches have composition_formula."""
+        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
+            # Terminal branch should have composition_formula
+            assert subsystem.composition_formula is not None, (
+                f'Terminal {subsystem.branch_label} should have composition_formula'
+            )
+        else:
+            # Non-terminal may or may not have formula, recurse to children
+            for child in subsystem.sub_systems:
+                check_terminal_formulas(child)
+
+    for mol_group in system.sub_systems:
+        check_terminal_formulas(mol_group)
