@@ -4,6 +4,9 @@ from collections.abc import Callable
 from typing import Any
 
 import MDAnalysis
+import numpy as np
+from ase import Atoms
+from ase.data import chemical_symbols
 from MDAnalysis.topology.tpr import setting as tpr_setting
 from MDAnalysis.topology.tpr import utils as tpr_utils
 
@@ -331,3 +334,280 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
             )
 
         return interactions
+
+    def _parse_element_from_name(self, name: str) -> str:
+        """Extract element symbol from atom name like 'H1', 'CA', etc."""
+        # Try to match 1 or 2 letter element at start of name
+        match = re.match(r'([A-Z][a-z]?)', name)
+        if match:
+            symbol = match.group(1)
+            # Validate it's a real element
+            if symbol in chemical_symbols[1:]:
+                return symbol
+        return 'CGX'  # Fallback for coarse-grained or unknown
+
+    def _generate_chemical_formula(
+        self, particle_indices: np.ndarray, particle_arrays: dict
+    ) -> str:
+        """Generate chemical formula from particle indices using ASE."""
+
+        elements = particle_arrays['elements'][particle_indices]
+        atoms = Atoms(symbols=list(elements))
+        result = atoms.get_chemical_formula(mode='hill')
+        return result
+
+    def _get_particles_info_from_universe(self) -> dict[str, Any]:
+        _atoms = self.universe.atoms
+        particles_elements = np.array(
+            [self._parse_element_from_name(atom.name) for atom in _atoms]
+        )
+        particles_types = np.array([atom.type for atom in _atoms])
+        n_atoms = len(_atoms)
+        moltypes = np.empty(n_atoms, dtype=object)
+        molnums = np.zeros(n_atoms, dtype=int)
+        segments = sorted(set([atom.segid for atom in _atoms]))
+        for seg_idx, segment in enumerate(segments):
+            atom_indices = np.array(
+                [atom.index for atom in _atoms if atom.segid == segment]
+            )
+            n_residues = len(
+                np.unique([atom.resid for atom in _atoms if atom.segid == segment])
+            )
+
+            # Determine molecule type identifier
+            if n_residues == 1:
+                # Single-residue molecule: use residue name
+                moltype = _atoms[atom_indices[0]].resname
+            else:
+                # Multi-residue molecule: use segment ID
+                moltype = segment
+
+            moltypes[atom_indices] = moltype
+            molnums[atom_indices] = seg_idx
+
+        return {
+            'moltypes': moltypes,
+            'molnums': molnums,
+            'resids': np.array([atom.resid for atom in _atoms]),
+            'resnames': np.array([atom.resname for atom in _atoms]),
+            'labels': [atom.name for atom in _atoms],
+            'elements': particles_elements,
+            'types': particles_types,
+        }
+
+    def _create_system_node(
+        self, name: str | int, branch_label: str, particle_indices: np.ndarray, **kwargs
+    ) -> dict[str, Any]:
+        """
+        Create a ModelSystem node with common setup.
+
+        Args:
+            name: System name
+            branch_label: Hierarchy level label
+            particle_indices: Indices of particles in this system
+            **kwargs: Additional attributes: composition_formula, is_representative, ...
+        """
+        system = dict()
+        system['name'] = str(name)
+        system['branch_label'] = branch_label
+        system['particle_indices'] = particle_indices
+        system['is_molecule'] = branch_label == 'molecule'
+
+        # Set any additional attributes
+        for key, value in kwargs.items():
+            system[key] = value
+
+        return system
+
+    def _create_molecule(
+        self, molecule: int, i_molecule: int, particle_arrays: dict
+    ) -> dict[str, Any]:
+        """Create a single molecule with its residues."""
+
+        def _create_residue(
+            res_id: int,
+            restype: str,
+            parent_system: dict[str, Any],
+            particle_arrays: dict,
+        ) -> dict[str, Any]:
+            """Create a single residue."""
+            particle_indices = np.where(particle_arrays['resids'] == res_id)[0]
+            particle_indices = np.intersect1d(
+                particle_indices, parent_system['particle_indices']
+            )
+
+            composition_formula = self._generate_chemical_formula(
+                particle_indices, particle_arrays
+            )
+
+            return self._create_system_node(
+                name=f'{restype}',
+                branch_label='monomer',
+                particle_indices=particle_indices,
+                composition_formula=composition_formula,
+            )
+
+        def _create_monomer_group(
+            restype: str, parent_system: dict[str, Any], particle_arrays: dict[str, Any]
+        ) -> dict[str, Any]:
+            """Create a monomer group with its constituent residues."""
+
+            restype_indices = np.where(particle_arrays['resnames'] == restype)[0]
+            particle_indices = np.intersect1d(
+                restype_indices, parent_system['particle_indices']
+            )
+
+            monomer_group = self._create_system_node(
+                name=f'group_{restype}',
+                branch_label='monomer_group',
+                particle_indices=particle_indices,
+            )
+
+            # Add individual residues
+            restype_resids = np.unique(
+                particle_arrays['resids'][monomer_group['particle_indices']]
+            )
+            for res_id in restype_resids:
+                residue = _create_residue(
+                    res_id, restype, monomer_group, particle_arrays
+                )
+                monomer_group.setdefault('sub_systems', []).append(residue)
+
+            return monomer_group
+
+        def _add_residue_hierarchy(
+            sec_molecule: dict[str, Any], particle_arrays: dict[str, Any]
+        ) -> None:
+            """Add residue/monomer hierarchy to a molecule."""
+            mol_resnames = particle_arrays['resnames'][sec_molecule['particle_indices']]
+            restypes = np.unique(mol_resnames)
+
+            for restype in restypes:
+                sec_monomer_group = _create_monomer_group(
+                    restype, sec_molecule, particle_arrays
+                )
+                sec_molecule.setdefault('sub_systems', []).append(sec_monomer_group)
+
+        particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
+
+        # Get molecule type from first atom in molecule
+        moltype = particle_arrays['moltypes'][particle_indices[0]]
+        molecule_name = f'{moltype}'
+
+        mol_system = self._create_system_node(
+            name=molecule_name,
+            branch_label='molecule',
+            particle_indices=particle_indices,
+        )
+
+        # Check if molecule has multiple residues
+        mol_resids = np.unique(
+            particle_arrays['resids'][mol_system['particle_indices']]
+        )
+        if len(mol_resids) > 1:
+            _add_residue_hierarchy(mol_system, particle_arrays)
+        else:
+            # Single-residue molecule: add composition formula (terminal branch)
+            mol_system['composition_formula'] = self._generate_chemical_formula(
+                mol_system['particle_indices'], particle_arrays
+            )
+
+        return mol_system
+
+    def parse_molecular_hierarchy(self) -> dict[str, Any]:
+        """
+        Build hierarchical subsystem structure from MDAnalysis universe.
+
+        Creates up to 4 levels based on available topology:
+        - Level 1: molecule_group (molecules of same type grouped)
+        - Level 2: molecule (individual molecular fragment)
+        - Level 3: monomer_group (residues of same type, for polymers)
+        - Level 4: monomer (individual residue)
+
+        Uses MDAnalysis residue information to build hierarchy. Computes composition
+        formulas by counting atom types or residue types at each level.
+
+        Args:
+            source: Source dictionary (unused - we access MDAnalysis directly)
+            **kwargs: Additional keyword arguments from annotation
+
+        Returns:
+            dict: Level-1 subsystems with nested sub_systems
+        """
+
+        mol_hierarchy: dict[str, Any] = {}
+
+        def _get_particles_info() -> dict | None:
+            """Get particle information from the first frame."""
+
+            particles_info = self.get('atoms_info', None)
+
+            if particles_info is None:
+                particles_info = self._get_particles_info_from_universe()
+
+            return particles_info
+
+        def _extract_particle_arrays(particles_info: dict) -> dict:
+            """Extract and process particle information arrays."""
+            particle_labels = particles_info.get('labels', [])
+            n_atoms = len(particle_labels)
+            particles_elements = np.array(
+                particles_info.get('elements', ['CGX'] * n_atoms)
+            )
+            particles_types = np.array(particles_info.get('types', []))
+
+            # Replace CGX placeholder elements if better labels available
+            if 'CGX' in particles_elements:
+                if particle_labels and 'CGX' not in particle_labels:
+                    particles_elements = np.array(particle_labels)
+                else:
+                    particles_elements = particles_types
+
+            return {
+                'moltypes': np.array(particles_info.get('moltypes', [])),
+                'molnums': np.array(particles_info.get('molnums', [])),
+                'resids': np.array(particles_info.get('resids', [])),
+                'resnames': np.array(particles_info.get('resnames', [])),
+                'elements': particles_elements,
+                'types': particles_types,
+            }
+
+        def _create_molecule_group(
+            moltype: str, particle_arrays: dict
+        ) -> dict[str, Any]:
+            """Create a molecule group with its constituent molecules."""
+            particle_indices = np.where(particle_arrays['moltypes'] == moltype)[0]
+
+            # Calculate composition formula
+            mol_nums = particle_arrays['molnums'][particle_indices]
+            moltype_count = np.unique(mol_nums).shape[0]
+
+            molecule_group = self._create_system_node(
+                name=f'group_{moltype}',
+                branch_label='molecule_group',
+                particle_indices=particle_indices,
+                composition_formula=f'{moltype}({moltype_count})',
+            )
+
+            # Add individual molecules
+            molecules = particle_arrays['molnums']
+            for i_molecule, molecule in enumerate(
+                np.unique(molecules[molecule_group['particle_indices']])
+            ):
+                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+                molecule_group.setdefault('sub_systems', []).append(mol)
+
+            return molecule_group
+
+        particles_info = _get_particles_info()
+        if particles_info is None:
+            return
+        particle_arrays = _extract_particle_arrays(particles_info)
+
+        # Build molecular hierarchy
+        moltypes = np.unique(particle_arrays['moltypes'])
+        for moltype in moltypes:
+            molecule_group = _create_molecule_group(moltype, particle_arrays)
+            mol_hierarchy[moltype] = molecule_group
+
+        return mol_hierarchy
