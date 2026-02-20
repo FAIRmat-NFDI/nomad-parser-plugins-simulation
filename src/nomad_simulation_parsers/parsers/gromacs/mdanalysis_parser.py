@@ -473,6 +473,10 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                 )
                 monomer_group.setdefault('sub_systems', []).append(residue)
 
+            # Set composition formula as RESTYPE(count)
+            monomer_count = len(restype_resids)
+            monomer_group['composition_formula'] = f'{restype}({monomer_count})'
+
             return monomer_group
 
         def _add_residue_hierarchy(

@@ -114,7 +114,7 @@ class MDAnalysisParser(FileParser):
                     self.mainfile, *self.auxilliary_files, **self.options
                 )
             except Exception as e:
-                self.logger.warning('Error creating MDAnalysis universe.', exc_info=e)
+                self.logger.error('Error creating MDAnalysis universe.', exc_info=e)
                 self.universe_error = e
         return self._file_handler
 
@@ -175,9 +175,11 @@ class MDAnalysisParser(FileParser):
             ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
-                lambda: self.get_fragtypes()
-                if hasattr(self.universe.atoms, 'fragments')
-                else None,
+                lambda: (
+                    self.get_fragtypes()
+                    if hasattr(self.universe.atoms, 'fragments')
+                    else None
+                ),
             ),
             ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
             ('resnames', lambda: self._results['atoms_info'].get('resids')),

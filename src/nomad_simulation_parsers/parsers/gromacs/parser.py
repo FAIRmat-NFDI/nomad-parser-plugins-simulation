@@ -540,16 +540,31 @@ class GromacsMDAnalysisParser(MappingParser):
         Returns:
             List of subsystem dicts from this level
         """
+        # Debug: log what we're receiving
+        source_keys = list(source.keys()) if isinstance(source, dict) else []
+        has_hierarchy = (
+            hasattr(self, '_subsystems_hierarchy') and self._subsystems_hierarchy
+        )
+        self.logger.info(
+            'get_subsystems_from_dict called: source_keys=%s, has_hierarchy=%s',
+            source_keys,
+            has_hierarchy,
+        )
 
         # Root call: return the full hierarchy
         if hasattr(self, '_subsystems_hierarchy') and self._subsystems_hierarchy:
             # Check if this is the root call by looking at source keys
             if 'n_atoms' in source and 'sub_systems' not in source:
+                self.logger.info(
+                    'Returning full hierarchy (%d items)',
+                    len(self._subsystems_hierarchy),
+                )
                 result = self._subsystems_hierarchy
                 return result
 
         # Nested call: extract from dict's sub_systems key
         subsystems = source.get('sub_systems', []) if isinstance(source, dict) else []
+        self.logger.info('Returning nested subsystems (%d items)', len(subsystems))
 
         return subsystems
 
@@ -723,6 +738,7 @@ class GromacsMDAnalysisParser(MappingParser):
 class GromacsArchiveWriter(MDParser):
     def __init__(self, **kwargs):
         self._simulation_parser = GromacsMetainfoParser()
+        self._simulation_parser.max_nested_level = 10
         self._log_parser = GromacsLogParser(text_parser=GromacsLogTextParser())
         self._mdp_parser = GromacsMDPParser(text_parser=GromacsMDPTextParser())
         self._edr_parser = GromacsEDRParser(edr_parser=GromacsEDRFileParser())

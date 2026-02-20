@@ -124,13 +124,6 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
-    # sub_systems: recursively extract from nested dicts via function call
-    # Pass '.@' as first argument (current node dict) to function
-    add_mapping_annotation(
-        model_system.ModelSystem.sub_systems,
-        TPR_KEY,
-        ('get_subsystems_from_dict', ['.@']),
-    )
     add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
 
 
@@ -141,6 +134,13 @@ add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
 
 # Subsystem hierarchy annotations (apply to all ModelSystem instances including
 # subsystems)
+# sub_systems: recursively extract from nested dicts via function call
+# Pass '.@' as first argument (current node dict) to function
+add_mapping_annotation(
+    model_system.ModelSystem.sub_systems,
+    TPR_KEY,
+    ('get_subsystems_from_dict', ['.@']),
+)
 add_mapping_annotation(model_system.ModelSystem.name, TPR_KEY, '.name')
 add_mapping_annotation(
     model_system.ModelSystem.composition_formula, TPR_KEY, '.composition_formula'

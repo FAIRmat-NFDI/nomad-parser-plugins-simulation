@@ -160,16 +160,13 @@ def test_integration_parse_gromacs_water():
 def test_force_field_parsing_from_tpr():
     """Test that force field parameters are extracted from TPR file."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    candidates = ['mdrun.log', 'md.log', 'mdrun.out']
-    mainfile = ''
-    for name in candidates:
-        p = os.path.join(base, name)
-        if os.path.exists(p):
-            mainfile = p
-            break
 
-    if not mainfile:
-        pytest.skip(f'No suitable mainfile found in {base}')
+    # Find any .log file in the directory
+    log_files = list(base.glob('*.log'))
+    if not log_files:
+        pytest.skip(f'No .log file found in {base}')
+
+    mainfile = str(log_files[0])
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
@@ -442,14 +439,14 @@ def test_get_bond_list_invalid_bond_indices():
 def test_integration_bond_list_in_parsed_system():
     """Test that bond_list is populated in parsed model_system from TPR file."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    tpr_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'topol.tpr')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'TPR file not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(tpr_file, archive)
+    parser.parse(log_file, archive)
 
     assert archive.data is not None
     assert len(archive.data.model_system) > 0
@@ -682,16 +679,16 @@ def test_get_compressibility():
 
 
 def test_system_hierarchy_water():
-    """Test that system hierarchy is parsed from water TPR file."""
+    """Test that system hierarchy is parsed from water mainfile."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    tpr_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'reference_s.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(tpr_file, archive)
+    parser.parse(log_file, archive)
 
     assert archive.data is not None
     assert len(archive.data.model_system) > 0
@@ -729,18 +726,18 @@ def test_system_hierarchy_water():
 
 
 def test_system_hierarchy_polymer():
-    """Test that complex system hierarchy is parsed from protein TPR file."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_fsfg'
-    tpr_file = os.path.join(base, 'nvt.tpr')
+    """Test that complex system hierarchy is parsed from protein mainfile."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
+    log_file = os.path.join(base, 'md.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
 
     try:
-        parser.parse(tpr_file, archive)
+        parser.parse(log_file, archive)
     except Exception as e:
         pytest.skip(f'Could not parse file: {e}')
 
@@ -751,9 +748,7 @@ def test_system_hierarchy_polymer():
 
     # Polymer system should have sub_systems
     if system.sub_systems is None or len(system.sub_systems) == 0:
-        pytest.skip(
-            'System has no molecular hierarchy (may be coarse-grained or missing bonds)'
-        )
+        pytest.skip('System has no molecular hierarchy')
 
     # Find a molecule group with multi-residue molecules (polymer chain)
     multi_residue_group = None
@@ -797,14 +792,14 @@ def test_system_hierarchy_polymer():
 def test_system_hierarchy_particle_indices_valid():
     """Test that particle_indices in hierarchy are valid and consistent."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    tpr_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'reference_s.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(tpr_file, archive)
+    parser.parse(log_file, archive)
 
     system = archive.data.model_system[0]
     n_atoms = system.n_particles
@@ -834,17 +829,17 @@ def test_system_hierarchy_particle_indices_valid():
 
 def test_system_hierarchy_branch_labels():
     """Test that branch_label is correctly assigned at each hierarchy level."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_fsfg'
-    tpr_file = os.path.join(base, 'nvt.tpr')
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
+    log_file = os.path.join(base, 'md.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'TPR file not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
 
     try:
-        parser.parse(tpr_file, archive)
+        parser.parse(log_file, archive)
     except Exception as e:
         pytest.skip(f'Could not parse file: {e}')
 
@@ -876,14 +871,14 @@ def test_system_hierarchy_branch_labels():
 def test_system_hierarchy_composition_formulas():
     """Test that composition_formula is assigned to terminal branches."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    tpr_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'reference_s.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(tpr_file, archive)
+    parser.parse(log_file, archive)
 
     system = archive.data.model_system[0]
 
