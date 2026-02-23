@@ -31,6 +31,16 @@ class StubMDAnalysisDataObject:
         n = int(np.asarray(self._positions[idx]).shape[0])
         return ['H'] * n
 
+    def get_frame_data(self, idx):
+        lv = None if self._lattices is None else np.asarray(self._lattices[idx])
+        return dict(
+            positions=np.asarray(self._positions[idx]),
+            velocities=(
+                None if self._velocities is None else np.asarray(self._velocities[idx])
+            ),
+            lattice_vectors=lv,
+        )
+
     def get_interactions(self):
         # Return empty list for stub (no bonds by default)
         return []
@@ -128,11 +138,11 @@ def test_integration_parse_gromacs_water():
     # Use the provided test data (water). The Gromacs parser expects the mainfile
     # to be the log-like mdrun output; pick the provided 'mdrun.out' in the test data.
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    # prefer 'mdrun.log' if present, otherwise fallback to 'mdrun.out'
+    # prefer 'reference_s.log' if present, otherwise fallback to 'md.log'
     candidates = [
+        'reference_s.log',
         'mdrun.log',
         'md.log',
-        'mdrun.out',
     ]
     mainfile = ''
     for name in candidates:

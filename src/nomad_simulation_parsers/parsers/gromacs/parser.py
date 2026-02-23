@@ -520,6 +520,7 @@ class GromacsMDAnalysisParser(MappingParser):
         self._trajectory_steps: list[int] = []
         self._thermodynamic_steps: list[int] = []
         self._subsystems_hierarchy: list[dict[str, Any]] = []
+        self._hierarchy_returned: bool = False
         super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
@@ -535,9 +536,7 @@ class GromacsMDAnalysisParser(MappingParser):
             # Build complete nested subsystem structure and store as parser attribute
             # get_subsystems_from_dict will access this to extract system hierarchy
             self._subsystems_hierarchy = self.get_sub_systems()
-            self.logger.info(
-                'to_dict: Built %d subsystems', len(self._subsystems_hierarchy)
-            )
+            self._hierarchy_returned = False
 
             return result
         return {}
@@ -548,9 +547,11 @@ class GromacsMDAnalysisParser(MappingParser):
         """
         Extract subsystems from source dict.
 
-        This is called by MappingParser for both top-level and nested ModelSystems.
-        For the root call, returns the full hierarchy from self._subsystems_hierarchy.
-        For nested calls, it extracts 'sub_systems' key from the source dict.
+        Called by MappingParser for both top-level and nested ModelSystems.
+        For the first top-level call (representative frame), returns the full
+        hierarchy from self._subsystems_hierarchy. Subsequent top-level calls
+        (other trajectory frames) return empty — topology is frame-independent.
+        For nested calls, returns 'sub_systems' from the source dict directly.
 
         Args:
             source: Source dictionary containing subsystem data
@@ -559,33 +560,17 @@ class GromacsMDAnalysisParser(MappingParser):
         Returns:
             List of subsystem dicts from this level
         """
-        # Debug: log what we're receiving
-        source_keys = list(source.keys()) if isinstance(source, dict) else []
-        has_hierarchy = (
-            hasattr(self, '_subsystems_hierarchy') and self._subsystems_hierarchy
-        )
-        self.logger.info(
-            'get_subsystems_from_dict called: source_keys=%s, has_hierarchy=%s',
-            source_keys,
-            has_hierarchy,
-        )
+        # Root call: first frame gets the full hierarchy; others get nothing.
+        # The check 'n_atoms' in source distinguishes a top-level configuration
+        # dict (produced by get_configurations) from a nested subsystem dict.
+        if 'n_atoms' in source and 'sub_systems' not in source:
+            if self._subsystems_hierarchy and not self._hierarchy_returned:
+                self._hierarchy_returned = True
+                return self._subsystems_hierarchy
+            return []
 
-        # Root call: return the full hierarchy
-        if hasattr(self, '_subsystems_hierarchy') and self._subsystems_hierarchy:
-            # Check if this is the root call by looking at source keys
-            if 'n_atoms' in source and 'sub_systems' not in source:
-                self.logger.info(
-                    'Returning full hierarchy (%d items)',
-                    len(self._subsystems_hierarchy),
-                )
-                result = self._subsystems_hierarchy
-                return result
-
-        # Nested call: extract from dict's sub_systems key
-        subsystems = source.get('sub_systems', []) if isinstance(source, dict) else []
-        self.logger.info('Returning nested subsystems (%d items)', len(subsystems))
-
-        return subsystems
+        # Nested call: propagate already-built sub_systems from the hierarchy dict.
+        return source.get('sub_systems', []) if isinstance(source, dict) else []
 
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
@@ -640,20 +625,24 @@ class GromacsMDAnalysisParser(MappingParser):
         return result
 
     def get_configurations(self) -> list[dict[str, Any]]:
+        # Labels, n_atoms and bond_list are frame-independent; compute once.
+        labels = self.get_atom_labels(0)
+        n_atoms = self.data_object.get_n_atoms(0)
+        bond_list = self.get_bond_list()
+
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
+            # get_frame_data performs a single trajectory seek for all per-frame data.
+            frame_data = self.data_object.get_frame_data(n)
             config = dict(
-                n_atoms=self.data_object.get_n_atoms(n),
-                labels=self.get_atom_labels(n),
-                positions=self.data_object.get_positions(n),
-                velocities=self.data_object.get_velocities(n),
-                lattice_vectors=self.data_object.get_lattice_vectors(n),
+                n_atoms=n_atoms,
+                labels=labels,
+                positions=frame_data['positions'],
+                velocities=frame_data['velocities'],
+                lattice_vectors=frame_data['lattice_vectors'],
             )
-            if n == 0:
-                bond_list = self.get_bond_list()
-                if bond_list is not None:
-                    config['bond_list'] = bond_list
-
+            if n == 0 and bond_list is not None:
+                config['bond_list'] = bond_list
             configurations.append(config)
         return configurations
 
@@ -912,9 +901,8 @@ class GromacsArchiveWriter(MDParser):
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
         traj_sampling_rate = self.input_parameters.get('nstxout', 1)
-        self.n_atoms = [
-            self._mdanalysis_parser.data_object.get_n_atoms(n) for n in range(n_frames)
-        ]
+        n_atoms_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
+        self.n_atoms = [n_atoms_per_frame] * n_frames
         traj_steps = [n * traj_sampling_rate for n in range(n_frames)]
         self.trajectory_steps = traj_steps
 
