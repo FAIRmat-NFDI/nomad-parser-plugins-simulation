@@ -439,10 +439,10 @@ def test_get_bond_list_invalid_bond_indices():
 def test_integration_bond_list_in_parsed_system():
     """Test that bond_list is populated in parsed model_system from TPR file."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    log_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'reference_s.log')
 
     if not os.path.exists(log_file):
-        pytest.skip(f'TPR file not found: {log_file}')
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
@@ -735,11 +735,7 @@ def test_system_hierarchy_polymer():
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-
-    try:
-        parser.parse(log_file, archive)
-    except Exception as e:
-        pytest.skip(f'Could not parse file: {e}')
+    parser.parse(log_file, archive)
 
     assert archive.data is not None
     assert len(archive.data.model_system) > 0
@@ -747,8 +743,9 @@ def test_system_hierarchy_polymer():
     system = archive.data.model_system[0]
 
     # Polymer system should have sub_systems
-    if system.sub_systems is None or len(system.sub_systems) == 0:
-        pytest.skip('System has no molecular hierarchy')
+    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
+        'System has no molecular hierarchy - hierarchy parsing regression'
+    )
 
     # Find a molecule group with multi-residue molecules (polymer chain)
     multi_residue_group = None
@@ -760,11 +757,10 @@ def test_system_hierarchy_polymer():
                 multi_residue_group = mol_group
                 break
 
-    if multi_residue_group is None:
-        pytest.skip(
-            'No multi-residue molecules found (system may only contain single-residue '
-            'molecules)'
-        )
+    assert multi_residue_group is not None, (
+        'No multi-residue molecules found in protein_small - '
+        'expected at least one polymer chain'
+    )
 
     # Test full 4-level hierarchy: group → molecule → monomer_group → monomer
     assert multi_residue_group.branch_label == 'molecule_group'
@@ -837,16 +833,13 @@ def test_system_hierarchy_branch_labels():
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-
-    try:
-        parser.parse(log_file, archive)
-    except Exception as e:
-        pytest.skip(f'Could not parse file: {e}')
+    parser.parse(log_file, archive)
 
     system = archive.data.model_system[0]
 
-    if system.sub_systems is None or len(system.sub_systems) == 0:
-        pytest.skip('System has no molecular hierarchy')
+    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
+        'System has no molecular hierarchy - hierarchy parsing regression'
+    )
 
     # Check all levels have correct branch_label
     for mol_group in system.sub_systems:

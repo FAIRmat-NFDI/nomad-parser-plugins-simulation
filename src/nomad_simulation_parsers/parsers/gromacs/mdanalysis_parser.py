@@ -9,6 +9,7 @@ from ase import Atoms
 from ase.data import chemical_symbols
 from MDAnalysis.topology.tpr import setting as tpr_setting
 from MDAnalysis.topology.tpr import utils as tpr_utils
+from nomad.normalizing.optimade import normalized_atom_labels
 
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 
@@ -529,7 +530,8 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         - Level 4: monomer (individual residue)
 
         Uses MDAnalysis residue information to build hierarchy. Computes composition
-        formulas by counting atom types or residue types at each level.
+        formulas by counting atom types or residue types at each level. Returnes
+        chemical formula for terminal branches (monomers or single-residue molecules).
 
         Args:
             source: Source dictionary (unused - we access MDAnalysis directly)
@@ -556,16 +558,23 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
             particle_labels = particles_info.get('labels', [])
             n_atoms = len(particle_labels)
             particles_elements = np.array(
-                particles_info.get('elements', ['CGX'] * n_atoms)
+                particles_info.get('elements', ['CGX'] * n_atoms), dtype=object
             )
             particles_types = np.array(particles_info.get('types', []))
 
-            # Replace CGX placeholder elements if better labels available
-            if 'CGX' in particles_elements:
-                if particle_labels and 'CGX' not in particle_labels:
-                    particles_elements = np.array(particle_labels)
-                else:
-                    particles_elements = particles_types
+            # Replace CGX placeholder elements per-atom using normalized_atom_labels,
+            # which matches the longest valid chemical symbol found anywhere in the
+            # atom name (e.g. OW→O, HW1→H, CA→Ca). Raw labels/types must not be
+            # used directly since atom names and force-field types are not valid
+            # ASE chemical symbols.
+            cgx_mask = particles_elements == 'CGX'
+            if cgx_mask.any():
+                cgx_indices = np.where(cgx_mask)[0]
+                fallback_names = [
+                    particle_labels[i] if i < len(particle_labels) else ''
+                    for i in cgx_indices
+                ]
+                particles_elements[cgx_indices] = normalized_atom_labels(fallback_names)
 
             return {
                 'moltypes': np.array(particles_info.get('moltypes', [])),
@@ -605,7 +614,7 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
 
         particles_info = _get_particles_info()
         if particles_info is None:
-            return
+            return {}
         particle_arrays = _extract_particle_arrays(particles_info)
 
         # Build molecular hierarchy

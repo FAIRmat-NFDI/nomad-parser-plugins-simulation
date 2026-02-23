@@ -42,8 +42,14 @@ class GromacsMetainfoParser(MetainfoParser):
 
 
 class GromacsThermodynamicsParser(MappingParser):
-    _trajectory_steps: list[int] = []
-    _thermodynamic_steps: list[int] = []
+    _trajectory_steps: list[int]
+    _thermodynamic_steps: list[int]
+
+    def __init__(self, **kwargs):
+        self._trajectory_steps: list[int] = []
+        self._thermodynamic_steps: list[int] = []
+        super().__init__(**kwargs)
+
     _base_calc_unit_map = {
         'Temperature': ureg.kelvin,
         'Volume': ureg.nm**3,
@@ -109,7 +115,11 @@ class GromacsThermodynamicsParser(MappingParser):
 
 
 class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
-    _trajectory_steps_sampled: list[int] = []
+    _trajectory_steps_sampled: list[int]
+
+    def __init__(self, **kwargs):
+        self._trajectory_steps_sampled: list[int] = []
+        super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -496,12 +506,21 @@ class GromacsXVGParser(TextParser):
 
 
 class GromacsMDAnalysisParser(MappingParser):
-    aux_files: list[str] = []
-    mdanalysis_parser: GromacsMDAnalysisFileParser = None
-    _trajectory_steps_sampled: list[int] = []
-    _trajectory_steps: list[int] = []
-    _thermodynamic_steps: list[int] = []
-    _subsystems_hierarchy: list[dict[str, Any]] = []
+    aux_files: list[str]
+    mdanalysis_parser: GromacsMDAnalysisFileParser
+    _trajectory_steps_sampled: list[int]
+    _trajectory_steps: list[int]
+    _thermodynamic_steps: list[int]
+    _subsystems_hierarchy: list[dict[str, Any]]
+
+    def __init__(self, **kwargs):
+        self.aux_files: list[str] = []
+        self.mdanalysis_parser: GromacsMDAnalysisFileParser = None
+        self._trajectory_steps_sampled: list[int] = []
+        self._trajectory_steps: list[int] = []
+        self._thermodynamic_steps: list[int] = []
+        self._subsystems_hierarchy: list[dict[str, Any]] = []
+        super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -728,11 +747,13 @@ class GromacsMDAnalysisParser(MappingParser):
     def get_sub_systems(
         self, source: dict[str, Any] = None, **kwargs
     ) -> list[dict[str, Any]]:
-
         particles_groups = self.mdanalysis_parser.parse_molecular_hierarchy()
-        source = list(group for group in particles_groups.values())
-
-        return source
+        if particles_groups is None:
+            self.logger.warning(
+                'parse_molecular_hierarchy returned None; skipping system hierarchy'
+            )
+            return []
+        return list(particles_groups.values())
 
 
 class GromacsArchiveWriter(MDParser):
