@@ -85,9 +85,10 @@ class ModelMethod(general.ModelMethod):
 
 
 class DFT(model_method.DFT):
-    # KSpace: use absolute path from KPOINTS_XML root context (modeling)
-    # because kpoints is at modeling.kpoints, not inside the electronic separator
-    add_mapping_annotation(numerical_settings.KSpace.m_def, KPOINTS_XML, 'kpoints')
+    # KSpace: Changed from absolute path 'kpoints' to relative '.kpoints' to enable
+    # mapper tree traversal. The mapper builder needs a connected chain of annotations
+    # from root → ModelMethod → numerical_settings → KSpace → k_mesh
+    add_mapping_annotation(numerical_settings.KSpace.m_def, KPOINTS_XML, '.kpoints')
     add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
     add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
