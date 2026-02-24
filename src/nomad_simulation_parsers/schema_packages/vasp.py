@@ -371,5 +371,7 @@ class Pseudopotential(numerical_settings.Pseudopotential):
 
 try:
     m_package.__init_metainfo__()
-except Exception:
-    pass
+except Exception as e:
+    print(f'[ERROR] Failed to initialize VASP schema package: {e}', flush=True)
+    import traceback
+    traceback.print_exc()
