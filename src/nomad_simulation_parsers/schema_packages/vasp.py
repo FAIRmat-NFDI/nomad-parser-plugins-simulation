@@ -54,9 +54,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.ModelMethod.m_def, KPOINTS_XML, '.@')
     add_mapping_annotation(general.ModelMethod.m_def, PP_XML, '.@')
     add_mapping_annotation(general.ModelMethod.m_def, PP_OUT, '.@')
-    add_mapping_annotation(
-        general.Simulation.model_system, XML_KEY, '.calculation'
-    )
+    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
@@ -80,7 +78,9 @@ class Program(general.Program):
 
 class ModelMethod(general.ModelMethod):
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.m_def, PP_XML, '.atominfo.array[?"@name"==\'atomtypes\'] | [0].set.rc'
+        numerical_settings.Pseudopotential.m_def,
+        PP_XML,
+        '.atominfo.array[?"@name"==\'atomtypes\'] | [0].set.rc',
     )
 
 
@@ -113,6 +113,7 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
     )
+
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, KPOINTS_XML, '.@')
@@ -347,12 +348,8 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         '.RCORE',
         unit='angstrom',
     )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.l_max, PP_OUT, '.LMAX'
-    )
-    add_mapping_annotation(
-        numerical_settings.Pseudopotential.lm_max, PP_OUT, '.LMMAX'
-    )
+    add_mapping_annotation(numerical_settings.Pseudopotential.l_max, PP_OUT, '.LMAX')
+    add_mapping_annotation(numerical_settings.Pseudopotential.lm_max, PP_OUT, '.LMMAX')
     add_mapping_annotation(
         numerical_settings.Pseudopotential.type,
         PP_OUT,
@@ -375,4 +372,5 @@ try:
 except Exception as e:
     print(f'[ERROR] Failed to initialize VASP schema package: {e}', flush=True)
     import traceback
+
     traceback.print_exc()

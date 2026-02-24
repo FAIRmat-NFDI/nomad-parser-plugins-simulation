@@ -60,12 +60,22 @@ potcar_quantities = [
     Quantity('RCORE', r'RCORE\s*=\s*([\d\.]+)', dtype=float),
     Quantity('ENMAX', r'ENMAX\s*=\s*([\d\.]+)', dtype=float),
     Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)', dtype=float),
-    Quantity('LPAW', r'LPAW\s*=\s*([TF])', dtype=bool), ## doublecheck mapping
-    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])', dtype=bool), ## doublecheck mapping
-    Quantity('LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int),
-    Quantity('LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int),
+    Quantity('LPAW', r'LPAW\s*=\s*([TF])', dtype=bool),  ## doublecheck mapping
+    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])', dtype=bool),  ## doublecheck mapping
+    Quantity(
+        'LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int
+    ),
+    Quantity(
+        'LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int
+    ),
     Quantity('SHA256', r'SHA256\s*=\s*(\w+)', dtype=str),
 ]
+
+# Regex pattern for POTCAR sections in OUTCAR
+POTCAR_PATTERN = (
+    r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
+    r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)'
+)
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -336,7 +346,7 @@ class OutcarTextParser(TextParser):
             ),
             Quantity(
                 'pseudopotentials',
-                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                POTCAR_PATTERN,
                 repeats=True,
                 sub_parser=TextParser(quantities=potcar_quantities),
             ),
@@ -534,7 +544,6 @@ class OutcarParser(MappingTextParser):
     def derive_is_gw_optimized(self, titel: str) -> bool:
         """Determine if GW-optimized from TITEL (per-instance)."""
         return titel is not None and '_GW' in titel
-
 
 
 class OutcarArchiveWriter(ArchiveWriter):

@@ -76,7 +76,6 @@ class VasprunParser(XMLParser):
         )
 
 
-
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser()
@@ -106,22 +105,27 @@ class XMLArchiveWriter(ArchiveWriter):
         outcar_path = self._find_outcar()
         if outcar_path and os.path.exists(outcar_path):
             LOGGER.info(
-                f'Found OUTCAR at {outcar_path}, extending vasprun.xml pseudopotentials '
-                'with detailed metadata'
+                f'Found OUTCAR at {outcar_path}, extending vasprun.xml '
+                'pseudopotentials with detailed metadata'
             )
             from nomad.parsing.file_parser import Quantity, TextParser
             from nomad.parsing.file_parser.mapping_parser import (
                 TextParser as MappingTextParser,
             )
+
             from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
                 potcar_quantities,
             )
 
+            potcar_pattern = (
+                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
+                r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)'
+            )
             outcar_supplement_parser = TextParser(
                 quantities=[
                     Quantity(
                         'pseudopotentials',
-                        r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                        potcar_pattern,
                         repeats=True,
                         sub_parser=TextParser(quantities=potcar_quantities),
                     )
@@ -136,8 +140,8 @@ class XMLArchiveWriter(ArchiveWriter):
             # This preserves XML structure while adding OUTCAR's detailed metadata
             outcar_parser.convert(data_parser, update_mode='merge')
 
-            # Clean up duplicate pseudopotentials created by type mismatch during merge
-            # When PP_OUT tries to merge at index 0 but finds KSpace, it creates a new PP
+            # Clean up duplicate pseudopotentials created by type mismatch
+            # When PP_OUT merges at index 0 but finds KSpace, creates new PP
             model_method = data_parser.data_object.model_method[0]
             seen_pp_names = set()
             deduplicated_ns = []
@@ -170,6 +174,10 @@ class XMLArchiveWriter(ArchiveWriter):
         """
         mainfile_dir = PathLib(self.mainfile).parent
         return next(
-            (str(f) for f in mainfile_dir.iterdir() if f.name.lower().startswith('outcar')),
-            None
+            (
+                str(f)
+                for f in mainfile_dir.iterdir()
+                if f.name.lower().startswith('outcar')
+            ),
+            None,
         )
