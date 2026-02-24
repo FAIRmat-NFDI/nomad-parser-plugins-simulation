@@ -11,8 +11,8 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
-DOS_KEY = 'dos'
+OUT_KEY = 'abinit_out'
+DOS_KEY = 'abinit_dos'
 
 
 class GeometryOptimizationMethod(

@@ -40,6 +40,8 @@ dependencies = [
     "mdanalysis>=2.8.0,<3.0.0 ; python_full_version >= '3.10'",
     "mdanalysis<2.8 ; python_full_version < '3.10'",
     "panedr>=0.2",
+    # issue with reading nc file in 1.7.3: https://github.com/Unidata/netcdf4-python/issues/1438
+    "netcdf4<=1.7.2",
 ]
 
 [project.urls]
@@ -162,6 +164,8 @@ vasp_parser = "nomad_simulation_parsers.parsers:vasp_parser"
 vasp_schema_package = "nomad_simulation_parsers.schema_packages:vasp_schema_package"
 wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
 wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
+yambo_parser = "nomad_simulation_parsers.parsers:yambo_parser"
+yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_package"
 
 
 [tool.cruft]

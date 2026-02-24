@@ -36,7 +36,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-HDF5_KEY = 'hdf5'
+HDF5_KEY = 'h5md_hdf5'
 
 # Global list of standard H5MD observables to exclude from custom outputs
 STANDARD_H5MD_OBSERVABLES = [
@@ -1147,7 +1147,7 @@ class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 
 # Custom Ensemble Properties mapping using get_custom_ensemble_outputs
 MolecularDynamicsResults.ensemble_properties.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(
     mapper=(
         'get_custom_ensemble_outputs',
@@ -1173,7 +1173,7 @@ add_mapping_annotation(EnsembleProperty.value_unit, HDF5_KEY, '.value_unit')
 # Radial Distribution Functions mapping using get_output_data
 MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(
+)[HDF5_KEY] = MapperAnnotation(
     mapper=(
         'get_output_data',
         ['observables.radial_distribution_functions'],
@@ -1183,19 +1183,19 @@ MolecularDynamicsResults.radial_distribution_functions.m_annotations.setdefault(
 # Individual field mappings for RadialDistributionFunction
 molecular_dynamics.RadialDistributionFunction.label.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.label')
+)[HDF5_KEY] = MapperAnnotation(mapper='.label')
 
 molecular_dynamics.RadialDistributionFunction.bins.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.bins')
+)[HDF5_KEY] = MapperAnnotation(mapper='.bins')
 
 molecular_dynamics.RadialDistributionFunction.value.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.value')
+)[HDF5_KEY] = MapperAnnotation(mapper='.value')
 
 # Custom Correlation Functions mapping using get_custom_ensemble_outputs
 MolecularDynamicsResults.correlation_functions.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(
     mapper=(
         'get_custom_ensemble_outputs',
@@ -1225,7 +1225,7 @@ add_mapping_annotation(CorrelationFunction.n_times, HDF5_KEY, '.n_times')
 # Mean Squared Displacements mapping using get_output_data
 MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(
+)[HDF5_KEY] = MapperAnnotation(
     mapper=(
         'get_output_data',
         ['observables.mean_squared_displacements'],
@@ -1235,32 +1235,32 @@ MolecularDynamicsResults.mean_squared_displacements.m_annotations.setdefault(
 # Individual field mappings for MeanSquaredDisplacement
 molecular_dynamics.MeanSquaredDisplacement.label.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.label')
+)[HDF5_KEY] = MapperAnnotation(mapper='.label')
 
 molecular_dynamics.MeanSquaredDisplacement.times.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.times')
+)[HDF5_KEY] = MapperAnnotation(mapper='.times')
 
 molecular_dynamics.MeanSquaredDisplacement.value.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.value')
+)[HDF5_KEY] = MapperAnnotation(mapper='.value')
 
 molecular_dynamics.MeanSquaredDisplacement.direction.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.direction')
+)[HDF5_KEY] = MapperAnnotation(mapper='.direction')
 
 molecular_dynamics.MeanSquaredDisplacement.n_times.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.n_times')
+)[HDF5_KEY] = MapperAnnotation(mapper='.n_times')
 
 # TODO add error quantities
 # molecular_dynamics.MeanSquaredDisplacement.errors.m_annotations.setdefault(
 #     'mapping', {}
-# )['hdf5'] = MapperAnnotation(mapper='.errors')
+# )[HDF5_KEY] = MapperAnnotation(mapper='.errors')
 
 # Diffusion Constants mapping using get_output_data
 MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(
     mapper=(
         'get_output_data',
@@ -1270,21 +1270,21 @@ MolecularDynamicsResults.diffusion_constants.m_annotations.setdefault('mapping',
 
 # Individual field mappings for DiffusionConstant
 molecular_dynamics.DiffusionConstant.label.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(mapper='.label')
 
 molecular_dynamics.DiffusionConstant.value.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(mapper='.value')
 
 MolecularDynamicsResults.radii_of_gyration.m_annotations.setdefault('mapping', {})[
-    'hdf5'
+    HDF5_KEY
 ] = MapperAnnotation(mapper='.@')
 
 # ! multi-ensemble property!
 MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
     'mapping', {}
-)['hdf5'] = MapperAnnotation(mapper='.@')
+)[HDF5_KEY] = MapperAnnotation(mapper='.@')
 
 
 # Use our custom MolecularDynamics class with custom results

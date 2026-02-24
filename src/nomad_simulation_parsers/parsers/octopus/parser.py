@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -417,9 +416,6 @@ class OctopusArchiveWriter(ArchiveWriter):
     eigenvalues_parser = OctopusEigenvalueParser(text_parser=EigenvalueParser())
 
     def write_to_archive(self) -> None:
-        # Reload the octopus package to update the mapping annotations
-        reload(octopus)
-
         self.mainfile_parser.filepath = self.mainfile
         # initialize auxiliary file parsers
         self.mainfile_parser.init_parser()
@@ -448,6 +444,11 @@ class OctopusArchiveWriter(ArchiveWriter):
         self.eigenvalues_parser.unit = energy_unit
         self.archive_parser.annotation_key = octopus.EIGENVALUES_KEY
         self.eigenvalues_parser.convert(self.archive_parser, update_mode='merge@-1')
+
+        self.eigenvalues_parser.close()
+        self.archive_parser.close()
+        self.mainfile_parser.close()
+        self.info_parser.close()
 
 
 class OctopusParser(MatchingParser):

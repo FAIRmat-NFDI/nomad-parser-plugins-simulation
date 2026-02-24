@@ -19,12 +19,12 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-XML_KEY = 'xml'
-XML2_KEY = 'xml2'
-OUTCAR_KEY = 'outcar'
-KPOINTS_XML = 'kpoints_xml'
-PP_XML = 'xml_pseudopotentials'
-PP_OUT = 'outcar_pseudopotentials'
+XML_KEY = 'vasp_xml'
+XML2_KEY = 'vasp_xml2'
+OUTCAR_KEY = 'vasp_outcar'
+KPOINTS_XML = 'vasp_kpoints_xml'
+PP_XML = 'vasp_xml_pseudopotentials'
+PP_OUT = 'vasp_outcar_pseudopotentials'
 
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')

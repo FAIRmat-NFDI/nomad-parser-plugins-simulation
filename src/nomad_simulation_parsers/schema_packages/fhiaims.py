@@ -17,12 +17,12 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-TEXT_KEY = 'text'
-TEXT_DOS_KEY = 'text_dos'
-TEXT_GW_KEY = 'text_gw'
-SINGLE_POINT_KEY = 'single_point'
-GEO_OPT_WORKFLOW_KEY = 'geo_opt_workflow'
-MD_WORKFLOW_KEY = 'md_workflow'
+TEXT_KEY = 'fhiaims_text'
+TEXT_DOS_KEY = 'fhiaims_text_dos'
+TEXT_GW_KEY = 'fhiaims_text_gw'
+SINGLE_POINT_KEY = 'fhiaims_single_point'
+GEO_OPT_WORKFLOW_KEY = 'fhiaims_geo_opt_workflow'
+MD_WORKFLOW_KEY = 'fhiaims_md_workflow'
 
 # add_mapping_annotations(EntryArchive.m_def, TEXT_KEY, '@')
 # add_mapping_annotations(EntryArchive.m_def, TEXT_DOS_KEY, '@')

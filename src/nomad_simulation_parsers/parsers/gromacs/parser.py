@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -467,8 +466,6 @@ class GromacsArchiveWriter(MDParser):
         self._maindir = os.path.dirname(self.mainfile)
         self._gromacs_files = os.listdir(self._maindir)
         self._basename = os.path.basename(self.mainfile).rsplit('.', 1)[0]
-        # reload the schema annotations
-        reload(gromacs)
 
         # set up source parsers
         self._log_parser.filepath = self.mainfile

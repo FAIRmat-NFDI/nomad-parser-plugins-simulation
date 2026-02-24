@@ -113,3 +113,9 @@ wannier90_schema_package = EntryPoint(
     description='Schema package for Wannier90.',
     module='nomad_simulation_parsers.schema_packages.wannier90',
 )
+
+yambo_schema_package = EntryPoint(
+    name='YamboSchemaPackage',
+    description='Schema package for Yambo.',
+    module='nomad_simulation_parsers.schema_packages.yambo',
+)
