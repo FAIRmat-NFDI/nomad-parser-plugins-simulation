@@ -1,9 +1,11 @@
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:
     pass
 
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -298,9 +300,6 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 class Pseudopotential(numerical_settings.Pseudopotential):
     """VASP-specific pseudopotential with POTCAR metadata."""
-
-    import numpy as np
-    from nomad.metainfo import Quantity
 
     sha256 = Quantity(
         type=str,

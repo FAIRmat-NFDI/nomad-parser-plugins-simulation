@@ -7,11 +7,13 @@ import numpy as np
 if TYPE_CHECKING:
     pass
 
-from nomad.parsing.file_parser import ArchiveWriter
+from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
+from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 
+from nomad_simulation_parsers.parsers.vasp.outcar_parser import potcar_quantities
 from nomad_simulation_parsers.schema_packages import vasp
 
 LOGGER = get_logger(__name__)
@@ -108,15 +110,6 @@ class XMLArchiveWriter(ArchiveWriter):
                 f'Found OUTCAR at {outcar_path}, extending vasprun.xml '
                 'pseudopotentials with detailed metadata'
             )
-            from nomad.parsing.file_parser import Quantity, TextParser
-            from nomad.parsing.file_parser.mapping_parser import (
-                TextParser as MappingTextParser,
-            )
-
-            from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
-                potcar_quantities,
-            )
-
             potcar_pattern = (
                 r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
                 r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)'
