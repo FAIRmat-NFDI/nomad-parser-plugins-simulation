@@ -136,6 +136,24 @@ class XMLArchiveWriter(ArchiveWriter):
             # This preserves XML structure while adding OUTCAR's detailed metadata
             outcar_parser.convert(data_parser, update_mode='merge')
 
+            # Clean up duplicate pseudopotentials created by type mismatch during merge
+            # When PP_OUT tries to merge at index 0 but finds KSpace, it creates a new PP
+            model_method = data_parser.data_object.model_method[0]
+            seen_pp_names = set()
+            deduplicated_ns = []
+            for ns in model_method.numerical_settings:
+                if ns.m_def.name == 'Pseudopotential':
+                    pp_name = getattr(ns, 'name', None)
+                    if pp_name and pp_name in seen_pp_names:
+                        LOGGER.debug(f'Removed duplicate Pseudopotential: {pp_name}')
+                        continue
+                    if pp_name:
+                        seen_pp_names.add(pp_name)
+                deduplicated_ns.append(ns)
+
+            # Replace with deduplicated list
+            model_method.numerical_settings = deduplicated_ns
+
             outcar_parser.close()
 
         self.archive.data = data_parser.data_object
