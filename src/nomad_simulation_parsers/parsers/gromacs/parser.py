@@ -42,8 +42,14 @@ class GromacsMetainfoParser(MetainfoParser):
 
 
 class GromacsThermodynamicsParser(MappingParser):
-    _trajectory_steps: list[int] = []
-    _thermodynamic_steps: list[int] = []
+    _trajectory_steps: list[int]
+    _thermodynamic_steps: list[int]
+
+    def __init__(self, **kwargs):
+        self._trajectory_steps: list[int] = []
+        self._thermodynamic_steps: list[int] = []
+        super().__init__(**kwargs)
+
     _base_calc_unit_map = {
         'Temperature': ureg.kelvin,
         'Volume': ureg.nm**3,
@@ -109,7 +115,11 @@ class GromacsThermodynamicsParser(MappingParser):
 
 
 class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
-    _trajectory_steps_sampled: list[int] = []
+    _trajectory_steps_sampled: list[int]
+
+    def __init__(self, **kwargs):
+        self._trajectory_steps_sampled: list[int] = []
+        super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -496,11 +506,22 @@ class GromacsXVGParser(TextParser):
 
 
 class GromacsMDAnalysisParser(MappingParser):
-    aux_files: list[str] = []
-    mdanalysis_parser: GromacsMDAnalysisFileParser = None
-    _trajectory_steps_sampled: list[int] = []
-    _trajectory_steps: list[int] = []
-    _thermodynamic_steps: list[int] = []
+    aux_files: list[str]
+    mdanalysis_parser: GromacsMDAnalysisFileParser
+    _trajectory_steps_sampled: list[int]
+    _trajectory_steps: list[int]
+    _thermodynamic_steps: list[int]
+    _subsystems_hierarchy: list[dict[str, Any]]
+
+    def __init__(self, **kwargs):
+        self.aux_files: list[str] = []
+        self.mdanalysis_parser: GromacsMDAnalysisFileParser = None
+        self._trajectory_steps_sampled: list[int] = []
+        self._trajectory_steps: list[int] = []
+        self._thermodynamic_steps: list[int] = []
+        self._subsystems_hierarchy: list[dict[str, Any]] = []
+        self._hierarchy_returned: bool = False
+        super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -510,8 +531,46 @@ class GromacsMDAnalysisParser(MappingParser):
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
             self.data_object.parse()
-            return self.data_object._results
+            result = self.data_object._results
+
+            # Build complete nested subsystem structure and store as parser attribute
+            # get_subsystems_from_dict will access this to extract system hierarchy
+            self._subsystems_hierarchy = self.get_sub_systems()
+            self._hierarchy_returned = False
+
+            return result
         return {}
+
+    def get_subsystems_from_dict(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """
+        Extract subsystems from source dict.
+
+        Called by MappingParser for both top-level and nested ModelSystems.
+        For the first top-level call (representative frame), returns the full
+        hierarchy from self._subsystems_hierarchy. Subsequent top-level calls
+        (other trajectory frames) return empty — topology is frame-independent.
+        For nested calls, returns 'sub_systems' from the source dict directly.
+
+        Args:
+            source: Source dictionary containing subsystem data
+            **kwargs: Additional arguments (unused)
+
+        Returns:
+            List of subsystem dicts from this level
+        """
+        # Root call: first frame gets the full hierarchy; others get nothing.
+        # The check 'n_atoms' in source distinguishes a top-level configuration
+        # dict (produced by get_configurations) from a nested subsystem dict.
+        if 'n_atoms' in source and 'sub_systems' not in source:
+            if self._subsystems_hierarchy and not self._hierarchy_returned:
+                self._hierarchy_returned = True
+                return self._subsystems_hierarchy
+            return []
+
+        # Nested call: propagate already-built sub_systems from the hierarchy dict.
+        return source.get('sub_systems', []) if isinstance(source, dict) else []
 
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
@@ -566,21 +625,24 @@ class GromacsMDAnalysisParser(MappingParser):
         return result
 
     def get_configurations(self) -> list[dict[str, Any]]:
+        # Labels, n_atoms and bond_list are frame-independent; compute once.
+        labels = self.get_atom_labels(0)
+        n_atoms = self.data_object.get_n_atoms(0)
+        bond_list = self.get_bond_list()
+
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
+            # get_frame_data performs a single trajectory seek for all per-frame data.
+            frame_data = self.data_object.get_frame_data(n)
             config = dict(
-                labels=self.get_atom_labels(n),
-                positions=self.data_object.get_positions(n),
-                velocities=self.data_object.get_velocities(n),
-                lattice_vectors=self.data_object.get_lattice_vectors(n),
+                n_atoms=n_atoms,
+                labels=labels,
+                positions=frame_data['positions'],
+                velocities=frame_data['velocities'],
+                lattice_vectors=frame_data['lattice_vectors'],
             )
-            # Add topology lists only to first configuration
-            # (topology is time-independent)
-            if n == 0:
-                bond_list = self.get_bond_list()
-                if bond_list is not None:
-                    config['bond_list'] = bond_list
-
+            if n == 0 and bond_list is not None:
+                config['bond_list'] = bond_list
             configurations.append(config)
         return configurations
 
@@ -671,10 +733,22 @@ class GromacsMDAnalysisParser(MappingParser):
 
         return contributions
 
+    def get_sub_systems(
+        self, source: dict[str, Any] = None, **kwargs
+    ) -> list[dict[str, Any]]:
+        particles_groups = self.mdanalysis_parser.parse_molecular_hierarchy()
+        if particles_groups is None:
+            self.logger.warning(
+                'parse_molecular_hierarchy returned None; skipping system hierarchy'
+            )
+            return []
+        return list(particles_groups.values())
+
 
 class GromacsArchiveWriter(MDParser):
     def __init__(self, **kwargs):
         self._simulation_parser = GromacsMetainfoParser()
+        self._simulation_parser.max_nested_level = 10
         self._log_parser = GromacsLogParser(text_parser=GromacsLogTextParser())
         self._mdp_parser = GromacsMDPParser(text_parser=GromacsMDPTextParser())
         self._edr_parser = GromacsEDRParser(edr_parser=GromacsEDRFileParser())
@@ -827,9 +901,8 @@ class GromacsArchiveWriter(MDParser):
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
         traj_sampling_rate = self.input_parameters.get('nstxout', 1)
-        self.n_atoms = [
-            self._mdanalysis_parser.data_object.get_n_atoms(n) for n in range(n_frames)
-        ]
+        n_atoms_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
+        self.n_atoms = [n_atoms_per_frame] * n_frames
         traj_steps = [n * traj_sampling_rate for n in range(n_frames)]
         self.trajectory_steps = traj_steps
 

@@ -114,7 +114,7 @@ class MDAnalysisParser(FileParser):
                     self.mainfile, *self.auxilliary_files, **self.options
                 )
             except Exception as e:
-                self.logger.warning('Error creating MDAnalysis universe.', exc_info=e)
+                self.logger.error('Error creating MDAnalysis universe.', exc_info=e)
                 self.universe_error = e
         return self._file_handler
 
@@ -175,9 +175,11 @@ class MDAnalysisParser(FileParser):
             ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
-                lambda: self.get_fragtypes()
-                if hasattr(self.universe.atoms, 'fragments')
-                else None,
+                lambda: (
+                    self.get_fragtypes()
+                    if hasattr(self.universe.atoms, 'fragments')
+                    else None
+                ),
             ),
             ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
             ('resnames', lambda: self._results['atoms_info'].get('resids')),
@@ -500,11 +502,7 @@ class MDAnalysisParser(FileParser):
         """
         Returns the lattice vectors of the frame with index frame_index.
         """
-        frame = self.get_frame(frame_index)
-        if frame is None:
-            return None
-        lattice_vectors = frame.triclinic_dimensions
-        return lattice_vectors * ureg.angstrom if lattice_vectors is not None else None
+        return self.get_frame_data(frame_index)['lattice_vectors']
 
     def get_pbc(self, frame_index):
         """
@@ -513,25 +511,37 @@ class MDAnalysisParser(FileParser):
         lattice_vectors = self.get_lattice_vectors(frame_index)
         return [True] * 3 if lattice_vectors is not None else [False] * 3
 
+    def get_frame_data(self, frame_index) -> dict:
+        """
+        Returns positions, velocities and lattice_vectors for frame_index in a single
+        trajectory seek. Callers that need all three quantities should prefer this over
+        calling get_positions/get_velocities/get_lattice_vectors individually.
+        """
+        frame = self.get_frame(frame_index)
+        if frame is None:
+            return dict(positions=None, velocities=None, lattice_vectors=None)
+        lv = frame.triclinic_dimensions
+        return dict(
+            positions=frame.positions * ureg.angstrom if frame.has_positions else None,
+            velocities=(
+                frame.velocities * ureg.angstrom / ureg.ps
+                if frame.has_velocities
+                else None
+            ),
+            lattice_vectors=lv * ureg.angstrom if lv is not None else None,
+        )
+
     def get_positions(self, frame_index):
         """
         Returns the positions of the atoms of the frame with index frame_index.
         """
-        frame = self.get_frame(frame_index)
-        if frame is None:
-            return None
-        return frame.positions * ureg.angstrom if frame.has_positions else None
+        return self.get_frame_data(frame_index)['positions']
 
     def get_velocities(self, frame_index):
         """
         Returns the velocities of the atoms of the frame with index frame_index.
         """
-        frame = self.get_frame(frame_index)
-        if frame is None:
-            return None
-        return (
-            frame.velocities * ureg.angstrom / ureg.ps if frame.has_velocities else None
-        )
+        return self.get_frame_data(frame_index)['velocities']
 
     def get_forces(self, frame_index):
         """

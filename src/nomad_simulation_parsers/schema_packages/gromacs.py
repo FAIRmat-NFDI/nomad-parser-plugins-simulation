@@ -100,18 +100,12 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.@')
 
 
-class AtomicCell(model_system.Representation):
-    """
-    Map the representation quantities used by GROMACS to the unified
-    Representation fields so annotations and conversion remain correct.
-    """
-
-    add_mapping_annotation(
-        model_system.Representation.lattice_vectors, TPR_KEY, '.lattice_vectors'
-    )
-    add_mapping_annotation(
-        model_system.Representation.periodic_boundary_conditions, LOG_KEY, '.pbc'
-    )
+add_mapping_annotation(
+    model_system.ModelSystem.lattice_vectors, TPR_KEY, '.lattice_vectors'
+)
+add_mapping_annotation(
+    model_system.ModelSystem.periodic_boundary_conditions, LOG_KEY, '.pbc'
+)
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -122,22 +116,39 @@ class ModelSystem(model_system.ModelSystem):
     - positions, velocities: Particle coordinates and velocities
     - bond_list: Bond topology (atom index pairs) extracted from MDAnalysis
     - particle_states (AtomsState): Atom labels and types
-
-    The bond_list is extracted via MDAnalysis.universe.bonds which reads the
-    topology section of the TPR file. This provides connectivity information
-    but does NOT include force field parameters (see ForceField extension
-    roadmap above for details on adding parameter support).
-
-    Angles and dihedrals are extracted via get_force_field_contributions()
-    and stored in ForceField.contributions.
+    - sub_systems: Hierarchical molecular structure (molecule groups → molecules →
+      monomers)
     """
 
+    add_mapping_annotation(model_system.ModelSystem.n_particles, TPR_KEY, '.n_atoms')
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
     add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
-    add_mapping_annotation(model_system.Representation.m_def, LOG_KEY, '.@')
-    add_mapping_annotation(model_system.Representation.m_def, TPR_KEY, '.@')
+
+
+# ROOT annotation for nested ModelSystem instances
+# When MappingParser creates ModelSystem from subsystems list,
+# use that dict as source root
+add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
+
+# Subsystem hierarchy annotations (apply to all ModelSystem instances including
+# subsystems)
+# sub_systems: recursively extract from nested dicts via function call
+# Pass '.@' as first argument (current node dict) to function
+add_mapping_annotation(
+    model_system.ModelSystem.sub_systems,
+    TPR_KEY,
+    ('get_subsystems_from_dict', ['.@']),
+)
+add_mapping_annotation(model_system.ModelSystem.name, TPR_KEY, '.name')
+add_mapping_annotation(
+    model_system.ModelSystem.composition_formula, TPR_KEY, '.composition_formula'
+)
+add_mapping_annotation(
+    model_system.ModelSystem.particle_indices, TPR_KEY, '.particle_indices'
+)
+add_mapping_annotation(model_system.ModelSystem.branch_label, TPR_KEY, '.branch_label')
 
 
 class TotalEnergy(outputs.TotalEnergy):

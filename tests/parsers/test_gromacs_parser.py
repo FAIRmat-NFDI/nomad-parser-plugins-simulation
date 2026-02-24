@@ -31,6 +31,16 @@ class StubMDAnalysisDataObject:
         n = int(np.asarray(self._positions[idx]).shape[0])
         return ['H'] * n
 
+    def get_frame_data(self, idx):
+        lv = None if self._lattices is None else np.asarray(self._lattices[idx])
+        return dict(
+            positions=np.asarray(self._positions[idx]),
+            velocities=(
+                None if self._velocities is None else np.asarray(self._velocities[idx])
+            ),
+            lattice_vectors=lv,
+        )
+
     def get_interactions(self):
         # Return empty list for stub (no bonds by default)
         return []
@@ -128,11 +138,11 @@ def test_integration_parse_gromacs_water():
     # Use the provided test data (water). The Gromacs parser expects the mainfile
     # to be the log-like mdrun output; pick the provided 'mdrun.out' in the test data.
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    # prefer 'mdrun.log' if present, otherwise fallback to 'mdrun.out'
+    # prefer 'reference_s.log' if present, otherwise fallback to 'md.log'
     candidates = [
+        'reference_s.log',
         'mdrun.log',
         'md.log',
-        'mdrun.out',
     ]
     mainfile = ''
     for name in candidates:
@@ -160,16 +170,13 @@ def test_integration_parse_gromacs_water():
 def test_force_field_parsing_from_tpr():
     """Test that force field parameters are extracted from TPR file."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    candidates = ['mdrun.log', 'md.log', 'mdrun.out']
-    mainfile = ''
-    for name in candidates:
-        p = os.path.join(base, name)
-        if os.path.exists(p):
-            mainfile = p
-            break
 
-    if not mainfile:
-        pytest.skip(f'No suitable mainfile found in {base}')
+    # Find any .log file in the directory
+    log_files = list(base.glob('*.log'))
+    if not log_files:
+        pytest.skip(f'No .log file found in {base}')
+
+    mainfile = str(log_files[0])
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
@@ -442,14 +449,14 @@ def test_get_bond_list_invalid_bond_indices():
 def test_integration_bond_list_in_parsed_system():
     """Test that bond_list is populated in parsed model_system from TPR file."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    tpr_file = os.path.join(base, 'topol.tpr')
+    log_file = os.path.join(base, 'reference_s.log')
 
-    if not os.path.exists(tpr_file):
-        pytest.skip(f'TPR file not found: {tpr_file}')
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(tpr_file, archive)
+    parser.parse(log_file, archive)
 
     assert archive.data is not None
     assert len(archive.data.model_system) > 0
@@ -679,3 +686,216 @@ def test_get_compressibility():
     # Test missing
     params = {}
     assert lp.get_compressibility(params) is None
+
+
+def test_system_hierarchy_water():
+    """Test that system hierarchy is parsed from water mainfile."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    log_file = os.path.join(base, 'reference_s.log')
+
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(log_file, archive)
+
+    assert archive.data is not None
+    assert len(archive.data.model_system) > 0
+
+    system = archive.data.model_system[0]
+
+    # Water system should have sub_systems (molecule groups)
+    assert system.sub_systems is not None, 'System should have sub_systems hierarchy'
+    assert len(system.sub_systems) > 0, 'Should have at least one molecule group'
+
+    # Check first molecule group (should be SOL for water)
+    mol_group = system.sub_systems[0]
+    assert mol_group.name is not None
+    assert 'group_' in mol_group.name, 'Molecule group should have group_ prefix'
+    assert mol_group.branch_label == 'molecule_group'
+    assert mol_group.composition_formula is not None
+    assert mol_group.particle_indices is not None
+    assert len(mol_group.particle_indices) > 0
+
+    # Molecule group should contain individual molecules
+    assert mol_group.sub_systems is not None
+    assert len(mol_group.sub_systems) > 0, 'Molecule group should contain molecules'
+
+    # Check first molecule
+    molecule = mol_group.sub_systems[0]
+    assert molecule.name is not None
+    assert molecule.branch_label == 'molecule'
+    assert molecule.particle_indices is not None
+    assert len(molecule.particle_indices) > 0
+
+    # Water molecule is terminal (single residue), should have composition_formula
+    assert molecule.composition_formula is not None
+    assert 'H' in molecule.composition_formula
+    assert 'O' in molecule.composition_formula
+
+
+def test_system_hierarchy_polymer():
+    """Test that complex system hierarchy is parsed from protein mainfile."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
+    log_file = os.path.join(base, 'md.log')
+
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(log_file, archive)
+
+    assert archive.data is not None
+    assert len(archive.data.model_system) > 0
+
+    system = archive.data.model_system[0]
+
+    # Polymer system should have sub_systems
+    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
+        'System has no molecular hierarchy - hierarchy parsing regression'
+    )
+
+    # Find a molecule group with multi-residue molecules (polymer chain)
+    multi_residue_group = None
+    for mol_group in system.sub_systems:
+        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
+            first_mol = mol_group.sub_systems[0]
+            # Multi-residue molecule has sub_systems (monomer groups)
+            if first_mol.sub_systems is not None and len(first_mol.sub_systems) > 0:
+                multi_residue_group = mol_group
+                break
+
+    assert multi_residue_group is not None, (
+        'No multi-residue molecules found in protein_small - '
+        'expected at least one polymer chain'
+    )
+
+    # Test full 4-level hierarchy: group → molecule → monomer_group → monomer
+    assert multi_residue_group.branch_label == 'molecule_group'
+
+    molecule = multi_residue_group.sub_systems[0]
+    assert molecule.branch_label == 'molecule'
+    assert molecule.sub_systems is not None
+    assert len(molecule.sub_systems) > 0
+
+    # Molecule should contain monomer groups
+    monomer_group = molecule.sub_systems[0]
+    assert monomer_group.branch_label == 'monomer_group'
+    assert 'group_' in monomer_group.name
+    assert monomer_group.sub_systems is not None
+    assert len(monomer_group.sub_systems) > 0
+
+    # Monomer group should contain individual monomers
+    monomer = monomer_group.sub_systems[0]
+    assert monomer.branch_label == 'monomer'
+    assert monomer.composition_formula is not None
+    assert monomer.particle_indices is not None
+    assert len(monomer.particle_indices) > 0
+
+
+def test_system_hierarchy_particle_indices_valid():
+    """Test that particle_indices in hierarchy are valid and consistent."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    log_file = os.path.join(base, 'reference_s.log')
+
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(log_file, archive)
+
+    system = archive.data.model_system[0]
+    n_atoms = system.n_particles
+
+    def check_particle_indices(subsystem, parent_indices=None):
+        """Recursively check particle_indices validity."""
+        assert subsystem.particle_indices is not None
+        assert len(subsystem.particle_indices) > 0
+
+        # All indices should be valid (less than n_atoms)
+        assert np.all(subsystem.particle_indices < n_atoms)
+        assert np.all(subsystem.particle_indices >= 0)
+
+        # If parent exists, subsystem indices should be subset of parent
+        if parent_indices is not None:
+            assert np.all(np.isin(subsystem.particle_indices, parent_indices))
+
+        # Recursively check children
+        if subsystem.sub_systems:
+            for child in subsystem.sub_systems:
+                check_particle_indices(child, subsystem.particle_indices)
+
+    # Check all molecule groups
+    for mol_group in system.sub_systems:
+        check_particle_indices(mol_group)
+
+
+def test_system_hierarchy_branch_labels():
+    """Test that branch_label is correctly assigned at each hierarchy level."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
+    log_file = os.path.join(base, 'md.log')
+
+    if not os.path.exists(log_file):
+        pytest.skip(f'TPR file not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(log_file, archive)
+
+    system = archive.data.model_system[0]
+
+    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
+        'System has no molecular hierarchy - hierarchy parsing regression'
+    )
+
+    # Check all levels have correct branch_label
+    for mol_group in system.sub_systems:
+        assert mol_group.branch_label == 'molecule_group'
+
+        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
+            for molecule in mol_group.sub_systems:
+                assert molecule.branch_label == 'molecule'
+
+                if molecule.sub_systems and len(molecule.sub_systems) > 0:
+                    for monomer_group in molecule.sub_systems:
+                        assert monomer_group.branch_label == 'monomer_group'
+
+                        if (
+                            monomer_group.sub_systems
+                            and len(monomer_group.sub_systems) > 0
+                        ):
+                            for monomer in monomer_group.sub_systems:
+                                assert monomer.branch_label == 'monomer'
+
+
+def test_system_hierarchy_composition_formulas():
+    """Test that composition_formula is assigned to terminal branches."""
+    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
+    log_file = os.path.join(base, 'reference_s.log')
+
+    if not os.path.exists(log_file):
+        pytest.skip(f'Mainfile not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(log_file, archive)
+
+    system = archive.data.model_system[0]
+
+    def check_terminal_formulas(subsystem):
+        """Recursively check that terminal branches have composition_formula."""
+        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
+            # Terminal branch should have composition_formula
+            assert subsystem.composition_formula is not None, (
+                f'Terminal {subsystem.branch_label} should have composition_formula'
+            )
+        else:
+            # Non-terminal may or may not have formula, recurse to children
+            for child in subsystem.sub_systems:
+                check_terminal_formulas(child)
+
+    for mol_group in system.sub_systems:
+        check_terminal_formulas(mol_group)
