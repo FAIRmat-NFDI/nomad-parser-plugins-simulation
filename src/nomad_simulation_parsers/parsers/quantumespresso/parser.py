@@ -140,7 +140,8 @@ class MainfileTextParser(TextParser):
         ]
 
     def get_xc_functionals(self, source: str) -> list[dict[str, Any]]:
-        numbers = source.split('(', maxsplit=1)[1].split(')', maxsplit=1)[0]
+        # Keep legacy behavior for additional '(' while satisfying PLC0207.
+        numbers = source.split('(', maxsplit=2)[1].split(')', maxsplit=1)[0]
         nval = (4, 10)
         # handle different formatting
         if len(numbers) == nval[0]:
