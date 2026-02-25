@@ -648,7 +648,7 @@ class GromacsMDAnalysisParser(MappingParser):
 
     def get_configurations(self) -> list[dict[str, Any]]:
         # Labels, n_atoms and bond_list are frame-independent; compute once.
-        labels = self.get_atom_labels(0)
+        labels = self.get_atom_parameters()
         n_atoms = self.data_object.get_n_atoms(0)
         bond_list = self.get_bond_list()
 
