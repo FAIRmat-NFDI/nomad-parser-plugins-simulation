@@ -593,12 +593,33 @@ class GromacsMDAnalysisParser(MappingParser):
     def get_atom_parameters(self) -> list[dict[str, Any]]:
         """Return per-atom topology parameters as a list of dicts.
 
-        Each dict contains 'label' (str) plus, when available from MDAnalysis:
-        'mass' (float, amu) and 'charge' (float, elementary charge).
+        Each dict contains:
+        - 'label' (str): raw force-field site name (e.g. 'OW', 'HW1', 'CA')
+        - 'element' (str): chemical element symbol (e.g. 'O', 'H', 'C'),
+          absent for coarse-grained or unresolvable atoms
+        - 'mass' (float, amu): atomic mass when available from MDAnalysis
+        - 'charge' (float, elementary charge): partial charge when available
         """
-        labels = self.get_atom_labels(0)
-        result: list[dict[str, Any]] = [{'label': lbl} for lbl in labels]
-        universe = self.data_object.universe
+        atoms_info = {}
+        if self.data_object is not None and hasattr(self.data_object, 'get'):
+            atoms_info = self.data_object.get('atoms_info', {}) or {}
+        raw_names = atoms_info.get('names', []) or []
+        elements = atoms_info.get('elements', []) or []
+        # Fall back to get_atom_labels when atoms_info is not populated (e.g. in tests)
+        if not raw_names and not elements:
+            fallback = self.get_atom_labels(0)
+            raw_names = fallback
+            elements = fallback
+        n_atoms = max(len(raw_names), len(elements))
+        result: list[dict[str, Any]] = []
+        for i in range(n_atoms):
+            label = raw_names[i] if i < len(raw_names) else None
+            element = elements[i] if i < len(elements) else None
+            entry: dict[str, Any] = {'label': label or element or 'CGX'}
+            if element and element != 'CGX':
+                entry['element'] = element
+            result.append(entry)
+        universe = getattr(self.data_object, 'universe', None)
         if universe is not None:
             try:
                 for i, mass in enumerate(universe.atoms.masses):
@@ -949,7 +970,7 @@ class GromacsArchiveWriter(MDParser):
 
         self._parse_data_section()
 
-        # self._parse_workflow_section()
+        self._parse_workflow_section()
 
         for parser in [
             self._simulation_parser,
