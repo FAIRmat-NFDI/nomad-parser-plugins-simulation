@@ -101,6 +101,8 @@ class XMLArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = vasp.XML2_KEY
         xml_parser.convert(data_parser)
 
+        self.archive.data = data_parser.data_object
+
         # Fifth pass: PP_OUT to extend with OUTCAR pseudopotential metadata
         # This allows OUTCAR to supplement vasprun.xml pseudopotentials with
         # detailed metadata (SHA256, LPAW, LULTRA, etc.)
@@ -125,31 +127,40 @@ class XMLArchiveWriter(ArchiveWriter):
                 ]
             )
 
-            outcar_parser = MappingTextParser(filepath=outcar_path)
-            outcar_parser.text_parser = outcar_supplement_parser
+            from .outcar_parser import OutcarParser, OutcarTextParser
 
-            data_parser.annotation_key = vasp.PP_OUT
+            outcar_parser = OutcarParser(filepath=outcar_path)
+            outcar_parser.text_parser = OutcarTextParser()
+
+            pseudopot_parser = VASPMetainfoParser()
+            pseudopot_parser.annotation_key = vasp.PP_OUT
+            pseudopot_parser.data_object = vasp.Pseudopotential()
+            outcar_parser.convert(pseudopot_parser)
+            print(pseudopot_parser)
+            self.archive.data.model_method[0].numerical_settings.append(pseudopot_parser.data_object)
+
             # Merge by index position: OUTCAR PP[0] extends XML PP[0], etc.
             # This preserves XML structure while adding OUTCAR's detailed metadata
-            outcar_parser.convert(data_parser, update_mode='merge')
+            # outcar_parser.convert(data_parser, update_mode='merge')
+
 
             # Clean up duplicate pseudopotentials created by type mismatch
             # When PP_OUT merges at index 0 but finds KSpace, creates new PP
-            model_method = data_parser.data_object.model_method[0]
-            seen_pp_names = set()
-            deduplicated_ns = []
-            for ns in model_method.numerical_settings:
-                if ns.m_def.name == 'Pseudopotential':
-                    pp_name = getattr(ns, 'name', None)
-                    if pp_name and pp_name in seen_pp_names:
-                        LOGGER.debug(f'Removed duplicate Pseudopotential: {pp_name}')
-                        continue
-                    if pp_name:
-                        seen_pp_names.add(pp_name)
-                deduplicated_ns.append(ns)
+            # model_method = data_parser.data_object.model_method[0]
+            # seen_pp_names = set()
+            # deduplicated_ns = []
+            # for ns in model_method.numerical_settings:
+            #     if ns.m_def.name == 'Pseudopotential':
+            #         pp_name = getattr(ns, 'name', None)
+            #         if pp_name and pp_name in seen_pp_names:
+            #             LOGGER.debug(f'Removed duplicate Pseudopotential: {pp_name}')
+            #             continue
+            #         if pp_name:
+            #             seen_pp_names.add(pp_name)
+            #     deduplicated_ns.append(ns)
 
-            # Replace with deduplicated list
-            model_method.numerical_settings = deduplicated_ns
+            # # Replace with deduplicated list
+            # model_method.numerical_settings = deduplicated_ns
 
             outcar_parser.close()
 

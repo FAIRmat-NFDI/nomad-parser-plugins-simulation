@@ -365,6 +365,9 @@ class Pseudopotential(numerical_settings.Pseudopotential):
         ('derive_is_gw_optimized', ['.TITEL']),
     )
 
+add_mapping_annotation(Pseudopotential.m_def, PP_OUT, 'pseudpotential')
+
+
 
 try:
     m_package.__init_metainfo__()
