@@ -590,6 +590,28 @@ class GromacsMDAnalysisParser(MappingParser):
             labels = ['CGX'] * len(labels)
         return labels
 
+    def get_atom_parameters(self) -> list[dict[str, Any]]:
+        """Return per-atom topology parameters as a list of dicts.
+
+        Each dict contains 'label' (str) plus, when available from MDAnalysis:
+        'mass' (float, amu) and 'charge' (float, elementary charge).
+        """
+        labels = self.get_atom_labels(0)
+        result: list[dict[str, Any]] = [{'label': lbl} for lbl in labels]
+        universe = self.data_object.universe
+        if universe is not None:
+            try:
+                for i, mass in enumerate(universe.atoms.masses):
+                    result[i]['mass'] = float(mass)
+            except Exception:
+                pass
+            try:
+                for i, charge in enumerate(universe.atoms.charges):
+                    result[i]['charge'] = float(charge)
+            except Exception:
+                pass
+        return result
+
     def get_outputs(self) -> list[dict[str, Any]]:
         outputs = []
         for step in self._thermodynamic_steps:

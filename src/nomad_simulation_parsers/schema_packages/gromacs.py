@@ -97,7 +97,14 @@ class Program(general.Program):
 
 
 class AtomsState(model_system.AtomsState):
-    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.label')
+    add_mapping_annotation(model_system.AtomsState.mass, TPR_KEY, '.mass', unit='amu')
+    add_mapping_annotation(
+        model_system.AtomsState.partial_charge,
+        TPR_KEY,
+        '.charge',
+        unit='elementary_charge',
+    )
 
 
 add_mapping_annotation(
