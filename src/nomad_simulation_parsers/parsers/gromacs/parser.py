@@ -586,6 +586,7 @@ class GromacsMDAnalysisParser(MappingParser):
         labels = self.data_object.get_atom_labels(index)
         try:
             symbols2numbers(labels)
+        # TODO: remove blanked `Exception`, hides too many problems.
         except Exception:
             labels = ['CGX'] * len(labels)
         return labels
