@@ -96,11 +96,7 @@ def parsed_archive(request, parser):
     case = request.param
     archive = EntryArchive()
     mainfile = (
-        Path(__file__).resolve().parents[1]
-        / 'data'
-        / 'exciting'
-        / case
-        / 'INFO.OUT'
+        Path(__file__).resolve().parents[1] / 'data' / 'exciting' / case / 'INFO.OUT'
     )
     parser.parse(str(mainfile), archive, LOGGER)
     return case, archive

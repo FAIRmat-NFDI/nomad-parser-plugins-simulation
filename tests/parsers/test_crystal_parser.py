@@ -40,10 +40,9 @@ def test_workflow_and_scf_steps():
         archive.workflow2.method.convergence_targets[0], EnergyConvergenceTarget
     )
     assert archive.workflow2.method.convergence_targets[0].threshold_type == 'absolute'
-    assert (
-        archive.workflow2.method.convergence_targets[0].threshold.to('hartree').magnitude
-        == pytest.approx(1e-7)
-    )
+    assert archive.workflow2.method.convergence_targets[0].threshold.to(
+        'hartree'
+    ).magnitude == pytest.approx(1e-7)
 
     outputs = archive.data.outputs
     assert outputs is not None
@@ -51,11 +50,9 @@ def test_workflow_and_scf_steps():
     assert outputs[0].scf_steps is not None
     assert len(outputs[0].scf_steps.energies_total) == 8
     assert len(outputs[0].scf_steps.delta_energies_total) == 8
-    assert (
-        outputs[0].scf_steps.energies_total[-1].to('hartree').magnitude
-        == pytest.approx(-573.300583798)
-    )
-    assert (
-        outputs[0].scf_steps.delta_energies_total[-1].to('hartree').magnitude
-        == pytest.approx(5.73e-8)
-    )
+    assert outputs[0].scf_steps.energies_total[-1].to(
+        'hartree'
+    ).magnitude == pytest.approx(-573.300583798)
+    assert outputs[0].scf_steps.delta_energies_total[-1].to(
+        'hartree'
+    ).magnitude == pytest.approx(5.73e-8)

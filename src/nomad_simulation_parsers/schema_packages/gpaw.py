@@ -58,9 +58,7 @@ class XCComponent(model_method.XCComponent):
 
 class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(outputs.TotalEnergy.value, GPW_KEY, '.total || .value')
-    add_mapping_annotation(
-        outputs.TotalEnergy.contributions, GPW_KEY, '.contributions'
-    )
+    add_mapping_annotation(outputs.TotalEnergy.contributions, GPW_KEY, '.contributions')
 
 
 class TotalForce(outputs.TotalForce):

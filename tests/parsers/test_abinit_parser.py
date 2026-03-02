@@ -72,14 +72,14 @@ def test_scf_steps_parsing():
     assert first_output_steps.energies_total[-1].to('hartree').magnitude == approx(
         -24.6617073
     )
-    first_delta_last = first_output_steps.delta_energies_total[-1].to(
-        'hartree'
-    ).magnitude
+    first_delta_last = (
+        first_output_steps.delta_energies_total[-1].to('hartree').magnitude
+    )
     assert first_delta_last == approx(1.243e-13)
 
-    second_delta_last = second_output_steps.delta_energies_total[-1].to(
-        'hartree'
-    ).magnitude
+    second_delta_last = (
+        second_output_steps.delta_energies_total[-1].to('hartree').magnitude
+    )
     assert second_delta_last == approx(0.0)
 
 

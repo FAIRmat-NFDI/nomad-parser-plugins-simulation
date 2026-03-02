@@ -459,6 +459,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         info_parser.close()
         data_parser.close()
 
+
 class ExcitingParser(MatchingParser):
     """
     Main parser interface to NOMAD.

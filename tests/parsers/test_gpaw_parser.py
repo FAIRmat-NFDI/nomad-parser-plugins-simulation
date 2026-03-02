@@ -12,9 +12,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 from nomad_simulation_parsers.parsers.gpaw.parser import GPAWParser
 
 LOGGER = get_logger(__name__)
-MAINFILE = (
-    Path(__file__).resolve().parent.parent / 'data' / 'gpaw' / 'Fe2.gpw'
-)
+MAINFILE = Path(__file__).resolve().parent.parent / 'data' / 'gpaw' / 'Fe2.gpw'
 
 
 def test_parse_file():
@@ -41,7 +39,6 @@ def test_workflow_and_scf_steps():
     assert len(outputs) == 1
     assert outputs[0].total_energies is not None
     assert len(outputs[0].total_energies) == 1
-    assert (
-        outputs[0].total_energies[0].value.to('eV').magnitude
-        == pytest.approx(-7.301259879298866)
+    assert outputs[0].total_energies[0].value.to('eV').magnitude == pytest.approx(
+        -7.301259879298866
     )
