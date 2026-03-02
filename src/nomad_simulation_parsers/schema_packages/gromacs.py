@@ -172,12 +172,14 @@ class TotalForce(outputs.TotalForce):
     add_mapping_annotation(outputs.TotalForce.value, TPR_KEY, '.@')
 
 
-class Outpus(outputs.Outputs):
+class Outpus(outputs.TrajectoryOutputs):
     add_mapping_annotation(outputs.Outputs.total_energies, LOG_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.total_energies, EDR_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.model_system_ref, LOG_KEY, '.system_ref')
     add_mapping_annotation(outputs.Outputs.model_system_ref, EDR_KEY, '.system_ref')
     add_mapping_annotation(outputs.Outputs.total_forces, TPR_KEY, '.forces')
+    add_mapping_annotation(outputs.TrajectoryOutputs.time, LOG_KEY, '.time')
+    add_mapping_annotation(outputs.TrajectoryOutputs.time, EDR_KEY, '.time')
 
 
 class Simulation(general.Simulation):
