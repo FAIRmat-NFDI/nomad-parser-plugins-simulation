@@ -545,20 +545,16 @@ class QuantumEspressoParser(MatchingParser):
             QuantumEspressoXSpectraParser,
         )
 
-        program_re = re.compile(r'Program +(\w+)')
-        program_name = ''
-        with open(mainfile) as f:
-            for line in f:
-                match = program_re.search(line)
-                if match:
-                    program_name = match.group(1)
-                    break
+        program_name = get_program_types(mainfile)
+        if not program_name:
+            return
 
         parser = {
             'pwscf': QuantumEspressoParser,
             'epw': QuantumEspressoEPWParser,
             'phonon': QuantumEspressoPhononParser,
             'xspectra': QuantumEspressoXSpectraParser,
-        }.get(program_name.lower())
+        }.get(program_name[0].lower())
+
         if parser is not None:
             parser().parse(mainfile, archive, logger)
