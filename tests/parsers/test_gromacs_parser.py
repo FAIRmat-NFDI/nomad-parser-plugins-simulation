@@ -808,15 +808,15 @@ def test_system_hierarchy_particle_indices_valid():
     parser.parse(log_file, archive)
 
     system = archive.data.model_system[0]
-    n_atoms = system.n_particles
+    n_particles = system.n_particles
 
     def check_particle_indices(subsystem, parent_indices=None):
         """Recursively check particle_indices validity."""
         assert subsystem.particle_indices is not None
         assert len(subsystem.particle_indices) > 0
 
-        # All indices should be valid (less than n_atoms)
-        assert np.all(subsystem.particle_indices < n_atoms)
+        # All indices should be valid (less than n_particles)
+        assert np.all(subsystem.particle_indices < n_particles)
         assert np.all(subsystem.particle_indices >= 0)
 
         # If parent exists, subsystem indices should be subset of parent

@@ -18,6 +18,7 @@ m_package = SchemaPackage()
 LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
+PARTICLE_PARAM_KEY = 'gromacs_particle_params'
 
 
 # =============================================================================
@@ -100,12 +101,6 @@ class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.label')
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, TPR_KEY, '.element')
     add_mapping_annotation(model_system.AtomsState.mass, TPR_KEY, '.mass', unit='amu')
-    add_mapping_annotation(
-        model_system.AtomsState.partial_charge,
-        TPR_KEY,
-        '.charge',
-        unit='elementary_charge',
-    )
 
 
 add_mapping_annotation(
@@ -420,6 +415,35 @@ class ForceCalculations(force_field.ForceCalculations):
 # add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.Potential.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
+
+# ParticleParametersContainer is populated via a dedicated PARTICLE_PARAM_KEY convert
+# pass that targets a fresh ParticleParametersContainer() as data_object, then
+# appends it to ForceField.numerical_settings in parser.py. This avoids the
+# index-0 collision with ForceCalculations written by the earlier LOG pass.
+add_mapping_annotation(
+    force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
+)
+add_mapping_annotation(
+    force_field.ParticleParametersContainer.particle_parameters,
+    PARTICLE_PARAM_KEY,
+    ('get_particle_parameters_by_type', []),
+)
+add_mapping_annotation(force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@')
+add_mapping_annotation(
+    force_field.ParticleParameters.particle_type, PARTICLE_PARAM_KEY, '.particle_type'
+)
+add_mapping_annotation(
+    force_field.ParticleParameters.partial_charge,
+    PARTICLE_PARAM_KEY,
+    '.partial_charge',
+    unit='elementary_charge',
+)
+add_mapping_annotation(
+    force_field.ParticleParameters.effective_mass,
+    PARTICLE_PARAM_KEY,
+    '.effective_mass',
+    unit='amu',
+)
 
 
 try:

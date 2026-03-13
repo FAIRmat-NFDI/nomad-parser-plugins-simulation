@@ -12,6 +12,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.force_field import ParticleParametersContainer
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -582,7 +583,7 @@ class GromacsMDAnalysisParser(MappingParser):
                 self.mdanalysis_parser.auxilliary_files = self.aux_files
         return self.mdanalysis_parser
 
-    def get_atom_labels(self, index: int = 0) -> list[str]:
+    def get_particle_labels(self, index: int = 0) -> list[str]:
         labels = self.data_object.get_atom_labels(index)
         try:
             symbols2numbers(labels)
@@ -591,29 +592,29 @@ class GromacsMDAnalysisParser(MappingParser):
             labels = ['CGX'] * len(labels)
         return labels
 
-    def get_atom_parameters(self) -> list[dict[str, Any]]:
-        """Return per-atom topology parameters as a list of dicts.
+    def get_particle_parameters(self) -> list[dict[str, Any]]:
+        """Return per-particle topology parameters as a list of dicts.
 
         Each dict contains:
         - 'label' (str): raw force-field site name (e.g. 'OW', 'HW1', 'CA')
         - 'element' (str): chemical element symbol (e.g. 'O', 'H', 'C'),
-          absent for coarse-grained or unresolvable atoms
-        - 'mass' (float, amu): atomic mass when available from MDAnalysis
+          absent for coarse-grained or unresolvable particles
+        - 'mass' (float, amu): particle mass when available from MDAnalysis
         - 'charge' (float, elementary charge): partial charge when available
         """
-        atoms_info = {}
+        particles_info = {}
         if self.data_object is not None and hasattr(self.data_object, 'get'):
-            atoms_info = self.data_object.get('atoms_info', {}) or {}
-        raw_names = atoms_info.get('names', []) or []
-        elements = atoms_info.get('elements', []) or []
-        # Fall back to get_atom_labels when atoms_info is not populated (e.g. in tests)
+            particles_info = self.data_object.get('atoms_info', {}) or {}
+        raw_names = particles_info.get('names', []) or []
+        elements = particles_info.get('elements', []) or []
+        # Fall back to get_particle_labels when atoms_info is not populated (e.g. in tests)
         if not raw_names and not elements:
-            fallback = self.get_atom_labels(0)
+            fallback = self.get_particle_labels(0)
             raw_names = fallback
             elements = fallback
-        n_atoms = max(len(raw_names), len(elements))
+        n_particles = max(len(raw_names), len(elements))
         result: list[dict[str, Any]] = []
-        for i in range(n_atoms):
+        for i in range(n_particles):
             label = raw_names[i] if i < len(raw_names) else None
             element = elements[i] if i < len(elements) else None
             entry: dict[str, Any] = {'label': label or element or 'CGX'}
@@ -633,6 +634,27 @@ class GromacsMDAnalysisParser(MappingParser):
             except Exception:
                 pass
         return result
+
+    def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
+        """Return per-type particle parameters grouped from per-particle data.
+
+        Calls `get_particle_parameters()` and groups by particle-type label. Each unique
+        label produces one dict with keys ``particle_type``, and optionally
+        ``partial_charge`` (elementary charge) and ``effective_mass`` (amu),
+        taken from the first particle of that type encountered.
+        """
+        per_particle = self.get_particle_parameters()
+        seen: dict[str, dict[str, Any]] = {}
+        for entry in per_particle:
+            atype = entry['label']
+            if atype not in seen:
+                type_entry: dict[str, Any] = {'particle_type': atype}
+                if 'charge' in entry:
+                    type_entry['partial_charge'] = entry['charge']
+                if 'mass' in entry:
+                    type_entry['effective_mass'] = entry['mass']
+                seen[atype] = type_entry
+        return list(seen.values())
 
     def get_outputs(self) -> list[dict[str, Any]]:
         outputs = []
@@ -656,12 +678,15 @@ class GromacsMDAnalysisParser(MappingParser):
 
         # Filter for bond interactions only
         bonds = []
-        n_bond_atoms: int = 2
+        n_bond_particles: int = 2
         for interaction in interactions:
             if interaction.get('type') == 'bond':
-                atom_indices = interaction.get('atom_indices')
-                if atom_indices is not None and len(atom_indices) == n_bond_atoms:
-                    bonds.append(list(atom_indices))
+                particle_indices = interaction.get('atom_indices')
+                if (
+                    particle_indices is not None
+                    and len(particle_indices) == n_bond_particles
+                ):
+                    bonds.append(list(particle_indices))
 
         if bonds:
             result = np.array(bonds, dtype=int)
@@ -669,9 +694,9 @@ class GromacsMDAnalysisParser(MappingParser):
         return result
 
     def get_configurations(self) -> list[dict[str, Any]]:
-        # Labels, n_atoms and bond_list are frame-independent; compute once.
-        labels = self.get_atom_parameters()
-        n_atoms = self.data_object.get_n_atoms(0)
+        # Labels, n_particles and bond_list are frame-independent; compute once.
+        labels = self.get_particle_parameters()
+        n_particles = self.data_object.get_n_atoms(0)
         bond_list = self.get_bond_list()
 
         configurations = []
@@ -679,7 +704,7 @@ class GromacsMDAnalysisParser(MappingParser):
             # get_frame_data performs a single trajectory seek for all per-frame data.
             frame_data = self.data_object.get_frame_data(n)
             config = dict(
-                n_atoms=n_atoms,
+                n_atoms=n_particles,
                 labels=labels,
                 positions=frame_data['positions'],
                 velocities=frame_data['velocities'],
@@ -756,12 +781,12 @@ class GromacsMDAnalysisParser(MappingParser):
             all_indices = []
             all_labels = []
             for inter in int_list:
-                atom_indices = inter.get('atom_indices')
-                atom_labels = inter.get('atom_labels')
-                if atom_indices is not None and len(atom_indices) > 0:
-                    all_indices.append(list(atom_indices))
-                if atom_labels is not None and len(atom_labels) > 0:
-                    all_labels.append(list(atom_labels))
+                particle_indices = inter.get('atom_indices')
+                particle_labels = inter.get('atom_labels')
+                if particle_indices is not None and len(particle_indices) > 0:
+                    all_indices.append(list(particle_indices))
+                if particle_labels is not None and len(particle_labels) > 0:
+                    all_labels.append(list(particle_labels))
 
             if len(all_indices) == 0:
                 continue
@@ -912,6 +937,19 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser)
 
+        # parse per-type particle parameters (charges, masses, particle types) from
+        # TPR into a fresh ParticleParametersContainer, then append it to
+        # ForceField.numerical_settings. Using a dedicated PARTICLE_PARAM_KEY and a
+        # separate data_object avoids the index-0 collision with ForceCalculations
+        # written by the LOG pass.
+        if self.archive.data.model_method:
+            ppc = ParticleParametersContainer()
+            self._simulation_parser.data_object = ppc
+            self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            if ppc.particle_parameters:
+                self.archive.data.model_method[-1].numerical_settings.append(ppc)
+
     def write_to_archive(self):
         # intitialize variables
         self._maindir = os.path.dirname(self.mainfile)
@@ -945,8 +983,8 @@ class GromacsArchiveWriter(MDParser):
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
         traj_sampling_rate = self.input_parameters.get('nstxout', 1)
-        n_atoms_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
-        self.n_atoms = [n_atoms_per_frame] * n_frames
+        n_particles_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
+        self.n_particles = [n_particles_per_frame] * n_frames
         traj_steps = [n * traj_sampling_rate for n in range(n_frames)]
         self.trajectory_steps = traj_steps
 
