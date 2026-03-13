@@ -12,7 +12,13 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.force_field import ParticleParametersContainer
+
+try:
+    from nomad_simulations.schema_packages.force_field import (
+        ParticleParametersContainer,
+    )
+except ImportError:
+    ParticleParametersContainer = None  # type: ignore[assignment,misc]
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -943,7 +949,8 @@ class GromacsArchiveWriter(MDParser):
         # ForceField.numerical_settings. Using a dedicated PARTICLE_PARAM_KEY and a
         # separate data_object avoids the index-0 collision with ForceCalculations
         # written by the LOG pass.
-        if self.archive.data.model_method:
+        # TODO: remove check for ParticleParametersContainer once PR #346 is merged
+        if ParticleParametersContainer is not None and self.archive.data.model_method:
             ppc = ParticleParametersContainer()
             self._simulation_parser.data_object = ppc
             self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
