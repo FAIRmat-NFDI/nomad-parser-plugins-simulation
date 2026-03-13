@@ -13,6 +13,7 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 
+# TODO: remove try-except once PR #346 is merged
 try:
     from nomad_simulations.schema_packages.force_field import (
         ParticleParametersContainer,

@@ -420,30 +420,36 @@ add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 # pass that targets a fresh ParticleParametersContainer() as data_object, then
 # appends it to ForceField.numerical_settings in parser.py. This avoids the
 # index-0 collision with ForceCalculations written by the earlier LOG pass.
-add_mapping_annotation(
-    force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
-)
-add_mapping_annotation(
-    force_field.ParticleParametersContainer.particle_parameters,
-    PARTICLE_PARAM_KEY,
-    ('get_particle_parameters_by_type', []),
-)
-add_mapping_annotation(force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@')
-add_mapping_annotation(
-    force_field.ParticleParameters.particle_type, PARTICLE_PARAM_KEY, '.particle_type'
-)
-add_mapping_annotation(
-    force_field.ParticleParameters.partial_charge,
-    PARTICLE_PARAM_KEY,
-    '.partial_charge',
-    unit='elementary_charge',
-)
-add_mapping_annotation(
-    force_field.ParticleParameters.effective_mass,
-    PARTICLE_PARAM_KEY,
-    '.effective_mass',
-    unit='amu',
-)
+# TODO remove guard after PR #346 is merged and ParticleParametersContainer is available
+if hasattr(force_field, 'ParticleParametersContainer'):
+    add_mapping_annotation(
+        force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
+    )
+    add_mapping_annotation(
+        force_field.ParticleParametersContainer.particle_parameters,
+        PARTICLE_PARAM_KEY,
+        ('get_particle_parameters_by_type', []),
+    )
+    add_mapping_annotation(
+        force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@'
+    )
+    add_mapping_annotation(
+        force_field.ParticleParameters.particle_type,
+        PARTICLE_PARAM_KEY,
+        '.particle_type',
+    )
+    add_mapping_annotation(
+        force_field.ParticleParameters.partial_charge,
+        PARTICLE_PARAM_KEY,
+        '.partial_charge',
+        unit='elementary_charge',
+    )
+    add_mapping_annotation(
+        force_field.ParticleParameters.effective_mass,
+        PARTICLE_PARAM_KEY,
+        '.effective_mass',
+        unit='amu',
+    )
 
 
 try:
