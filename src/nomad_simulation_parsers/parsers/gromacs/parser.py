@@ -607,7 +607,8 @@ class GromacsMDAnalysisParser(MappingParser):
             particles_info = self.data_object.get('atoms_info', {}) or {}
         raw_names = particles_info.get('names', []) or []
         elements = particles_info.get('elements', []) or []
-        # Fall back to get_particle_labels when atoms_info is not populated (e.g. in tests)
+        # Fall back to get_particle_labels when particles_info is not populated
+        # (e.g. in tests)
         if not raw_names and not elements:
             fallback = self.get_particle_labels(0)
             raw_names = fallback
