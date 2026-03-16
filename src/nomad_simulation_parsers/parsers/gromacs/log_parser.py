@@ -129,7 +129,8 @@ class GromacsLogParser(TextParser):
                 r'rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
             ),
             Quantity(
-                'module_version', r'GROMACS:\s*(.+?),\s*VERSION\s*(\S+)', flatten=False
+                'version',
+                r'GROMACS(?:\s+version[:\s]+|:\s*\S+,\s*[Vv]ersion\s+)(\S+)',
             ),
             Quantity('execution_path', r'Executable:\s*(.+)'),
             Quantity('working_path', r'Data prefix:\s*(.+)'),

@@ -12,14 +12,9 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-
-# TODO: remove try-except once PR #346 is merged
-try:
-    from nomad_simulations.schema_packages.force_field import (
-        ParticleParametersContainer,
-    )
-except ImportError:
-    ParticleParametersContainer = None  # type: ignore[assignment,misc]
+from nomad_simulations.schema_packages.force_field import (
+    ParticleParametersContainer,
+)
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -153,8 +148,11 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
         return data_object
 
-    def get_version(self, source: str) -> str:
-        return (source or 'unknown').lstrip('VERSION')
+    def get_version(self, source: str | float | None) -> str | None:
+        result = None
+        if source is not None:
+            result = str(source).lstrip('VERSION').strip() or None
+        return result
 
     def get_configurations(self):
         pbc = [
@@ -937,6 +935,13 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.LOG_KEY
         self._log_parser.convert(self._simulation_parser)
 
+        # Program is pre-initialized, so the LOG annotation pass cannot populate
+        # version (MappingParser skips already-set SubSections). Set it directly.
+        raw_version = self._log_parser.data_object.get('version')
+        version = self._log_parser.get_version(raw_version)
+        if version is not None:
+            self.archive.data.program.version = version
+
         # parse edr file
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
@@ -950,8 +955,7 @@ class GromacsArchiveWriter(MDParser):
         # ForceField.numerical_settings. Using a dedicated PARTICLE_PARAM_KEY and a
         # separate data_object avoids the index-0 collision with ForceCalculations
         # written by the LOG pass.
-        # TODO: remove check for ParticleParametersContainer once PR #346 is merged
-        if ParticleParametersContainer is not None and self.archive.data.model_method:
+        if self.archive.data.model_method:
             ppc = ParticleParametersContainer()
             self._simulation_parser.data_object = ppc
             self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
