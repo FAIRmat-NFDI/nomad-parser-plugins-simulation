@@ -272,19 +272,36 @@ class YamboSpectraParser(TextParser):
     def logger(self):
         return LOGGER
 
-    def get_spectra(self, data: np.ndarray) -> dict[str, Any]:
-         ## start EM: see our corresponding part in electronic parsers (function to_values)
+    #start HB
+    def get_spectra(self) -> dict[str, Any]:
         data = []
         names = []
-        for line in block.strip().splitlines():
-            if line.startswith('#    E/ev[1]'):
-                names = [k.strip() for k in line.split() if k != '#']
-                continue
-            if names and not line.startswith('#'):
-                data.append(line.split())
+
+        with open(self.filepath) as f:
+            for line in f:
+                line = line.strip()
+
+                if line.startswith('#') and 'E/ev' in line:
+                    names = [k.strip() for k in line.split() if k != '#']
+                    continue
+
+                if names and not line.startswith('#') and line:
+                    data.append(line.split())
+
+        if not data:
+            return {}
+
         data = np.array(data, dtype=np.float64)
-        ## end EM    
-        return dict(excitation_energies=data[:, 0], intensities=data[:, 1])
+
+        if data.shape[1] < 2:
+            return {}
+
+        return dict(
+            excitation_energies=data[:, 0] * ureg.eV,
+            intensities=data[:, 1]
+        )
+
+        #end HB
 
 
 class YamboArchiveWriter(ArchiveWriter):
@@ -324,29 +341,36 @@ class YamboArchiveWriter(ArchiveWriter):
         absorption_spectra_parser = YamboMetainfoParser()
         absorption_spectra_parser.data_object = yambo.outputs.AbsorptionSpectrum()
         absorption_spectra_parser.annotation_key = yambo.SPECTRA_KEY
+        
+        #start HB
+        SPECTRA_TYPE_MAP = {
+        'Absorption': 'dielectric_function',
+        'EELS': 'energy_loss_spectrum',
+        }
+
         for spectra_file in spectra_files:
             spectra_parser.filepath = spectra_file
-            if mainfile_parser.data.get('sp_type') is not None:  # EM
-                spectra_parser.convert(absorption_spectra_parser)
-            # add to simulation outputs.absorption_spectra
-                outputs = (
-                    data.outputs[-1]
-                    if data.outputs
-                    else data.m_create(yambo.outputs.Outputs)
-                )
-                outputs.m_append(
-                    yambo.outputs.AbsorptionSpectrum.m_def,
-                    absorption_spectra_parser.data_object,
-                )
-                
-                ## start EM: see our code in electronic parsers: use sp_type to assign labels
-                if mainfile_parser.data.get('sp_type') == 'Absorption':
-                    spectra.type = 'Dielectric function'
-                else:
-                    spectra.type = self.mainfile_parser.data.get('sp_type')
-                with open(self.mainfile_parser.mainfile) as f:  # to be removed?
-                    spectra_file_content = f.read()  # to be removed?
-                ## end EM
+
+            sp_type = mainfile_parser.data.get('sp_type')
+            if sp_type is None:
+                continue
+
+            absorption_spectra_parser.data_object = yambo.outputs.AbsorptionSpectrum()
+
+            spectra_parser.convert(absorption_spectra_parser)
+
+            spectra_obj = absorption_spectra_parser.data_object
+            spectra_obj.label = sp_type
+            spectra_obj.type = SPECTRA_TYPE_MAP.get(sp_type, 'unknown')
+
+            outputs = (
+                data.outputs[-1] if data.outputs else data.m_create(yambo.outputs.Outputs)
+            )
+            outputs.m_append(
+                yambo.outputs.AbsorptionSpectrum.m_def,
+                spectra_obj,
+            )
+            #end HB
 
         data_parser.close()
         netcdf_parser.close()
