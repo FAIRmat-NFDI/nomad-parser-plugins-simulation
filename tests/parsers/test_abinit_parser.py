@@ -116,6 +116,13 @@ def test_geometry_optimization_workflow_convergence_section():
     energy_target = targets_by_name['EnergyConvergenceTarget']
     force_target = targets_by_name['ForceConvergenceTarget']
     assert energy_target.threshold_type == 'relative'
-    assert energy_target.threshold.to('joule').magnitude == approx(0.0)
+    # Energy threshold for relative convergence should be dimensionless
+    assert energy_target.threshold == approx(0.0)
     assert force_target.threshold_type == 'maximum'
-    assert force_target.threshold.to('newton').magnitude == approx(5.0e-4)
+    # Force threshold may be plain float or Pint Quantity with flexible_unit
+    force_threshold = (
+        force_target.threshold.to('newton').magnitude
+        if hasattr(force_target.threshold, 'to')
+        else force_target.threshold
+    )
+    assert force_threshold == approx(5.0e-4)
