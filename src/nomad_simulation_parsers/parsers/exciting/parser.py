@@ -178,7 +178,7 @@ class InfoParser(TextParser):
         threshold = structure_optimization.get('force_target')
         if threshold is None:
             return []
-        threshold = threshold.to('newton').magnitude
+        threshold = threshold.to('newton')
         convergence = [
             ForceConvergenceTarget(
                 threshold=threshold,
