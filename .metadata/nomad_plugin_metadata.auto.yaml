@@ -1,0 +1,564 @@
+id: nomad-simulation-parsers
+metadata_schema_version: 1.0.0
+name: nomad-simulation-parsers
+description: A repository for housing NOMAD's collection of simulation parser plugins.
+license: LICENSE
+upstream_repository: https://github.com/FAIRmat-NFDI/nomad-simulation-parsers
+homepage: https://github.com/FAIRmat-NFDI/nomad-simulation-parsers
+maintainers:
+- name: Nathan Daelman
+  email: ndaelman@physik.hu-berlin.de
+- name: Alvin N. Ladines
+  email: ladinesa@physik.hu-berlin.de
+- name: Joseph F. Rudzinski
+  email: joseph.rudzinski@physik.hu-berlin.de
+authors:
+- name: Esma B. Boydas
+  email: esma.boydas@physik.hu-berlin.de
+- name: Nathan Daelman
+  email: ndaelman@physik.hu-berlin.de
+- name: Alvin N. Ladines
+  email: ladinesa@physik.hu-berlin.de
+- name: Bernadette Mohr
+  email: mohrbern@physik.hu-berlin.de
+- name: Joseph F. Rudzinski
+  email: joseph.rudzinski@physik.hu-berlin.de
+entry_points:
+- id: nomad.plugin:abinit_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: abinit_parser
+  python_object: nomad_simulation_parsers.parsers:abinit_parser
+  capability_type: parser
+- id: nomad.plugin:abinit_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: abinit_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:abinit_schema_package
+  capability_type: schema
+- id: nomad.plugin:ams_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: ams_parser
+  python_object: nomad_simulation_parsers.parsers:ams_parser
+  capability_type: parser
+- id: nomad.plugin:ams_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: ams_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:ams_schema_package
+  capability_type: schema
+- id: nomad.plugin:crystal_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: crystal_parser
+  python_object: nomad_simulation_parsers.parsers:crystal_parser
+  capability_type: parser
+- id: nomad.plugin:crystal_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: crystal_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:crystal_schema_package
+  capability_type: schema
+- id: nomad.plugin:exciting_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: exciting_parser
+  python_object: nomad_simulation_parsers.parsers:exciting_parser
+  capability_type: parser
+- id: nomad.plugin:exciting_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: exciting_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:exciting_schema_package
+  capability_type: schema
+- id: nomad.plugin:fhiaims_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: fhiaims_parser
+  python_object: nomad_simulation_parsers.parsers:fhiaims_parser
+  capability_type: parser
+- id: nomad.plugin:fhiaims_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: fhiaims_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:fhiaims_schema_package
+  capability_type: schema
+- id: nomad.plugin:gpaw_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: gpaw_parser
+  python_object: nomad_simulation_parsers.parsers:gpaw_parser
+  capability_type: parser
+- id: nomad.plugin:gpaw_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: gpaw_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:gpaw_schema_package
+  capability_type: schema
+- id: nomad.plugin:gromacs_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: gromacs_parser
+  python_object: nomad_simulation_parsers.parsers:gromacs_parser
+  capability_type: parser
+- id: nomad.plugin:gromacs_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: gromacs_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:gromacs_schema_package
+  capability_type: schema
+- id: nomad.plugin:h5md_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: h5md_parser
+  python_object: nomad_simulation_parsers.parsers:h5md_parser
+  capability_type: parser
+- id: nomad.plugin:h5md_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: h5md_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:h5md_schema_package
+  capability_type: schema
+- id: nomad.plugin:lammps_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: lammps_parser
+  python_object: nomad_simulation_parsers.parsers:lammps_parser
+  capability_type: parser
+- id: nomad.plugin:octopus_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: octopus_parser
+  python_object: nomad_simulation_parsers.parsers:octopus_parser
+  capability_type: parser
+- id: nomad.plugin:octopus_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: octopus_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:octopus_schema_package
+  capability_type: schema
+- id: nomad.plugin:phonopy_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: phonopy_parser
+  python_object: nomad_simulation_parsers.parsers:phonopy_parser
+  capability_type: parser
+- id: nomad.plugin:phonopy_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: phonopy_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:phonopy_schema_package
+  capability_type: schema
+- id: nomad.plugin:quantumespresso_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: quantumespresso_parser
+  python_object: nomad_simulation_parsers.parsers:quantumespresso_parser
+  capability_type: parser
+- id: nomad.plugin:quantumespresso_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: quantumespresso_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:quantumespresso_schema_package
+  capability_type: schema
+- id: nomad.plugin:vasp_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: vasp_parser
+  python_object: nomad_simulation_parsers.parsers:vasp_parser
+  capability_type: parser
+- id: nomad.plugin:vasp_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: vasp_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:vasp_schema_package
+  capability_type: schema
+- id: nomad.plugin:wannier90_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: wannier90_parser
+  python_object: nomad_simulation_parsers.parsers:wannier90_parser
+  capability_type: parser
+- id: nomad.plugin:wannier90_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: wannier90_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:wannier90_schema_package
+  capability_type: schema
+- id: nomad.plugin:yambo_parser
+  entry_point_group: nomad.plugin
+  entry_point_name: yambo_parser
+  python_object: nomad_simulation_parsers.parsers:yambo_parser
+  capability_type: parser
+- id: nomad.plugin:yambo_schema_package
+  entry_point_group: nomad.plugin
+  entry_point_name: yambo_schema_package
+  python_object: nomad_simulation_parsers.schema_packages:yambo_schema_package
+  capability_type: schema
+capabilities:
+- id: abinit_parser
+  capability_type: parser
+  title: parsers/abinit
+  summary: NOMAD parser for ABINIT.
+  parser_details:
+    parser_name: parsers/abinit
+    parser_level: 0
+    parser_aliases:
+    - parsers/abinit
+    mainfile_name_re: .*
+    mainfile_contents_re: ^\n*\.Version\s*[0-9.]*\s*of ABINIT\s*
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: abinit_schema_package
+  capability_type: schema
+  title: AbinitSchemaPackage
+  summary: Schema package for abinit.
+- id: ams_parser
+  capability_type: parser
+  title: parsers/ams
+  summary: NOMAD parser for AMS.
+  parser_details:
+    parser_name: parsers/ams
+    parser_level: 0
+    parser_aliases:
+    - parsers/ams
+    mainfile_name_re: .*
+    mainfile_contents_re: \* +\| +A M S +\| +\*
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: ams_schema_package
+  capability_type: schema
+  title: AMSSchemaPackage
+  summary: Schema package for AMS.
+- id: crystal_parser
+  capability_type: parser
+  title: parsers/crystal
+  summary: NOMAD parser for CRYSTAL.
+  parser_details:
+    parser_name: parsers/crystal
+    parser_level: 0
+    parser_aliases:
+    - parsers/crystal
+    mainfile_name_re: .*
+    mainfile_contents_re: '(\r?\n \*\s+CRYSTAL[\d]+\s+\*\r?\n \*\s*[a-zA-Z]+ : \d+[\.\d+]*)'
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: crystal_schema_package
+  capability_type: schema
+  title: CrystalSchemaPackage
+  summary: Schema package for Crystal.
+- id: exciting_parser
+  capability_type: parser
+  title: parsers/exciting
+  summary: NOMAD parser for EXCITING.
+  parser_details:
+    parser_name: parsers/exciting
+    parser_level: 0
+    parser_aliases:
+    - parsers/exciting
+    mainfile_name_re: ^.*.OUT(\.[^/]*)?$
+    mainfile_contents_re: 'EXCITING.*started[\s\S]+?All units are atomic '
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: exciting_schema_package
+  capability_type: schema
+  title: ExcitingSchemaPackage
+  summary: Schema package for exciting.
+- id: fhiaims_parser
+  capability_type: parser
+  title: parsers/fhiaims
+  summary: NOMAD parser for FHIAIMS.
+  parser_details:
+    parser_name: parsers/fhiaims
+    parser_level: 0
+    parser_aliases:
+    - parsers/fhi-aims
+    - parsers/fhiaims
+    mainfile_name_re: .*
+    mainfile_contents_re: ^(.*\n)*?\s*Invoking FHI-aims \.\.\.
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: fhiaims_schema_package
+  capability_type: schema
+  title: FHIAimsSchemaPackage
+  summary: Schema package for FHIAims.
+- id: gpaw_parser
+  capability_type: parser
+  title: parsers/gpaw
+  summary: NOMAD parser for GPAW.
+  parser_details:
+    parser_name: parsers/gpaw
+    parser_level: 0
+    parser_aliases:
+    - parsers/gpaw
+    mainfile_name_re: ^.*\.(gpw2|gpw)$
+    mainfile_mime_re: application/(x-tar|octet-stream)
+    mainfile_alternative: false
+- id: gpaw_schema_package
+  capability_type: schema
+  title: GPAWSchemaPackage
+  summary: Schema package for GPAW.
+- id: gromacs_parser
+  capability_type: parser
+  title: parsers/gromacs
+  summary: NOMAD parser for GROMACS.
+  parser_details:
+    parser_name: parsers/gromacs
+    parser_level: 0
+    parser_aliases:
+    - parsers/gromacs
+    mainfile_name_re: .*
+    mainfile_contents_re: 'gmx mdrun, (VERSION|version)[\s\S]*Input Parameters:'
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: gromacs_schema_package
+  capability_type: schema
+  title: GromacsSchemaPackage
+  summary: Schema package for Gromacs.
+- id: h5md_parser
+  capability_type: parser
+  title: parsers/h5md
+  summary: NOMAD parser for H5MD.
+  parser_details:
+    parser_name: parsers/h5md
+    parser_level: 0
+    parser_aliases:
+    - parsers/h5md
+    mainfile_name_re: ^.*\.(h5|hdf5)$
+    mainfile_contents_dict: '{"__has_all_keys": ["h5md"]}'
+    mainfile_mime_re: (application/x-hdf)
+    mainfile_binary_header_re: 5e5c783839484446
+    mainfile_alternative: false
+- id: h5md_schema_package
+  capability_type: schema
+  title: H5MDSchemaPackage
+  summary: Schema package for H5MD.
+- id: lammps_parser
+  capability_type: parser
+  title: parsers/lammps
+  summary: NOMAD parser for LAMMPS.
+  parser_details:
+    parser_name: parsers/lammps
+    parser_level: 0
+    parser_aliases:
+    - parsers/lammps
+    mainfile_name_re: .*
+    mainfile_contents_re: ^LAMMPS\s+\(.+\)
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: octopus_parser
+  capability_type: parser
+  title: parsers/octopus
+  summary: NOMAD parser for OCTOPUS.
+  parser_details:
+    parser_name: parsers/octopus
+    parser_level: 0
+    parser_aliases:
+    - parsers/octopus
+    mainfile_name_re: .*
+    mainfile_contents_re: \|0\) ~ \(0\) \|
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: octopus_schema_package
+  capability_type: schema
+  title: OctopusSchemaPackage
+  summary: Schema package for Octopus.
+- id: phonopy_parser
+  capability_type: parser
+  title: parsers/phonopy
+  summary: NOMAD parser for PHONOPY.
+  parser_details:
+    parser_name: parsers/phonopy
+    parser_level: 0
+    parser_aliases:
+    - parsers/phonopy
+    mainfile_name_re: .*/phon[^/]+yaml
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: phonopy_schema_package
+  capability_type: schema
+  title: PhonopySchemaPackage
+  summary: Schema package for Phonopy.
+- id: quantumespresso_parser
+  capability_type: parser
+  title: parsers/quantumespresso
+  summary: NOMAD parser for QUANTUMESPRESSO.
+  parser_details:
+    parser_name: parsers/quantumespresso
+    parser_level: 0
+    parser_aliases:
+    - parsers/quantumespresso
+    mainfile_name_re: .*[^/]*\.out[^/]*
+    mainfile_contents_re: (Program [A-Z]+.*starts)|(Current dimensions of program
+      [A-Z]+ are)|(^\s*<\?xml version="1\.0" encoding="UTF\-8"\?>\s*?\s*.+?quantum\-espresso)
+    mainfile_mime_re: (application/.*)|(text/.*)
+    mainfile_alternative: true
+    compression_support:
+    - gz
+    - bz2
+    - xz
+- id: quantumespresso_schema_package
+  capability_type: schema
+  title: QuantumEspressoSchemaPackage
+  summary: Schema package for Quantum Espresso.
+- id: vasp_parser
+  capability_type: parser
+  title: parsers/vasp
+  summary: Parser for VASP XML and OUTCAR outputs
+  parser_details:
+    parser_name: parsers/vasp
+    parser_level: 0
+    mainfile_name_re: .*[^/]*xml[^/]*
+    mainfile_contents_re: ^\s*<\?xml version="1\.0" encoding="ISO-8859-1"\?>\s*?\s*<modeling>?\s*<generator>?\s*<i
+      name="program" type="string">\s*vasp\s*</i>?|^\svasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed
+      on
+    mainfile_mime_re: (application/.*)|(text/.*)
+    mainfile_alternative: true
+    compression_support:
+    - gz
+    - bz2
+    - xz
+- id: vasp_schema_package
+  capability_type: schema
+  title: VASPSchemaPackage
+  summary: Schema package for VASP.
+- id: wannier90_parser
+  capability_type: parser
+  title: parsers/wannier90
+  summary: NOMAD parser for WANNIER90.
+  parser_details:
+    parser_name: parsers/wannier90
+    parser_level: 0
+    parser_aliases:
+    - parsers/wannier90
+    mainfile_name_re: .*
+    mainfile_contents_re: \|\s*WANNIER90\s*\|
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: wannier90_schema_package
+  capability_type: schema
+  title: Wannier90SchemaPackage
+  summary: Schema package for Wannier90.
+- id: yambo_parser
+  capability_type: parser
+  title: parsers/yambo
+  summary: NOMAD parser for YAMBO.
+  parser_details:
+    parser_name: parsers/yambo
+    parser_level: 0
+    parser_aliases:
+    - parsers/yambo
+    mainfile_name_re: .*
+    mainfile_contents_re: Build[\s\S]+?http://www\.yambo-code\.org
+    mainfile_mime_re: .*
+    mainfile_alternative: false
+- id: yambo_schema_package
+  capability_type: schema
+  title: YamboSchemaPackage
+  summary: Schema package for Yambo.
+supported_filetypes:
+- .gpw2
+- .gpw
+- .h5
+- .hdf5
+- .out
+file_format_support:
+- id: gpw2
+  label: .gpw2
+  capability_id: gpaw_parser
+  producer: gpaw
+  extensions:
+  - .gpw2
+  mime_types:
+  - application/(x-tar|octet-stream)
+- id: gpw
+  label: .gpw
+  capability_id: gpaw_parser
+  producer: gpaw
+  extensions:
+  - .gpw
+  mime_types:
+  - application/(x-tar|octet-stream)
+- id: h5
+  label: .h5
+  capability_id: h5md_parser
+  producer: h5md
+  extensions:
+  - .h5
+  mime_types:
+  - (application/x-hdf)
+- id: hdf5
+  label: .hdf5
+  capability_id: h5md_parser
+  producer: h5md
+  extensions:
+  - .hdf5
+  mime_types:
+  - (application/x-hdf)
+- id: out
+  label: .out
+  capability_id: quantumespresso_parser
+  producer: quantumespresso
+  extensions:
+  - .out
+  mime_types:
+  - (application/.*)|(text/.*)
+schema_dependencies:
+- dependency_type: python_package
+  package_name: nomad-lab
+  version_range: '>=1.3.16.dev100'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: nomad-simulations
+  version_range: '@git+https://github.com/nomad-coe/nomad-simulations.git@develop'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: nomad-nmr-schema
+  version_range: '@git+https://github.com/FAIRmat-NFDI/nomad-schema-plugin-nmr@main'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: nomad-schema-plugin-simulation-workflow
+  version_range: '>=1.0.10'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: python-magic-bin
+  version_range: ; sys_platform == 'win32'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: phonopy
+  version_range: '>=2.35'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: mdanalysis
+  version_range: '>=2.8.0,<3.0.0 ; python_full_version >= ''3.10'''
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: mdanalysis
+  version_range: <2.8 ; python_full_version < '3.10'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: panedr
+  version_range: '>=0.2'
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: netcdf4
+  version_range: <=1.7.2
+  optional: false
+  purpose: runtime
+- dependency_type: python_package
+  package_name: nomad-simulations
+  version_range: '[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop'
+  optional: true
+  purpose: optional
+- dependency_type: python_package
+  package_name: MDAnalysis
+  version_range: '>=2.4.0'
+  optional: true
+  purpose: optional
+- dependency_type: python_package
+  package_name: ruff
+  version_range: ''
+  optional: true
+  purpose: optional
+- dependency_type: python_package
+  package_name: pytest
+  version_range: ''
+  optional: true
+  purpose: optional
+- dependency_type: python_package
+  package_name: structlog
+  version_range: ''
+  optional: true
+  purpose: optional
+metadata_provenance:
+- source: pyproject
+  extraction_method: deterministic
+  generated_at: '2026-03-19T14:08:13.780342+00:00'
+  generator_version: 0.1.0
+- source: plugin_entry_points
+  extraction_method: deterministic
+  generated_at: '2026-03-19T14:08:13.780384+00:00'
+  generator_version: 0.1.0
