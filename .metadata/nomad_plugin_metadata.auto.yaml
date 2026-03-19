@@ -556,9 +556,9 @@ schema_dependencies:
 metadata_provenance:
 - source: pyproject
   extraction_method: deterministic
-  generated_at: '2026-03-19T14:08:13.780342+00:00'
+  generated_at: '2026-03-19T14:52:57.814648+00:00'
   generator_version: 0.1.0
 - source: plugin_entry_points
   extraction_method: deterministic
-  generated_at: '2026-03-19T14:08:13.780384+00:00'
+  generated_at: '2026-03-19T14:52:57.814687+00:00'
   generator_version: 0.1.0
