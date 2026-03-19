@@ -520,54 +520,37 @@ def test_get_thermostat_type(tcoupl, expected):
 
 
 def test_get_reference_temperature():
-    """Test reference temperature extraction from scalar or array."""
+    """Test reference temperature extraction from grpopts.ref-t."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'ref-t': 300.0}
+    params = {'grpopts': {'ref-t': 300.0}}
     assert lp.get_reference_temperature(params) == 300.0
 
-    # Test array (take first value)
-    params = {'ref-t': [300.0, 310.0, 320.0]}
+    params = {'grpopts': {'ref-t': [300.0, 310.0, 320.0]}}
     assert lp.get_reference_temperature(params) == 300.0
 
-    # Test underscore variant
-    params = {'ref_t': 298.0}
-    assert lp.get_reference_temperature(params) == 298.0
-
-    # Test empty array
-    params = {'ref-t': []}
+    params = {'grpopts': {'ref-t': []}}
     assert lp.get_reference_temperature(params) is None
 
-    # Test missing
     params = {}
     assert lp.get_reference_temperature(params) is None
 
-    # Test None input
     assert lp.get_reference_temperature(None) is None
 
 
 def test_get_thermostat_coupling_constant():
-    """Test thermostat coupling constant extraction from scalar or array."""
+    """Test thermostat coupling constant extraction from grpopts.tau-t."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'tau-t': 0.1}
+    params = {'grpopts': {'tau-t': 0.1}}
     assert lp.get_thermostat_coupling_constant(params) == 0.1
 
-    # Test array (take first value)
-    params = {'tau-t': [0.1, 0.2, 0.3]}
+    params = {'grpopts': {'tau-t': [0.1, 0.2, 0.3]}}
     assert lp.get_thermostat_coupling_constant(params) == 0.1
 
-    # Test underscore variant
-    params = {'tau_t': 0.5}
-    assert lp.get_thermostat_coupling_constant(params) == 0.5
-
-    # Test empty array
-    params = {'tau-t': []}
+    params = {'grpopts': {'tau-t': []}}
     assert lp.get_thermostat_coupling_constant(params) is None
 
-    # Test missing
     params = {}
     assert lp.get_thermostat_coupling_constant(params) is None
 
@@ -610,52 +593,15 @@ def test_get_barostat_coupling_type(pcoupltype, expected):
     assert result == expected
 
 
-def test_get_reference_pressure():
-    """Test reference pressure extraction from scalar, array, or matrix."""
-    lp = gromacs_parser.GromacsLogParser()
-
-    # Test scalar value
-    params = {'ref-p': 1.0}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test array (take first value)
-    params = {'ref-p': [1.0, 1.0]}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test matrix (take [0][0])
-    params = {'ref-p': [[1.0, 0.0], [0.0, 1.0]]}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test underscore variant
-    params = {'ref_p': 1.5}
-    assert lp.get_reference_pressure(params) == 1.5
-
-    # Test empty array
-    params = {'ref-p': []}
-    assert lp.get_reference_pressure(params) is None
-
-    # Test empty matrix
-    params = {'ref-p': [[]]}
-    assert lp.get_reference_pressure(params) is None
-
-    # Test missing
-    params = {}
-    assert lp.get_reference_pressure(params) is None
-
-
 def test_get_barostat_coupling_constant():
     """Test barostat coupling constant extraction."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test hyphen variant
+    # Test scalar value
     params = {'tau-p': 2.0}
     assert lp.get_barostat_coupling_constant(params) == 2.0
 
-    # Test underscore variant
-    params = {'tau_p': 5.0}
-    assert lp.get_barostat_coupling_constant(params) == 5.0
-
-    # Test missing
+    # Test missing value
     params = {}
     assert lp.get_barostat_coupling_constant(params) is None
 
@@ -663,29 +609,42 @@ def test_get_barostat_coupling_constant():
     assert lp.get_barostat_coupling_constant(None) is None
 
 
-def test_get_compressibility():
-    """Test compressibility extraction from scalar, array, or matrix."""
+def test_get_matrix_parameter():
+    """
+    Test get_matrix_parameter for all valid, missing, wrong-type and wrong-shape cases.
+    """
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'compressibility': 4.5e-5}
-    assert lp.get_compressibility(params) == 4.5e-5
+    # Test implemented parameter keys with correct matrix
+    matrix = np.eye(3)
+    params = {'ref-p': matrix}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='ref-p'), matrix
+    )
 
-    # Test array (take first value)
-    params = {'compressibility': [4.5e-5, 4.5e-5]}
-    assert lp.get_compressibility(params) == 4.5e-5
+    params = {'compressibility': matrix}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='compressibility'), matrix
+    )
 
-    # Test matrix (take [0][0])
-    params = {'compressibility': [[4.5e-5, 0.0], [0.0, 4.5e-5]]}
-    assert lp.get_compressibility(params) == 4.5e-5
+    # Test list of lists
+    matrix_list = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    params = {'ref-p': matrix_list}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='ref-p'), matrix
+    )
 
-    # Test empty array
-    params = {'compressibility': []}
-    assert lp.get_compressibility(params) is None
+    # Test wrong shape (not 3x3)
+    wrong_shape = np.eye(2)
+    params = {'ref-p': wrong_shape}
+    assert lp.get_matrix_parameter(params, param_key='ref-p') is None
 
-    # Test missing
-    params = {}
-    assert lp.get_compressibility(params) is None
+    # Test wrong parameter type (dict, not matrix or list)
+    params = {'ref-p': {'a': 1.0}}
+    assert lp.get_matrix_parameter(params, param_key='ref-p') is None
+
+    # Test missing parameters
+    assert lp.get_matrix_parameter(None, param_key='ref-p') is None
 
 
 def test_system_hierarchy_water():

@@ -342,7 +342,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     molecular_dynamics.BarostatParameters.reference_pressure,
     LOG_KEY,
-    ('get_reference_pressure', ['.input_parameters']),
+    ('get_matrix_parameter', ['.input_parameters'], {'param_key': 'ref-p'}),
     unit='bar',
 )
 
@@ -356,7 +356,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     molecular_dynamics.BarostatParameters.compressibility,
     LOG_KEY,
-    ('get_compressibility', ['.input_parameters']),
+    ('get_matrix_parameter', ['.input_parameters'], {'param_key': 'compressibility'}),
     unit='1/bar',
 )
 

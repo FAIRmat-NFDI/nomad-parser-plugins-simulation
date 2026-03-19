@@ -284,16 +284,16 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return result
 
     def get_reference_temperature(self, input_params: dict[str, Any]) -> float | None:
-        """Extract reference temperature from ref_t (handle scalar or array)."""
+        """Extract reference temperature from ref-t inside grpopts."""
         result = None
         if not input_params:
             return result
 
-        ref_t = input_params.get('ref-t') or input_params.get('ref_t')
+        grpopts = input_params.get('grpopts') or {}
+        ref_t = grpopts.get('ref-t') or input_params.get('ref_t')
         if ref_t is None:
             return result
 
-        # Handle array (take first value) or scalar
         if isinstance(ref_t, list):
             result = ref_t[0] if len(ref_t) > 0 else None
         else:
@@ -304,16 +304,16 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
     def get_thermostat_coupling_constant(
         self, input_params: dict[str, Any]
     ) -> float | None:
-        """Extract thermostat coupling constant from tau_t (handle scalar or array)."""
+        """Extract thermostat coupling constant from tau-t inside grpopts."""
         result = None
         if not input_params:
             return result
 
-        tau_t = input_params.get('tau-t') or input_params.get('tau_t')
+        grpopts = input_params.get('grpopts') or {}
+        tau_t = grpopts.get('tau-t') or input_params.get('tau_t')
         if tau_t is None:
             return result
 
-        # Handle array (take first value) or scalar
         if isinstance(tau_t, list):
             result = tau_t[0] if len(tau_t) > 0 else None
         else:
@@ -356,26 +356,38 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         result = coupling_map.get(pcoupltype_lower)
         return result
 
-    def get_reference_pressure(self, input_params: dict[str, Any]) -> float | None:
+    def get_matrix_parameter(
+        self, input_params: dict[str, Any], param_key: str
+    ) -> np.ndarray | None:
         """Extract reference pressure from ref_p (handle scalar or matrix)."""
         result = None
         if not input_params:
             return result
-
-        ref_p = input_params.get('ref-p') or input_params.get('ref_p')
-        if ref_p is None:
+        params = input_params.get(param_key)
+        if params is None:
             return result
 
-        # Handle matrix/array (take first value) or scalar
-        if isinstance(ref_p, list):
-            if isinstance(ref_p[0], list):
-                # Matrix: take [0][0]
-                result = ref_p[0][0] if len(ref_p) > 0 and len(ref_p[0]) > 0 else None
+        if isinstance(params, list):
+            if not all(isinstance(row, list) for row in params):
+                self.logger.warning(f'{param_key} is not a matrix, not parsing.')
+                params = None
             else:
-                # Array: take first value
-                result = ref_p[0] if len(ref_p) > 0 else None
-        else:
-            result = ref_p
+                params = np.array(params)
+        elif not isinstance(params, np.ndarray):
+            self.logger.warning(
+                f'{param_key} has unexpected type {type(params)}, '
+                f'expected np.ndarray. Not parsing {param_key}.'
+            )
+            params = None
+
+        if params is not None and params.shape != (3, 3):
+            self.logger.warning(
+                f'{param_key} has unexpected shape {params.shape}, '
+                f'expected (3, 3) matrix. Not parsing {param_key}.'
+            )
+            params = None
+
+        result = params
 
         return result
 
@@ -387,34 +399,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if not input_params:
             return result
 
-        tau_p = input_params.get('tau-p') or input_params.get('tau_p')
+        tau_p = input_params.get('tau-p')
         if tau_p is not None:
             result = tau_p
-
-        return result
-
-    def get_compressibility(self, input_params: dict[str, Any]) -> float | None:
-        """Extract compressibility (handle scalar or matrix)."""
-        result = None
-        if not input_params:
-            return result
-
-        compressibility = input_params.get('compressibility')
-        if compressibility is None:
-            return result
-
-        # Handle matrix/array (take first value) or scalar
-        if isinstance(compressibility, list):
-            if len(compressibility) == 0:
-                result = None
-            elif isinstance(compressibility[0], list):
-                # Matrix: take [0][0]
-                result = compressibility[0][0] if len(compressibility[0]) > 0 else None
-            else:
-                # Array: take first value
-                result = compressibility[0]
-        else:
-            result = compressibility
 
         return result
 
