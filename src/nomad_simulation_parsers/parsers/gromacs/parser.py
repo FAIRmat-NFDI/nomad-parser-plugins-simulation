@@ -76,6 +76,7 @@ class GromacsThermodynamicsParser(MappingParser):
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
             data = dict(
+                m_def=gromacs.Outpus.m_def.qualified_name(),
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -92,7 +93,11 @@ class GromacsThermodynamicsParser(MappingParser):
                             'contributions', []
                         ).append(dict(value=val_n, label=self._energy_label_map[key]))
                 elif key in self._base_calc_unit_map:
-                    data[key] = val[n] * self._base_calc_unit_map[key]
+                    val_n = val[n] * self._base_calc_unit_map[key]
+                    if key == 'Temperature':
+                        data['temperatures'] = [{'value': val_n, 'name': 'Temperature'}]
+                    else:
+                        data[key] = val_n
             if step in self._trajectory_steps:
                 data['system_ref'] = (
                     f'/data/model_system/{self._trajectory_steps.index(step)}'

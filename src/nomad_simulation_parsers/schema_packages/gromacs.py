@@ -4,6 +4,7 @@ from nomad_simulations.schema_packages import (
     general,
     model_system,
     outputs,
+    properties,
 )
 from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
@@ -168,6 +169,8 @@ class TotalForce(outputs.TotalForce):
 
 
 class Outpus(outputs.TrajectoryOutputs):
+    add_mapping_annotation(outputs.TrajectoryOutputs.step, LOG_KEY, '.step')
+    add_mapping_annotation(outputs.TrajectoryOutputs.step, EDR_KEY, '.step')
     add_mapping_annotation(outputs.Outputs.total_energies, LOG_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.total_energies, EDR_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.model_system_ref, LOG_KEY, '.system_ref')
@@ -175,6 +178,16 @@ class Outpus(outputs.TrajectoryOutputs):
     add_mapping_annotation(outputs.Outputs.total_forces, TPR_KEY, '.forces')
     add_mapping_annotation(outputs.TrajectoryOutputs.time, LOG_KEY, '.time')
     add_mapping_annotation(outputs.TrajectoryOutputs.time, EDR_KEY, '.time')
+    add_mapping_annotation(
+        outputs.TrajectoryOutputs.temperatures, LOG_KEY, '.temperatures'
+    )
+    add_mapping_annotation(
+        outputs.TrajectoryOutputs.temperatures, EDR_KEY, '.temperatures'
+    )
+    add_mapping_annotation(properties.Temperature.value, LOG_KEY, '.value')
+    add_mapping_annotation(properties.Temperature.value, EDR_KEY, '.value')
+    add_mapping_annotation(properties.Temperature.name, LOG_KEY, '.name')
+    add_mapping_annotation(properties.Temperature.name, EDR_KEY, '.name')
 
 
 class Simulation(general.Simulation):
@@ -185,13 +198,15 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
-    add_mapping_annotation(general.Simulation.outputs, LOG_KEY, ('get_outputs', []))
-    add_mapping_annotation(general.Simulation.outputs, TPR_KEY, ('get_outputs', []))
-    add_mapping_annotation(general.Simulation.outputs, EDR_KEY, ('get_outputs', ['.@']))
     add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
     add_mapping_annotation(general.Simulation.model_method, LOG_KEY, '.@')
 
 
+add_mapping_annotation(outputs.TrajectoryOutputs.m_def, LOG_KEY, ('get_outputs', []))
+add_mapping_annotation(outputs.TrajectoryOutputs.m_def, TPR_KEY, ('get_outputs', []))
+add_mapping_annotation(
+    outputs.TrajectoryOutputs.m_def, EDR_KEY, ('get_outputs', ['.@'])
+)
 add_mapping_annotation(general.Simulation.m_def, LOG_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, TPR_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, EDR_KEY, '@')
