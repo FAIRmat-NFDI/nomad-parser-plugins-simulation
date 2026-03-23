@@ -4,6 +4,7 @@ from nomad_simulations.schema_packages import (
     general,
     model_system,
     outputs,
+    workflow,
 )
 from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
@@ -18,6 +19,21 @@ m_package = SchemaPackage()
 LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
+
+
+# Convergence target mappings for geometry optimization
+add_mapping_annotation(
+    workflow.general.ForceConvergenceTarget.threshold,
+    LOG_KEY,
+    '.threshold',
+    unit='kilojoule/avogadro_number/nanometer',
+)
+add_mapping_annotation(
+    workflow.general.ForceConvergenceTarget.threshold_type, LOG_KEY, '.threshold_type'
+)
+
+# Register convergence target definition
+add_mapping_annotation(workflow.general.ForceConvergenceTarget.m_def, LOG_KEY, '.@')
 
 
 # =============================================================================
@@ -192,7 +208,7 @@ add_mapping_annotation(general.Simulation.m_def, TPR_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, EDR_KEY, '@')
 
 
-class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
+class GeometryOptimizationModel(geometry_optimization.GeometryOptimizationMethod):
     add_mapping_annotation(
         geometry_optimization.GeometryOptimizationMethod.optimization_method,
         LOG_KEY,
@@ -203,14 +219,11 @@ class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
         LOG_KEY,
         '.input_parameters.nsteps',
     )
-    # TODO: Re-enable when nomad-simulations#260 is merged
-    # add_mapping_annotation(
-    #     geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_force_maximum,
-    #     LOG_KEY,
-    #     '.input_parameters.emtol',
-    #     unit='kilojoule/avogadro_number/nanometer',
-    # )
+    add_mapping_annotation(
+        geometry_optimization.GeometryOptimizationMethod.convergence_targets,
+        LOG_KEY,
+        ('get_convergence_targets', ['.input_parameters']),
+    )
 
 
 class GeometryOptimizationResults(geometry_optimization.GeometryOptimizationResults):

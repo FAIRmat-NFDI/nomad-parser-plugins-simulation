@@ -15,6 +15,31 @@ OUT_KEY = 'abinit_out'
 DOS_KEY = 'abinit_dos'
 
 
+# Convergence target mappings for geometry optimization
+add_mapping_annotation(
+    workflow.general.EnergyConvergenceTarget.threshold,
+    OUT_KEY,
+    '.threshold',
+    unit='hartree',
+)
+add_mapping_annotation(
+    workflow.general.EnergyConvergenceTarget.threshold_type, OUT_KEY, '.threshold_type'
+)
+add_mapping_annotation(
+    workflow.general.ForceConvergenceTarget.threshold,
+    OUT_KEY,
+    '.threshold',
+    unit='hartree/bohr',
+)
+add_mapping_annotation(
+    workflow.general.ForceConvergenceTarget.threshold_type, OUT_KEY, '.threshold_type'
+)
+
+# Register convergence target definitions
+add_mapping_annotation(workflow.general.EnergyConvergenceTarget.m_def, OUT_KEY, '.@')
+add_mapping_annotation(workflow.general.ForceConvergenceTarget.m_def, OUT_KEY, '.@')
+
+
 class GeometryOptimizationMethod(
     workflow.geometry_optimization.GeometryOptimizationMethod
 ):
@@ -23,21 +48,11 @@ class GeometryOptimizationMethod(
         OUT_KEY,
         ('get_workflow_method', []),
     )
-    # TODO: Re-enable when nomad-simulations#260 is merged
-    # add_mapping_annotation(
-    #     workflow.geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_energy_difference,
-    #     OUT_KEY,
-    #     ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
-    #     unit='hartree',
-    # )
-    # add_mapping_annotation(
-    #     workflow.geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_force_maximum,
-    #     OUT_KEY,
-    #     ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
-    #     unit='hartree/bohr',
-    # )
+    add_mapping_annotation(
+        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
+        OUT_KEY,
+        ('get_convergence_targets', []),
+    )
 
 
 add_mapping_annotation(

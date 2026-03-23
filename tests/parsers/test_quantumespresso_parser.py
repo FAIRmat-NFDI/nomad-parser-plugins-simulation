@@ -115,6 +115,7 @@ def test_gipaw_epr_deltag_text():
         LOGGER,
     )
 
+
 def test_gipaw_epr_deltag_xml():
     parser = QuantumEspressoParser()
     archive = EntryArchive()

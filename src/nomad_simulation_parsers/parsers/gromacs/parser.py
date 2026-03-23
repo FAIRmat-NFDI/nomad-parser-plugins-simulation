@@ -217,6 +217,28 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         result = coulomb_map.get(coulombtype_lower)
         return result
 
+    def get_convergence_targets(
+        self, input_params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Extract geometry optimization convergence criteria."""
+        targets = []
+
+        if not input_params:
+            return targets
+
+        # Force convergence tolerance (emtol)
+        emtol = input_params.get('emtol')
+        if emtol is not None and emtol > 0:
+            targets.append(
+                {
+                    'm_def': 'simulationworkflowschema.general.ForceConvergenceTarget',
+                    'threshold': emtol,
+                    'threshold_type': 'maximum',
+                }
+            )
+
+        return targets
+
     def get_coordinate_save_frequency(self, input_params: dict[str, Any]) -> int | None:
         """Get coordinate save frequency, preferring compressed output."""
         result = None

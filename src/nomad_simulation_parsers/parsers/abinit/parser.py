@@ -521,6 +521,34 @@ class MainfileParser(TextParser):
             outputs.extend(dataset.get('relaxation', []))
         return outputs
 
+    def get_convergence_targets(self) -> list[dict[str, Any]]:
+        """Extract geometry optimization convergence criteria."""
+        targets = []
+
+        # Energy convergence tolerance (tolmxde)
+        tolmxde = self.get_input_var('tolmxde', n_dataset=1, default=None, scalar=True)
+        if tolmxde is not None and tolmxde > 0:
+            targets.append(
+                {
+                    'm_def': 'simulationworkflowschema.general.EnergyConvergenceTarget',
+                    'threshold': tolmxde,
+                    'threshold_type': 'absolute',
+                }
+            )
+
+        # Force convergence tolerance (tolmxf)
+        tolmxf = self.get_input_var('tolmxf', n_dataset=1, default=None, scalar=True)
+        if tolmxf is not None and tolmxf > 0:
+            targets.append(
+                {
+                    'm_def': 'simulationworkflowschema.general.ForceConvergenceTarget',
+                    'threshold': tolmxf,
+                    'threshold_type': 'maximum',
+                }
+            )
+
+        return targets
+
     def get_atoms(self) -> list[dict[str, Any]]:
         znucl = self.get_input_var('znucl', default=1)
         typat = self.get_input_var('typat', default=1)
