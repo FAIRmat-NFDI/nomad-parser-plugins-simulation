@@ -172,7 +172,7 @@ phonopy_parser = EntryPoint(
     name='parsers/phonopy',
     aliases=['parsers/phonopy'],
     description='NOMAD parser for PHONOPY.',
-    mainfile_name_re='.*/phon[^/]+yaml',
+    mainfile_name_re=r'.*/phon[^/]+yaml',
     parser_class_name='nomad_simulation_parsers.parsers.phonopy.parser.PhonopyParser',
     code_name='phonopy',
     python_package='nomad_simulation_parsers',
@@ -185,8 +185,12 @@ quantumespresso_parser = EntryPoint(
     description='NOMAD parser for QUANTUMESPRESSO.',
     python_package='nomad_simulation_parsers',
     mainfile_contents_re=(
-        r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)'
+        r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)|'
+        r'(^\s*<\?xml version="1\.0" encoding="UTF\-8"\?>\s*?\s*.+?quantum\-espresso)'
     ),
+    mainfile_mime_re='(application/.*)|(text/.*)',
+    mainfile_name_re=r'.*[^/]*\.out[^/]*',
+    mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
     parser_class_name='nomad_simulation_parsers.parsers.quantumespresso.parser.QuantumEspressoParser',
     code_name='QuantumESPRESSO',
@@ -206,7 +210,7 @@ vasp_parser = EntryPoint(
         r'^\svasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
-    mainfile_name_re='.*[^/]*xml[^/]*',
+    mainfile_name_re=r'.*[^/]*xml[^/]*',
     mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
 )
@@ -220,5 +224,17 @@ wannier90_parser = Wannier90ParserEntryPoint(
     mainfile_contents_re=r'\|\s*WANNIER90\s*\|',
     code_name='Wannier90',
     code_homepage='http://www.wannier.org/',
+    code_category='Atomistic code',
+)
+
+yambo_parser = EntryPoint(
+    name='parsers/yambo',
+    aliases=['parsers/yambo'],
+    description='NOMAD parser for YAMBO.',
+    parser_class_name='nomad_simulation_parsers.parsers.yambo.parser.YamboParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'Build[\s\S]+?http://www\.yambo-code\.org',
+    code_name='YAMBO',
+    code_homepage='http://www.yambo-code.org/',
     code_category='Atomistic code',
 )

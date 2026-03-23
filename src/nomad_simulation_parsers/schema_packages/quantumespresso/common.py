@@ -1,6 +1,4 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -8,111 +6,123 @@ from nomad_simulations.schema_packages import (
     outputs,
 )
 
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
 m_package = SchemaPackage()
+
+OUT_KEY = 'quantumespresso_out'
+XML_KEY = 'quantumespresso_xml'
+GIPAW_OUT_KEY = 'quantumespresso_gipaw_out'
+GIPAW_XML_KEY = 'quantumespresso_gipaw_xml'
 
 
 class Program(general.Program):
-    general.Program.version.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(out=Mapper(mapper=('get_version', ['.program_name_version'])))
+    add_mapping_annotation(
+        general.Program.version, OUT_KEY, ('get_version', ['.program_name_version'])
     )
-    general.Program.datetime.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_datetime', ['.start_date_time']))))
+    add_mapping_annotation(general.Program.version, XML_KEY, '.creator."@VERSION"')
+    add_mapping_annotation(
+        general.Program.datetime, OUT_KEY, ('get_datetime', ['.start_date_time'])
+    )
+    add_mapping_annotation(
+        general.Program.datetime,
+        XML_KEY,
+        ('get_datetime', ['.created."@DATE"', '.created."@TIME"']),
+    )
 
 
 class XCComponent(model_method.XCComponent):
-    model_method.XCComponent.canonical_label.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.XC_functional_name')))
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label, OUT_KEY, '.XC_functional_name'
+    )
 
 
 class XCFunctional(model_method.XCFunctional):
-    model_method.XCFunctional.components.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.xc_functional']))))
+    add_mapping_annotation(
+        model_method.XCFunctional.components,
+        OUT_KEY,
+        ('get_xc_functionals', ['.xc_functional']),
+    )
 
 
 class DFT(model_method.DFT):
-    model_method.DFT.xc.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(out=Mapper(mapper='.@'))
-    )
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class AtomsState(model_system.AtomsState):
-    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, XML_KEY, '."@name"')
 
 
 class Representation(model_system.Representation):
-    model_system.Representation.lattice_vectors.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    add_mapping_annotation(model_system.Representation.lattice_vectors, OUT_KEY, '.@')
 
 
 class ModelSystem(model_system.ModelSystem):
-    model_system.ModelSystem.positions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper=('get_value', ['.@'], dict(key='labels_positions.positions'))
-            )
-        )
+    add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        OUT_KEY,
+        ('get_value', ['.@'], dict(key='labels_positions.positions')),
     )
-    model_system.AtomsState.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(
-                mapper=(
-                    'get_value',
-                    ['.@'],
-                    dict(key='labels_positions.labels', units=''),
-                )
-            )
-        )
+    add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        XML_KEY,
+        (
+            'apply_unit',
+            ['.atomic_structure.atomic_positions.atom[].__value'],
+            dict(name='length'),
+        ),
     )
-    model_system.Representation.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(out=Mapper(mapper=('get_value', ['.@'], dict(key='simulation_cell'))))
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        OUT_KEY,
+        (
+            'get_value',
+            ['.@'],
+            dict(key='labels_positions.labels', units=''),
+        ),
+    )
+    add_mapping_annotation(
+        model_system.Representation.m_def,
+        OUT_KEY,
+        ('get_value', ['.@'], dict(key='simulation_cell')),
+    )
+    add_mapping_annotation(
+        model_system.Representation.m_def, XML_KEY, '.atomic_structure.cell'
     )
 
 
-class TotalEmergy(outputs.TotalEnergy):
-    outputs.TotalEnergy.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .energy_total', unit='rydberg')))
-    outputs.TotalEnergy.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_energy_contributions', ['.@']))))
+class TotalEnergy(outputs.TotalEnergy):
+    add_mapping_annotation(
+        outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total', unit='rydberg'
+    )
+    add_mapping_annotation(outputs.TotalEnergy.value, XML_KEY, '.value || .etot')
+    add_mapping_annotation(
+        outputs.TotalEnergy.contributions, OUT_KEY, ('get_energy_contributions', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.TotalEnergy.contributions, XML_KEY, ('get_energy_contributions', ['.@'])
+    )
+    add_mapping_annotation(outputs.TotalEnergy.name, XML_KEY, '.name')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_energies.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.energies')))
+    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.energies')
+    add_mapping_annotation(outputs.Outputs.total_energies, XML_KEY, '.total_energy')
 
 
 class Simulation(general.Simulation):
-    general.Simulation.program.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.header')))
-    model_method.DFT.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-        dict(out=Mapper(mapper='.header'))
-    )
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@', cache=True)))
-    general.Simulation.outputs.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@', cache=True)))
+    add_mapping_annotation(general.Simulation.program, OUT_KEY, '.header')
+    add_mapping_annotation(general.Simulation.program, XML_KEY, '.general_info')
+    add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.header')
+    add_mapping_annotation(model_method.DFT.m_def, XML_KEY, '.input')
+    add_mapping_annotation(general.Simulation.model_system, OUT_KEY, '.@')
+    add_mapping_annotation(general.Simulation.outputs, OUT_KEY, '.@')
 
 
-general.Simulation.m_def.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(
-    dict(out=Mapper(mapper='@'))
-)
+add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, XML_KEY, '@')
+
 
 try:
     m_package.__init_metainfo__()

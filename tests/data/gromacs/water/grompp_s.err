@@ -1,0 +1,48 @@
+                      :-) GROMACS - gmx grompp, 2025.0 (-:
+
+Executable:   /usr/local/gromacs/2025.0/single/bin/gmx_s
+Data prefix:  /usr/local/gromacs/2025.0/single
+Working dir:  /home/bmohr/software/nomad-distro-simulations/packages/nomad-parser-plugins-simulation/tests/data/gromacs/water
+Command line:
+  gmx_s grompp -f grompp.mdp -c conf.gro -p topol.top -o reference_s.tpr -maxwarn 10
+
+Ignoring obsolete mdp entry 'optimize_fft'
+Ignoring obsolete mdp entry 'rlistlong'
+Ignoring obsolete mdp entry 'nstcalclr'
+Ignoring obsolete mdp entry 'gb_algorithm'
+Ignoring obsolete mdp entry 'nstgbradii'
+Ignoring obsolete mdp entry 'rgbradii'
+Ignoring obsolete mdp entry 'gb-epsilon-solvent'
+Ignoring obsolete mdp entry 'gb_saltconc'
+Ignoring obsolete mdp entry 'gb-obc-alpha'
+Ignoring obsolete mdp entry 'gb-obc-beta'
+Ignoring obsolete mdp entry 'gb-obc-gamma'
+Ignoring obsolete mdp entry 'gb-dielectric-offset'
+Ignoring obsolete mdp entry 'sa-algorithm'
+Ignoring obsolete mdp entry 'sa-surface-tension'
+Ignoring obsolete mdp entry 'ns_type'
+Replacing old mdp entry 'verlet-buffer-drift' by 'verlet-buffer-tolerance'
+Replacing old mdp entry 'nstxtcout' by 'nstxout-compressed'
+Replacing old mdp entry 'xtc_precision' by 'compressed-x-precision'
+
+WARNING 1 [file grompp.mdp, line 343]:
+  Unknown left-hand 'QMMMscheme' in parameter file
+
+
+
+WARNING 2 [file grompp.mdp, line 343]:
+  Unknown left-hand 'MMChargeScaleFactor' in parameter file
+
+
+
+-------------------------------------------------------
+Program:     gmx grompp, version 2025.0
+Source file: src/gromacs/gmxpreprocess/readir.cpp (line 315)
+
+Fatal error:
+The group cutoff scheme has been removed since GROMACS 2020. Please use the
+Verlet cutoff scheme.
+
+For more information and tips for troubleshooting, please check the GROMACS
+website at https://manual.gromacs.org/current/user-guide/run-time-errors.html
+-------------------------------------------------------

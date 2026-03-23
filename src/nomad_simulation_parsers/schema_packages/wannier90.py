@@ -14,11 +14,11 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-WOUT_KEY = 'wout'
-WIN_KEY = 'win'
-BAND_KEY = 'band'
-WHR_KEY = 'whr'
-DOS_KEY = 'dos'
+WOUT_KEY = 'wannier_wout'
+WIN_KEY = 'wannier_win'
+BAND_KEY = 'wannier_band'
+WHR_KEY = 'wannier_whr'
+DOS_KEY = 'wannier_dos'
 
 
 class Program(general.Program):

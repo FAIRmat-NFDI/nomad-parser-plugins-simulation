@@ -6,13 +6,13 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 )
 from nomad_simulation_parsers.schema_packages.quantumespresso import phonon
 
-from ..parser import MainfileParser
+from ..parser import MainfileTextParser
 from .file_parser import PhononFileParser
 
 LOGGER = get_logger(__name__)
 
 
-class PhononMainfileParser(MainfileParser):
+class PhononMainfileParser(MainfileTextParser):
     @property
     def logger(self):
         return LOGGER
@@ -23,5 +23,4 @@ class PhononArchiveWriter(QuantumEspressoArchiveWriter):
     mainfile_parser = PhononMainfileParser(text_parser=PhononFileParser())
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        self.simulation_parser.annotation_key = 'out'
         super().parse_program(archive, index)

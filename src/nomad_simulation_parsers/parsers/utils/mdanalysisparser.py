@@ -81,6 +81,7 @@ class MDAnalysisParser(FileParser):
         self._kwargs = kwargs
         self._atomsgroup_info = None
         self._results = None
+        self.universe_error = None
 
     @property
     def auxilliary_files(self):
@@ -104,6 +105,9 @@ class MDAnalysisParser(FileParser):
     def universe(self) -> MDAUniverse | None:
         if not _check_mda_dependency('universe'):
             return None
+        # Avoid repeatedly retrying and re-logging after a known init failure.
+        if self._file_handler is None and self.universe_error is not None:
+            return None
         if self._file_handler is None:
             try:
                 self._file_handler = MDAnalysis.Universe(
@@ -111,6 +115,7 @@ class MDAnalysisParser(FileParser):
                 )
             except Exception as e:
                 self.logger.error('Error creating MDAnalysis universe.', exc_info=e)
+                self.universe_error = e
         return self._file_handler
 
     @property
@@ -170,9 +175,11 @@ class MDAnalysisParser(FileParser):
             ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),
             (
                 'moltypes',
-                lambda: self.get_fragtypes()
-                if hasattr(self.universe.atoms, 'fragments')
-                else None,
+                lambda: (
+                    self.get_fragtypes()
+                    if hasattr(self.universe.atoms, 'fragments')
+                    else None
+                ),
             ),
             ('molnums', lambda: getattr(self.universe.atoms, 'fragindices', None)),
             ('resnames', lambda: self._results['atoms_info'].get('resids')),
@@ -434,16 +441,22 @@ class MDAnalysisParser(FileParser):
         """
         True if trajectory is present.
         """
+        universe = self.universe
         return (
-            self.universe.trajectory is not None and len(self.universe.trajectory) > 0
+            universe is not None
+            and universe.trajectory is not None
+            and len(universe.trajectory) > 0
         )
 
     def get_frame(self, frame_index):
         """
         Returns the frame in the trajectory with index frame_index.
         """
+        universe = self.universe
+        if universe is None:
+            return None
         try:
-            return self.universe.trajectory[frame_index]
+            return universe.trajectory[frame_index]
         except Exception as e:
             self.logger.warning('Error accessing frame.', exc_info=e)
             return None
@@ -478,18 +491,18 @@ class MDAnalysisParser(FileParser):
         Returns the step of the frame with index frame_index.
         """
         frame = self.get_frame(frame_index)
-        dt = frame.dt if frame.dt else getattr(self.universe.trajectory, 'dt')
+        if frame is None:
+            return None
+        dt = frame.dt if frame.dt else getattr(self.universe.trajectory, 'dt', None)
         if not dt:
             return
-        if frame:
-            return round(frame.time / dt)
+        return round(frame.time / dt)
 
     def get_lattice_vectors(self, frame_index):
         """
         Returns the lattice vectors of the frame with index frame_index.
         """
-        lattice_vectors = self.get_frame(frame_index).triclinic_dimensions
-        return lattice_vectors * ureg.angstrom if lattice_vectors is not None else None
+        return self.get_frame_data(frame_index)['lattice_vectors']
 
     def get_pbc(self, frame_index):
         """
@@ -498,25 +511,37 @@ class MDAnalysisParser(FileParser):
         lattice_vectors = self.get_lattice_vectors(frame_index)
         return [True] * 3 if lattice_vectors is not None else [False] * 3
 
+    def get_frame_data(self, frame_index) -> dict:
+        """
+        Returns positions, velocities and lattice_vectors for frame_index in a single
+        trajectory seek. Callers that need all three quantities should prefer this over
+        calling get_positions/get_velocities/get_lattice_vectors individually.
+        """
+        frame = self.get_frame(frame_index)
+        if frame is None:
+            return dict(positions=None, velocities=None, lattice_vectors=None)
+        lv = frame.triclinic_dimensions
+        return dict(
+            positions=frame.positions * ureg.angstrom if frame.has_positions else None,
+            velocities=(
+                frame.velocities * ureg.angstrom / ureg.ps
+                if frame.has_velocities
+                else None
+            ),
+            lattice_vectors=lv * ureg.angstrom if lv is not None else None,
+        )
+
     def get_positions(self, frame_index):
         """
         Returns the positions of the atoms of the frame with index frame_index.
         """
-        frame = self.get_frame(frame_index)
-        if frame is None:
-            return None
-        return frame.positions * ureg.angstrom if frame.has_positions else None
+        return self.get_frame_data(frame_index)['positions']
 
     def get_velocities(self, frame_index):
         """
         Returns the velocities of the atoms of the frame with index frame_index.
         """
-        frame = self.get_frame(frame_index)
-        if frame is None:
-            return None
-        return (
-            frame.velocities * ureg.angstrom / ureg.ps if frame.has_velocities else None
-        )
+        return self.get_frame_data(frame_index)['velocities']
 
     def get_forces(self, frame_index):
         """
