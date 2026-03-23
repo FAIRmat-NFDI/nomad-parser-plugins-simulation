@@ -23,18 +23,21 @@ class GeometryOptimizationMethod(
         OUT_KEY,
         ('get_workflow_method', []),
     )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
-        unit='hartree',
-    )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
-        unit='hartree/bohr',
-    )
+    # TODO: Re-enable when nomad-simulations#260 is merged
+    # add_mapping_annotation(
+    #     workflow.geometry_optimization.GeometryOptimizationMethod
+    #         .convergence_tolerance_energy_difference,
+    #     OUT_KEY,
+    #     ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
+    #     unit='hartree',
+    # )
+    # add_mapping_annotation(
+    #     workflow.geometry_optimization.GeometryOptimizationMethod
+    #         .convergence_tolerance_force_maximum,
+    #     OUT_KEY,
+    #     ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
+    #     unit='hartree/bohr',
+    # )
 
 
 add_mapping_annotation(
