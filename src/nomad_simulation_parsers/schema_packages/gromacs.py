@@ -7,6 +7,9 @@ from nomad_simulations.schema_packages import (
     properties,
 )
 from nomad_simulations.schema_packages.workflow import (
+    general as workflow_general,
+)
+from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
     molecular_dynamics,
 )
@@ -388,6 +391,11 @@ class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 
 
 # Workflow
+# Block Level 3 polymorphism on tasks: prevents GeometryOptimization/MolecularDynamics
+# from being instantiated as sub-tasks via the MappingParser. Tasks are filled in by
+# map_tasks() during normalization from outputs (same pattern as FHI-aims parser).
+add_mapping_annotation(workflow_general.SimulationWorkflow.tasks, LOG_KEY, '.tasks')
+add_mapping_annotation(workflow_general.SimulationWorkflow.tasks, EDR_KEY, '.tasks')
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, LOG_KEY, '@')
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, EDR_KEY, '@')
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
