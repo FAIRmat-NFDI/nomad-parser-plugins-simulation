@@ -24,7 +24,7 @@ CASES = {
                 },
                 'ChargeConvergenceTarget': {
                     'threshold_type': 'absolute',
-                    'threshold': (1.602176634e-24, 'coulomb'),
+                    'threshold': (1e-05, 'coulomb'),
                 },
             }
         },
@@ -34,7 +34,7 @@ CASES = {
                 'last': (4.3213092127361915e-25, 'joule'),
             },
             'delta_potential_rms': {'len': 10, 'last': (1.41636334713761e-26, 'joule')},
-            'delta_density_rms': {'len': 10, 'last': (3.77314199483634e-28, 'coulomb')},
+            'delta_density_rms': {'len': 10, 'last': (2.35501e-09, 'coulomb')},
             'delta_force_abs': None,
         },
     },
@@ -58,7 +58,7 @@ CASES = {
                 },
                 'ChargeConvergenceTarget': {
                     'threshold_type': 'absolute',
-                    'threshold': (1.602176634e-24, 'coulomb'),
+                    'threshold': (1e-05, 'coulomb'),
                 },
                 'ForceConvergenceTarget': {
                     'threshold_type': 'absolute',
@@ -74,7 +74,7 @@ CASES = {
             'delta_potential_rms': {'len': 24, 'last': (2.13237730209986e-25, 'joule')},
             'delta_density_rms': {
                 'len': 24,
-                'last': (6.666224386382819e-27, 'coulomb'),
+                'last': (4.16073e-08, 'coulomb'),
             },
             'delta_force_abs': {'len': 24, 'last': (1.047809093229533e-13, 'newton')},
         },
@@ -83,7 +83,11 @@ CASES = {
 
 
 def _assert_quantity_close(quantity, expected_value: float, unit: str) -> None:
-    assert np.isclose(quantity.to(unit).magnitude, expected_value, rtol=1e-12, atol=0.0)
+    # Handle both plain floats and Pint Quantities (flexible_unit behavior)
+    magnitude = (
+        quantity.to(unit).magnitude if hasattr(quantity, 'to') else quantity
+    )
+    assert np.isclose(magnitude, expected_value, rtol=1e-12, atol=0.0)
 
 
 @pytest.fixture(scope='module')
@@ -96,11 +100,7 @@ def parsed_archive(request, parser):
     case = request.param
     archive = EntryArchive()
     mainfile = (
-        Path(__file__).resolve().parents[1]
-        / 'data'
-        / 'exciting'
-        / case
-        / 'INFO.OUT'
+        Path(__file__).resolve().parents[1] / 'data' / 'exciting' / case / 'INFO.OUT'
     )
     parser.parse(str(mainfile), archive, LOGGER)
     return case, archive

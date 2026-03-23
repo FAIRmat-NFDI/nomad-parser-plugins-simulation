@@ -204,6 +204,39 @@ class Outputs(outputs.Outputs):
         OUTCAR_KEY,
         ('get_eigenvalues', ['.eigenvalues', 'parameters']),
     )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        XML_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        XML2_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps, OUTCAR_KEY, ('get_scf_steps', ['.@'])
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, XML_KEY, '.energies_total')
+    add_mapping_annotation(outputs.SCFSteps.energies_total, XML2_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.energies_total, OUTCAR_KEY, '.energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, XML_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, XML2_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUTCAR_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(outputs.SCFSteps.durations, XML_KEY, '.durations')
+    add_mapping_annotation(outputs.SCFSteps.durations, XML2_KEY, '.durations')
+    add_mapping_annotation(outputs.SCFSteps.durations, OUTCAR_KEY, '.durations')
 
 
 class TotalEnergy(properties.energies.TotalEnergy):

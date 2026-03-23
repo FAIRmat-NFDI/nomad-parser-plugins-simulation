@@ -178,7 +178,7 @@ class InfoParser(TextParser):
         threshold = structure_optimization.get('force_target')
         if threshold is None:
             return []
-        threshold = threshold.to('newton').magnitude
+        threshold = threshold.to('newton')
         convergence = [
             ForceConvergenceTarget(
                 threshold=threshold,
@@ -458,6 +458,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # close parsers
         info_parser.close()
         data_parser.close()
+
 
 class ExcitingParser(MatchingParser):
     """

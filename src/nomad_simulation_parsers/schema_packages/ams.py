@@ -30,13 +30,13 @@ class Representation(model_system.Representation):
 class ModelSystem(model_system.ModelSystem):
     model_system.ModelSystem.positions.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.labels_positions[1]')))
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[1]')))
     model_system.AtomsState.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.labels_positions[0]')))
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[0]')))
     model_system.Representation.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.lattice_vectors')))
+    ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
 
 
 # class XCFunctional(model_method.XCFunctional):
@@ -85,16 +85,19 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     #     ).update(dict(out=Mapper(mapper='.@')))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
+    ).update(dict(ams_out=Mapper(mapper='.@')))
     outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(
         dict(
-            out=Mapper(
+            ams_out=Mapper(
                 mapper=('get_eigenvalues', ['.eigenvalues || .band_energy_ranges'])
             )
         )
     )
+    outputs.Outputs.scf_steps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
 
 
 class Simulation(general.Simulation):
@@ -113,6 +116,15 @@ class Simulation(general.Simulation):
         general.Simulation.outputs,
         OUT_KEY,
         '.geometry_optimization.step|| molecular_dynamics.step || .single_point',
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
     )
 
 

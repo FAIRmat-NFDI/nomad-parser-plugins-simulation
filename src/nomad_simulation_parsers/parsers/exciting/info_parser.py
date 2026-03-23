@@ -353,7 +353,7 @@ class InfoFileParser(TextParser):
             ),
             'x_exciting_charge_convergence': (
                 r'Charge distance\s*\(target\)',
-                ureg.elementary_charge,
+                ureg.coulomb,
             ),
             'x_exciting_IBS_force_convergence': (
                 r'Abs\. change in max\-nonIBS\-force\s*\(target\)',

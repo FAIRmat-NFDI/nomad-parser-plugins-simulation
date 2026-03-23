@@ -60,7 +60,15 @@ class Simulation(general.Simulation):
         (
             'get_sections',
             ['.@'],
-            dict(include=['energy', 'energy_components', 'forces', 'eigenvalues']),
+            dict(
+                include=[
+                    'energy',
+                    'energy_components',
+                    'forces',
+                    'eigenvalues',
+                    'self_consistency',
+                ]
+            ),
         ),
     )
     add_mapping_annotation(
@@ -152,6 +160,24 @@ class Outputs(outputs.Outputs):
                 '.species_projected_dos_files',
             ],
         ),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        TEXT_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, TEXT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_density_rms, TEXT_KEY, '.delta_density_rms'
+    )
+    add_mapping_annotation(outputs.SCFSteps.durations, TEXT_KEY, '.durations')
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, TEXT_KEY, '.code_specific_quantities'
     )
 
 
