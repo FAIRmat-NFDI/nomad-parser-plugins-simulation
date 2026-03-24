@@ -474,7 +474,10 @@ class OutcarParser(MappingTextParser):
             if metagga:
                 functionals = self.xc_functional_mapping.get(metagga, [metagga])
             else:
-                functionals = self.xc_functional_mapping.get(parameters.get('GGA'), [])
+                # VASP defaults to PBE-like GGA if GGA is not explicitly set.
+                functionals = self.xc_functional_mapping.get(
+                    parameters.get('GGA', 'PE'), []
+                )
             for functional in functionals:
                 xc_functionals.append({'name': functional})
         return xc_functionals
@@ -513,6 +516,32 @@ class OutcarParser(MappingTextParser):
         if len(durations) == len(energies_total):
             scf_steps['durations'] = durations
         return scf_steps
+    def get_atoms(self) -> list[dict[str, str]]:
+        ions = self.data.get('ions_per_type')
+        species = self.data.get('species')
+        if ions is None or species is None:
+            return []
+        if hasattr(ions, 'tolist'):
+            ions = ions.tolist()
+        if hasattr(species, 'tolist'):
+            species = species.tolist()
+        if len(ions) != len(species):
+            return []
+        atoms = []
+        for n_ions, species_info in zip(ions, species):
+            if isinstance(species_info, (list, tuple)) and len(species_info) > 1:
+                symbol = species_info[1]
+            else:
+                symbol = species_info
+            symbol = str(symbol).strip()
+            atoms.extend({'label': symbol} for _ in range(int(n_ions)))
+        return atoms
+
+    def get_periodic_boundary_conditions(self) -> list[bool]:
+        return [True, True, True]
+
+    def get_ediff_unit(self) -> str:
+        return 'electron_volt'
 
 
 class OutcarArchiveWriter(ArchiveWriter):

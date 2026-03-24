@@ -27,6 +27,11 @@ from nomad_simulations.schema_packages.workflow.single_point import SinglePointM
 from nomad_simulation_parsers.schema_packages import vasp
 
 LOGGER = get_logger(__name__)
+N_SPIN_CHANNELS = 2
+EIGENVALUE_COMPONENTS = 2
+OCCUPATION_THRESHOLD = 0.5
+EIGENVALUE_ARRAY_NDIM = 3
+DOS_ARRAY_NDIM = 2
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -45,11 +50,201 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def get_eigenvalues(self, array: list) -> dict[str, Any]:
-        if array is None:
-            return {}
-        transposed = np.transpose(array)
-        return dict(eigenvalues=transposed[0], occupations=transposed[1])
+    def _as_list(self, value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]
+
+    def _extract_spin_sets(
+        self, source: dict[str, Any] | None
+    ) -> list[list[dict[str, Any]]]:
+        if source is None:
+            return []
+        node = source.get('array', source)
+        if isinstance(node, dict):
+            node = node.get('set')
+        top_level = self._as_list(node)
+        if not top_level:
+            return []
+
+        # XML payload can contain one or more wrapper `set` containers.
+        while (
+            len(top_level) == 1
+            and isinstance(top_level[0], dict)
+            and top_level[0].get('r') is None
+            and top_level[0].get('set') is not None
+        ):
+            top_level = self._as_list(top_level[0].get('set'))
+            if not top_level:
+                return []
+
+        # Non-spin structure: top-level is already a list of k-point entries with `r`.
+        if all(
+            isinstance(item, dict) and item.get('r') is not None
+            for item in top_level
+        ):
+            return [top_level]
+
+        # Spin structure: top-level contains one container per spin channel.
+        spin_sets = []
+        for item in top_level:
+            if not isinstance(item, dict):
+                continue
+            kpoint_sets = self._as_list(item.get('set'))
+            if kpoint_sets and all(
+                isinstance(kpt, dict) and kpt.get('r') is not None
+                for kpt in kpoint_sets
+            ):
+                spin_sets.append(kpoint_sets)
+        return spin_sets
+
+    def get_eigenvalues(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        spin_sets = self._extract_spin_sets(source)
+        if not spin_sets:
+            return []
+
+        eigenvalues = []
+        is_spin_polarized = len(spin_sets) == N_SPIN_CHANNELS
+        for spin_channel, kpoint_sets in enumerate(spin_sets):
+            rows = [kpt.get('r') for kpt in kpoint_sets if isinstance(kpt, dict)]
+            if not rows:
+                continue
+            try:
+                data = np.asarray(rows, dtype=float)
+            except Exception:
+                continue
+            if (
+                data.ndim != EIGENVALUE_ARRAY_NDIM
+                or data.shape[2] < EIGENVALUE_COMPONENTS
+            ):
+                continue
+
+            eigs = data[:, :, 0]
+            occs = data[:, :, 1]
+            entry = dict(
+                eigenvalues=eigs,
+                occupations=occs,
+                n_bands=eigs.shape[1],
+                npoints=eigs.shape[0],
+            )
+            if is_spin_polarized:
+                entry['spin_channel'] = spin_channel
+            eigenvalues.append(entry)
+        return eigenvalues
+
+    def get_band_structures(
+        self, source: dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
+        result = []
+        for eigenvalues in self.get_eigenvalues(source):
+            entry = dict(
+                value=eigenvalues.get('eigenvalues'),
+                occupation=eigenvalues.get('occupations'),
+                n_levels=eigenvalues.get('n_bands'),
+            )
+            if eigenvalues.get('spin_channel') is not None:
+                entry['spin_channel'] = eigenvalues['spin_channel']
+            result.append(entry)
+        return result
+
+    def get_band_gaps(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        result = []
+        for eigenvalues in self.get_eigenvalues(source):
+            eigs = np.asarray(eigenvalues.get('eigenvalues'))
+            occs = np.asarray(eigenvalues.get('occupations'))
+            if eigs.size == 0 or occs.size == 0:
+                continue
+
+            occupied = eigs[occs >= OCCUPATION_THRESHOLD]
+            unoccupied = eigs[occs < OCCUPATION_THRESHOLD]
+            if occupied.size == 0:
+                valence_max = np.amin(eigs) - 1.0
+            else:
+                valence_max = np.amax(occupied)
+            if unoccupied.size == 0:
+                conduction_min = np.amin(eigs) - 1.0
+            else:
+                conduction_min = np.amin(unoccupied)
+            band_gap = max(0.0, float(conduction_min - valence_max))
+
+            entry = dict(value=band_gap)
+            if eigenvalues.get('spin_channel') is not None:
+                entry['spin_channel'] = eigenvalues['spin_channel']
+            result.append(entry)
+        return result
+
+    def _get_fermi_energy(self, source: dict[str, Any] | None) -> float | None:
+        if not isinstance(source, dict):
+            return None
+        fermi = source.get('i')
+        if isinstance(fermi, dict):
+            value = fermi.get(self.value_key)
+            try:
+                return float(value) if value is not None else None
+            except Exception:
+                return None
+        for item in self._as_list(fermi):
+            if not isinstance(item, dict):
+                continue
+            if item.get(f'{self.attribute_prefix}name') != 'efermi':
+                continue
+            value = item.get(self.value_key)
+            try:
+                return float(value) if value is not None else None
+            except Exception:
+                return None
+        return None
+
+    def get_total_dos(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        if not isinstance(source, dict):
+            return []
+        total = source.get('total')
+        if not isinstance(total, dict):
+            return []
+
+        node = total.get('array', total)
+        if isinstance(node, dict):
+            node = node.get('set')
+        spin_entries = self._as_list(node)
+        while (
+            len(spin_entries) == 1
+            and isinstance(spin_entries[0], dict)
+            and spin_entries[0].get('r') is None
+            and spin_entries[0].get('set') is not None
+        ):
+            spin_entries = self._as_list(spin_entries[0].get('set'))
+            if not spin_entries:
+                return []
+        if not all(
+            isinstance(entry, dict) and entry.get('r') is not None
+            for entry in spin_entries
+        ):
+            return []
+
+        efermi = self._get_fermi_energy(source)
+        is_spin_polarized = len(spin_entries) == N_SPIN_CHANNELS
+        dos_sections = []
+        for spin_channel, dos_entry in enumerate(spin_entries):
+            rows = dos_entry.get('r')
+            if rows is None:
+                continue
+            try:
+                data = np.asarray(rows, dtype=float)
+            except Exception:
+                continue
+            if data.ndim != DOS_ARRAY_NDIM or data.shape[1] < EIGENVALUE_COMPONENTS:
+                continue
+            # VASP may print spin-down DOS with negative sign for plotting.
+            # The schema expects non-negative DOS intensities.
+            entry = dict(energies=data[:, 0], value=np.abs(data[:, 1]))
+            if is_spin_polarized:
+                entry['spin_channel'] = spin_channel
+            if efermi is not None:
+                entry['energy_fermi'] = efermi
+            dos_sections.append(entry)
+        return dos_sections
 
     def get_energy_contributions(
         self, source: list[dict[str, Any]], **kwargs
@@ -200,6 +395,78 @@ class VasprunParser(XMLParser):
         if sp_convergence:
             workflow.method.single_point_convergence_targets = sp_convergence
         return workflow
+    def get_atoms(self) -> list[dict[str, str]]:
+        modeling = self.data.get('modeling', {})
+        atominfo = modeling.get('atominfo', {})
+        arrays = atominfo.get('array', [])
+        if isinstance(arrays, dict):
+            arrays = [arrays]
+        atoms_array = next(
+            (
+                array
+                for array in arrays
+                if array.get(f'{self.attribute_prefix}name') == 'atoms'
+            ),
+            None,
+        )
+        if atoms_array is None:
+            return []
+        rows = atoms_array.get('set', {}).get('rc', [])
+        if isinstance(rows, dict):
+            rows = [rows]
+        atoms = []
+        for row in rows:
+            values = row.get('c')
+            if isinstance(values, list) and len(values) > 0:
+                symbol = values[0]
+            else:
+                symbol = values
+            if symbol is None:
+                continue
+            atoms.append({'label': str(symbol).strip()})
+        return atoms
+
+    def get_positions(self, structure: dict[str, Any]) -> np.ndarray | None:
+        positions = Path(path='.varray.v').get_data(structure)
+        lattice_vectors = self.get_lattice_vectors(structure)
+        if positions is None:
+            return None
+        if lattice_vectors is None:
+            return positions
+        return np.dot(np.asarray(positions), np.asarray(lattice_vectors))
+
+    def get_lattice_vectors(self, structure: dict[str, Any]) -> np.ndarray | None:
+        return Path(path='.crystal.varray[?"@name"==\'basis\'] | [0].v').get_data(
+            structure
+        )
+
+    def get_periodic_boundary_conditions(self) -> list[bool]:
+        return [True, True, True]
+
+    def get_xc_functionals(
+        self, source: dict[str, Any] | None
+    ) -> list[dict[str, str]]:
+        if source is None:
+            return []
+        raw_params = source.get('i') if isinstance(source, dict) else None
+        params = {}
+        for item in raw_params or []:
+            key = item.get(f'{self.attribute_prefix}name')
+            value = item.get(self.value_key)
+            if key is not None:
+                params[key] = value
+        if not params:
+            return []
+        # Reuse VASP OUTCAR XC mapping table to keep XML/OUTCAR behavior aligned.
+        outcar_module = __import__(
+            'nomad_simulation_parsers.parsers.vasp.outcar_parser',
+            fromlist=['OutcarParser'],
+        )
+        return outcar_module.OutcarParser().get_xc_functionals(params)
+
+    def get_ediff_unit(self) -> str:
+        # VASP EDIFF is an energy threshold in eV.
+        return 'electron_volt'
 
 
 class XMLArchiveWriter(ArchiveWriter):

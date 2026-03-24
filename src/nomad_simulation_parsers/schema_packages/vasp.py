@@ -11,6 +11,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -99,15 +100,65 @@ class Program(general.Program):
 #             outcar=MapperAnnotation(mapper='.name'),
 #         )
 #     )
+class XCFunctional(model_method.XCFunctional):
+    add_mapping_annotation(
+        model_method.XCFunctional.components,
+        XML_KEY,
+        ('get_xc_functionals', ['.@']),
+    )
+    add_mapping_annotation(
+        model_method.XCFunctional.components, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+    )
+
+
+class XCComponent(model_method.XCComponent):
+    add_mapping_annotation(model_method.XCComponent.canonical_label, XML_KEY, '.name')
+    add_mapping_annotation(
+        model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
+    )
 
 
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        XML_KEY,
+        'modeling.parameters.separator[?"@name"==\'electronic\'] | [0]',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def, OUTCAR_KEY, 'parameters'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
+
+
+class SelfConsistency(numerical_settings.SelfConsistency):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        XML_KEY,
+        (
+            'modeling.parameters.separator[?"@name"==\'electronic\'] '
+            '| [0].i[?"@name"==\'EDIFF\'] | [0].__value'
+        ),
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        OUTCAR_KEY,
+        'parameters.EDIFF',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change_unit,
+        XML_KEY,
+        ('get_ediff_unit', []),
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change_unit,
+        OUTCAR_KEY,
+        ('get_ediff_unit', []),
+    )
 
 
 class KMesh(numerical_settings.KMesh):
@@ -143,16 +194,13 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotation(model_system.Representation.m_def, XML_KEY, '.structure')
-    add_mapping_annotation(model_system.Representation.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(
+        model_system.AtomsState.m_def, XML_KEY, ('get_atoms', [])
+    )
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
-        (
-            'reshape_array',
-            ['.structure.varray.v'],
-            dict(shape_rest=(3,)),
-        ),
+        ('get_positions', ['.structure']),
         unit='angstrom',
     )
     add_mapping_annotation(
@@ -162,21 +210,35 @@ class ModelSystem(model_system.ModelSystem):
         unit='angstrom',
         search='@ | [0]',
     )
-
-
-class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.Representation.lattice_vectors,
+        model_system.ModelSystem.lattice_vectors,
         XML_KEY,
-        '.structure.varray[?"@name"==\'basis\'] | [0].v',
+        '.structure.crystal.varray[?"@name"==\'basis\'] | [0].v',
         unit='angstrom',
     )
     add_mapping_annotation(
-        model_system.Representation.lattice_vectors,
+        model_system.ModelSystem.lattice_vectors,
         OUTCAR_KEY,
         '.lattice_vectors',
         unit='angstrom',
         search='@ | [0]',
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.periodic_boundary_conditions,
+        XML_KEY,
+        ('get_periodic_boundary_conditions', []),
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.periodic_boundary_conditions,
+        OUTCAR_KEY,
+        ('get_periodic_boundary_conditions', []),
+    )
+
+
+class AtomsState(model_system.AtomsState):
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, XML_KEY, '.label')
+    add_mapping_annotation(
+        model_system.AtomsState.chemical_symbol, OUTCAR_KEY, '.label'
     )
 
 
@@ -192,12 +254,12 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML_KEY,
-        ('get_eigenvalues', ['eigenvalues']),
+        ('get_eigenvalues', ['.eigenvalues']),
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML2_KEY,
-        ('get_eigenvalues', ['eigenvalues']),
+        ('get_eigenvalues', ['.eigenvalues']),
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
@@ -216,6 +278,36 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.scf_steps, OUTCAR_KEY, ('get_scf_steps', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        XML_KEY,
+        ('get_band_structures', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        XML2_KEY,
+        ('get_band_structures', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        XML_KEY,
+        ('get_band_gaps', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        XML2_KEY,
+        ('get_band_gaps', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        XML_KEY,
+        ('get_total_dos', ['.dos']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        XML2_KEY,
+        ('get_total_dos', ['.dos']),
     )
 
 
@@ -237,8 +329,6 @@ class SCFSteps(outputs.SCFSteps):
     add_mapping_annotation(outputs.SCFSteps.durations, XML_KEY, '.durations')
     add_mapping_annotation(outputs.SCFSteps.durations, XML2_KEY, '.durations')
     add_mapping_annotation(outputs.SCFSteps.durations, OUTCAR_KEY, '.durations')
-
-
 class TotalEnergy(properties.energies.TotalEnergy):
     # value is already defined in TotalEnergy since they use the same def
     # get_energy function should be able to handle extraction from both sources
@@ -317,6 +407,82 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
     )
+
+
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.n_levels, XML_KEY, '.n_levels'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.n_levels, XML2_KEY, '.n_levels'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, XML_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, XML2_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, XML_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, XML2_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, XML2_KEY, '.spin_channel'
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, XML_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, XML2_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, XML2_KEY, '.spin_channel'
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, XML_KEY, '.energies', unit='eV')
+    add_mapping_annotation(variables.Energy2.points, XML2_KEY, '.energies', unit='eV')
+
+
+class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, XML_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, XML2_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        XML_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        XML2_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
+    add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
+    add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
 
 
 try:
