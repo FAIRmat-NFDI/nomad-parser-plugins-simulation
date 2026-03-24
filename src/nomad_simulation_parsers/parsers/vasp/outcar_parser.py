@@ -62,8 +62,12 @@ potcar_quantities = [
     Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)'),
     Quantity('LPAW', r'LPAW\s*=\s*([TF])'),
     Quantity('LULTRA', r'LULTRA\s*=\s*([TF])'),
-    Quantity('LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int),
-    Quantity('LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int),
+    Quantity(
+        'LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int
+    ),
+    Quantity(
+        'LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int
+    ),
     Quantity('SHA256', r'SHA256\s*=\s*(\w+)'),
 ]
 
@@ -336,7 +340,8 @@ class OutcarTextParser(TextParser):
             ),
             Quantity(
                 'pseudopotentials',
-                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
+                r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
                 repeats=True,
                 sub_parser=TextParser(quantities=potcar_quantities),
             ),
@@ -534,7 +539,6 @@ class OutcarParser(MappingTextParser):
     def derive_is_gw_optimized(self, titel: str) -> bool:
         """Determine if GW-optimized from TITEL (per-instance)."""
         return titel is not None and '_GW' in titel
-
 
 
 class OutcarArchiveWriter(ArchiveWriter):

@@ -275,8 +275,8 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 class Pseudopotential(numerical_settings.Pseudopotential):
     """VASP-specific pseudopotential with POTCAR metadata."""
 
-    import numpy as np
-    from nomad.metainfo import Quantity
+    import numpy as np  # noqa: PLC0415
+    from nomad.metainfo import Quantity  # noqa: PLC0415
 
     sha256 = Quantity(
         type=str,
@@ -303,9 +303,13 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
     add_mapping_annotation(enmin, OUTCAR_KEY, ('to_float', ['.ENMIN']))
 
-    add_mapping_annotation(numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL')
     add_mapping_annotation(
-        numerical_settings.Pseudopotential.reference_configuration, OUTCAR_KEY, '.VRHFIN'
+        numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.reference_configuration,
+        OUTCAR_KEY,
+        '.VRHFIN',
     )
     add_mapping_annotation(
         numerical_settings.Pseudopotential.n_valence_electrons,

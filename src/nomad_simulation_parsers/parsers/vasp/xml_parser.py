@@ -76,7 +76,6 @@ class VasprunParser(XMLParser):
         )
 
 
-
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser()
@@ -98,14 +97,18 @@ class XMLArchiveWriter(ArchiveWriter):
         outcar_path = self._find_outcar()
         if outcar_path and os.path.exists(outcar_path):
             LOGGER.info(
-                f'Found OUTCAR at {outcar_path}, extending vasprun.xml pseudopotentials '
-                'with detailed metadata'
+                f'Found OUTCAR at {outcar_path}, extending vasprun.xml '
+                'pseudopotentials with detailed metadata'
             )
-            from nomad.parsing.file_parser import Quantity, TextParser
-            from nomad.parsing.file_parser.mapping_parser import (
+            from nomad.parsing.file_parser import (  # noqa: PLC0415
+                Quantity,
+                TextParser,
+            )
+            from nomad.parsing.file_parser.mapping_parser import (  # noqa: PLC0415
                 TextParser as MappingTextParser,
             )
-            from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
+
+            from nomad_simulation_parsers.parsers.vasp.outcar_parser import (  # noqa: PLC0415
                 potcar_quantities,
             )
 
@@ -113,7 +116,8 @@ class XMLArchiveWriter(ArchiveWriter):
                 quantities=[
                     Quantity(
                         'pseudopotentials',
-                        r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                        r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
+                        r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
                         repeats=True,
                         sub_parser=TextParser(quantities=potcar_quantities),
                     )
@@ -144,6 +148,10 @@ class XMLArchiveWriter(ArchiveWriter):
         """
         mainfile_dir = PathLib(self.mainfile).parent
         return next(
-            (str(f) for f in mainfile_dir.iterdir() if f.name.lower().startswith('outcar')),
-            None
+            (
+                str(f)
+                for f in mainfile_dir.iterdir()
+                if f.name.lower().startswith('outcar')
+            ),
+            None,
         )
