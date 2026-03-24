@@ -20,9 +20,41 @@ def test_vasprun():
     assert archive is not None
 
 
+def test_vasprun_system_and_electronic_outputs():
+    archive = _parse('tests/data/vasp/AgAc_relax/vasprun.xml.relax')
+
+    sec_system = archive.data.model_system[0]
+    assert sec_system.positions is not None
+    assert sec_system.lattice_vectors is not None
+    assert sec_system.periodic_boundary_conditions == [True, True, True]
+    assert len(sec_system.particle_states) == len(sec_system.positions)
+    assert sec_system.particle_states[0].chemical_symbol == 'Ac'
+
+    sec_output = archive.data.outputs[0]
+    assert len(sec_output.electronic_band_structures) > 0
+    assert len(sec_output.electronic_band_gaps) > 0
+    assert len(sec_output.electronic_dos) > 0
+
+    sec_band_structure = sec_output.electronic_band_structures[0]
+    assert sec_band_structure.value is not None
+
+    sec_band_gap = sec_output.electronic_band_gaps[0]
+    assert sec_band_gap.value is not None
+
+    sec_dos = sec_output.electronic_dos[0]
+    assert sec_dos.value is not None
+    assert sec_dos.energies is not None
+    assert sec_dos.energies.points is not None
+
+
 def test_outcar():
     archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
     assert archive is not None
+
+    sec_system = archive.data.model_system[0]
+    assert sec_system.positions is not None
+    assert sec_system.lattice_vectors is not None
+    assert sec_system.periodic_boundary_conditions == [True, True, True]
 
 
 def test_outcar_scf_steps_and_single_point_convergence():
