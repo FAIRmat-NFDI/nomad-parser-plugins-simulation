@@ -355,8 +355,6 @@ class YamboArchiveWriter(ArchiveWriter):
             if sp_type is None:
                 continue
 
-            absorption_spectra_parser.data_object = yambo.outputs.AbsorptionSpectrum()
-
             spectra_parser.convert(absorption_spectra_parser)
 
             spectra_obj = absorption_spectra_parser.data_object
