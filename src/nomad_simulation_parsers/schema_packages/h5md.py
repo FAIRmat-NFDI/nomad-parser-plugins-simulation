@@ -623,7 +623,7 @@ add_mapping_annotation(
 )
 
 
-## class BarostatParameters(molecular_dynamics.BarostatParameters):f
+## class BarostatParameters(molecular_dynamics.BarostatParameters):
 
 
 h5md_path_barostat = f'{h5md_path_md}.barostat_parameters'
