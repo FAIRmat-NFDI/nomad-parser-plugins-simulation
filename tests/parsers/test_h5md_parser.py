@@ -368,6 +368,7 @@ def assert_workflow(archive: EntryArchive) -> None:
     sec_workflow = archive.workflow2
     sec_workflow_results = sec_workflow.results
 
+    # TODO: Adjust after permanent recursion bug fix.
     # Regression: after normalization tasks must be shallow (no nested tasks).
     # Recursive parsing would produce MolecularDynamics nested inside each task.
     for task in sec_workflow.tasks:
