@@ -260,8 +260,12 @@ class GPW2FileParser(FileParser):
             'kpoints': lambda: self.ulm.IBZKPoints,
             'density': lambda: self.ulm.density.density,
             'potential_effective': lambda: self.ulm.hamiltonian.potential,
+<<<<<<< HEAD
             # Not all GPAW files provide band path data (e.g., nowfs snapshots).
             'band_paths': self._get_band_paths,
+=======
+            'band_paths': self.ulm.wave_functions.band_paths.asdict,
+>>>>>>> 2bebd7c (Schema update convergence targets (#150))
         }
         try:
             if key in values:

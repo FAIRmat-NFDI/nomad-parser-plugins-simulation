@@ -563,6 +563,41 @@ class OutcarParser(MappingTextParser):
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
 
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('scf_iteration', [])
+        if not scf_iterations:
+            return {}
+
+        energies_total = []
+        durations = []
+        for step in scf_iterations:
+            energy = step.get('energy_total')
+            if energy is not None:
+                energies_total.append(energy * ureg.eV)
+            time = step.get('time')
+            if isinstance(time, np.ndarray | list | tuple):
+                if len(time) > 1:
+                    durations.append(float(time[1]))
+                elif len(time) == 1:
+                    durations.append(float(time[0]))
+            elif isinstance(time, int | float):
+                durations.append(float(time))
+
+        if not energies_total:
+            return {}
+
+        scf_steps = {'energies_total': energies_total}
+        if len(energies_total) > 1:
+            delta_energies_total = []
+            for idx in range(1, len(energies_total)):
+                delta_energies_total.append(
+                    abs(energies_total[idx] - energies_total[idx - 1])
+                )
+            scf_steps['delta_energies_total'] = delta_energies_total
+        if len(durations) == len(energies_total):
+            scf_steps['durations'] = durations
+        return scf_steps
+
 
 class OutcarArchiveWriter(ArchiveWriter):
     def _get_single_point_convergence(

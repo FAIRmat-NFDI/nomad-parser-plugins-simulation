@@ -140,8 +140,20 @@ class AtomsState(model_system.AtomsState):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(
-        outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
+    # outputs.Outputs.total_energies.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            text=Mapper(
+                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
+            )
+        )
     )
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
