@@ -353,7 +353,7 @@ class InfoFileParser(TextParser):
             ),
             'x_exciting_charge_convergence': (
                 r'Charge distance\s*\(target\)',
-                ureg.elementary_charge,
+                ureg.coulomb,
             ),
             'x_exciting_IBS_force_convergence': (
                 r'Abs\. change in max\-nonIBS\-force\s*\(target\)',
@@ -543,6 +543,13 @@ class InfoFileParser(TextParser):
                             dtype=float,
                             unit=ureg.hartree / ureg.bohr,
                         ),
+                        Quantity(
+                            'force_target',
+                            r'Maximum\sforce\smagnitude\s*\(target\)\s*:\s*[.\d]+\s*\(\s*([.\d]+)\)',
+                            repeats=False,
+                            dtype=float,
+                            unit=ureg.hartree / ureg.bohr,
+                        ),
                     ]
                 ),
                 repeats=False,
@@ -677,3 +684,8 @@ class InfoFileParser(TextParser):
 
     def get_initialization_parameter(self, key, default=None):
         return self.get('initialization', {}).get(key, default)
+
+    def has_geometry_optimization(self) -> bool:
+        if self.get('structure_optimization', None) is not None:
+            return True
+        return False

@@ -18,6 +18,8 @@
 
 # tests/parsers/test_h5md_parser.py
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from nomad import utils
@@ -387,8 +389,14 @@ def assert_workflow(archive: EntryArchive) -> None:
 
 def test_md(parser):
     archive = EntryArchive()
+    mainfile = (
+        Path(__file__).resolve().parents[1]
+        / 'data'
+        / 'h5md'
+        / 'test_traj_openmm_reduced-SOL_5frames_07-10-25.h5'
+    )
     parser.parse(
-        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        str(mainfile),
         archive,
         None,
     )

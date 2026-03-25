@@ -1,4 +1,6 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -26,42 +28,42 @@ class Representation(model_system.Representation):
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(
-        model_system.ModelSystem.positions, OUT_KEY, '.labels_positions[1]'
-    )
-    add_mapping_annotation(
-        model_system.AtomsState.m_def, OUT_KEY, '.labels_positions[0]'
-    )
-    add_mapping_annotation(
-        model_system.Representation.m_def, OUT_KEY, '.lattice_vectors'
-    )
+    model_system.ModelSystem.positions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[1]')))
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[0]')))
+    model_system.Representation.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
 
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.@')
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.@')))
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        OUT_KEY,
-        ('get_xc_functionals', ['.model_parameters.dft_potential']),
-    )
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(
+#         dict(
+#             out=Mapper(
+#                 mapper=('get_xc_functionals', ['.model_parameters.dft_potential'])
+#             )
+#         )
+#     )
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
-
-
-class TotalEnergy(outputs.TotalEnergy):
-    add_mapping_annotation(
-        outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total'
-    )
-    add_mapping_annotation(
-        outputs.TotalEnergy.contributions,
-        OUT_KEY,
-        ('get_energy_contributions', ['.energies']),
-    )
+# class TotalEnergy(outputs.TotalEnergy):
+#     outputs.TotalEnergy.value.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.value || .energy_total')))
+#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
 
 
 class TotalForce(outputs.TotalForce):
@@ -77,15 +79,25 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
         outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
     )
 
-
-class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
-    add_mapping_annotation(
-        outputs.Outputs.electronic_eigenvalues,
-        OUT_KEY,
-        ('get_eigenvalues', ['.eigenvalues || .band_energy_ranges']),
+    # class Outputs(outputs.Outputs):
+    #     outputs.Outputs.total_energies.m_annotations.setdefault(
+    #         MAPPING_ANNOTATION_KEY, {}
+    #     ).update(dict(out=Mapper(mapper='.@')))
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.@')))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=('get_eigenvalues', ['.eigenvalues || .band_energy_ranges'])
+            )
+        )
     )
+    outputs.Outputs.scf_steps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
 
 
 class Simulation(general.Simulation):
@@ -104,6 +116,15 @@ class Simulation(general.Simulation):
         general.Simulation.outputs,
         OUT_KEY,
         '.geometry_optimization.step|| molecular_dynamics.step || .single_point',
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
     )
 
 

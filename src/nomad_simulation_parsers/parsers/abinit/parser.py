@@ -9,6 +9,7 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter, DataTextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
@@ -16,10 +17,15 @@ from nomad_simulations.schema_packages.workflow import (
     MolecularDynamics,
     SinglePoint,
 )
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
     GeometryOptimizationMethod,
 )
+from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import abinit
@@ -456,7 +462,9 @@ class MainfileParser(TextParser):
     def logger(self):
         return LOGGER
 
-    text_parser = AbinitOutParser()
+    def __init__(self):
+        super().__init__()
+        self.text_parser = AbinitOutParser()
 
     def get_workflow_method(self) -> str:
         ionmov = self.get_input_var('ionmov', 1, 0, scalar=True)
@@ -516,9 +524,18 @@ class MainfileParser(TextParser):
     def get_outputs(self) -> list[dict[str, Any]]:
         outputs = []
         for dataset in self.data_object.get('dataset', []):
-            outputs.append(dataset.get('results'))
+            results = dict(dataset.get('results') or {})
+            scf_steps = self.get_scf_steps(dataset)
+            if scf_steps:
+                results['scf_steps'] = scf_steps
+            outputs.append(results)
             # relaxation steps
-            outputs.extend(dataset.get('relaxation', []))
+            for step in dataset.get('relaxation', []):
+                step_output = dict(step)
+                scf_steps = self.get_scf_steps(step)
+                if scf_steps:
+                    step_output['scf_steps'] = scf_steps
+                outputs.append(step_output)
         return outputs
 
     def get_atoms(self) -> list[dict[str, Any]]:
@@ -579,6 +596,63 @@ class MainfileParser(TextParser):
 
         return bandstructures
 
+    def get_geometry_convergence(self):
+        # TODO consider to do this for each dataset and not only the first one
+        tolmxde = self.get_input_var('tolmxde', n_dataset=1, default=0.0, scalar=True)
+        tolmxf = self.get_input_var(
+            name='tolmxf', n_dataset=1, default=0.0, scalar=True
+        )
+
+        return [
+            EnergyConvergenceTarget(
+                threshold=tolmxde,
+                threshold_type='relative',
+            ),
+            ForceConvergenceTarget(
+                threshold=tolmxf,
+                threshold_type='maximum',
+            ),
+        ]
+
+    def get_single_point_convergence(self) -> list[EnergyConvergenceTarget]:
+        toldfe = self.get_input_var('toldfe', n_dataset=1, default=None, scalar=True)
+        if toldfe is None:
+            return []
+        return [
+            EnergyConvergenceTarget(
+                threshold=toldfe,
+                threshold_type='absolute',
+            )
+        ]
+
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        min_columns_for_delta = 2
+        self_consistent = source.get('self_consistent', {})
+        iterations = self_consistent.get('energy_total_scf_iteration', [])
+        if not iterations:
+            return {}
+
+        energies_total = []
+        delta_energies_total = []
+        extra_columns = {}
+
+        for step in iterations:
+            row = np.array(step, dtype=float).reshape(-1)
+            if row.size == 0:
+                continue
+            energies_total.append(row[0] * ureg.hartree)
+            if row.size >= min_columns_for_delta:
+                delta_energies_total.append(abs(row[1]) * ureg.hartree)
+            for col_idx, val in enumerate(row[2:], start=3):
+                extra_columns.setdefault(f'column_{col_idx}', []).append(float(val))
+
+        scf_steps = {'energies_total': energies_total}
+        if delta_energies_total:
+            scf_steps['delta_energies_total'] = delta_energies_total
+        if extra_columns:
+            scf_steps['code_specific_quantities'] = extra_columns
+        return scf_steps
+
 
 class DosParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -586,7 +660,9 @@ class DosParser(TextParser):
     def logger(self):
         return LOGGER
 
-    text_parser = DataTextParser()
+    def __init__(self):
+        super().__init__()
+        self.text_parser = DataTextParser()
 
     def get_dos(self, source: np.ndarray) -> list[dict[str, Any]]:
         nsp = self.data.get('nspinpol')
@@ -600,23 +676,33 @@ class DosParser(TextParser):
 
 
 class AbinitArchiveWriter(ArchiveWriter):
-    mainfile_parser = MainfileParser()
-    metainfo_parser = AbinitMetainfoParser()
-    dos_parser = DosParser()
     code_name = 'ABINIT'
     annotation_key = abinit.OUT_KEY
+
+    def __init__(self):
+        super().__init__()
+        self.mainfile_parser = MainfileParser()
+        self.metainfo_parser = AbinitMetainfoParser()
+        self.dos_parser = DosParser()
 
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
-            self.archive.workflow2 = GeometryOptimization(
-                model=GeometryOptimizationMethod()
-            )
+            workflow = GeometryOptimization()
+            workflow.method = GeometryOptimizationMethod()
+            convergence = self.mainfile_parser.get_geometry_convergence()
+            if convergence:
+                workflow.method.convergence_targets = convergence
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
-            self.archive.workflow2 = MolecularDynamics()
+            workflow = MolecularDynamics()
         else:
-            self.archive.workflow2 = SinglePoint()
+            workflow = SinglePoint()
+            workflow.method = SinglePointMethod()
+            convergence = self.mainfile_parser.get_single_point_convergence()
+            if convergence:
+                workflow.method.convergence_targets = convergence
+        self.archive.workflow2 = workflow
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
@@ -669,8 +755,6 @@ class AbinitParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = AbinitArchiveWriter()
-
     def is_mainfile(
         self,
         filename: str,
@@ -704,4 +788,5 @@ class AbinitParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
+        archive_writer = AbinitArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)
