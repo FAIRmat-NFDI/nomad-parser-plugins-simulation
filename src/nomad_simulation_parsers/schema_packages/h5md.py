@@ -30,6 +30,7 @@ from nomad_simulations.schema_packages import (
 )
 
 # from simulationworkflowschema import molecular_dynamics
+from nomad_simulations.schema_packages.workflow import general as workflow_general
 from nomad_simulations.schema_packages.workflow import molecular_dynamics, trajectory
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -1295,10 +1296,22 @@ MolecularDynamicsResults.free_energy_calculations.m_annotations.setdefault(
 
 
 # Use our custom MolecularDynamics class with custom results
+# TODO: Permanently fix workflow recursion bug!
+# `MolecularDynamics` (via `SimulationWorkflow` -> `SimulationTask` -> `Task`) is itself
+# a `Task` subclass. Its `m_def` carries the `HDF5_KEY` annotation.
+# When the `MappingParser` processes the `Workflow.tasks` `SubSection` with that key,
+# the third lookup level in `nomad.parsing.file_parser.build_section_mapper` searches
+# for all `Task` inheritors that have the same annotation, finds `MolecularDynamics`
+# itself, and instantiates it as a child task, which then repeats the same search, in
+# the worst case causing infinite nesting.
+#
+# The current workaround adds a first lookup level annotation directly on
+# `SimulationWorkflow.tasks` pointing to `.tasks` (an empty/nonexistent path in the
+# source), which blocks level 3 from ever running for that `SubSection`. The SubSections
+# will be filled by the workflow normalizer from `outputs`.
+add_mapping_annotation(workflow_general.SimulationWorkflow.tasks, HDF5_KEY, '.tasks')
 add_mapping_annotation(MolecularDynamics.m_def, HDF5_KEY, '@')
-
 add_mapping_annotation(MolecularDynamics.method, HDF5_KEY, '@')
-
 add_mapping_annotation(MolecularDynamics.results, HDF5_KEY, '@')
 
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.outputs, HDF5_KEY, '@')
