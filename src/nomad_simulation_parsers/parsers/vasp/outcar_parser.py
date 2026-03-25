@@ -9,8 +9,22 @@ import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.workflow import (
+    GeometryOptimization,
+    MolecularDynamics,
+    SinglePoint,
+)
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
 from nomad_simulation_parsers.schema_packages import vasp
 
@@ -465,8 +479,97 @@ class OutcarParser(MappingTextParser):
                 xc_functionals.append({'name': functional})
         return xc_functionals
 
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('scf_iteration', [])
+        if not scf_iterations:
+            return {}
+
+        energies_total = []
+        durations = []
+        for step in scf_iterations:
+            energy = step.get('energy_total')
+            if energy is not None:
+                energies_total.append(energy * ureg.eV)
+            time = step.get('time')
+            if isinstance(time, np.ndarray | list | tuple):
+                if len(time) > 1:
+                    durations.append(float(time[1]))
+                elif len(time) == 1:
+                    durations.append(float(time[0]))
+            elif isinstance(time, int | float):
+                durations.append(float(time))
+
+        if not energies_total:
+            return {}
+
+        scf_steps = {'energies_total': energies_total}
+        if len(energies_total) > 1:
+            delta_energies_total = []
+            for idx in range(1, len(energies_total)):
+                delta_energies_total.append(
+                    abs(energies_total[idx] - energies_total[idx - 1])
+                )
+            scf_steps['delta_energies_total'] = delta_energies_total
+        if len(durations) == len(energies_total):
+            scf_steps['durations'] = durations
+        return scf_steps
+
 
 class OutcarArchiveWriter(ArchiveWriter):
+    def _get_single_point_convergence(
+        self, parameters: dict[str, Any]
+    ) -> list[EnergyConvergenceTarget]:
+        threshold = parameters.get('EDIFF')
+        if threshold is None:
+            return []
+        return [
+            EnergyConvergenceTarget(
+                threshold=threshold * ureg.eV,
+                threshold_type='absolute',
+            )
+        ]
+
+    def _build_workflow(self, parameters: dict[str, Any]):
+        nsw = parameters.get('NSW')
+        ibrion = -1 if nsw == 0 else parameters.get('IBRION', -1)
+
+        if ibrion == -1:
+            workflow = SinglePoint()
+            workflow.method = SinglePointMethod()
+            convergence = self._get_single_point_convergence(parameters)
+            if convergence:
+                workflow.method.convergence_targets = convergence
+            return workflow
+        if ibrion == 0:
+            return MolecularDynamics()
+
+        workflow = GeometryOptimization()
+        workflow.method = GeometryOptimizationMethod()
+        convergence_targets = []
+        threshold = parameters.get('EDIFFG')
+        if threshold is not None:
+            if threshold > 0:
+                convergence_targets.append(
+                    EnergyConvergenceTarget(
+                        threshold=threshold * ureg.eV,
+                        threshold_type='absolute',
+                    )
+                )
+            else:
+                convergence_targets.append(
+                    ForceConvergenceTarget(
+                        threshold=abs(threshold) * ureg.eV / ureg.angstrom,
+                        threshold_type='maximum',
+                    )
+                )
+        if convergence_targets:
+            workflow.method.convergence_targets = convergence_targets
+
+        sp_convergence = self._get_single_point_convergence(parameters)
+        if sp_convergence:
+            workflow.method.single_point_convergence_targets = sp_convergence
+        return workflow
+
     def write_to_archive(self) -> None:
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
@@ -488,6 +591,9 @@ class OutcarArchiveWriter(ArchiveWriter):
 
         # assign simulation section to archive data
         self.archive.data = archive_data_parser.data_object
+        self.archive.workflow2 = self._build_workflow(
+            source_parser.data.get('parameters', {})
+        )
 
         # close file handles
         archive_data_parser.close()

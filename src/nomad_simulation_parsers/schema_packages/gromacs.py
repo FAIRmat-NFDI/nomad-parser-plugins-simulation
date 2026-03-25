@@ -203,14 +203,6 @@ class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
         LOG_KEY,
         '.input_parameters.nsteps',
     )
-    # TODO: Re-enable when nomad-simulations#260 is merged
-    # add_mapping_annotation(
-    #     geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_force_maximum,
-    #     LOG_KEY,
-    #     '.input_parameters.emtol',
-    #     unit='kilojoule/avogadro_number/nanometer',
-    # )
 
 
 class GeometryOptimizationResults(geometry_optimization.GeometryOptimizationResults):

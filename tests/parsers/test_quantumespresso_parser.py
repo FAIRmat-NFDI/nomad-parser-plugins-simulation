@@ -1,5 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+from pytest import approx
 
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoParser,
@@ -8,20 +9,23 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 LOGGER = get_logger(__name__)
 
 
-def test_pwscf():
+def _parse(mainfile: str) -> EntryArchive:
     parser = QuantumEspressoParser()
     archive = EntryArchive()
-    parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
+    parser.parse(mainfile, archive, LOGGER)
+    return archive
+
+
+def test_pwscf():
+    archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
+    assert archive is not None
 
 
 def test_pwscf_xml():
-    parser = QuantumEspressoParser()
-    archive = EntryArchive()
-    parser.parse(
+    archive = _parse(
         'tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml',
-        archive,
-        LOGGER,
     )
+    assert archive is not None
 
 
 def test_epw():
@@ -115,6 +119,7 @@ def test_gipaw_epr_deltag_text():
         LOGGER,
     )
 
+
 def test_gipaw_epr_deltag_xml():
     parser = QuantumEspressoParser()
     archive = EntryArchive()
@@ -123,3 +128,66 @@ def test_gipaw_epr_deltag_xml():
         archive,
         LOGGER,
     )
+
+
+def test_pwscf_workflow_and_scf_steps():
+    archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
+    workflow = archive.workflow2
+    assert workflow is not None
+    assert workflow.m_def.name == 'GeometryOptimization'
+    assert workflow.method is not None
+
+    # In this fixture we have reliable SCF threshold but no parsed ionic thresholds.
+    assert workflow.method.convergence_targets in [None, []]
+    sp_targets = workflow.method.single_point_convergence_targets
+    assert sp_targets is not None
+    assert len(sp_targets) == 1
+    assert sp_targets[0].m_def.name == 'EnergyConvergenceTarget'
+    assert sp_targets[0].threshold_type == 'absolute'
+    assert sp_targets[0].threshold.to('rydberg').magnitude == approx(1.0e-8)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) == 2
+    assert outputs[0].scf_steps is not None
+    assert outputs[1].scf_steps is not None
+    assert len(outputs[0].scf_steps.energies_total) == 12
+    assert len(outputs[1].scf_steps.energies_total) == 14
+    assert len(outputs[0].scf_steps.delta_energies_total) == 12
+    assert len(outputs[1].scf_steps.delta_energies_total) == 14
+
+
+def test_pwscf_xml_workflow_and_scf_steps():
+    archive = _parse(
+        'tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml'
+    )
+    workflow = archive.workflow2
+    assert workflow is not None
+    assert workflow.m_def.name == 'GeometryOptimization'
+    assert workflow.method is not None
+
+    targets = workflow.method.convergence_targets
+    assert targets is not None
+    assert len(targets) == 2
+    targets_by_name = {target.m_def.name: target for target in targets}
+    assert targets_by_name['ForceConvergenceTarget'].threshold_type == 'maximum'
+    assert targets_by_name['ForceConvergenceTarget'].threshold.to(
+        'rydberg/bohr'
+    ).magnitude == approx(2.5e-4)
+    assert targets_by_name['EnergyConvergenceTarget'].threshold_type == 'absolute'
+    assert targets_by_name['EnergyConvergenceTarget'].threshold.to(
+        'rydberg'
+    ).magnitude == approx(5.0e-5)
+
+    sp_targets = workflow.method.single_point_convergence_targets
+    assert sp_targets is not None
+    assert len(sp_targets) == 1
+    assert sp_targets[0].threshold.to('rydberg').magnitude == approx(5.0e-9)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) == 2
+    for output in outputs:
+        assert output.scf_steps is not None
+        assert len(output.scf_steps.energies_total) == 5
+        assert len(output.scf_steps.delta_energies_total) == 5

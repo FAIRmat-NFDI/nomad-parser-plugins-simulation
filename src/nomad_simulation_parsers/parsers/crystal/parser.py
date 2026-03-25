@@ -13,6 +13,15 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointMethod,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import crystal
@@ -135,8 +144,89 @@ class CrystalOutputParser(TextParser):
             output0.setdefault(
                 'forces', forces[:, 2:].astype(float) * ureg.hartree / ureg.bohr
             )
+        scf_steps = self.get_scf_steps(source)
+        if scf_steps:
+            output0.setdefault('scf_steps', scf_steps)
+        if not outputs and output0:
+            outputs.append(output0)
 
         return outputs
+
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('scf_block', {}).get('scf_iterations', [])
+        if not scf_iterations:
+            return {}
+
+        energies_total = []
+        delta_energies_total = []
+        charge_normalization_factor = []
+        for scf_step in scf_iterations:
+            energies = scf_step.get('energies')
+            if energies is not None and len(energies) > 0:
+                energies_total.append(energies[0])
+                if len(energies) > 1:
+                    delta_energies_total.append(abs(energies[1]))
+
+            charge_norm = scf_step.get('charge_normalization_factor')
+            if charge_norm is not None:
+                charge_normalization_factor.append(float(charge_norm))
+
+        if not energies_total:
+            return {}
+
+        scf_steps = {'energies_total': energies_total}
+        if delta_energies_total:
+            scf_steps['delta_energies_total'] = delta_energies_total
+
+        code_specific_quantities = {}
+        n_scf_steps = source.get('number_of_scf_iterations')
+        n_scf_steps_max = source.get('scf_max_iteration')
+        if n_scf_steps is not None:
+            code_specific_quantities['n_scf_steps'] = int(n_scf_steps)
+        if n_scf_steps_max is not None:
+            code_specific_quantities['n_scf_steps_max'] = int(n_scf_steps_max)
+        if len(charge_normalization_factor) == len(energies_total):
+            code_specific_quantities['charge_normalization_factor'] = (
+                charge_normalization_factor
+            )
+        if code_specific_quantities:
+            scf_steps['code_specific_quantities'] = code_specific_quantities
+        return scf_steps
+
+    def build_workflow(self, source: dict[str, Any]):
+        scf_threshold = source.get('scf_threshold_energy_change')
+        if source.get('geo_opt') is not None:
+            workflow = GeometryOptimization()
+            workflow.method = GeometryOptimizationMethod()
+
+            energy_change = source.get('energy_change')
+            if energy_change is not None:
+                workflow.method.convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=energy_change,
+                        threshold_type='absolute',
+                    )
+                ]
+
+            if scf_threshold is not None:
+                workflow.method.single_point_convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=scf_threshold,
+                        threshold_type='absolute',
+                    )
+                ]
+            return workflow
+
+        workflow = SinglePoint()
+        workflow.method = SinglePointMethod()
+        if scf_threshold is not None:
+            workflow.method.convergence_targets = [
+                EnergyConvergenceTarget(
+                    threshold=scf_threshold,
+                    threshold_type='absolute',
+                )
+            ]
+        return workflow
 
     def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         initial = source.get('system_edited', source)
@@ -214,6 +304,10 @@ class CrystalArchiveWriter(ArchiveWriter):
         self.output_parser.convert(self.archive_parser)
 
         self.archive.data = self.archive_parser.data_object
+        outputs_before_f25 = list(self.archive.data.outputs or [])
+        self.archive.workflow2 = self.output_parser.build_workflow(
+            self.output_parser.data
+        )
 
         f25_filepath = self.output_parser.data.get(
             'f25_filepath1', self.output_parser.data.get('f25_filepath2')
@@ -227,6 +321,20 @@ class CrystalArchiveWriter(ArchiveWriter):
             )
 
             self.f25_parser.convert(self.archive_parser)
+            outputs_after_f25 = self.archive.data.outputs or []
+            if outputs_before_f25:
+                if not outputs_after_f25:
+                    self.archive.data.outputs = outputs_before_f25
+                else:
+                    for idx, output in enumerate(outputs_before_f25):
+                        if idx >= len(outputs_after_f25):
+                            outputs_after_f25.append(output)
+                            continue
+                        if (
+                            outputs_after_f25[idx].scf_steps is None
+                            and output.scf_steps is not None
+                        ):
+                            outputs_after_f25[idx].scf_steps = output.scf_steps
 
 
 class CrystalParser(MatchingParser):

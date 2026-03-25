@@ -305,12 +305,14 @@ class OutParser(TextParser):
                         Quantity(
                             'points',
                             rf'No\. +Sym\..+\s+\-+((?:\d+ +\d+ +{RE_FLOAT}.+\s+)+)',
-                            str_operation=lambda x: np.transpose(
-                                np.array(
-                                    [v.split() for v in x.strip().splitlines()],
-                                    np.float64,
-                                )
-                            )[2:5].T,
+                            str_operation=lambda x: (
+                                np.transpose(
+                                    np.array(
+                                        [v.split() for v in x.strip().splitlines()],
+                                        np.float64,
+                                    )
+                                )[2:5].T
+                            ),
                         ),
                     ]
                 ),
@@ -823,11 +825,16 @@ class OutParser(TextParser):
                     'dipole_moment',
                     rf'direction +dipole.+\s+\=+\s+((?:\w+ +{RE_FLOAT}.+\s+)+)',
                     str_operation=lambda x: (
-                        [float(v.strip().split()[2]) for v in x.strip().splitlines()]
-                        * ureg.debye
-                    )
-                    .to('C * m')
-                    .magnitude,
+                        (
+                            [
+                                float(v.strip().split()[2])
+                                for v in x.strip().splitlines()
+                            ]
+                            * ureg.debye
+                        )
+                        .to('C * m')
+                        .magnitude
+                    ),
                 ),
                 Quantity(
                     'band_energy_ranges',

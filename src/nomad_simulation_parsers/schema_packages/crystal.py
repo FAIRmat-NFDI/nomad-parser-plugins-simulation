@@ -41,14 +41,16 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.name')
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', ['.@'])
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper='.name')
+#     )
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
+#         out=Mapper(mapper=('get_xc_functionals', ['.@']))
+#     )
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -66,6 +68,7 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.scf_steps, OUT_KEY, '.scf_steps')
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, F25_KEY, ('get_dos', ['.dos'])
     )
@@ -90,6 +93,16 @@ class Simulation(general.Simulation):
     add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.dft')
     add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
     add_mapping_annotation(general.Simulation.outputs, F25_KEY, '.@')
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
+    )
 
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')

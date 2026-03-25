@@ -7,180 +7,192 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    workflow,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
-INFO_KEY = 'exciting_info'
-INPUT_XML_KEY = 'exciting_input_xml'
-EIGVAL_KEY = 'exciting_eigval'
-BANDSTRUCTURE_XML_KEY = 'exciting_bandstructure_xml'
-DOS_XML_KEY = 'exciting_dos_xml'
+INFO_KEY = 'info'
+INPUT_XML_KEY = 'input_xml'
+EIGVAL_KEY = 'eigval'
+BANDSTRUCTURE_XML_KEY = 'bandstructure_xml'
+DOS_XML_KEY = 'dos_xml'
+GEO_OPT_KEY = 'geo_opt'
+
+
+def add_mapping_annotations(*args):
+    for mapping_tuple in args:
+        add_mapping_annotation(*mapping_tuple)
+
+
+# TODO Use this structure?:
+# add_mapping_annotations(
+#     model_method.DFT.m_def,
+#     [
+#         (INFO_KEY, '.initialization.xc_functional'),
+#         (INPUT_XML_KEY, '.input.groundstate'),
+#         (BANDSTRUCTURE_XML_KEY, '.@')
+#     ],
+# )
 
 # simulation
-add_mapping_annotation(general.Simulation.m_def, INFO_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, INPUT_XML_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, EIGVAL_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, DOS_XML_KEY, '@')
+
+add_mapping_annotations(
+    (general.Simulation.m_def, INFO_KEY, '@'),
+    (general.Simulation.m_def, INPUT_XML_KEY, '@'),
+    (general.Simulation.m_def, EIGVAL_KEY, '@'),
+    (general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@'),
+    (general.Simulation.m_def, DOS_XML_KEY, '@'),
+    (general.Simulation.m_def, GEO_OPT_KEY, '@'),
+)
+
+add_mapping_annotation(
+    general.Simulation.model_system,
+    INFO_KEY,
+    ('get_configurations', ['.@']),
+    cache=True,
+)
+add_mapping_annotations(
+    (general.Simulation.program, INFO_KEY, '.@'),
+    (general.Simulation.outputs, INFO_KEY, '.@'),
+    (general.Simulation.outputs, EIGVAL_KEY, '.@'),
+    (general.Simulation.outputs, BANDSTRUCTURE_XML_KEY, '.@'),
+    (general.Simulation.outputs, DOS_XML_KEY, '.@'),
+)
+
+# program
+
+add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
 
 
-class Simulation(general.Simulation):
-    add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
-    # DFT method
-    add_mapping_annotation(
-        model_method.DFT.m_def, INFO_KEY, '.initialization.xc_functional'
-    )
-    add_mapping_annotation(model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate')
-    add_mapping_annotation(model_method.DFT.m_def, BANDSTRUCTURE_XML_KEY, '.@')
-    add_mapping_annotation(
-        general.Simulation.model_system,
-        INFO_KEY,
-        ('get_configurations', ['.@']),
-        cache=True,
-    )
-    add_mapping_annotation(
-        general.Simulation.outputs, INFO_KEY, ('get_configurations', ['.@'])
-    )
-    add_mapping_annotation(general.Simulation.outputs, EIGVAL_KEY, '.@')
-    add_mapping_annotation(general.Simulation.outputs, BANDSTRUCTURE_XML_KEY, '.@')
-    add_mapping_annotation(general.Simulation.outputs, DOS_XML_KEY, '.@')
-
-
-class Program(general.Program):
-    add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
-
-
-class ModelMethod(model_method.ModelMethod):
-    add_mapping_annotation(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@')
-
-
-class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(
-        numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY, '.@'
-    )
-
-
-class KLinePath(numerical_settings.KLinePath):
-    add_mapping_annotation(
-        numerical_settings.KLinePath.high_symmetry_path_names,
-        BANDSTRUCTURE_XML_KEY,
-        r'bandstructure.vertex[*]."@label"',
-    )
-    add_mapping_annotation(
-        numerical_settings.KLinePath.high_symmetry_path_values,
-        BANDSTRUCTURE_XML_KEY,
-        ('reshape_coords', [r'bandstructure.vertex[*]."@coord"']),
-    )
-
-
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, INFO_KEY, '.@')
-    add_mapping_annotation(model_method.DFT.xc, INPUT_XML_KEY, '.@')
-
-
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        INFO_KEY,
-        ('get_xc_functionals', ['.type']),
-    )
-    add_mapping_annotation(
+# model method
+add_mapping_annotations(
+    (model_method.DFT.m_def, INFO_KEY, '.initialization.xc_functional'),
+    (model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate'),
+    (model_method.DFT.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
+    (model_method.DFT.xc, INFO_KEY, '.@'),
+    (model_method.DFT.xc, INPUT_XML_KEY, '.@'),
+    (model_method.XCFunctional.components, INFO_KEY, ('get_xc_functionals', ['.type'])),
+    (
         model_method.XCFunctional.components,
         INPUT_XML_KEY,
         ('get_xc_functionals', ['.libxc']),
-    )
+    ),
+    (model_method.XCComponent.canonical_label, INFO_KEY, '.libxc'),
+    (model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'),
+)
 
+# numerical_settings
+add_mapping_annotations(
+    (numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
+    (numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY, '.@'),
+    (
+        numerical_settings.KLinePath.high_symmetry_path_names,
+        BANDSTRUCTURE_XML_KEY,
+        r'bandstructure.vertex[*]."@label"',
+    ),
+    (
+        numerical_settings.KLinePath.high_symmetry_path_values,
+        BANDSTRUCTURE_XML_KEY,
+        ('reshape_coords', [r'bandstructure.vertex[*]."@coord"']),
+    ),
+)
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, INFO_KEY, '.libxc')
-    add_mapping_annotation(
-        model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'
-    )
+# model system
+add_mapping_annotations(
+    (model_system.Representation.m_def, INFO_KEY, '.@'),
+    (model_system.ModelSystem.positions, INFO_KEY, '.positions'),
+    (model_system.AtomsState.m_def, INFO_KEY, '.atoms'),
+    (model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'),
+)
 
+# atoms state
+add_mapping_annotation(atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol')
 
-class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(model_system.Representation.m_def, INFO_KEY, '.@')
-    add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
-    add_mapping_annotation(model_system.AtomsState.m_def, INFO_KEY, '.atoms')
+# properties
+add_mapping_annotations(
+    (properties.TotalEnergy.value, INFO_KEY, '.final.energy_total || energy_total'),
+    (properties.forces.TotalForce.value, INFO_KEY, '.forces'),
+)
 
-
-class Representation(model_system.Representation):
-    add_mapping_annotation(
-        model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'
-    )
-
-
-class AtomsState(atoms_state.AtomsState):
-    add_mapping_annotation(atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol')
-
-
-class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, INFO_KEY, '.@')
-    add_mapping_annotation(
-        outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])
-    )
-    add_mapping_annotation(
+# outputs
+add_mapping_annotations(
+    (outputs.Outputs.total_energies, INFO_KEY, ('get_energies', ['.@'])),
+    (outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])),
+    (outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])),
+    (
         outputs.Outputs.electronic_band_structures,
         BANDSTRUCTURE_XML_KEY,
         ('get_bandstructures', ['.@']),
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos, DOS_XML_KEY, 'dos.totaldos.diagram'
-    )
+    ),
+    (outputs.Outputs.electronic_dos, DOS_XML_KEY, 'dos.totaldos.diagram'),
+)
 
+# eigenvalues
+add_mapping_annotations(
+    # TODO: check whether this section is k-dependent
+    (outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'),
+    (outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'),
+    (outputs.ElectronicEigenvalues.occupation, EIGVAL_KEY, '.occupancies'),
+)
 
-class TotalEnergy(properties.TotalEnergy):
-    add_mapping_annotation(
-        properties.TotalEnergy.value, INFO_KEY, '.final.energy_total || energy_total'
-    )
-
-
-class TotalForce(properties.forces.TotalForce):
-    add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
-
-
-# TODO: check whether this section is k-dependent
-class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_levels, EIGVAL_KEY, '.n_states'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, EIGVAL_KEY, '.eigenvalues'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, EIGVAL_KEY, '.occupancies'
-    )
-
-
-class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'
-    )
-
-
-class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    ###### TODO read unit from axis
-    add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value,
-        DOS_XML_KEY,
-        ('to_float', [r'.point[*]."@dos"']),
-        unit='1/hartree',
-    )
-    add_mapping_annotation(
+# bandstructure
+add_mapping_annotations(
+    (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
+    (outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'),
+    (
         outputs.ElectronicDensityOfStates.projected_dos,
         DOS_XML_KEY,
         'dos.partialdos.diagram',
-    )
+    ),
+)
 
+###### TODO read unit from axis
+add_mapping_annotation(
+    outputs.ElectronicDensityOfStates.value,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@dos"']),
+    unit='1/hartree',
+)
+
+# workflow
+
+add_mapping_annotations(
+    (workflow.GeometryOptimization.m_def, GEO_OPT_KEY, '@'),
+    (
+        workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
+        GEO_OPT_KEY,
+        '.@',
+    ),
+    # TODO: Mapping annotations don't work for convergence targets because
+    # parser methods return fully-formed metainfo objects, not dictionaries.
+    # The mapper expects dict data. Convergence targets are now populated
+    # manually in the parser. Consider refactoring the mapping annotation
+    # system to support object instantiation or keep manual approach.
+    # (workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
+    #  GEO_OPT_KEY, ('get_geometry_convergence', ['.@'])),
+    # (workflow.geometry_optimization
+    #  .GeometryOptimizationMethod.single_point_convergence_targets,
+    #  GEO_OPT_KEY, ('get_single_point_convergence', ['.@'])),
+    (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
+    (workflow.SinglePoint.m_def, INFO_KEY, '.@'),
+    # TODO: Same issue as above - manually populated in parser
+    # (workflow.single_point.SinglePointMethod.convergence_targets,
+    #  INFO_KEY, ('get_single_point_convergence', ['.@']))
+)
+
+# scf steps
+add_mapping_annotations(
+    (outputs.Outputs.scf_steps, INFO_KEY, ('get_scf_steps', ['@'])),
+    (outputs.SCFSteps.durations, INFO_KEY, '.durations'),
+    (outputs.SCFSteps.energies_total, INFO_KEY, '.energies_total'),
+    (outputs.SCFSteps.delta_energies_total, INFO_KEY, '.delta_energies_total'),
+    (outputs.SCFSteps.delta_potential_rms, INFO_KEY, '.delta_potential_rms'),
+    (outputs.SCFSteps.delta_density_rms, INFO_KEY, '.delta_density_rms'),
+    (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
+)
 
 try:
     m_package.__init_metainfo__()

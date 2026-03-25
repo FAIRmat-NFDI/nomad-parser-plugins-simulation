@@ -44,19 +44,20 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, GPW_KEY, '.@')
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components, GPW_KEY, '.xcfunctional'
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.@')))
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(gpw=Mapper(mapper='.xcfunctional')))
 
 
 class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(outputs.TotalEnergy.value, GPW_KEY, '.total || .value')
-    add_mapping_annotation(outputs.TotalEnergy.name, GPW_KEY, '.name')
     add_mapping_annotation(outputs.TotalEnergy.contributions, GPW_KEY, '.contributions')
 
 
@@ -72,13 +73,14 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(
-        outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])
-    )
     add_mapping_annotation(outputs.Outputs.total_forces, GPW_KEY, ('get_forces', []))
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, GPW_KEY, ('get_eigenvalues', [])
     )
+    add_mapping_annotation(
+        outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])
+    )
+    add_mapping_annotation(outputs.Outputs.scf_steps, GPW_KEY, ('get_scf_steps', []))
 
 
 class Simulation(general.Simulation):
@@ -86,6 +88,12 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.model_system, GPW_KEY, '.@')
     add_mapping_annotation(model_method.DFT.m_def, GPW_KEY, '.@')
     add_mapping_annotation(general.Simulation.outputs, GPW_KEY, '.@')
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, GPW_KEY, '.code_specific_quantities'
+    )
 
 
 add_mapping_annotation(general.Simulation.m_def, GPW_KEY, '.@')
