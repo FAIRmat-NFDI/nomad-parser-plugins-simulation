@@ -89,6 +89,8 @@ class XCComponent(model_method.XCComponent):
 
 class ModelMethod(model_method.ModelMethod):
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    # Note: Pseudopotential extraction uses custom mapper 'get_pseudopotentials'
+    # because vasprun.xml stores PP metadata in atominfo, not under model_method
 
 
 class KSpace(numerical_settings.KSpace):
@@ -352,9 +354,15 @@ class Pseudopotential(numerical_settings.Pseudopotential):
     )
 
 
+# Link Pseudopotential extraction to ModelMethod.numerical_settings
+# Must be done after Pseudopotential class definition due to forward reference
+# For XML: use custom mapper to extract from modeling.atominfo and create PP instances
 add_mapping_annotation(
-    Pseudopotential.m_def, XML_KEY, "atominfo.array[?@name=='atomtypes'] | [0].set.rc"
+    Pseudopotential.m_def,
+    XML_KEY,
+    ('get_pseudopotentials', ['modeling']),
 )
+# For OUTCAR: extract from pseudopotentials list in parsed data
 add_mapping_annotation(Pseudopotential.m_def, OUTCAR_KEY, '@.pseudopotentials')
 
 

@@ -75,6 +75,13 @@ class VasprunParser(XMLParser):
             source, (np.size(source) // int(np.prod(shape_rest)), *shape_rest)
         )
 
+    def get_pseudopotentials(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract pseudopotential data from vasprun.xml atominfo section."""
+        from nomad.parsing.file_parser.mapping_parser import Path  # noqa: PLC0415
+
+        path = Path(path='atominfo.array[?"@name"==\'atomtypes\'] | [0].set.rc')
+        return path.get_data(source) or []
+
 
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
