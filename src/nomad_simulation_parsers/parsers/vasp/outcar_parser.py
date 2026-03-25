@@ -51,6 +51,27 @@ def get_key_values(val_in):
     return data
 
 
+# POTCAR sub-parser for detailed sections
+potcar_quantities = [
+    Quantity('TITEL', r'TITEL\s*=\s*(.+)'),
+    Quantity('VRHFIN', r'VRHFIN\s*=(.+?)(?:\n|$)'),
+    Quantity('LEXCH', r'LEXCH\s*=\s*(\w+)'),
+    Quantity('ZVAL', r'POMASS\s*=\s*[\d\.]+;\s*ZVAL\s*=\s*([\d\.]+)'),
+    Quantity('RCORE', r'RCORE\s*=\s*([\d\.]+)'),
+    Quantity('ENMAX', r'ENMAX\s*=\s*([\d\.]+)'),
+    Quantity('ENMIN', r'ENMIN\s*=\s*([\d\.]+)'),
+    Quantity('LPAW', r'LPAW\s*=\s*([TF])'),
+    Quantity('LULTRA', r'LULTRA\s*=\s*([TF])'),
+    Quantity(
+        'LMAX', r'number of l-projection\s+operators is LMAX\s*=\s*(\d+)', dtype=int
+    ),
+    Quantity(
+        'LMMAX', r'number of lm-projection\s+operators is LMMAX\s*=\s*(\d+)', dtype=int
+    ),
+    Quantity('SHA256', r'SHA256\s*=\s*(\w+)'),
+]
+
+
 # TODO temporary fix for structlog unable to propagate logger
 class VASPMetainfoParser(MetainfoParser):
     @property
@@ -317,6 +338,13 @@ class OutcarTextParser(TextParser):
                     ]
                 ),
             ),
+            Quantity(
+                'pseudopotentials',
+                r'POTCAR:([\s\S]+?VRHFIN[\s\S]+?)'
+                r'(?=\s*POTCAR:|\s*local pseudopotential:|\Z)',
+                repeats=True,
+                sub_parser=TextParser(quantities=potcar_quantities),
+            ),
         ]
 
 
@@ -464,6 +492,53 @@ class OutcarParser(MappingTextParser):
             for functional in functionals:
                 xc_functionals.append({'name': functional})
         return xc_functionals
+
+    # Field-level transformers for type conversion (per-instance)
+    def to_float(self, value: str) -> float | None:
+        """Convert string value to float."""
+        return float(value) if value is not None else None
+
+    def to_int(self, value: str) -> int | None:
+        """Convert string value to int."""
+        return int(value) if value is not None else None
+
+    # Field-level transformers for derived fields (per-instance)
+    def derive_pp_type(self, lpaw: str, lultra: str, titel: str) -> str:
+        """
+        Derive pseudopotential type from LPAW, LULTRA, and TITEL fields.
+
+        This transformer is called once per pseudopotential instance.
+
+        Args:
+            lpaw: LPAW flag ('T' = PAW, 'F' = other)
+            lultra: LULTRA flag ('T' = ultrasoft, 'F' = other)
+            titel: TITEL string (may contain type hints like '_GW', 'NC')
+
+        Returns:
+            PP type: 'PAW', 'US', 'NC', 'NC-PAW', or 'NC-PAW-GW'
+        """
+        # Check for GW-optimized NC-PAW
+        if titel and '_GW' in titel:
+            return 'NC-PAW-GW'
+        # Check LPAW and LULTRA flags
+        elif lpaw == 'T':
+            # PAW with norm-conserving check
+            if (titel and 'NC' in titel) or lultra == 'T':
+                return 'NC-PAW'
+            else:
+                return 'PAW'
+        elif lultra == 'T':
+            return 'US'  # Ultrasoft
+        else:
+            return 'NC'  # Default norm-conserving
+
+    def derive_is_norm_conserving(self, pp_type: str) -> bool:
+        """Determine if norm-conserving from type (per-instance)."""
+        return pp_type in ['NC', 'NC-PAW', 'NC-PAW-GW']
+
+    def derive_is_gw_optimized(self, titel: str) -> bool:
+        """Determine if GW-optimized from TITEL (per-instance)."""
+        return titel is not None and '_GW' in titel
 
 
 class OutcarArchiveWriter(ArchiveWriter):

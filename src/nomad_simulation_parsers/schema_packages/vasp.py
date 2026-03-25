@@ -28,19 +28,20 @@ add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 
 
 class Simulation(general.Simulation):
-    add_mapping_annotation(general.Simulation.program, XML_KEY, '.generator')
+    add_mapping_annotation(general.Simulation.program, XML_KEY, 'modeling.generator')
     add_mapping_annotation(general.Simulation.program, OUTCAR_KEY, '.header')
-    # dft method
     add_mapping_annotation(
         model_method.DFT.m_def,
         XML_KEY,
-        '.parameters.separator[?"@name"==\'electronic\']',
+        'modeling.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
+    add_mapping_annotation(
+        general.Simulation.model_system, XML_KEY, 'modeling.calculation'
+    )
     add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML_KEY, 'modeling.calculation')
+    add_mapping_annotation(general.Simulation.outputs, XML2_KEY, 'modeling.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
 
 
@@ -87,8 +88,9 @@ class XCComponent(model_method.XCComponent):
 
 
 class ModelMethod(model_method.ModelMethod):
-    # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    # Note: Pseudopotential extraction uses custom mapper 'get_pseudopotentials'
+    # because vasprun.xml stores PP metadata in atominfo, not under model_method
 
 
 class KSpace(numerical_settings.KSpace):
@@ -127,7 +129,6 @@ class KMesh(numerical_settings.KMesh):
 
 
 class ModelSystem(model_system.ModelSystem):
-    # atomic cell
     add_mapping_annotation(model_system.Representation.m_def, XML_KEY, '.structure')
     add_mapping_annotation(model_system.Representation.m_def, OUTCAR_KEY, '.@')
     add_mapping_annotation(
@@ -192,8 +193,6 @@ class Outputs(outputs.Outputs):
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
-    # value is already defined in TotalEnergy since they use the same def
-    # get_energy function should be able to handle extraction from both sources
     add_mapping_annotation(
         properties.energies.TotalEnergy.value,
         XML_KEY,
@@ -273,6 +272,98 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
     )
+
+
+class Pseudopotential(numerical_settings.Pseudopotential):
+    """VASP-specific pseudopotential with POTCAR metadata."""
+
+    import numpy as np  # noqa: PLC0415
+    from nomad.metainfo import Quantity  # noqa: PLC0415
+
+    sha256 = Quantity(
+        type=str,
+        description='SHA256 hash of POTCAR file for library identification',
+    )
+    add_mapping_annotation(sha256, OUTCAR_KEY, '.SHA256')
+
+    lpaw = Quantity(type=str, description='LPAW flag (T=PAW, F=other)')
+    add_mapping_annotation(lpaw, OUTCAR_KEY, '.LPAW')
+
+    lultra = Quantity(type=str, description='LULTRA flag (T=ultrasoft, F=other)')
+    add_mapping_annotation(lultra, OUTCAR_KEY, '.LULTRA')
+
+    lexch = Quantity(type=str, description='LEXCH exchange-correlation code')
+    add_mapping_annotation(lexch, OUTCAR_KEY, '.LEXCH')
+
+    enmax = Quantity(
+        type=np.float64, unit='eV', description='ENMAX cutoff recommendation'
+    )
+    add_mapping_annotation(enmax, OUTCAR_KEY, ('to_float', ['.ENMAX']))
+
+    enmin = Quantity(
+        type=np.float64, unit='eV', description='ENMIN cutoff recommendation'
+    )
+    add_mapping_annotation(enmin, OUTCAR_KEY, ('to_float', ['.ENMIN']))
+
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.name, OUTCAR_KEY, '.TITEL'
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.reference_configuration,
+        OUTCAR_KEY,
+        '.VRHFIN',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        OUTCAR_KEY,
+        ('to_float', ['.ZVAL']),
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.r_core,
+        OUTCAR_KEY,
+        ('to_float', ['.RCORE']),
+        unit='angstrom',
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.l_max, OUTCAR_KEY, ('to_int', ['.LMAX'])
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.lm_max, OUTCAR_KEY, ('to_int', ['.LMMAX'])
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.type,
+        OUTCAR_KEY,
+        ('derive_pp_type', ['.LPAW', '.LULTRA', '.TITEL']),
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.is_norm_conserving,
+        OUTCAR_KEY,
+        ('derive_is_norm_conserving', ['.type']),
+    )
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.is_gw_optimized,
+        OUTCAR_KEY,
+        ('derive_is_gw_optimized', ['.TITEL']),
+    )
+
+    add_mapping_annotation(numerical_settings.Pseudopotential.name, XML_KEY, '.c[4]')
+    add_mapping_annotation(
+        numerical_settings.Pseudopotential.n_valence_electrons,
+        XML_KEY,
+        ('to_float', ['.c[3]']),
+    )
+
+
+# Link Pseudopotential extraction to ModelMethod.numerical_settings
+# Must be done after Pseudopotential class definition due to forward reference
+# For XML: use custom mapper to extract from modeling.atominfo and create PP instances
+add_mapping_annotation(
+    Pseudopotential.m_def,
+    XML_KEY,
+    ('get_pseudopotentials', ['modeling']),
+)
+# For OUTCAR: extract from pseudopotentials list in parsed data
+add_mapping_annotation(Pseudopotential.m_def, OUTCAR_KEY, '@.pseudopotentials')
 
 
 try:
