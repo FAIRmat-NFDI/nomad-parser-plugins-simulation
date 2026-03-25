@@ -370,6 +370,14 @@ def assert_workflow(archive: EntryArchive) -> None:
     sec_workflow = archive.workflow2
     sec_workflow_results = sec_workflow.results
 
+    # TODO: Adjust after permanent recursion bug fix.
+    # Regression: after normalization tasks must be shallow (no nested tasks).
+    # Recursive parsing would produce MolecularDynamics nested inside each task.
+    for task in sec_workflow.tasks:
+        assert not any(
+            hasattr(inp, 'tasks') and inp.tasks for inp in (task.inputs or [])
+        )
+
     assert_md_method(sec_workflow)
     assert_thermostats_barostats_shear(sec_workflow)
     assert_radial_distribution_functions(sec_workflow_results)
@@ -392,6 +400,9 @@ def test_md(parser):
         archive,
         None,
     )
+    # Regression: parser must not populate tasks (would cause infinite recursion).
+    # Tasks are filled post-parse by the workflow normalizer from outputs.
+    assert archive.workflow2.tasks == []
     normalize_all(archive, logger=logger)
 
     assert_h5md_header(archive)
