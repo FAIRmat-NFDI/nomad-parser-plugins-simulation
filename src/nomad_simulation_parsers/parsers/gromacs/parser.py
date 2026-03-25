@@ -12,6 +12,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import force_field
 from nomad_simulations.schema_packages.force_field import (
     ParticleParametersContainer,
 )
@@ -408,6 +409,48 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if tau_p is not None:
             result = tau_p
 
+        return result
+
+    _FREE_ENERGY_CALC_TYPE_MAP = {
+        'yes': 'alchemical',
+        'slow-growth': 'alchemical',
+        'expanded': 'alchemical',
+        'umbrella': 'umbrella_sampling',
+    }
+
+    def get_free_energy_calc_type(self, value: str | None) -> str | None:
+        result = None
+        if value is None:
+            return result
+        result = self._FREE_ENERGY_CALC_TYPE_MAP.get(str(value).lower())
+        print(
+            f'\nParsed free energy calculation type: {result} from input value: {value}\n'
+        )
+        return result
+
+    def get_current_lambdas(self, input_params: dict[str, Any]) -> np.ndarray | None:
+        result = None
+        if not input_params:
+            return result
+        init_lambda = input_params.get('init-lambda')
+        if init_lambda is None:
+            return result
+        try:
+            result = np.array([float(init_lambda)])
+        except (TypeError, ValueError):
+            self.logger.warning('Could not parse init-lambda value: %s', init_lambda)
+        return result
+
+    def get_lambda_state_index(self, value: int | None) -> int | None:
+        result = None
+        if value is None:
+            return result
+        try:
+            idx = int(value)
+            if idx >= 0:
+                result = idx
+        except (TypeError, ValueError):
+            self.logger.warning('Could not parse init-lambda-state value: %s', value)
         return result
 
 
@@ -941,6 +984,38 @@ class GromacsArchiveWriter(MDParser):
         # parse mdanalysis trajectory files
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser)
+
+        # TODO: ForceField is created explicitly here because MappingParser Level 3
+        # polymorphism cannot change the instantiated SubSection type (see
+        # `mapping_parser.build_section_mapper`` ~L2291, mapper['m_def'] hack).
+        # If Level 3 type resolution is fixed, replace with:
+        #   add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
+        # and remove this explicit instantiation block.
+
+        ff = gromacs.ForceField()
+        self._simulation_parser.data_object = ff
+        self._simulation_parser.annotation_key = gromacs.TPR_KEY
+        self._mdanalysis_parser.convert(self._simulation_parser)
+        # TODO: MappingParser skips SubSections whose child quantities have no
+        # annotations for the current key (build_section_mapper L2347). If
+        # that condition also checks for a SubSection-level annotation (sannotation),
+        # uncomment lines 413-417 in gromacs.py:
+        # add_mapping_annotation(force_field.ForceField.contributions, TPR_KEY,
+        #       ('get_force_field_contributions', []))
+        # and remove explicit instantiation.
+        for contrib in self._mdanalysis_parser.get_force_field_contributions():
+            ff.contributions.append(
+                force_field.Potential(
+                    functional_form=contrib.get('functional_form'),
+                    particle_indices=np.array(contrib['particle_indices']),
+                    # TODO: `particle_labels` gets stored as a numpy array of strings.
+                    # archive string quantities are treated as potential keywords,
+                    # if keyword: numpy array truthiness error.
+                    # particle_labels=contrib.get('particle_labels'),
+                )
+            )
+        if ff.contributions:
+            self.archive.data.model_method.append(ff)
 
         # parse per-type particle parameters (charges, masses, particle types) from
         # TPR into a fresh ParticleParametersContainer, then append it to

@@ -201,7 +201,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
-    add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
+    # add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
     add_mapping_annotation(general.Simulation.model_method, LOG_KEY, '.@')
 
 
@@ -320,6 +320,13 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
         '@',
     )
 
+    # Free energy calculation subsection
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
+        LOG_KEY,
+        '@',
+    )
+
 
 ## ThermostatParameters annotations
 
@@ -378,6 +385,23 @@ add_mapping_annotation(
     unit='1/bar',
 )
 
+# Free energy method anotations
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.calc_type,
+    LOG_KEY,
+    ('get_free_energy_calc_type', ['.input_parameters.free-energy']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.current_lambdas,
+    LOG_KEY,
+    ('get_current_lambdas', ['.input_parameters']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index,
+    LOG_KEY,
+    ('get_lambda_state_index', ['.input_parameters.init-lambda-state']),
+)
+
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
     # parse from xvg
@@ -403,11 +427,15 @@ add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 
 # Force Field
 class ForceField(force_field.ForceField):
-    add_mapping_annotation(
-        force_field.ForceField.contributions,
-        TPR_KEY,
-        ('get_force_field_contributions', []),
-    )
+    add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
+    # add_mapping_annotation(
+    #     force_field.ForceField.contributions,
+    #     TPR_KEY,
+    #     ('get_force_field_contributions', []),
+    # )
+
+
+add_mapping_annotation(ForceField.m_def, TPR_KEY, '@')
 
 
 class ForceCalculations(force_field.ForceCalculations):
@@ -435,7 +463,6 @@ class ForceCalculations(force_field.ForceCalculations):
     )
 
 
-# add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.Potential.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
