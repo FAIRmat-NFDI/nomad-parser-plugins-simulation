@@ -84,9 +84,7 @@ CASES = {
 
 def _assert_quantity_close(quantity, expected_value: float, unit: str) -> None:
     # Handle both plain floats and Pint Quantities (flexible_unit behavior)
-    magnitude = (
-        quantity.to(unit).magnitude if hasattr(quantity, 'to') else quantity
-    )
+    magnitude = quantity.to(unit).magnitude if hasattr(quantity, 'to') else quantity
     assert np.isclose(magnitude, expected_value, rtol=1e-12, atol=0.0)
 
 
