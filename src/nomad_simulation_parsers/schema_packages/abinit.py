@@ -23,21 +23,6 @@ class GeometryOptimizationMethod(
         OUT_KEY,
         ('get_workflow_method', []),
     )
-    # TODO: Re-enable when nomad-simulations#260 is merged
-    # add_mapping_annotation(
-    #     workflow.geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_energy_difference,
-    #     OUT_KEY,
-    #     ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
-    #     unit='hartree',
-    # )
-    # add_mapping_annotation(
-    #     workflow.geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_force_maximum,
-    #     OUT_KEY,
-    #     ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
-    #     unit='hartree/bohr',
-    # )
 
 
 add_mapping_annotation(
@@ -121,6 +106,7 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.scf_steps, OUT_KEY, '.scf_steps')
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
     )
@@ -128,6 +114,16 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_band_structures,
         OUT_KEY,
         ('get_bandstructures', ['.eigenvalues', '.occupation_numbers']),
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
     )
 
 
