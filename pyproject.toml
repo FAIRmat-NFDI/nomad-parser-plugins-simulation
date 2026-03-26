@@ -169,6 +169,14 @@ yambo_parser = "nomad_simulation_parsers.parsers:yambo_parser"
 yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_package"
 
 
+[tool.pytest.ini_options]
+markers = [
+    "cli: CLI parsing tests (run with pytest -m cli)",
+    "gui: GUI upload tests requiring dev environment (run with pytest -m gui)",
+    "slow: Tests taking >5 seconds",
+]
+
+
 [tool.cruft]
 # Avoid updating workflow files, this leads to permissions issues
 skip = [".github/*"]

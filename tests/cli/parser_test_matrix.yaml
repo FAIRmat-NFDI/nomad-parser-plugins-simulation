@@ -1,0 +1,196 @@
+# Parser Test Matrix for Exhaustive CLI Testing
+# Defines all test cases with expected outcomes for first-order validation
+
+parsers:
+  abinit:
+    test_cases:
+      - name: "Fe single point"
+        mainfile: "tests/data/abinit/Fe/Fe.out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.model_method"
+          - "data.outputs"
+
+      - name: "H2 geometry optimization"
+        mainfile: "tests/data/abinit/H2/H2.out"
+        expected_workflow: "GeometryOptimization"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+          - "workflow2.method"
+
+  ams:
+    test_cases:
+      - name: "phenylrSmall metagga SCF"
+        mainfile: "tests/data/ams/scf/phenylrSmall-metagga.out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+  crystal:
+    test_cases:
+      - name: "DFT single point"
+        mainfile: "tests/data/crystal/single_point/dft/output.out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+  exciting:
+    test_cases:
+      - name: "C minimal"
+        mainfile: "tests/data/exciting/C_minimal/INFO.OUT"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+      - name: "GaO sodium"
+        mainfile: "tests/data/exciting/GaO_sodium/INFO.OUT"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+      - name: "GaO structure optimization"
+        mainfile: "tests/data/exciting/GaO_strucopt/INFO.OUT"
+        expected_workflow: "GeometryOptimization"
+        required_fields:
+          - "data.model_system"
+          - "workflow2.method"
+
+  fhiaims:
+    test_cases:
+      - name: "Si geometry optimization"
+        mainfile: "tests/data/fhiaims/Si_geomopt/out.out"
+        expected_workflow: "GeometryOptimization"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+          - "workflow2.method"
+
+  gpaw:
+    test_cases:
+      - name: "Fe2 dimer"
+        mainfile: "tests/data/gpaw/Fe2.gpw"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+  gromacs:
+    test_cases:
+      - name: "Water system"
+        mainfile: "tests/data/gromacs/water/reference_d.log"
+        expected_workflow: "MolecularDynamics"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+      - name: "Protein small"
+        mainfile: "tests/data/gromacs/protein_small/md.log"
+        expected_workflow: "MolecularDynamics"
+        required_fields:
+          - "data.model_system"
+
+  h5md:
+    test_cases:
+      - name: "H5MD trajectory"
+        mainfile: "tests/data/h5md/h5md-sample.h5"
+        expected_workflow: "MolecularDynamics"
+        required_fields:
+          - "data.model_system"
+
+  lammps:
+    test_cases:
+      - name: "XYZ trajectory"
+        mainfile: "tests/data/lammps/1_xyz_files/log.lammps"
+        expected_workflow: "MolecularDynamics"
+        required_fields:
+          - "data.model_system"
+
+  octopus:
+    test_cases:
+      - name: "Fe spin-polarized"
+        mainfile: "tests/data/octopus/Fe_spinpol/exec/out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+  phonopy:
+    test_cases:
+      - name: "VASP phonopy"
+        mainfile: "tests/data/phonopy/vasp/phonopy.yaml"
+        expected_workflow: "Phonon"
+        required_fields:
+          - "data.model_system"
+
+  quantumespresso:
+    test_cases:
+      - name: "PWSCF TiO2 optimization"
+        mainfile: "tests/data/quantumespresso/pwscf/TiO2_opt/pw.out"
+        expected_workflow: "GeometryOptimization"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+
+      - name: "Phonon calculation"
+        mainfile: "tests/data/quantumespresso/phonon/ph.out"
+        expected_workflow: "Phonon"
+        required_fields:
+          - "data.model_system"
+
+      - name: "EPW calculation"
+        mainfile: "tests/data/quantumespresso/epw/epw.out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+
+  vasp:
+    test_cases:
+      - name: "AgAc relaxation"
+        mainfile: "tests/data/vasp/AgAc_relax/vasprun.xml.relax"
+        expected_workflow: "GeometryOptimization"
+        required_fields:
+          - "data.model_system"
+          - "data.outputs"
+          - "workflow2.method"
+
+  wannier90:
+    test_cases:
+      - name: "LCO maximally localized Wannier functions"
+        mainfile: "tests/data/wannier90/lco_mlwf/lco.wout"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+
+  yambo:
+    test_cases:
+      - name: "YAMBO placeholder"
+        mainfile: "tests/data/yambo/placeholder.out"
+        expected_workflow: "SinglePoint"
+        required_fields:
+          - "data.model_system"
+        skip: true  # No test data yet - will be created
+
+# Global validation checks applied to all test cases
+global_checks:
+  - check: "archive_not_none"
+    description: "Archive object created"
+
+  - check: "simulation_present"
+    description: "data.simulations populated"
+
+  - check: "program_identified"
+    description: "Program name and version extracted"
+    fields:
+      - "data.program.name"
+
+  - check: "workflow_type_correct"
+    description: "Workflow type matches expected"
+
+  - check: "required_fields_present"
+    description: "All required fields populated"
