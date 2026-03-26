@@ -82,6 +82,29 @@ class GPWParser(MappingParser):
             for n, eigenvalue in enumerate(eigenvalues)
         ]
 
+    def get_band_structures(self) -> list[dict[str, Any]]:
+        band_paths = self.file_parser.parser.get_array('band_paths')
+        if callable(band_paths):
+            band_paths = band_paths()
+        if band_paths is None:
+            return []
+        if hasattr(band_paths, 'get'):
+            band_paths = band_paths.get('band_paths', [band_paths])
+
+        band_structures = []
+        for band_path in band_paths:
+            if not hasattr(band_path, 'get'):
+                continue
+            eigenvalues = band_path.get('eigenvalues')
+            if eigenvalues is None:
+                continue
+            band_structures.append(
+                dict(
+                    value=self.file_parser.apply_unit(eigenvalues, 'energyunit'),
+                )
+            )
+        return band_structures
+
     def get_scf_steps(self) -> dict[str, Any]:
         code_specific_quantities = {}
         converged = self.file_parser.parser.get_parameter('converged')

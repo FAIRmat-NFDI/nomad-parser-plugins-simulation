@@ -42,3 +42,5 @@ def test_workflow_and_scf_steps():
     assert outputs[0].total_energies[0].value.to('eV').magnitude == pytest.approx(
         -7.301259879298866
     )
+    if outputs[0].electronic_band_structures:
+        assert outputs[0].electronic_band_structures[0].value is not None
