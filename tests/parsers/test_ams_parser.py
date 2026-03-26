@@ -51,3 +51,8 @@ def test_workflow_and_scf_steps():
     assert outputs[0].scf_steps.delta_energies_total[-1].to(
         'hartree'
     ).magnitude == pytest.approx(5.64e-7)
+
+    assert outputs[0].electronic_band_gaps is not None
+    assert len(outputs[0].electronic_band_gaps) == 1
+    gap = outputs[0].electronic_band_gaps[0].value.to('hartree').magnitude
+    assert gap == pytest.approx(0.097, rel=1e-3)
