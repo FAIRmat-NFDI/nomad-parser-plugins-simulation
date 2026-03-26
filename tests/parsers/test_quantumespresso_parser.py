@@ -155,6 +155,8 @@ def test_pwscf_workflow_and_scf_steps():
     assert len(outputs[1].scf_steps.energies_total) == 14
     assert len(outputs[0].scf_steps.delta_energies_total) == 12
     assert len(outputs[1].scf_steps.delta_energies_total) == 14
+    assert outputs[0].electronic_eigenvalues is not None
+    assert outputs[0].electronic_eigenvalues[0].occupation is not None
 
 
 def test_pwscf_xml_workflow_and_scf_steps():

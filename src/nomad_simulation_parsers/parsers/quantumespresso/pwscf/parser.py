@@ -40,7 +40,7 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         return [
             dict(name=key, value=source[f'forces_{key}'])
             for key in keys
-            if source.get(f'forces_{key}' is not None)
+            if source.get(f'forces_{key}') is not None
         ]
 
     def get_eigenvalues(self, source: dict[str, Any]) -> list[dict[str, Any]]:
