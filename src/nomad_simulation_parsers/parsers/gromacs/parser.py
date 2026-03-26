@@ -418,14 +418,16 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         'umbrella': 'umbrella_sampling',
     }
 
-    def get_free_energy_calc_type(self, value: str | None) -> str | None:
+    def get_free_energy_calc_type(
+        self, input_params: dict[str, Any] | None
+    ) -> str | None:
         result = None
+        if not input_params:
+            return result
+        value = input_params.get('free-energy')
         if value is None:
             return result
         result = self._FREE_ENERGY_CALC_TYPE_MAP.get(str(value).lower())
-        print(
-            f'\nParsed free energy calculation type: {result} from input value: {value}\n'
-        )
         return result
 
     def get_current_lambdas(self, input_params: dict[str, Any]) -> np.ndarray | None:
@@ -441,8 +443,13 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             self.logger.warning('Could not parse init-lambda value: %s', init_lambda)
         return result
 
-    def get_lambda_state_index(self, value: int | None) -> int | None:
+    def get_lambda_state_index(
+        self, input_params: dict[str, Any] | None
+    ) -> int | None:
         result = None
+        if not input_params:
+            return result
+        value = input_params.get('init-lambda-state')
         if value is None:
             return result
         try:
@@ -450,7 +457,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             if idx >= 0:
                 result = idx
         except (TypeError, ValueError):
-            self.logger.warning('Could not parse init-lambda-state value: %s', value)
+            self.logger.warning(
+                'Could not parse init-lambda-state value: %s', value
+            )
         return result
 
 
@@ -985,43 +994,88 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser)
 
-        # TODO: ForceField is created explicitly here because MappingParser Level 3
-        # polymorphism cannot change the instantiated SubSection type (see
-        # `mapping_parser.build_section_mapper`` ~L2291, mapper['m_def'] hack).
-        # If Level 3 type resolution is fixed, replace with:
-        #   add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
-        # and remove this explicit instantiation block.
+        # TODO: The three explicit instantiation blocks below (ForceField,
+        # ForceCalculations, ParticleParametersContainer) can be replaced with
+        # annotation-driven conversion once two upstream MetainfoParser bugs are
+        # fixed (see gromacs.py Simulation TODO):
+        #   Bug 1 — Level 3 type resolution (build_section_mapper ~L2291): the
+        #     mapper['m_def'] hack must correctly instantiate concrete SubSection
+        #     types (e.g. ForceField) instead of falling back to ModelMethod.
+        #   Bug 2 — update_mode propagation (build_update_mode_tree): must recurse
+        #     into MetainfoBaseMapper (not only Mapper) so update_mode reaches
+        #     nested mappers.
+        # After both are fixed, these three blocks collapse to the annotations already
+        # declared (commented out) in the gromacs.py Simulation class:
+        #   add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
+        #   add_mapping_annotation(
+        #       general.Simulation.model_method, LOG_KEY, '.@', update_mode='merge@last'
+        #   )
+        # and the gromacs.py annotations (currently commented out) for contributions and
+        # ParticleParametersContainer:
+        #   add_mapping_annotation(
+        #       force_field.ForceField.contributions, TPR_KEY,
+        #       ('get_force_field_contributions', [])
+        #   )
+        #   add_mapping_annotation(
+        #       force_field.ForceField.numerical_settings,
+        #       PARTICLE_PARAM_KEY,
+        #       ('get_particle_parameters_by_type', []),
+        #       update_mode='append',
+        #   )
 
+        # --- Bug 1+2 workaround: ForceField ---
+        # Level 3 cannot resolve ForceField from model_method SubSection type
+        # (ModelMethod); instantiate explicitly and run TPR conversion targeting ff.
         ff = gromacs.ForceField()
         self._simulation_parser.data_object = ff
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser)
-        # TODO: MappingParser skips SubSections whose child quantities have no
-        # annotations for the current key (build_section_mapper L2347). If
-        # that condition also checks for a SubSection-level annotation (sannotation),
-        # uncomment lines 413-417 in gromacs.py:
-        # add_mapping_annotation(force_field.ForceField.contributions, TPR_KEY,
-        #       ('get_force_field_contributions', []))
-        # and remove explicit instantiation.
+
+        # --- Bug 1 workaround: ForceField.contributions ---
+        # MappingParser skips SubSections whose child quantities carry no annotations
+        # for the current key (build_section_mapper L2347), even when the SubSection
+        # itself has an m_def annotation. The loop below replaces:
+        #   add_mapping_annotation(
+        #       force_field.ForceField.contributions, TPR_KEY,
+        #       ('get_force_field_contributions', [])
+        #   )
         for contrib in self._mdanalysis_parser.get_force_field_contributions():
             ff.contributions.append(
                 force_field.Potential(
                     functional_form=contrib.get('functional_form'),
                     particle_indices=np.array(contrib['particle_indices']),
-                    # TODO: `particle_labels` gets stored as a numpy array of strings.
-                    # archive string quantities are treated as potential keywords,
-                    # if keyword: numpy array truthiness error.
+                    # TODO: particle_labels is a numpy array of strings; archive
+                    # string quantities are treated as potential keywords, triggering
+                    # numpy ambiguous-truth-value error on `if keyword:`.
                     # particle_labels=contrib.get('particle_labels'),
                 )
             )
-        if ff.contributions:
-            self.archive.data.model_method.append(ff)
 
-        # parse per-type particle parameters (charges, masses, particle types) from
-        # TPR into a fresh ParticleParametersContainer, then append it to
-        # ForceField.numerical_settings. Using a dedicated PARTICLE_PARAM_KEY and a
-        # separate data_object avoids the index-0 collision with ForceCalculations
-        # written by the LOG pass.
+        # --- Bug 1+2 workaround: ForceCalculations ---
+        # Adding LOG_KEY to ForceField.m_def would make it visible to Level 3 during
+        # the Simulation LOG pass, creating a spurious duplicate ForceField entry.
+        # Instead, instantiate ForceCalculations directly and run LOG targeting it.
+        # Replaces the merge that would occur via update_mode='merge@last' once fixed:
+        #   add_mapping_annotation(
+        #       general.Simulation.model_method, LOG_KEY, '.@', update_mode='merge@last'
+        #   )
+        fc = gromacs.ForceCalculations()
+        self._simulation_parser.data_object = fc
+        self._simulation_parser.annotation_key = gromacs.LOG_KEY
+        self._log_parser.convert(self._simulation_parser)
+        ff.numerical_settings.append(fc)
+        self.archive.data.model_method.append(ff)
+
+        # --- Bug 1+2 workaround: ParticleParametersContainer ---
+        # Uses a dedicated PARTICLE_PARAM_KEY pass targeting a fresh ppc instance to
+        # avoid collision with ForceCalculations already written to numerical_settings.
+        # After fixes this collapses to an annotation on ForceField.numerical_settings:
+        #   add_mapping_annotation(
+        #       force_field.ForceField.numerical_settings,
+        #       PARTICLE_PARAM_KEY,
+        #       ('get_particle_parameters_by_type', []),
+        #       update_mode='append',
+        #   )
         if self.archive.data.model_method:
             ppc = ParticleParametersContainer()
             self._simulation_parser.data_object = ppc
