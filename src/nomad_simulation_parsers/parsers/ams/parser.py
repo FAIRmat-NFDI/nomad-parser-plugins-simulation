@@ -72,6 +72,48 @@ class MainfileParser(TextParser):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
 
+    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if not hasattr(source, 'get'):
+            return []
+
+        value = source.get('value')
+        if value is None:
+            homo = source.get('energy_highest_occupied')
+            lumo = source.get('energy_lowest_unoccupied')
+            if homo is not None and lumo is not None:
+                value = lumo - homo
+        if value is None:
+            return []
+
+        if hasattr(value, 'magnitude'):
+            if value.magnitude < 0:
+                value = 0 * value.units
+        else:
+            value = max(0.0, value)
+
+        band_gap = {'value': value}
+        spin_channel = source.get('spin_channel')
+        if spin_channel is not None:
+            band_gap['spin_channel'] = spin_channel
+        return [band_gap]
+
+    def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if not hasattr(source, 'get'):
+            return []
+
+        dos = source.get('dos')
+        if dos is None:
+            return []
+
+        dos_dimensions = 2
+        minimum_dos_columns = 2
+        dos = np.asarray(dos)
+        if dos.ndim != dos_dimensions or dos.shape[1] < minimum_dos_columns:
+            return []
+
+        energies = dos[:, 0]
+        return [dict(energies=energies, value=values) for values in dos[:, 1:].T]
+
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         self_consistency = source.get('self_consistency', {})
         energy_change = self_consistency.get('energy_change')
