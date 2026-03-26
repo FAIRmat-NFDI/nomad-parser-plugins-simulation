@@ -59,6 +59,13 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.energies')
 
 
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, OUT_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
@@ -68,6 +75,9 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, OUT_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps, OUT_KEY, ('get_band_gaps', ['.@'])
     )
 
 
