@@ -7,6 +7,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    variables,
     workflow,
 )
 
@@ -122,6 +123,7 @@ add_mapping_annotations(
     (outputs.Outputs.total_energies, INFO_KEY, ('get_energies', ['.@'])),
     (outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])),
     (outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])),
+    (outputs.Outputs.electronic_band_gaps, EIGVAL_KEY, ('get_band_gaps', ['.@'])),
     (
         outputs.Outputs.electronic_band_structures,
         BANDSTRUCTURE_XML_KEY,
@@ -148,6 +150,21 @@ add_mapping_annotations(
         'dos.partialdos.diagram',
     ),
 )
+
+
+add_mapping_annotations(
+    (outputs.ElectronicBandGap.value, EIGVAL_KEY, '.value'),
+    (outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'),
+)
+
+add_mapping_annotation(
+    variables.Energy2.points,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@e"']),
+    unit='hartree',
+)
+
+add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
 ###### TODO read unit from axis
 add_mapping_annotation(

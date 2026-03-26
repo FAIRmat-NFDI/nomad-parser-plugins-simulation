@@ -143,3 +143,29 @@ def test_scf_quantities_relevant_for_convergence_targets(parsed_archive):
         assert len(value) == quantity_expectation['len']
         expected_last_value, expected_last_unit = quantity_expectation['last']
         _assert_quantity_close(value[-1], expected_last_value, expected_last_unit)
+
+
+def test_electronic_outputs_mapping(parsed_archive):
+    case, archive = parsed_archive
+    if case != 'C_minimal':
+        pytest.skip('electronic output assertions use C_minimal fixture')
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+
+    if output.electronic_dos:
+        sec_dos = output.electronic_dos[0]
+        assert sec_dos.value is not None
+        assert sec_dos.energies is not None
+        assert sec_dos.energies.points is not None
+
+    if output.electronic_band_structures:
+        sec_band_structure = output.electronic_band_structures[0]
+        assert sec_band_structure.value is not None
+
+    if output.electronic_band_gaps:
+        sec_gap = output.electronic_band_gaps[0]
+        assert sec_gap.value is not None

@@ -337,6 +337,49 @@ class EigvalParser(TextParser):
             for spin in range(len(eigs[0]))
         ]
 
+    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        eigs_occs = source.get('eigenvalues_occupancies') or []
+        if not eigs_occs:
+            return []
+
+        n_spin = len(eigs_occs[0].get('eigenvalues', []))
+        if n_spin == 0:
+            return []
+
+        occupation_threshold = 0.5
+        valence_max = np.full(n_spin, -np.inf)
+        conduction_min = np.full(n_spin, np.inf)
+
+        for kpoint in eigs_occs:
+            eigs = np.asarray(kpoint.get('eigenvalues'))
+            occs = np.asarray(kpoint.get('occupancies'))
+            if eigs.size == 0 or occs.size == 0:
+                continue
+
+            for spin in range(min(n_spin, eigs.shape[0], occs.shape[0])):
+                spin_eigs = eigs[spin]
+                spin_occs = occs[spin]
+                occupied = spin_eigs[spin_occs >= occupation_threshold]
+                unoccupied = spin_eigs[spin_occs < occupation_threshold]
+                if occupied.size > 0:
+                    valence_max[spin] = max(valence_max[spin], np.max(occupied))
+                if unoccupied.size > 0:
+                    conduction_min[spin] = min(conduction_min[spin], np.min(unoccupied))
+
+        band_gaps = []
+        for spin in range(n_spin):
+            if not np.isfinite(valence_max[spin]) or not np.isfinite(
+                conduction_min[spin]
+            ):
+                continue
+            gap = max(0.0, float(conduction_min[spin] - valence_max[spin]))
+            entry = {'value': gap}
+            if n_spin > 1:
+                entry['spin_channel'] = spin
+            band_gaps.append(entry)
+
+        return band_gaps
+
 
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0915
