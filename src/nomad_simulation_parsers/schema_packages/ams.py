@@ -101,7 +101,16 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
     outputs.Outputs.electronic_band_gaps.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(ams_out=Mapper(mapper=('get_band_gaps', ['.band_gap']))))
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=(
+                    'get_band_gaps',
+                    ['.band_gap || .band_gap_info || .band_energy_ranges'],
+                )
+            )
+        )
+    )
     outputs.Outputs.electronic_dos.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper=('get_dos', ['.total_dos']))))

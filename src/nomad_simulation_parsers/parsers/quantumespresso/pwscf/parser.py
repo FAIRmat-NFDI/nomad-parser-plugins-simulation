@@ -4,6 +4,7 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import outputs as simulation_outputs
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -44,19 +45,39 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         ]
 
     def get_eigenvalues(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        eigenvalues = source.get('band_energies')
+        section = self._resolve_scf_source(source)
+        if section is None or not hasattr(section, 'get'):
+            return []
+
+        eigenvalues = section.get('band_energies')
         if eigenvalues is None:
             return []
         n_spin = self.get_n_spin_channels()
         n_eigs = len(eigenvalues[0])
         n_bands = np.size(eigenvalues) // int(n_spin * n_eigs)
         eigenvalues = np.reshape(eigenvalues, (n_spin, n_bands, n_eigs)) * ureg.eV
-        results = [dict(eigenvalues=eig) for n, eig in enumerate(eigenvalues)]
-        occupations = source.get('occupation_numbers')
+        results = [
+            dict(eigenvalues=eig, n_levels=eig.shape[-1]) for n, eig in enumerate(eigenvalues)
+        ]
+        occupations = section.get('occupation_numbers')
         if occupations is not None:
             occupations = np.reshape(occupations, (n_spin, n_bands, n_eigs))
             for n, occ in enumerate(occupations):
                 results[n]['occupations'] = occ
+        else:
+            fermi_energy = section.get('fermi_energy')
+            if fermi_energy is not None:
+                fermi_array = np.asarray(fermi_energy, dtype=float).reshape(-1)
+                if fermi_array.size == 1:
+                    fermi_values = [fermi_array[0]] * n_spin
+                else:
+                    fermi_values = [
+                        fermi_array[min(i, fermi_array.size - 1)] for i in range(n_spin)
+                    ]
+                for n, eig in enumerate(eigenvalues):
+                    results[n]['occupations'] = (
+                        eig.magnitude <= fermi_values[n]
+                    ).astype(float)
         return results
 
     def get_configurations(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -75,7 +96,13 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             config = source.get(key)
             if config is None:
                 continue
-            configurations.append(config.get('self_consistent', config))
+            sc_config = config.get('self_consistent', config)
+            if isinstance(sc_config, list):
+                if not sc_config:
+                    continue
+                configurations.append(sc_config[-1])
+            else:
+                configurations.append(sc_config)
         return configurations
 
     def _resolve_scf_source(self, source: Any) -> Any:
@@ -278,6 +305,32 @@ class PWSCFMainfileXMLParser(MainfileXMLParser):
 class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     schema = pwscf
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
+
+    def parse_program(self, archive: EntryArchive, index: int) -> None:
+        super().parse_program(archive, index)
+        if not archive.data or not archive.data.outputs:
+            return
+
+        configurations = self.mainfile_parser.get_configurations(self.mainfile_parser.data)
+        for i, output in enumerate(archive.data.outputs):
+            if i >= len(configurations):
+                break
+            if output.electronic_eigenvalues:
+                continue
+
+            eigenvalues = self.mainfile_parser.get_eigenvalues(configurations[i])
+            if not eigenvalues:
+                continue
+
+            output.electronic_eigenvalues = [
+                simulation_outputs.ElectronicEigenvalues(
+                    value=entry.get('eigenvalues'),
+                    occupation=entry.get('occupations'),
+                    n_levels=entry.get('n_levels'),
+                    spin_channel=entry.get('spin_channel'),
+                )
+                for entry in eigenvalues
+            ]
     _xml_parser = PWSCFMainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
