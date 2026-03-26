@@ -265,6 +265,34 @@ class YamboMainfileParser(TextParser):
 
         return outputs
 
+    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if not hasattr(source, 'get'):
+            return []
+
+        required_levels = 2
+        valence_conduction = source.get('valence_conduction')
+        has_valence_conduction = (
+            valence_conduction is not None
+            and len(valence_conduction) >= required_levels
+        )
+        if has_valence_conduction:
+            valence, conduction = valence_conduction[0], valence_conduction[1]
+        else:
+            valence = source.get('valence')
+            conduction = source.get('conduction')
+
+        if valence is None or conduction is None:
+            return []
+
+        value = conduction - valence
+        if hasattr(value, 'magnitude'):
+            if value.magnitude < 0:
+                value = 0 * value.units
+        else:
+            value = max(0.0, value)
+
+        return [dict(value=value)]
+
 
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
@@ -289,6 +317,7 @@ class YamboArchiveWriter(ArchiveWriter):
             .get('input', {})
             .get('file', '')
         )
+        netcdf_parser = None
         if netcdf_file:
             # set up parser for yambo netcdf file
             netcdf_parser = YamboNetCDFParser(
@@ -298,7 +327,8 @@ class YamboArchiveWriter(ArchiveWriter):
             netcdf_parser.convert(data_parser)
 
         data_parser.close()
-        netcdf_parser.close()
+        if netcdf_parser is not None:
+            netcdf_parser.close()
 
 
 class YamboParser(MatchingParser):
