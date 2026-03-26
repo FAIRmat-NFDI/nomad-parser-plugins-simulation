@@ -86,7 +86,22 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'tCutPairs',
-                r'TCutPairs\s*=\s*([-+]?\d*\.\d+([eE][-+]?\d+)?)',
+                r'TCutPairs\s*=\s*([-+]?\d*\.\d+(?:[eE][-+]?\d+)?)',
+                repeats=False,
+            ),
+            Quantity(
+                'tCutPNO',
+                r'TCutPNO\s*=\s*([-+]?\d*\.\d+(?:[eE][-+]?\d+)?)',
+                repeats=False,
+            ),
+            Quantity(
+                'tCutPNOSingles',
+                r'TCutPNOSingles\s*=\s*([-+]?\d*\.\d+(?:[eE][-+]?\d+)?)',
+                repeats=False,
+            ),
+            Quantity(
+                'tCutMP2Pairs',
+                r'TCutMP2Pairs\s*[:=]\s*([-+]?\d*\.\d+(?:[eE][-+]?\d+)?)',
                 repeats=False,
             ),
             Quantity(
@@ -771,10 +786,39 @@ class OutReader(TextParser):
                 unit=ureg.hartree,
             ),
             Quantity(
+                'sl_mp2_correlation_energy',
+                rf'E\(SL\-MP2\)\s*\.+\s*({re_float})',
+                dtype=float,
+                unit=ureg.hartree,
+            ),
+            Quantity(
                 'T_and_T_energy',
                 rf'<T\|T>\s*\.+\s*({re_float})',
                 dtype=float,
                 unit=ureg.hartree,
+            ),
+            Quantity(
+                'local_mp2_treatment',
+                r'Type of local MP2 treatment\s*\.+\s*(.+)',
+                convert=False,
+                flatten=False,
+            ),
+            Quantity(
+                'pair_density_normalization',
+                r'Pair density normalization\s*\.+\s*(.+)',
+                convert=False,
+                flatten=False,
+            ),
+            Quantity(
+                'spin_component_scaling',
+                r'Spin component scaling\s*\.+\s*(.+)',
+                convert=False,
+                flatten=False,
+            ),
+            Quantity(
+                'tCutMP2Pairs',
+                r'TCutMP2Pairs\s*[:=]\s*([-+]?\d*\.\d+(?:[eE][-+]?\d+)?)',
+                dtype=float,
             ),
             Quantity(
                 'total_nb_pairs_included',
@@ -1043,6 +1087,7 @@ class OutReader(TextParser):
             Quantity(
                 'loc',
                 r'\n *ORCA ORBITAL LOCALIZATION\s*\-+([\s\S]+?)\-{10}',
+                repeats=True,
                 sub_parser=TextParser(quantities=localization_quantities),
             ),
             # FIX HERE

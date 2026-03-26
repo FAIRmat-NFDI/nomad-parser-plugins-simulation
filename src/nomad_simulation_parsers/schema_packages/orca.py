@@ -9,6 +9,7 @@ from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
+    numerical_settings,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -121,6 +122,82 @@ add_mapping_annotation(
     model_method.ActiveSpace.orbital_space_type,
     OUT_KEY,
     '.active_space.orbital_space_type',
+)
+
+############# Local CC ###################
+
+add_mapping_annotation(
+    model_method.OrbitalLocalization.m_def,
+    OUT_KEY,
+    ('get_orbital_localization_methods', ['.@']),
+)
+add_mapping_annotation(
+    model_method.OrbitalLocalization.method, OUT_KEY, '.method'
+)
+add_mapping_annotation(
+    model_method.OrbitalLocalization.n_localized_orbitals,
+    OUT_KEY,
+    '.n_localized_orbitals',
+)
+
+add_mapping_annotation(
+    model_method.CC.m_def,
+    OUT_KEY,
+    ('get_coupled_cluster_methods', ['.@']),
+)
+add_mapping_annotation(model_method.CC.type, OUT_KEY, '.type')
+add_mapping_annotation(model_method.CC.excitation_order, OUT_KEY, '.excitation_order')
+add_mapping_annotation(
+    model_method.CC.perturbative_correction, OUT_KEY, '.perturbative_correction'
+)
+add_mapping_annotation(
+    model_method.CC.perturbative_correction_order,
+    OUT_KEY,
+    '.perturbative_correction_order',
+)
+add_mapping_annotation(
+    model_method.CC.explicit_correlation, OUT_KEY, '.explicit_correlation'
+)
+add_mapping_annotation(model_method.CC.determinant, OUT_KEY, '.determinant')
+add_mapping_annotation(model_method.CC.local_correlation, OUT_KEY, '.local_correlation')
+add_mapping_annotation(model_method.CC.numerical_settings, OUT_KEY, '.numerical_settings')
+
+add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
+add_mapping_annotation(model_method.LocalCorrelation.spaces, OUT_KEY, '.spaces')
+
+add_mapping_annotation(model_method.LocalCorrelationSpace.kind, OUT_KEY, '.kind')
+add_mapping_annotation(
+    model_method.LocalCorrelationSpace.domain_kind, OUT_KEY, '.domain_kind'
+)
+add_mapping_annotation(
+    model_method.LocalCorrelationSpace.virtual_space_type,
+    OUT_KEY,
+    '.virtual_space_type',
+)
+add_mapping_annotation(
+    model_method.LocalCorrelationSpace.excitation_order,
+    OUT_KEY,
+    '.excitation_order',
+)
+
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@'
+)
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationSettings.screening_thresholds,
+    OUT_KEY,
+    '.screening_thresholds',
+)
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationThreshold.name, OUT_KEY, '.name'
+)
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationThreshold.value, OUT_KEY, '.value'
+)
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationThreshold.applies_to,
+    OUT_KEY,
+    '.applies_to',
 )
 
 
