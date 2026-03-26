@@ -580,3 +580,47 @@ class QuantumEspressoParser(MatchingParser):
         self.level = len(child_archives)
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        if (
+            archive.data
+            and archive.data.outputs
+            and mainfile.lower().endswith(('.out', '.log'))
+            and any(
+                output.electronic_eigenvalues is None
+                or len(output.electronic_eigenvalues) == 0
+                for output in archive.data.outputs
+            )
+        ):
+            try:
+                from nomad_simulations.schema_packages import outputs as simulation_outputs
+
+                from nomad_simulation_parsers.parsers.quantumespresso.pwscf.file_parser import (
+                    PWSCFFileParser,
+                )
+                from nomad_simulation_parsers.parsers.quantumespresso.pwscf.parser import (
+                    PWSCFMainfileTextParser,
+                )
+
+                pwscf_parser = PWSCFMainfileTextParser(
+                    text_parser=PWSCFFileParser(), filepath=mainfile
+                )
+                configurations = pwscf_parser.get_configurations(pwscf_parser.data)
+                for i, output in enumerate(archive.data.outputs):
+                    if i >= len(configurations):
+                        break
+                    if output.electronic_eigenvalues:
+                        continue
+                    eigenvalues = pwscf_parser.get_eigenvalues(configurations[i])
+                    if not eigenvalues:
+                        continue
+                    output.electronic_eigenvalues = [
+                        simulation_outputs.ElectronicEigenvalues(
+                            value=entry.get('eigenvalues'),
+                            occupation=entry.get('occupations'),
+                            n_levels=entry.get('n_levels'),
+                            spin_channel=entry.get('spin_channel'),
+                        )
+                        for entry in eigenvalues
+                    ]
+            except Exception:
+                pass

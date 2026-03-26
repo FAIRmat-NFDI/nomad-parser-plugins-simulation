@@ -100,7 +100,24 @@ class VasprunParser(XMLParser):
                 spin_sets.append(kpoint_sets)
         return spin_sets
 
+    def _resolve_electronic_source(
+        self, source: dict[str, Any] | None, key: str
+    ) -> dict[str, Any] | None:
+        if isinstance(source, dict) and source.get(key) is not None:
+            return source
+        calculations = self.data.get('modeling', {}).get('calculation', [])
+        if not isinstance(calculations, list):
+            return None
+        for calculation in reversed(calculations):
+            if isinstance(calculation, dict) and calculation.get(key) is not None:
+                return calculation
+        return None
+
     def get_eigenvalues(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        source = self._resolve_electronic_source(source, 'eigenvalues')
+        if source is None:
+            return []
+        source = source.get('eigenvalues')
         spin_sets = self._extract_spin_sets(source)
         if not spin_sets:
             return []
@@ -198,9 +215,13 @@ class VasprunParser(XMLParser):
         return None
 
     def get_total_dos(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        source = self._resolve_electronic_source(source, 'dos')
         if not isinstance(source, dict):
             return []
-        total = source.get('total')
+        dos = source.get('dos')
+        if not isinstance(dos, dict):
+            return []
+        total = dos.get('total')
         if not isinstance(total, dict):
             return []
 
@@ -223,7 +244,7 @@ class VasprunParser(XMLParser):
         ):
             return []
 
-        efermi = self._get_fermi_energy(source)
+        efermi = self._get_fermi_energy(dos)
         is_spin_polarized = len(spin_entries) == N_SPIN_CHANNELS
         dos_sections = []
         for spin_channel, dos_entry in enumerate(spin_entries):

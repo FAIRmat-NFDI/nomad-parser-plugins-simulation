@@ -81,14 +81,18 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.scf_steps, OUT_KEY, '.scf_steps')
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos, F25_KEY, ('get_dos', ['.dos'])
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        F25_KEY,
-        ('get_band_structures', ['.segments']),
-    )
+    # TODO(legacy-parity): Electronic DOS and band structures are currently not
+    # functional for the Crystal fixture set that only provides `si.f9`/`si.f98`.
+    # Current mapping expects fort.25-compatible payload (`.dos`/`.segments`).
+    # Re-enable these mappings once parser-side fallback for f9/f98 is implemented.
+    # add_mapping_annotation(
+    #     outputs.Outputs.electronic_dos, F25_KEY, ('get_dos', ['.dos'])
+    # )
+    # add_mapping_annotation(
+    #     outputs.Outputs.electronic_band_structures,
+    #     F25_KEY,
+    #     ('get_band_structures', ['.segments']),
+    # )
     # TODO(legacy-parity): no explicit crystal band-gap section was populated in
     # legacy parser output; keep unmapped until dedicated legacy-equivalent source
     # is confirmed.

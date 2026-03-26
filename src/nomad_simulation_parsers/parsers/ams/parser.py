@@ -33,6 +33,7 @@ from .file_parser import OutParser
 from .file_parser import RKFParser as RKFTextParser
 
 LOGGER = get_logger(__name__)
+OCCUPATION_THRESHOLD = 0.5
 
 
 class MainfileParser(TextParser):
@@ -73,29 +74,61 @@ class MainfileParser(TextParser):
         return [eig for eig in eigenvalues if eig]
 
     def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        if not hasattr(source, 'get'):
+        if hasattr(source, 'get'):
+            value = source.get('value')
+            if value is None:
+                homo = source.get('energy_highest_occupied')
+                lumo = source.get('energy_lowest_unoccupied')
+                if homo is not None and lumo is not None:
+                    value = lumo - homo
+            if value is None:
+                return []
+
+            if hasattr(value, 'magnitude'):
+                if value.magnitude < 0:
+                    value = 0 * value.units
+            else:
+                value = max(0.0, value)
+
+            band_gap = {'value': value}
+            spin_channel = source.get('spin_channel')
+            if spin_channel is not None:
+                band_gap['spin_channel'] = spin_channel
+            return [band_gap]
+
+        # Fallback for parsed tuple/list payload used by AMS band-energy ranges.
+        # Expected form: (energies, ..., occupations) with spin channels separated.
+        if not isinstance(source, tuple | list) or len(source) < 3:
             return []
 
-        value = source.get('value')
-        if value is None:
-            homo = source.get('energy_highest_occupied')
-            lumo = source.get('energy_lowest_unoccupied')
-            if homo is not None and lumo is not None:
-                value = lumo - homo
-        if value is None:
+        energies_channels = source[0] if isinstance(source[0], list) else []
+        occupations_channels = source[2] if isinstance(source[2], list) else []
+        if not energies_channels or not occupations_channels:
             return []
 
-        if hasattr(value, 'magnitude'):
-            if value.magnitude < 0:
-                value = 0 * value.units
-        else:
-            value = max(0.0, value)
+        band_gaps = []
+        for spin_channel, energies in enumerate(energies_channels):
+            if spin_channel >= len(occupations_channels):
+                continue
+            occupation_data = occupations_channels[spin_channel]
+            if not isinstance(occupation_data, list) or not occupation_data:
+                continue
+            occupations = np.asarray(occupation_data[0], dtype=float)
+            energies = np.asarray(energies, dtype=float)
+            if energies.size == 0 or occupations.size == 0 or energies.shape != occupations.shape:
+                continue
 
-        band_gap = {'value': value}
-        spin_channel = source.get('spin_channel')
-        if spin_channel is not None:
-            band_gap['spin_channel'] = spin_channel
-        return [band_gap]
+            occupied = energies[occupations >= OCCUPATION_THRESHOLD]
+            unoccupied = energies[occupations < OCCUPATION_THRESHOLD]
+            if occupied.size == 0:
+                continue
+            valence_max = np.max(occupied)
+            if unoccupied.size == 0:
+                band_gap = 0.0
+            else:
+                band_gap = max(0.0, float(np.min(unoccupied) - valence_max))
+            band_gaps.append({'value': band_gap, 'spin_channel': spin_channel})
+        return band_gaps
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         if not hasattr(source, 'get'):
