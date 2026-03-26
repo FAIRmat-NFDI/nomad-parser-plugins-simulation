@@ -16,6 +16,30 @@ def test_parse_file():
     parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
 
 
+def test_electronic_outputs_mapping():
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+    if output.electronic_dos:
+        sec_dos = output.electronic_dos[0]
+        assert sec_dos.value is not None
+        assert sec_dos.energies is not None
+        assert sec_dos.energies.points is not None
+
+    if output.electronic_band_structures:
+        sec_band_structure = output.electronic_band_structures[0]
+        assert sec_band_structure.value is not None
+
+    # Legacy parity: no explicit electronic_band_gaps section for Wannier90.
+    assert output.electronic_band_gaps is None or len(output.electronic_band_gaps) == 0
+
+
 class TestWannierQuantumNumberMapping:
     """Test quantum number mapping for Wannier90 orbital symbols."""
 

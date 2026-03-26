@@ -230,7 +230,8 @@ class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.electronic_band_structures, WOUT_KEY, '.@')
+    # Legacy parity: Wannier90 band structures come from `*band.dat`; avoid
+    # placeholder sections from `.wout` metadata-only mappings.
     add_mapping_annotation(outputs.Outputs.electronic_band_structures, BAND_KEY, '.@')
     add_mapping_annotation(
         outputs.Outputs.hopping_matrices,
@@ -243,6 +244,8 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
     )
+    # TODO(legacy-parity): legacy Wannier90 parser did not populate explicit
+    # electronic band-gap sections; keep unmapped for now.
 
 
 class Simulation(general.Simulation):
