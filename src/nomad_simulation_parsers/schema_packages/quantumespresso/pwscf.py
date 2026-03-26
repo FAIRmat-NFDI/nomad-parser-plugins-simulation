@@ -25,6 +25,9 @@ class TotalForce(outputs.TotalForce):
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.eigenvalues')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
+    )
 
 
 class Outputs(outputs.Outputs):
