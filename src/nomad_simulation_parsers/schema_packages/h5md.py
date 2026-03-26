@@ -125,8 +125,8 @@ add_mapping_annotation(general.Program.version, HDF5_KEY, r'."@version"')
 
 # SIMULATION.MODEL_SYSTEM --> archive.data.model_system
 
-# ! Only use generic ParticleState
-# ! ModelSystem normalizer takes care of assigning to AtomState or CGBeadState
+# Use parser-side fallback from species labels to AtomsState or CGBeadState
+# payloads before schema normalization runs.
 ### class ParticleState(atoms_state.ParticleState):
 add_mapping_annotation(
     atoms_state.ParticleState.m_def,
