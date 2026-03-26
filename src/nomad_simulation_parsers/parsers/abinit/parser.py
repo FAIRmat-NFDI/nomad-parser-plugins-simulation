@@ -33,6 +33,8 @@ from nomad_simulation_parsers.schema_packages import abinit
 from .file_parser import AbinitOutParser
 
 LOGGER = get_logger(__name__)
+N_SPIN_CHANNELS = 2
+OCCUPATION_THRESHOLD = 0.5
 
 
 ABINIT_NATIVE_IXC = {
@@ -578,7 +580,13 @@ class MainfileParser(TextParser):
 
         nband = int(eigs.T[1].T[0][0])
         eigs = eigs.T[6 : 6 + nband].T
-        bandstructures = [dict(energies=eig, k_points=kpts) for eig in eigs]
+        is_spin_polarized = nsppol == N_SPIN_CHANNELS
+        bandstructures = []
+        for n, eig in enumerate(eigs):
+            entry = dict(energies=eig, k_points=kpts)
+            if is_spin_polarized:
+                entry['spin_channel'] = n
+            bandstructures.append(entry)
 
         if occupations is not None:
             occs = np.reshape(
@@ -652,6 +660,29 @@ class MainfileParser(TextParser):
         if extra_columns:
             scf_steps['code_specific_quantities'] = extra_columns
         return scf_steps
+    def get_band_gaps(
+        self, eigenvalues: np.ndarray, occupations: np.ndarray
+    ) -> list[dict[str, Any]]:
+        if eigenvalues is None or occupations is None:
+            return []
+        bandstructures = self.get_bandstructures(eigenvalues, occupations)
+        gaps = []
+        for bandstructure in bandstructures:
+            eigs = np.asarray(bandstructure.get('energies'))
+            occs = np.asarray(bandstructure.get('occupations'))
+            if eigs.size == 0 or occs.size == 0:
+                continue
+            occupied = eigs[occs >= OCCUPATION_THRESHOLD]
+            unoccupied = eigs[occs < OCCUPATION_THRESHOLD]
+            if occupied.size == 0 or unoccupied.size == 0:
+                continue
+            gap = float(np.amin(unoccupied) - np.amax(occupied))
+            entry = dict(value=max(0.0, gap))
+            spin_channel = bandstructure.get('spin_channel')
+            if spin_channel is not None:
+                entry['spin_channel'] = spin_channel
+            gaps.append(entry)
+        return gaps
 
 
 class DosParser(TextParser):
@@ -671,7 +702,7 @@ class DosParser(TextParser):
             source, (nsp, len(source) // nsp, np.size(source) // len(source))
         ):
             dos_sp_t = dos_sp.T
-            dos.append(dict(value=dos_sp_t[1]))
+            dos.append(dict(energies=dos_sp_t[0], value=dos_sp_t[1]))
         return dos
 
 

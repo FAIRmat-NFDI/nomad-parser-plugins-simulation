@@ -15,24 +15,42 @@ def _parse(mainfile: str) -> EntryArchive:
 
 
 def test_parse_file():
-    """Test basic parsing without crashing."""
     _parse('tests/data/abinit/Fe/Fe.out')
 
 
-def test_convergence_targets_parsing():
-    """Test that convergence targets are parsed and mapped correctly."""
+def test_parse_file_has_core_sections_and_outputs():
     archive = _parse('tests/data/abinit/Fe/Fe.out')
 
-    # Check if workflow exists
+    assert len(archive.data.model_system or []) > 0
+    assert len(archive.data.model_method or []) > 0
+    assert len(archive.data.outputs or []) > 0
+
+    output = archive.data.outputs[0]
+    assert len(output.total_energies or []) > 0
+    assert len(output.total_forces or []) > 0
+    assert len(output.electronic_band_structures or []) > 0
+
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+
+    if output.electronic_band_gaps:
+        band_gap = output.electronic_band_gaps[0]
+        assert band_gap.value is not None
+
+    if output.electronic_dos:
+        dos = output.electronic_dos[0]
+        assert dos.value is not None
+        assert dos.energies is not None
+        assert dos.energies.points is not None
+
+
+def test_convergence_targets_parsing():
+    archive = _parse('tests/data/abinit/Fe/Fe.out')
+
     if archive.workflow2 is not None:
         method = archive.workflow2.method
-
-        # For geometry optimization, check convergence targets
         if hasattr(method, 'convergence_targets') and method.convergence_targets:
-            # Should have energy and force convergence targets
             assert len(method.convergence_targets) > 0
-
-            # Check that targets have proper fields
             for target in method.convergence_targets:
                 assert target.threshold is not None
                 assert target.threshold_type in [
@@ -42,9 +60,7 @@ def test_convergence_targets_parsing():
                     'relative',
                 ]
 
-            # Check for specific target types
             target_names = [t.m_def.name for t in method.convergence_targets]
-            # Abinit typically has energy and force convergence
             assert any('Energy' in name for name in target_names) or any(
                 'Force' in name for name in target_names
             )
@@ -66,15 +82,11 @@ def test_scf_steps_parsing():
     assert len(first_output_steps.energies_total) == 16
     assert len(second_output_steps.energies_total) == 30
 
-    assert first_output_steps.energies_total[0].to('hartree').magnitude == approx(
-        -23.45196
-    )
+    assert first_output_steps.energies_total[0].to('hartree').magnitude == approx(-23.45196)
     assert first_output_steps.energies_total[-1].to('hartree').magnitude == approx(
         -24.6617073
     )
-    first_delta_last = (
-        first_output_steps.delta_energies_total[-1].to('hartree').magnitude
-    )
+    first_delta_last = first_output_steps.delta_energies_total[-1].to('hartree').magnitude
     assert first_delta_last == approx(1.243e-13)
 
     second_delta_last = (
@@ -88,7 +100,6 @@ def test_single_point_workflow_convergence_section():
 
     assert archive.workflow2 is not None
     assert archive.workflow2.m_def.name == 'SinglePoint'
-    # Fe sample does not expose toldfe, so no explicit method targets are populated.
     assert archive.workflow2.method is None
 
 
@@ -116,10 +127,8 @@ def test_geometry_optimization_workflow_convergence_section():
     energy_target = targets_by_name['EnergyConvergenceTarget']
     force_target = targets_by_name['ForceConvergenceTarget']
     assert energy_target.threshold_type == 'relative'
-    # Energy threshold for relative convergence should be dimensionless
     assert energy_target.threshold == approx(0.0)
     assert force_target.threshold_type == 'maximum'
-    # Force threshold may be plain float or Pint Quantity with flexible_unit
     force_threshold = (
         force_target.threshold.to('newton').magnitude
         if hasattr(force_target.threshold, 'to')
