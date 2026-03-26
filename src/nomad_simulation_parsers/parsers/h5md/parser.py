@@ -408,7 +408,7 @@ class H5MDH5Parser(HDF5Parser):
         if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
             try:
                 # Access h5_archive directly (already opened by h5_parser)
-                # Will be closed via h5_parser.close()
+                # It is closed once at the end of archive writing via h5_parser.close().
                 h5_file = self.h5_parser.h5_archive
                 if h5_file and 'observables' in h5_file:
                     obs_path = f'observables/{label}'
@@ -418,8 +418,6 @@ class H5MDH5Parser(HDF5Parser):
                             return obs_group.attrs['type']
             except Exception:
                 pass
-            finally:
-                self.h5_parser.h5_archive.close()
 
         # Fallback to parsed data structure
         return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
