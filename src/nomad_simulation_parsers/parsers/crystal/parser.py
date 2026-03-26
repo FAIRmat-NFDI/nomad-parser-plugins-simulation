@@ -249,10 +249,6 @@ class CrystalOutputParser(TextParser):
             )
         return systems
 
-    def get_band_structures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        pass
-
-
 class CrystalF25Parser(TextParser):
     @property
     def logger(self):
