@@ -4,6 +4,7 @@ from nomad_simulations.schema_packages import (
     model_method,
     model_system,
     outputs,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -41,16 +42,14 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.name')
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-#         out=Mapper(mapper='.name')
-#     )
+class XCFunctional(model_method.XCFunctional):
+    add_mapping_annotation(
+        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', ['.dft'])
+    )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations[MAPPING_ANNOTATION_KEY] = dict(
-#         out=Mapper(mapper=('get_xc_functionals', ['.@']))
-#     )
+class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -65,6 +64,19 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(outputs.ElectronicDensityOfStates.value, F25_KEY, '.values')
 
 
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, F25_KEY, '.energies')
+
+
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value,
+        F25_KEY,
+        '.value',
+        unit='hartree',
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
@@ -74,9 +86,12 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_band_structures,
-        OUT_KEY,
-        ('get_band_structures', ['.band_structure']),
+        F25_KEY,
+        ('get_band_structures', ['.segments']),
     )
+    # TODO(legacy-parity): no explicit crystal band-gap section was populated in
+    # legacy parser output; keep unmapped until dedicated legacy-equivalent source
+    # is confirmed.
 
 
 class Simulation(general.Simulation):
@@ -107,6 +122,7 @@ class SCFSteps(outputs.SCFSteps):
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, F25_KEY, '@')
+add_mapping_annotation(variables.Energy2.m_def, F25_KEY, '.@')
 
 
 try:
