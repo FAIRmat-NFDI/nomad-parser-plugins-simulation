@@ -308,6 +308,21 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
+    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        humo = source.get('humo')
+        lumo = source.get('lumo')
+        if humo is None or lumo is None:
+            return []
+
+        gap = lumo - humo
+        if hasattr(gap, 'magnitude'):
+            if gap.magnitude < 0:
+                gap = 0 * gap.units
+        elif gap < 0:
+            gap = 0.0
+
+        return [dict(value=gap)]
+
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
         if not scf_iterations:

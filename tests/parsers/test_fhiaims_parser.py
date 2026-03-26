@@ -65,3 +65,24 @@ def test_scf_steps_quantities():
     assert first_steps.delta_density_rms[-1].to('coulomb').magnitude == approx(
         6.375e-08 * 1.602176634e-19
     )
+
+
+def test_electronic_outputs_mapping():
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+    if output.electronic_dos:
+        sec_dos = output.electronic_dos[0]
+        assert sec_dos.value is not None
+        assert sec_dos.energies is not None
+        assert sec_dos.energies.points is not None
+
+    if output.electronic_band_gaps:
+        sec_gap = output.electronic_band_gaps[0]
+        assert sec_gap.value is not None
