@@ -271,7 +271,6 @@ class CrystalF25Parser(TextParser):
         first_row = source['first_row']
         cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
-        # fermi_energy = first_row[4]
         second_row = source['second_row']
         start_energy = second_row[1]
         dos_values = self.to_array(cols, rows, source['values']).T
@@ -282,6 +281,23 @@ class CrystalF25Parser(TextParser):
             )
             for n in range(len(dos_values))
         ]
+
+    def get_band_structures(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not source:
+            return []
+
+        band_structures = []
+        for segment in source:
+            first_row = segment.get('first_row')
+            energies = segment.get('energies')
+            if first_row is None or energies is None:
+                continue
+
+            cols, rows = (int(first_row[n]) for n in range(2))
+            values = self.to_array(cols, rows, energies)
+            band_structures.append(dict(value=values[None, :]))
+
+        return band_structures
 
 
 class CrystalMetainfoParser(MetainfoParser):
