@@ -77,6 +77,8 @@ class Outputs(outputs.Outputs):
         EIGENVALUES_KEY,
         ('get_eigenvalues', ['eigenvalues']),
     )
+    # TODO(legacy-parity): legacy Octopus parser did not populate explicit
+    # electronic DOS, band-structure, or band-gap result sections.
 
 
 class Simulation(general.Simulation):
