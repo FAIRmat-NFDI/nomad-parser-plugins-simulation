@@ -491,7 +491,7 @@ class VasprunParser(XMLParser):
 
 class XMLArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
-        from nomad_simulation_parsers.schema_packages.vasp import Simulation
+        from nomad_simulations.schema_packages.general import Simulation
 
         data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()

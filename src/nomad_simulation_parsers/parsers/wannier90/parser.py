@@ -381,7 +381,8 @@ class WannierArchiveWriter(ArchiveWriter):
         """
         workflow = SinglePoint()
         workflow.normalize(archive=self.archive, logger=self.logger)
-        self.archive.workflow2 = workflow
+        # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
+        # self.archive.workflow2 = workflow
 
         # dft+tb workflow
         if self.child_archives:
@@ -395,12 +396,13 @@ class WannierArchiveWriter(ArchiveWriter):
             )
 
             workflow_archive = self.child_archives[dft_file]
-            workflow_archive.workflow2 = DFTTBDMFTWorkflow(
-                tasks=[
-                    TaskReference(task=dft_archive.workflow2),
-                    TaskReference(task=self.archive.workflow2),
-                ]
-            )
+            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
+            # workflow_archive.workflow2 = DFTTBDMFTWorkflow(
+            #     tasks=[
+            #         TaskReference(task=dft_archive.workflow2),
+            #         TaskReference(task=self.archive.workflow2),
+            #     ]
+            # )
 
     def parse_input(self) -> None:
         """
@@ -479,8 +481,6 @@ class WannierArchiveWriter(ArchiveWriter):
         wband_parser.close()
 
     def write_to_archive(self) -> None:
-        from nomad_simulation_parsers.schema_packages.wannier90 import Simulation
-
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
         # define mapping parser interface to OutParser
@@ -488,6 +488,8 @@ class WannierArchiveWriter(ArchiveWriter):
         self.wout_parser.filepath = self.mainfile
 
         # construct metainfo parser
+        from nomad_simulations.schema_packages.general import Simulation
+
         data = Simulation()
         self.data_parser = Wannier90MetainfoParser()
         self.data_parser.annotation_key = wannier90.WOUT_KEY

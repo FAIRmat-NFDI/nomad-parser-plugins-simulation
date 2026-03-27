@@ -143,7 +143,7 @@ class GPAWArchiveWriter(ArchiveWriter):
     archive_parser = GPAWMetainfoParser()
 
     def write_to_archive(self):
-        from nomad_simulation_parsers.schema_packages.gpaw import Simulation
+        from nomad_simulations.schema_packages.general import Simulation
 
         self.mainfile_parser.filepath = self.mainfile
         self.archive_parser.annotation_key = gpaw.GPW_KEY

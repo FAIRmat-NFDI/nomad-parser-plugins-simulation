@@ -383,7 +383,7 @@ class EigvalParser(TextParser):
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0915
         reload(exciting)
-        from nomad_simulation_parsers.schema_packages.exciting import Simulation
+        from nomad_simulations.schema_packages.general import Simulation
 
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
@@ -477,7 +477,8 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
-            self.archive.workflow2 = workflow
+            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
+            # self.archive.workflow2 = workflow
         else:  # here should come more standard workflows - for now only single point
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
@@ -496,7 +497,8 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
-            self.archive.workflow2 = workflow
+            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
+            # self.archive.workflow2 = workflow
 
         # close parsers
         info_parser.close()
