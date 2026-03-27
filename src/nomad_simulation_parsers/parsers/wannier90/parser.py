@@ -12,7 +12,6 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -480,6 +479,8 @@ class WannierArchiveWriter(ArchiveWriter):
         wband_parser.close()
 
     def write_to_archive(self) -> None:
+        from nomad_simulation_parsers.schema_packages.wannier90 import Simulation
+
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
         # define mapping parser interface to OutParser
