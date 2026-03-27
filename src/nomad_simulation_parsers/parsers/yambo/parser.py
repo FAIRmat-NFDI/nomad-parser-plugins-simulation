@@ -16,7 +16,6 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import yambo
@@ -296,6 +295,8 @@ class YamboMainfileParser(TextParser):
 
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
+        from nomad_simulation_parsers.schema_packages.yambo import Simulation
+
         data = Simulation()
 
         self.archive.data = data

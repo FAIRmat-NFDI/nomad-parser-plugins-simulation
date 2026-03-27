@@ -11,7 +11,6 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -600,6 +599,8 @@ class OutcarArchiveWriter(ArchiveWriter):
         return workflow
 
     def write_to_archive(self) -> None:
+        from nomad_simulation_parsers.schema_packages.vasp import Simulation
+
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
