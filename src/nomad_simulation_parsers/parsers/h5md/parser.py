@@ -8,9 +8,14 @@ from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser,
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad_simulation_parsers.parsers.utils.mdparserutils import (
+    MDParser,
+    particle_state_payloads_from_labels,
+    particle_states_from_labels,
+)
 from nomad_simulation_parsers.schema_packages import h5md
 
 LOGGER = get_logger(__name__)
@@ -167,7 +172,7 @@ class H5MDH5Parser(HDF5Parser):
 
         source_data = self.get_source(self.data, kwargs['path'])
 
-        return [{'chemical_symbol': s, 'label': s} for s in source_data]
+        return particle_state_payloads_from_labels(source_data)
 
     def get_top_system_quantity(
         self, source: dict[str, Any], **kwargs
@@ -510,6 +515,19 @@ class H5MDArchiveWriter(MDParser):
         # map from h5 source to metainfo target
         self.h5_parser.convert(self.simulation_parser)
         self.h5_parser.convert(self.workflow_parser)
+
+        for model_system in self.simulation_parser.data_object.model_system:
+            if not model_system.particle_states:
+                continue
+            if not all(
+                type(particle_state) is ParticleState
+                for particle_state in model_system.particle_states
+            ):
+                continue
+            labels = [
+                particle_state.label for particle_state in model_system.particle_states
+            ]
+            model_system.particle_states = particle_states_from_labels(labels)
 
         # assign simulation to archive data
         self.archive.data = self.simulation_parser.data_object
