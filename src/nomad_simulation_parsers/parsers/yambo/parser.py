@@ -295,7 +295,7 @@ class YamboMainfileParser(TextParser):
 
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
-        from nomad_simulation_parsers.schema_packages.yambo import Simulation
+        from nomad_simulations.schema_packages.general import Simulation
 
         data = Simulation()
 

@@ -599,7 +599,7 @@ class OutcarArchiveWriter(ArchiveWriter):
         return workflow
 
     def write_to_archive(self) -> None:
-        from nomad_simulation_parsers.schema_packages.vasp import Simulation
+        from nomad_simulations.schema_packages.general import Simulation
 
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
