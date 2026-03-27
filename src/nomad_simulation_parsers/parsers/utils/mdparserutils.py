@@ -59,7 +59,7 @@ def particle_state_payloads_from_labels(
     Otherwise the whole set falls back to CG bead payloads to avoid mixing
     semantic meanings across particle-state subclasses.
     """
-    label_list = list(labels or [])
+    label_list = [] if labels is None else list(labels)
     if not label_list:
         return []
 

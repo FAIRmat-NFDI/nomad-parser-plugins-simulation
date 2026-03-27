@@ -39,6 +39,23 @@ def test_particle_state_payloads_from_labels_falls_back_to_cg_for_missing_labels
     ]
 
 
+def test_particle_state_payloads_from_numpy_array_labels():
+    payloads = particle_state_payloads_from_labels(np.array(['H', 'O']))
+
+    assert payloads == [
+        {
+            'm_def': AtomsState.m_def.qualified_name(),
+            'chemical_symbol': 'H',
+            'label': 'H',
+        },
+        {
+            'm_def': AtomsState.m_def.qualified_name(),
+            'chemical_symbol': 'O',
+            'label': 'O',
+        },
+    ]
+
+
 def test_parse_trajectory_step_uses_atomic_particle_states():
     parser = MDParser()
     parser.trajectory_steps = [0]
