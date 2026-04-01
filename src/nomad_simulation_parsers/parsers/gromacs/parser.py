@@ -603,6 +603,8 @@ class GromacsXVGParser(TextParser):
     #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
     # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
     _XVG_FIXED_COLUMNS = 4
+    # Expected number of array dimensions in column_vals.
+    _XVG_EXPECTED_NDIM = 2
     # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
     _XVG_DIFF_OFFSET = 2
 
@@ -624,7 +626,7 @@ class GromacsXVGParser(TextParser):
         columns = self.data.get('column_vals')
         if (
             columns is None
-            or columns.ndim != 2
+            or columns.ndim != self._XVG_EXPECTED_NDIM
             or columns.shape[1] < self._XVG_FIXED_COLUMNS
         ):
             return results

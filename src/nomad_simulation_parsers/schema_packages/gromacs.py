@@ -12,7 +12,6 @@ from nomad_simulations.schema_packages.workflow import (
 from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
     molecular_dynamics,
-    trajectory,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
