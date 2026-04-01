@@ -150,6 +150,21 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
         input_parameters = data_object.get('input_parameters') or {}
         normalize(input_parameters)
+
+        # GROMACS log files may place top-level parameters inside named
+        # subsection blocks (e.g. `qm-opts:`) due to indentation structure.
+        # Lift any scalar values from nested subsections to the top level so
+        # that transformer functions can access them via flat key lookup.
+        # Existing top-level keys are never overwritten.
+        def _hoist_nested(d: dict[str, Any]) -> None:
+            for val in list(d.values()):
+                if isinstance(val, dict):
+                    _hoist_nested(val)
+                    for k, v in val.items():
+                        if not isinstance(v, dict) and k not in input_parameters:
+                            input_parameters[k] = v
+
+        _hoist_nested(input_parameters)
         data_object._results['input_parameters'] = input_parameters
 
         return data_object
@@ -418,6 +433,17 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         'umbrella': 'umbrella_sampling',
     }
 
+    # Maps GROMACS all-lambdas keys to Lambdas.interaction_type values.
+    _LAMBDA_INTERACTION_MAP = {
+        'fep-lambdas': 'fep',
+        'mass-lambdas': 'mass',
+        'coul-lambdas': 'coulomb',
+        'vdw-lambdas': 'vdw',
+        'bonded-lambdas': 'bonded',
+        'restraint-lambdas': 'restraint',
+        'temperature-lambdas': 'temperature',
+    }
+
     def get_free_energy_calc_type(
         self, input_params: dict[str, Any] | None
     ) -> str | None:
@@ -430,17 +456,68 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         result = self._FREE_ENERGY_CALC_TYPE_MAP.get(str(value).lower())
         return result
 
-    def get_current_lambdas(self, input_params: dict[str, Any]) -> np.ndarray | None:
+    def get_lambdas_schedule(
+        self, input_params: dict[str, Any] | None
+    ) -> list[dict[str, Any]] | None:
+        """
+        Build one dict per non-zero interaction from the all-lambdas block.
+        Skips rows where all values are zero (inactive interactions).
+        """
         result = None
         if not input_params:
             return result
-        init_lambda = input_params.get('init-lambda')
-        if init_lambda is None:
+        all_lambdas = input_params.get('all-lambdas')
+        if not all_lambdas:
+            return result
+        softcore_enabled = float(input_params.get('sc-alpha', 0.0)) != 0.0
+        softcore = {
+            'softcore_enabled': softcore_enabled,
+            'softcore_alpha': input_params.get('sc-alpha'),
+            'softcore_p': input_params.get('sc-power'),
+            'softcore_sigma': input_params.get('sc-sigma'),
+        }
+        entries = []
+        for key, interaction_type in self._LAMBDA_INTERACTION_MAP.items():
+            raw = all_lambdas.get(key)
+            if raw is None:
+                continue
+            try:
+                values = np.array([float(v) for v in str(raw).split()])
+            except (TypeError, ValueError):
+                self.logger.warning(
+                    'Could not parse lambda grid for %s: %s', key, raw
+                )
+                continue
+            if not np.any(values != 0.0):
+                continue
+            entry: dict[str, Any] = {
+                'interaction_type': interaction_type,
+                'values': values,
+            }
+            entry.update(softcore)
+            entries.append(entry)
+        if entries:
+            result = entries
+        return result
+
+    def get_current_lambdas(
+        self, input_params: dict[str, Any] | None
+    ) -> np.ndarray | None:
+        """Per-interaction lambda values at the current state index."""
+        result = None
+        if not input_params:
+            return result
+        state_index = self.get_lambda_state_index(input_params)
+        schedules = self.get_lambdas_schedule(input_params)
+        if state_index is None or not schedules:
             return result
         try:
-            result = np.array([float(init_lambda)])
-        except (TypeError, ValueError):
-            self.logger.warning('Could not parse init-lambda value: %s', init_lambda)
+            result = np.array([s['values'][state_index] for s in schedules])
+        except IndexError:
+            self.logger.warning(
+                'init-lambda-state %d is out of range for the lambda grids.',
+                state_index,
+            )
         return result
 
     def get_lambda_state_index(
@@ -522,6 +599,13 @@ class GromacsEDRParser(GromacsThermodynamicsParser):
 
 
 class GromacsXVGParser(TextParser):
+    # XVG free-energy column layout:
+    #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
+    # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
+    _XVG_FIXED_COLUMNS = 4
+    # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
+    _XVG_DIFF_OFFSET = 2
+
     input_parameters = {}
 
     # TODO: temporary fix for structlog unable to propagate logger
@@ -538,19 +622,32 @@ class GromacsXVGParser(TextParser):
 
         free_energy = results.setdefault('free_energy_calculations', {})
         columns = self.data.get('column_vals')
+        if (
+            columns is None
+            or columns.ndim != 2
+            or columns.shape[1] < self._XVG_FIXED_COLUMNS
+        ):
+            return results
+        # Column layout: time | E_total | dH/dlambda | ΔH[0..n-1] | PV
+        n_states = columns.shape[1] - self._XVG_FIXED_COLUMNS
         free_energy['n_frames'] = len(columns)
         free_energy['value_unit'] = str(ENERGY_UNIT.units)
-        # TODO get n_states from input_parameters
-        free_energy['n_states'] = self.input_parameters.get('n_states')
+        free_energy['n_states'] = n_states
         xaxis = self.data.get('xaxis', '').lower()
         # The expected columns of the xvg file are:
-        # Total Energy
-        # dH/dlambda current lambda
-        # Delta H between each lambda and current lambda (n_lambda columns)
+        # time, Total Energy, dH/dlambda current lambda,
+        # Delta H between each lambda and current lambda (n_states columns),
         # PV Energy
-        if 'time' in xaxis and columns[:, 3:-1].shape[1] == free_energy['n_states']:
+        if 'time' in xaxis:
             free_energy['times'] = columns[:, 0] * ureg.ps
-            columns = columns[:, 1:] * ENERGY_UNIT.magnitude
+            energy_cols = columns[:, 1:] * ENERGY_UNIT.magnitude
+            free_energy['value_total_energy'] = energy_cols[:, 0]
+            free_energy['value_total_energy_derivative'] = energy_cols[:, 1]
+            diff_start = self._XVG_DIFF_OFFSET
+            free_energy['value_total_energy_differences'] = (
+                energy_cols[:, diff_start : diff_start + n_states]
+            )
+            free_energy['value_PV_energy'] = energy_cols[:, diff_start + n_states]
 
         return results
 
@@ -1091,7 +1188,7 @@ class GromacsArchiveWriter(MDParser):
         self._basename = os.path.basename(self.mainfile).rsplit('.', 1)[0]
 
         # set up source parsers
-        self._log_parser.filepath = self.mainfile
+        self._log_parser.filepath = self.get_gromacs_file('log')
         self._edr_parser.filepath = self.get_gromacs_file('edr')
         self._mdanalysis_parser.filepath = self.get_gromacs_file('tpr')
         # TODO include input parameters read from mdp parser
@@ -1113,6 +1210,7 @@ class GromacsArchiveWriter(MDParser):
             **self._log_parser.data_object.get('input_parameters', {}),
             **self._mdp_parser.data_object.get('input_parameters', {}),
         }
+        self._xvg_parser.input_parameters = self.input_parameters
 
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)

@@ -12,6 +12,7 @@ from nomad_simulations.schema_packages.workflow import (
 from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
     molecular_dynamics,
+    trajectory,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -409,6 +410,28 @@ add_mapping_annotation(
     molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index,
     LOG_KEY,
     ('get_lambda_state_index', ['.input_parameters']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.lambdas,
+    LOG_KEY,
+    ('get_lambdas_schedule', ['.input_parameters']),
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.m_def, LOG_KEY, '@')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.interaction_type, LOG_KEY, '.interaction_type'
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.values, LOG_KEY, '.values')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_enabled, LOG_KEY, '.softcore_enabled'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_alpha, LOG_KEY, '.softcore_alpha'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_p, LOG_KEY, '.softcore_p'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_sigma, LOG_KEY, '.softcore_sigma'
 )
 
 
