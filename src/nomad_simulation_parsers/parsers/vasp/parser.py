@@ -20,14 +20,14 @@ class VASPParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] = {},
     ) -> None:
-        # run the old parser
-        # TODO remove
-        from electronicparsers.vasp.parser import VASPParser  # noqa
-
-        VASPParser().parse(mainfile, archive, logger)
-
         if 'outcar' in mainfile.lower():
             archive_writer = OutcarArchiveWriter()
         else:
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.vasp.parser import VASPParser  # noqa
+
+        VASPParser().parse(mainfile, archive, logger)
