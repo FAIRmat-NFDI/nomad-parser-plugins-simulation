@@ -36,7 +36,7 @@ services:
 
 ```bash
 # Install GUI testing dependencies (Playwright + pytest-playwright)
-uv pip install -e ".[gui]"
+uv pip install -e ".[gui-test]"
 
 # Install browser binaries (~300MB for Chromium)
 uv run playwright install chromium

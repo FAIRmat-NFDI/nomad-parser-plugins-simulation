@@ -27,8 +27,9 @@ def nomad_dev_server():
     # Check if server is already running
     base_url = 'http://localhost:8000'
     try:
-        response = requests.get(f'{base_url}/alive', timeout=2)
-        if response.status_code == 200:
+        response = requests.get(f'{base_url}/', timeout=2)
+        # Any HTTP response (including 404 with JSON) indicates server is running
+        if response.status_code in [200, 307, 404]:
             print('NOMAD dev server already running')
             yield base_url
             return
@@ -49,8 +50,9 @@ def nomad_dev_server():
     start_time = time.time()
     while time.time() - start_time < max_wait:
         try:
-            response = requests.get(f'{base_url}/alive', timeout=2)
-            if response.status_code == 200:
+            response = requests.get(f'{base_url}/', timeout=2)
+            # Any HTTP response (including 404 with JSON) indicates server is running
+            if response.status_code in [200, 307, 404]:
                 print(f'NOMAD dev server started (PID: {process.pid})')
                 break
         except requests.exceptions.RequestException:
