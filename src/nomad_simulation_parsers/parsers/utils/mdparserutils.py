@@ -223,6 +223,9 @@ class MDParser(ArchiveWriter):
     ) -> None:
         """
         Create a system section and write the provided data.
+        Particle labels are resolved at parse time: if all labels are valid
+        element symbols, `AtomsState` instances are created; otherwise generic
+        `ParticleState` instances are used (e.g. for coarse-grained beads).
         """
         if simulation is None:
             return
