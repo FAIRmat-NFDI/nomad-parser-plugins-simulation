@@ -528,8 +528,6 @@ class QuantumEspressoParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
         self.level = len(child_archives)
-        archive_writer = QuantumEspressoArchiveWriter()
-        archive_writer.write(mainfile, archive, logger, child_archives)
 
         # TODO add this in the archive writer
         if archive.data and archive.data.outputs:
@@ -558,3 +556,6 @@ class QuantumEspressoParser(MatchingParser):
 
         if parser is not None:
             parser().parse(mainfile, archive, logger)
+
+        archive_writer = QuantumEspressoArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)
