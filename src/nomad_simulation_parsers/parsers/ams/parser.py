@@ -342,10 +342,9 @@ class AMSParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
-
         # run the old parser
         # TODO remove
         from electronicparsers.ams.parser import AMSParser  # noqa
 
         AMSParser().parse(mainfile, archive, logger)
+        self.archive_writer.write(mainfile, archive, logger, child_archives)

@@ -848,11 +848,11 @@ class AbinitParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        archive_writer = AbinitArchiveWriter()
-        archive_writer.write(mainfile, archive, logger, child_archives)
-     
         # run the old parser
         # TODO remove
         from electronicparsers.abinit.parser import AbinitParser  # noqa
 
         AbinitParser().parse(mainfile, archive, logger)
+
+        archive_writer = AbinitArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)
