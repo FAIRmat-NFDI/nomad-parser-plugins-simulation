@@ -309,7 +309,7 @@ class OctopusMainfileParser(TextParser):
                 if filename is None:
                     continue
                 try:
-                    atoms = read(os.path.join(self.maindir, filename), format=fformat)
+                    atoms = read(os.path.join(self._maindir, filename), format=fformat)
                 except Exception:
                     self.logger.error(
                         'Error reading coordinates file', data=dict(filename=filename)

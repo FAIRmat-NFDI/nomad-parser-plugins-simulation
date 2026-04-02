@@ -117,6 +117,7 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     k_mesh = k_space.k_mesh[0]
     assert k_mesh.m_def.name == 'KMesh'
 
+<<<<<<< HEAD
     # Check k-grid values
     assert k_mesh.grid is not None
     assert list(k_mesh.grid) == [8, 8, 8]
@@ -124,3 +125,11 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     # Check k_offset values (default or explicit)
     assert k_mesh.offset is not None
     assert list(k_mesh.offset) == approx(expected_offset)
+=======
+    if output.electronic_band_gaps:
+        assert output.electronic_band_gaps[0].value is not None
+
+    if output.electronic_eigenvalues:
+        assert output.electronic_band_structures is not None
+        assert output.electronic_band_structures[0].value is not None
+>>>>>>> 2d1c3b0 (patch outputs and octopus reader)

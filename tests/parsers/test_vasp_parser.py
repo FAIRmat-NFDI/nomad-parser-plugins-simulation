@@ -1,6 +1,11 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+import pytest
 from pytest import approx
 
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
@@ -137,3 +142,22 @@ def test_xml_geometry_optimization_convergence_and_scf_steps():
         assert len(scf_steps.energies_total) == n_scf
         assert len(scf_steps.delta_energies_total) == n_scf - 1
         assert len(scf_steps.durations) == n_scf
+
+
+def test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'BS-vasp.zip'
+    if not zip_path.is_file():
+        pytest.skip('BS-vasp.zip fixture not available in repository root test_data.')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        archive = _parse(str(Path(tmpdir) / 'vasprun.xml'))
+        output = archive.data.outputs[0]
+
+        assert output.electronic_band_structures is not None
+        assert len(output.electronic_band_structures) > 0
+        assert output.electronic_dos is not None
+        assert len(output.electronic_dos) > 0

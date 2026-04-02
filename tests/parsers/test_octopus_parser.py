@@ -1,5 +1,10 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
+import pytest
 
 from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 
@@ -69,3 +74,32 @@ def test_outputs_contract_for_normalizer():
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
+
+
+def test_root_test_data_octopus_zip_populates_system_from_xyz_sidefile():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'wrZsJFzHT-q4r3MF3H83lA-octopus.zip'
+    if not zip_path.is_file():
+        pytest.skip(
+            'wrZsJFzHT-q4r3MF3H83lA-octopus.zip fixture not available in repository root test_data.'
+        )
+
+    parser = OctopusParser()
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        parser.parse(str(Path(tmpdir) / 'output.out'), archive, LOGGER)
+
+    assert archive.data is not None
+    assert archive.data.model_system is not None
+    assert len(archive.data.model_system) > 0
+
+    representative = next(
+        (s for s in archive.data.model_system if getattr(s, 'is_representative', False)),
+        archive.data.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.particle_states is not None
+    assert len(representative.particle_states) > 0
