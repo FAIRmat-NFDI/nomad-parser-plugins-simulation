@@ -54,7 +54,7 @@ md = [
     "MDAnalysis>=2.4.0",
 ]
 dev = ["ruff", "pytest", "structlog"]
-gui = ["pytest-playwright", "playwright", "pyyaml"]  # GUI testing with Playwright
+gui-test = ["pytest-playwright", "playwright", "pyyaml"]  # GUI testing with Playwright
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
