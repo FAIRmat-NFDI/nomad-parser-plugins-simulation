@@ -24,8 +24,6 @@ import numpy as np
 from ase.symbols import symbols2numbers
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
-
-# from runschema.method import Interaction, Model
 from nomad_simulations.schema_packages import workflow
 from nomad_simulations.schema_packages.atoms_state import (
     AtomsState,
@@ -33,11 +31,7 @@ from nomad_simulations.schema_packages.atoms_state import (
     ParticleState,
 )
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import (
-    ModelSystem,
-)
-
-# nomad-simulations
+from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages.outputs import (
     TotalEnergy,
     TotalForce,
