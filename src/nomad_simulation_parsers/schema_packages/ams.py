@@ -26,6 +26,11 @@ class AtomsState(model_system.AtomsState):
 
 class Representation(model_system.Representation):
     add_mapping_annotation(model_system.Representation.lattice_vectors, OUT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -58,13 +63,13 @@ class ModelSystem(model_system.ModelSystem):
 #     )
 
 
-# class TotalEnergy(outputs.TotalEnergy):
-#     outputs.TotalEnergy.value.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.value || .energy_total')))
-#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
+class TotalEnergy(outputs.TotalEnergy):
+    add_mapping_annotation(outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total')
+    add_mapping_annotation(
+        outputs.TotalEnergy.contributions,
+        OUT_KEY,
+        ('get_contributions', ['.energies']),
+    )
 
 
 class TotalForce(outputs.TotalForce):
@@ -81,9 +86,9 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     )
 
     # class Outputs(outputs.Outputs):
-    #     outputs.Outputs.total_energies.m_annotations.setdefault(
-    #         MAPPING_ANNOTATION_KEY, {}
-    #     ).update(dict(out=Mapper(mapper='.@')))
+    outputs.Outputs.total_energies.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.@')))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper='.@')))
