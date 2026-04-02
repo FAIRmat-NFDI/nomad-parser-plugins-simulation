@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     pass
 
 import re
+import os
 
 import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
@@ -29,6 +30,8 @@ from nomad_simulation_parsers.schema_packages import vasp
 
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
+N_SPIN_CHANNELS = 2
+OCCUPATION_THRESHOLD = 0.5
 
 
 def get_key_values(val_in):
@@ -426,15 +429,127 @@ class OutcarParser(MappingTextParser):
         data = []
         for nspin in range(ispin):
             eigs, occs = eigenvalues[nspin].T[1:3]
-            data.append(
-                dict(
-                    eigenvalues=eigs.T,
-                    occupations=occs.T,
-                    n_bands=n_bands,
-                    npoints=n_kpts,
-                )
+            entry = dict(
+                eigenvalues=eigs.T,
+                occupations=occs.T,
+                n_bands=n_bands,
+                npoints=n_kpts,
             )
+            if ispin == N_SPIN_CHANNELS:
+                entry['spin_channel'] = nspin
+            data.append(entry)
         return data
+
+    def get_band_structures(
+        self, eigenvalues: np.ndarray, parameters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        band_structures = []
+        for eig in self.get_eigenvalues(eigenvalues, parameters):
+            entry = dict(
+                value=eig.get('eigenvalues'),
+                occupation=eig.get('occupations'),
+                n_levels=eig.get('n_bands'),
+            )
+            spin_channel = eig.get('spin_channel')
+            if spin_channel is not None:
+                entry['spin_channel'] = spin_channel
+            band_structures.append(entry)
+        return band_structures
+
+    def get_band_gaps(
+        self, eigenvalues: np.ndarray, parameters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        band_gaps = []
+        for eig in self.get_eigenvalues(eigenvalues, parameters):
+            values = np.asarray(eig.get('eigenvalues'))
+            occupations = np.asarray(eig.get('occupations'))
+            if values.size == 0 or occupations.size == 0:
+                continue
+
+            occupied = values[occupations >= OCCUPATION_THRESHOLD]
+            unoccupied = values[occupations < OCCUPATION_THRESHOLD]
+            if occupied.size == 0:
+                valence_max = np.amin(values) - 1.0
+            else:
+                valence_max = np.amax(occupied)
+            if unoccupied.size == 0:
+                conduction_min = np.amin(values) - 1.0
+            else:
+                conduction_min = np.amin(unoccupied)
+
+            entry = dict(value=max(0.0, float(conduction_min - valence_max)))
+            spin_channel = eig.get('spin_channel')
+            if spin_channel is not None:
+                entry['spin_channel'] = spin_channel
+            band_gaps.append(entry)
+
+        return band_gaps
+
+    def get_total_dos(self) -> list[dict[str, Any]]:
+        maindir = os.path.dirname(self.filepath)
+        outcar_suffix = os.path.basename(self.filepath).strip('OUTCAR')
+        doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
+        doscar_path = (
+            doscar_candidate if os.path.isfile(doscar_candidate) else os.path.join(maindir, 'DOSCAR')
+        )
+        if not os.path.isfile(doscar_path):
+            return []
+
+        try:
+            with open(doscar_path) as f:
+                lines = f.readlines()
+        except Exception:
+            return []
+
+        if len(lines) < 7:
+            return []
+
+        header = lines[5].split()
+        if len(header) < 4:
+            return []
+
+        try:
+            n_points = int(float(header[2]))
+            e_fermi = float(header[3])
+        except Exception:
+            return []
+
+        dos_rows = []
+        for line in lines[6 : 6 + n_points]:
+            vals = line.split()
+            if not vals:
+                continue
+            try:
+                dos_rows.append([float(v) for v in vals])
+            except Exception:
+                continue
+        if not dos_rows:
+            return []
+
+        dos_data = np.asarray(dos_rows, dtype=float)
+        n_cols = dos_data.shape[1]
+        energies = dos_data[:, 0]
+
+        if n_cols >= 5:
+            return [
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 1]),
+                    spin_channel=0,
+                    energy_fermi=e_fermi,
+                ),
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 2]),
+                    spin_channel=1,
+                    energy_fermi=e_fermi,
+                ),
+            ]
+
+        if n_cols >= 2:
+            return [dict(energies=energies, value=np.abs(dos_data[:, 1]), energy_fermi=e_fermi)]
+
+        return []
 
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = []

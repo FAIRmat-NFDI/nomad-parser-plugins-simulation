@@ -290,6 +290,11 @@ class Outputs(outputs.Outputs):
         ('get_band_structures', ['.eigenvalues']),
     )
     add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        OUTCAR_KEY,
+        ('get_band_structures', ['.eigenvalues', 'parameters']),
+    )
+    add_mapping_annotation(
         outputs.Outputs.electronic_band_gaps,
         XML_KEY,
         ('get_band_gaps', ['.eigenvalues']),
@@ -300,6 +305,11 @@ class Outputs(outputs.Outputs):
         ('get_band_gaps', ['.eigenvalues']),
     )
     add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        OUTCAR_KEY,
+        ('get_band_gaps', ['.eigenvalues', 'parameters']),
+    )
+    add_mapping_annotation(
         outputs.Outputs.electronic_dos,
         XML_KEY,
         ('get_total_dos', ['.dos']),
@@ -308,6 +318,11 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_dos,
         XML2_KEY,
         ('get_total_dos', ['.dos']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        OUTCAR_KEY,
+        ('get_total_dos', []),
     )
 
 
@@ -423,16 +438,25 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
         outputs.ElectronicBandStructure.value, XML2_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, OUTCAR_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
         outputs.ElectronicBandStructure.occupation, XML_KEY, '.occupation'
     )
     add_mapping_annotation(
         outputs.ElectronicBandStructure.occupation, XML2_KEY, '.occupation'
     )
     add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, OUTCAR_KEY, '.occupation'
+    )
+    add_mapping_annotation(
         outputs.ElectronicBandStructure.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
         outputs.ElectronicBandStructure.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, OUTCAR_KEY, '.spin_channel'
     )
 
 
@@ -444,16 +468,25 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
         outputs.ElectronicBandGap.value, XML2_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
+        outputs.ElectronicBandGap.value, OUTCAR_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
         outputs.ElectronicBandGap.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
         outputs.ElectronicBandGap.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUTCAR_KEY, '.spin_channel'
     )
 
 
 class Energy2(variables.Energy2):
     add_mapping_annotation(variables.Energy2.points, XML_KEY, '.energies', unit='eV')
     add_mapping_annotation(variables.Energy2.points, XML2_KEY, '.energies', unit='eV')
+    add_mapping_annotation(
+        variables.Energy2.points, OUTCAR_KEY, '.energies', unit='eV'
+    )
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
@@ -464,10 +497,16 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
         outputs.ElectronicDensityOfStates.value, XML2_KEY, '.value', unit='1/eV'
     )
     add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, OUTCAR_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
         outputs.ElectronicDensityOfStates.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, OUTCAR_KEY, '.spin_channel'
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.energies_origin,
@@ -481,8 +520,15 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
         '.energy_fermi',
         unit='eV',
     )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        OUTCAR_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
     add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
+    add_mapping_annotation(variables.Energy2.m_def, OUTCAR_KEY, '.@')
 
 
 try:
