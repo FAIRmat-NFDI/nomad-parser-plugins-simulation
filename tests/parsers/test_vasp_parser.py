@@ -57,6 +57,30 @@ def test_outcar():
     assert sec_system.periodic_boundary_conditions == [True, True, True]
 
 
+def test_outcar_electronic_outputs_from_doscar_and_eigenvalues():
+    archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+
+    assert output.electronic_band_structures is not None
+    assert len(output.electronic_band_structures) > 0
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+
+    if output.electronic_band_gaps:
+        assert output.electronic_band_gaps[0].value is not None
+
+    assert output.electronic_dos is not None
+    assert len(output.electronic_dos) > 0
+    dos = output.electronic_dos[0]
+    assert dos.value is not None
+    assert dos.energies is not None
+    assert dos.energies.points is not None
+
+
 def test_outcar_scf_steps_and_single_point_convergence():
     archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
     workflow = archive.workflow2
