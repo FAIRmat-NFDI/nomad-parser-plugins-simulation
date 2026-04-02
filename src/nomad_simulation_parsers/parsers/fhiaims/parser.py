@@ -289,6 +289,23 @@ class FHIAimsOutMappingParser(TextMappingParser):
                 )
         return eigenvalues
 
+    def get_band_structures(
+        self, source: list[dict[str, Any]], params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        band_structures = []
+        for spin_channel, eig in enumerate(self.get_eigenvalues(source, params)):
+            values = eig.get('eigenvalues')
+            if values is None:
+                continue
+            band_structures.append(
+                dict(
+                    value=values,
+                    occupation=eig.get('occupations'),
+                    spin_channel=spin_channel,
+                )
+            )
+        return band_structures
+
     def get_energies(self, source: dict[str, Any]) -> dict[str, Any]:
         total_keys = ['Total energy uncorrected', 'Total energy']
         energies = {}

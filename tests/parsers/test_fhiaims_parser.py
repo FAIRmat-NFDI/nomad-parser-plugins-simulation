@@ -77,6 +77,18 @@ def test_electronic_outputs_mapping():
     assert len(outputs) > 0
 
     output = outputs[0]
+    if output.electronic_eigenvalues:
+        eig = output.electronic_eigenvalues[0]
+        assert eig.value is not None
+        assert eig.occupation is not None
+
+        # Band-structure compatibility payload should be present when eigenvalues
+        # are available from the parser output.
+        assert output.electronic_band_structures is not None
+        assert len(output.electronic_band_structures) > 0
+        sec_bs = output.electronic_band_structures[0]
+        assert sec_bs.value is not None
+
     if output.electronic_dos:
         sec_dos = output.electronic_dos[0]
         assert sec_dos.value is not None
@@ -135,3 +147,7 @@ def test_outputs_contract_for_normalizer():
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
+
+    if output.electronic_eigenvalues:
+        assert output.electronic_band_structures is not None
+        assert output.electronic_band_structures[0].value is not None

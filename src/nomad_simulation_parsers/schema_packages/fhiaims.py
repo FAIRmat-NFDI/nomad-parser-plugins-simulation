@@ -158,6 +158,11 @@ class Outputs(outputs.Outputs):
         ('get_eigenvalues', ['.eigenvalues', 'array_size_parameters']),
     )
     add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        TEXT_KEY,
+        ('get_band_structures', ['.eigenvalues', 'array_size_parameters']),
+    )
+    add_mapping_annotation(
         outputs.Outputs.electronic_dos,
         TEXT_DOS_KEY,
         (
@@ -220,6 +225,16 @@ class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper='.occupations')))
+
+
+class ElectronicBandStructure(properties.ElectronicBandStructure):
+    add_mapping_annotation(properties.ElectronicBandStructure.value, TEXT_KEY, '.value')
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.occupation, TEXT_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.spin_channel, TEXT_KEY, '.spin_channel'
+    )
 
 
 class DOSProfile(properties.spectral_profile.DOSProfile):
