@@ -136,11 +136,19 @@ class InfoParser(TextParser):
         if optimization:
             configurations.extend(optimization.get('optimization_step', []))
             configurations.append(optimization)
-        return [
+        mapped_configurations = [
             self.get_atoms(config['atomic_positions'])
             for config in configurations
             if config.get('atomic_positions')
         ]
+        if mapped_configurations:
+            return mapped_configurations
+
+        # Fallback for minimal outputs where no explicit atomic_positions blocks
+        # are present in groundstate/hybrid sections.
+        if self.data.get('initialization'):
+            return [self.get_atoms({})]
+        return []
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
@@ -166,6 +174,9 @@ class InfoParser(TextParser):
             positions=np.array(positions, dtype=float),
             atoms=atoms,
             lattice_vectors=lattice_vectors,
+            periodic_boundary_conditions=[True, True, True]
+            if lattice_vectors is not None
+            else None,
         )
 
     def get_geometry_convergence(
@@ -477,8 +488,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
-            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
-            # self.archive.workflow2 = workflow
+            self.archive.workflow2 = workflow
         else:  # here should come more standard workflows - for now only single point
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
@@ -497,8 +507,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
-            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
-            # self.archive.workflow2 = workflow
+            self.archive.workflow2 = workflow
 
         # close parsers
         info_parser.close()

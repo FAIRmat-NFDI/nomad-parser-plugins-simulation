@@ -107,6 +107,11 @@ add_mapping_annotations(
     (model_system.ModelSystem.positions, INFO_KEY, '.positions'),
     (model_system.AtomsState.m_def, INFO_KEY, '.atoms'),
     (model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'),
+    (
+        model_system.Representation.periodic_boundary_conditions,
+        INFO_KEY,
+        '.periodic_boundary_conditions',
+    ),
 )
 
 # atoms state

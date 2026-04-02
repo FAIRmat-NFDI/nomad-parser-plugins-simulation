@@ -381,8 +381,7 @@ class WannierArchiveWriter(ArchiveWriter):
         """
         workflow = SinglePoint()
         workflow.normalize(archive=self.archive, logger=self.logger)
-        # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
-        # self.archive.workflow2 = workflow
+        self.archive.workflow2 = workflow
 
         # dft+tb workflow
         if self.child_archives:
@@ -396,13 +395,13 @@ class WannierArchiveWriter(ArchiveWriter):
             )
 
             workflow_archive = self.child_archives[dft_file]
-            # TODO: workflow2 temporarily disabled during migration to avoid normalization errors
-            # workflow_archive.workflow2 = DFTTBDMFTWorkflow(
-            #     tasks=[
-            #         TaskReference(task=dft_archive.workflow2),
-            #         TaskReference(task=self.archive.workflow2),
-            #     ]
-            # )
+            if getattr(dft_archive, 'workflow2', None) and self.archive.workflow2:
+                workflow_archive.workflow2 = DFTTBDMFTWorkflow(
+                    tasks=[
+                        TaskReference(task=dft_archive.workflow2),
+                        TaskReference(task=self.archive.workflow2),
+                    ]
+                )
 
     def parse_input(self) -> None:
         """
