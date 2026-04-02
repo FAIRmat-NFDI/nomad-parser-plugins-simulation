@@ -547,6 +547,13 @@ class MainfileParser(TextParser):
             return []
         return [dict(label=chemical_symbols[int(znucl[n_at - 1])]) for n_at in typat]
 
+    def get_periodic_boundary_conditions(self) -> list[bool] | None:
+        dataset = (self.data_object.get('dataset') or [{}])[0]
+        lattice_vectors = dataset.get('x_abinit_vprim')
+        if lattice_vectors is None:
+            return None
+        return [vec is not None for vec in lattice_vectors]
+
     def get_xc_functionals(self) -> list[dict[str, Any]]:
         ixc = self.get_input_var('ixc', 1, 1, scalar=True)
         if ixc >= 0:

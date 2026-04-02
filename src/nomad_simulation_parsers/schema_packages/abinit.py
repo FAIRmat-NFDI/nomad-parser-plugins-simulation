@@ -47,6 +47,11 @@ class Representation(model_system.Representation):
         'dataset[0].x_abinit_vprim',
         unit='bohr',
     )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', []),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
