@@ -229,6 +229,14 @@ class CrystalOutputParser(TextParser):
         return workflow
 
     def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        def get_pbc(system_source: dict[str, Any]) -> list[bool] | None:
+            lattice_vectors = self.get_lattice_vectors(system_source)
+            if lattice_vectors is None:
+                return None
+            dimensionality = int(self.data.get('dimensionality', 3) or 3)
+            dimensionality = max(0, min(3, dimensionality))
+            return [axis < dimensionality for axis in range(3)]
+
         initial = source.get('system_edited', source)
         systems = [
             # initial system
@@ -236,6 +244,7 @@ class CrystalOutputParser(TextParser):
                 positions=self.get_positions(initial),
                 atoms=self.get_atoms(initial),
                 lattice_vectors=self.get_lattice_vectors(initial),
+                periodic_boundary_conditions=get_pbc(initial),
             )
         ]
         # skip first step same as initial
@@ -245,6 +254,7 @@ class CrystalOutputParser(TextParser):
                     positions=self.get_positions(step),
                     atoms=self.get_atoms(step),
                     lattice_vectors=self.get_lattice_vectors(step),
+                    periodic_boundary_conditions=get_pbc(step),
                 )
             )
         return systems
