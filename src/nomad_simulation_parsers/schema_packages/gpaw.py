@@ -76,6 +76,13 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(outputs.ElectronicBandStructure.value, GPW_KEY, '.value')
 
 
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, GPW_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, GPW_KEY, '.spin_channel'
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_forces, GPW_KEY, ('get_forces', []))
     add_mapping_annotation(
@@ -85,6 +92,11 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_band_structures,
         GPW_KEY,
         ('get_band_structures', []),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        GPW_KEY,
+        ('get_band_gaps', []),
     )
     add_mapping_annotation(
         outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])

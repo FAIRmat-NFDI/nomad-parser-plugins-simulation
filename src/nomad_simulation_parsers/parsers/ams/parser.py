@@ -53,6 +53,17 @@ class MainfileParser(TextParser):
                 )
         return xc_functionals
 
+    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
+        lattice_vectors = source.get('lattice_vectors')
+        if lattice_vectors is None:
+            return [False, False, False]
+        vectors = lattice_vectors.magnitude if hasattr(lattice_vectors, 'magnitude') else lattice_vectors
+        n_vectors = len(vectors) if hasattr(vectors, '__len__') else 0
+        pbc = [True, True, True]
+        for idx in range(n_vectors, 3):
+            pbc[idx] = False
+        return pbc
+
     def get_contributions(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         return [
             dict(name=key, value=val) for key, val in source.items() if val is not None

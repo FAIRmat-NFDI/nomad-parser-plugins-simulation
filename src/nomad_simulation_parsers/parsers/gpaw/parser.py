@@ -1,5 +1,6 @@
 from typing import Any
 
+import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MappingParser, MetainfoParser
@@ -17,6 +18,7 @@ from nomad_simulation_parsers.schema_packages import gpaw
 from .gpw_parser import GPWFileParser
 
 LOGGER = get_logger(__name__)
+OCCUPATION_THRESHOLD = 0.5
 
 
 class GPWParser(MappingParser):
@@ -103,6 +105,42 @@ class GPWParser(MappingParser):
                 )
             )
         return band_structures
+
+    def get_band_gaps(self) -> list[dict[str, Any]]:
+        band_gaps = []
+        for spin_channel, eigenvalue_data in enumerate(self.get_eigenvalues()):
+            energies = eigenvalue_data.get('eigenvalues')
+            occupations = eigenvalue_data.get('occupations')
+            if energies is None or occupations is None:
+                continue
+
+            if hasattr(energies, 'magnitude'):
+                energies_values = np.asarray(energies.magnitude, dtype=float)
+                units = energies.units
+            else:
+                energies_values = np.asarray(energies, dtype=float)
+                units = None
+            occupations_values = np.asarray(occupations, dtype=float)
+
+            if energies_values.size == 0 or occupations_values.size == 0:
+                continue
+            if energies_values.shape != occupations_values.shape:
+                continue
+
+            occupied = energies_values[occupations_values >= OCCUPATION_THRESHOLD]
+            unoccupied = energies_values[occupations_values < OCCUPATION_THRESHOLD]
+            if occupied.size == 0:
+                continue
+
+            if unoccupied.size == 0:
+                gap = 0.0
+            else:
+                gap = max(0.0, float(np.min(unoccupied) - np.max(occupied)))
+
+            value = gap * units if units is not None else gap
+            band_gaps.append({'value': value, 'spin_channel': spin_channel})
+
+        return band_gaps
 
     def get_scf_steps(self) -> dict[str, Any]:
         code_specific_quantities = {}
