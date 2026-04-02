@@ -86,3 +86,52 @@ def test_electronic_outputs_mapping():
     if output.electronic_band_gaps:
         sec_gap = output.electronic_band_gaps[0]
         assert sec_gap.value is not None
+
+
+def test_system_fundamental_quantities_mapping():
+    """System gate: parser should populate core model_system quantities used by normalizer."""
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+
+    if representative.particle_states:
+        assert all(
+            getattr(state, 'chemical_symbol', None) is not None
+            for state in representative.particle_states
+        )
+
+
+def test_outputs_contract_for_normalizer():
+    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+
+    assert output.total_energies or output.total_forces or output.scf_steps is not None
+
+    if output.electronic_dos:
+        dos = output.electronic_dos[0]
+        assert dos.value is not None
+        assert dos.energies is not None
+        assert dos.energies.points is not None
+
+    if output.electronic_band_gaps:
+        assert output.electronic_band_gaps[0].value is not None
