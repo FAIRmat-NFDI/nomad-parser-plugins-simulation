@@ -198,6 +198,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
             dict(name=functional.get('name')) for functional in self._xc_map.get(xc, [])
         ]
 
+    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool]:
+        return [source.get('lattice_vectors') is not None] * 3
+
     def get_dos(
         self,
         total_dos_files: list[list[str]],

@@ -127,6 +127,11 @@ class Representation(model_system.Representation):
     add_mapping_annotation(
         model_system.Representation.lattice_vectors, TEXT_KEY, '.lattice_vectors'
     )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        TEXT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class AtomsState(model_system.AtomsState):
@@ -134,9 +139,9 @@ class AtomsState(model_system.AtomsState):
 
 
 class Outputs(outputs.Outputs):
-    # outputs.Outputs.total_energies.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
+    add_mapping_annotation(
+        outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
+    )
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
