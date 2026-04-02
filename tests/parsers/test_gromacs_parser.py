@@ -647,6 +647,91 @@ def test_get_matrix_parameter():
     assert lp.get_matrix_parameter(None, param_key='ref-p') is None
 
 
+# ---------------------------------------------------------------------------
+# Free energy calculation transformer tests
+# ---------------------------------------------------------------------------
+
+
+def test_get_free_energy_calc_type():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_free_energy_calc_type({'free-energy': 'yes'}) == 'alchemical'
+    assert (
+        lp.get_free_energy_calc_type({'free-energy': 'slow-growth'}) == 'alchemical'
+    )
+    assert lp.get_free_energy_calc_type({'free-energy': 'expanded'}) == 'alchemical'
+    assert (
+        lp.get_free_energy_calc_type({'free-energy': 'umbrella'}) == 'umbrella_sampling'
+    )
+    assert lp.get_free_energy_calc_type({'free-energy': 'no'}) is None
+    assert lp.get_free_energy_calc_type({}) is None
+    assert lp.get_free_energy_calc_type(None) is None
+
+
+def test_get_fep_params_if_active():
+    lp = gromacs_parser.GromacsLogParser()
+    src = {'input_parameters': {'free-energy': 'yes'}}
+    assert lp.get_fep_params_if_active(src) is src
+    src_no = {'input_parameters': {'free-energy': 'no'}}
+    assert lp.get_fep_params_if_active(src_no) is None
+    assert lp.get_fep_params_if_active({'input_parameters': {}}) is None
+    assert lp.get_fep_params_if_active(None) is None
+
+
+def test_get_lambda_state_index():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_lambda_state_index({'init-lambda-state': '3'}) == 3
+    assert lp.get_lambda_state_index({'init-lambda-state': 0}) == 0
+    assert lp.get_lambda_state_index({'init-lambda-state': -1}) is None
+    assert lp.get_lambda_state_index({}) is None
+    assert lp.get_lambda_state_index(None) is None
+
+
+def test_get_lambdas_schedule_non_fe():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_lambdas_schedule({}) is None
+    assert lp.get_lambdas_schedule(None) is None
+    # no all-lambdas key → None
+    assert lp.get_lambdas_schedule({'free-energy': 'yes'}) is None
+
+
+def test_get_lambdas_schedule_fe():
+    lp = gromacs_parser.GromacsLogParser()
+    params = {
+        'all-lambdas': {
+            'vdw-lambdas': '0.0 0.25 0.5 0.75 1.0',
+            'coul-lambdas': '0.0 0.0 0.0 0.0 0.0',  # all-zero → skipped
+        },
+        'sc-alpha': '0.5',
+        'sc-power': '1',
+        'sc-sigma': '0.3',
+    }
+    result = lp.get_lambdas_schedule(params)
+    assert result is not None
+    assert len(result) == 1  # coul-lambdas all-zero, only vdw survives
+    entry = result[0]
+    assert entry['interaction_type'] == 'vdw'
+    np.testing.assert_array_equal(
+        entry['values'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    )
+    assert entry['softcore_enabled'] is True
+    assert entry['softcore_alpha'] == '0.5'
+
+
+def test_get_current_lambdas():
+    lp = gromacs_parser.GromacsLogParser()
+    params = {
+        'init-lambda-state': '2',
+        'all-lambdas': {'vdw-lambdas': '0.0 0.5 1.0'},
+        'sc-alpha': '0.0',
+    }
+    result = lp.get_current_lambdas(params)
+    assert result is not None
+    np.testing.assert_array_equal(result, np.array([1.0]))
+    # index out of range
+    params['init-lambda-state'] = '99'
+    assert lp.get_current_lambdas(params) is None
+
+
 def test_system_hierarchy_water():
     """Test that system hierarchy is parsed from water mainfile."""
     base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'

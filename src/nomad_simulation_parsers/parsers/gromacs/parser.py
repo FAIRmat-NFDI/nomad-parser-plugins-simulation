@@ -21,6 +21,7 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
 )
 from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    Lambdas,
     MolecularDynamics,
 )
 from structlog.stdlib import BoundLogger
@@ -380,7 +381,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
     def get_matrix_parameter(
         self, input_params: dict[str, Any], param_key: str
     ) -> np.ndarray | None:
-        """Extract reference pressure from ref_p (handle scalar or matrix)."""
+        """Extract a (3,3) matrix parameter (e.g. ref-p, compressibility)."""
         result = None
         if not input_params:
             return result
@@ -390,21 +391,23 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
         if isinstance(params, list):
             if not all(isinstance(row, list) for row in params):
-                self.logger.warning(f'{param_key} is not a matrix, not parsing.')
+                self.logger.warning('%s is not a matrix, not parsing.', param_key)
                 params = None
             else:
                 params = np.array(params)
         elif not isinstance(params, np.ndarray):
             self.logger.warning(
-                f'{param_key} has unexpected type {type(params)}, '
-                f'expected np.ndarray. Not parsing {param_key}.'
+                '%s has unexpected type %s, expected np.ndarray. Not parsing.',
+                param_key,
+                type(params),
             )
             params = None
 
         if params is not None and params.shape != (3, 3):
             self.logger.warning(
-                f'{param_key} has unexpected shape {params.shape}, '
-                f'expected (3, 3) matrix. Not parsing {param_key}.'
+                '%s has unexpected shape %s, expected (3, 3) matrix. Not parsing.',
+                param_key,
+                params.shape,
             )
             params = None
 
@@ -456,6 +459,28 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         result = self._FREE_ENERGY_CALC_TYPE_MAP.get(str(value).lower())
         return result
 
+    def get_fep_params_if_active(
+        self, source: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        """Return source dict when free-energy is active, None otherwise.
+
+        Used as the mapper hook for free_energy_calculation_parameters so that
+        the section is only instantiated for FEP runs.  Lambdas are populated
+        explicitly in GromacsArchiveWriter._parse_workflow_section to avoid
+        the MSection.values() / Lambdas.values Quantity name collision that
+        breaks MetainfoParser.from_dict.
+        """
+        result = None
+        if not source:
+            return result
+        input_params = source.get('input_parameters') or {}
+        fe_value = input_params.get('free-energy')
+        if fe_value is not None and str(fe_value).lower() in (
+            self._FREE_ENERGY_CALC_TYPE_MAP
+        ):
+            result = source
+        return result
+
     def get_lambdas_schedule(
         self, input_params: dict[str, Any] | None
     ) -> list[dict[str, Any]] | None:
@@ -484,9 +509,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             try:
                 values = np.array([float(v) for v in str(raw).split()])
             except (TypeError, ValueError):
-                self.logger.warning(
-                    'Could not parse lambda grid for %s: %s', key, raw
-                )
+                self.logger.warning('Could not parse lambda grid for %s: %s', key, raw)
                 continue
             if not np.any(values != 0.0):
                 continue
@@ -520,9 +543,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             )
         return result
 
-    def get_lambda_state_index(
-        self, input_params: dict[str, Any] | None
-    ) -> int | None:
+    def get_lambda_state_index(self, input_params: dict[str, Any] | None) -> int | None:
         result = None
         if not input_params:
             return result
@@ -534,9 +555,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             if idx >= 0:
                 result = idx
         except (TypeError, ValueError):
-            self.logger.warning(
-                'Could not parse init-lambda-state value: %s', value
-            )
+            self.logger.warning('Could not parse init-lambda-state value: %s', value)
         return result
 
 
@@ -646,9 +665,9 @@ class GromacsXVGParser(TextParser):
             free_energy['value_total_energy'] = energy_cols[:, 0]
             free_energy['value_total_energy_derivative'] = energy_cols[:, 1]
             diff_start = self._XVG_DIFF_OFFSET
-            free_energy['value_total_energy_differences'] = (
-                energy_cols[:, diff_start : diff_start + n_states]
-            )
+            free_energy['value_total_energy_differences'] = energy_cols[
+                :, diff_start : diff_start + n_states
+            ]
             free_energy['value_PV_energy'] = energy_cols[:, diff_start + n_states]
 
         return results
@@ -1063,6 +1082,27 @@ class GromacsArchiveWriter(MDParser):
         # parse main log file
         self._simulation_parser.annotation_key = gromacs.LOG_KEY
         self._log_parser.convert(self._simulation_parser)
+
+        # Explicitly populate Lambdas on FreeEnergyCalculationParameters.
+        # Lambdas.values (a Quantity) shadows MSection.values(), causing
+        # MetainfoParser.from_dict to call the stored numpy array as a function.
+        # The annotation for free_energy_calculation_parameters.lambdas is
+        # therefore intentionally absent; instances are built here instead.
+        if isinstance(workflow2, MolecularDynamics) and workflow2.method:
+            fep_list = workflow2.method.free_energy_calculation_parameters
+            if fep_list:
+                schedules = self._log_parser.get_lambdas_schedule(self.input_parameters)
+                if schedules:
+                    fep_params = fep_list[0]
+                    for entry in schedules:
+                        lambdas = Lambdas()
+                        lambdas.interaction_type = entry.get('interaction_type')
+                        lambdas.values = entry.get('values')
+                        lambdas.softcore_enabled = entry.get('softcore_enabled')
+                        lambdas.softcore_alpha = entry.get('softcore_alpha')
+                        lambdas.softcore_p = entry.get('softcore_p')
+                        lambdas.softcore_sigma = entry.get('softcore_sigma')
+                        fep_params.lambdas.append(lambdas)
 
         # parse edr file
         self._simulation_parser.annotation_key = gromacs.EDR_KEY

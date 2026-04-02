@@ -329,11 +329,14 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
         '@',
     )
 
-    # Free energy calculation subsection
+    # Free energy calculation subsection.
+    # Returns None when free-energy = no so the section is not instantiated.
+    # Lambdas are built explicitly in parser.py to bypass the
+    # MSection.values() / Lambdas.values Quantity name conflict in from_dict.
     add_mapping_annotation(
         molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
         LOG_KEY,
-        '@',
+        ('get_fep_params_if_active', ['.@']),
     )
 
 
@@ -394,7 +397,7 @@ add_mapping_annotation(
     unit='1/bar',
 )
 
-# Free energy method anotations
+# Free energy method annotations
 add_mapping_annotation(
     molecular_dynamics.FreeEnergyCalculationParameters.calc_type,
     LOG_KEY,
@@ -410,28 +413,11 @@ add_mapping_annotation(
     LOG_KEY,
     ('get_lambda_state_index', ['.input_parameters']),
 )
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.lambdas,
-    LOG_KEY,
-    ('get_lambdas_schedule', ['.input_parameters']),
-)
-add_mapping_annotation(molecular_dynamics.Lambdas.m_def, LOG_KEY, '@')
-add_mapping_annotation(
-    molecular_dynamics.Lambdas.interaction_type, LOG_KEY, '.interaction_type'
-)
-add_mapping_annotation(molecular_dynamics.Lambdas.values, LOG_KEY, '.values')
-add_mapping_annotation(
-    molecular_dynamics.Lambdas.softcore_enabled, LOG_KEY, '.softcore_enabled'
-)
-add_mapping_annotation(
-    molecular_dynamics.Lambdas.softcore_alpha, LOG_KEY, '.softcore_alpha'
-)
-add_mapping_annotation(
-    molecular_dynamics.Lambdas.softcore_p, LOG_KEY, '.softcore_p'
-)
-add_mapping_annotation(
-    molecular_dynamics.Lambdas.softcore_sigma, LOG_KEY, '.softcore_sigma'
-)
+# NOTE: FreeEnergyCalculationParameters.lambdas and all Lambdas.* annotations
+# are intentionally absent.  Lambdas.values (a Quantity) shadows
+# MSection.values(), causing MetainfoParser.from_dict to call the stored numpy
+# array as a function.  Lambdas instances are constructed explicitly in
+# GromacsArchiveWriter._parse_workflow_section instead.
 
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
