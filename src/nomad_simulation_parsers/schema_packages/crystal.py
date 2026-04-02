@@ -30,6 +30,11 @@ class Representation(model_system.Representation):
     add_mapping_annotation(
         model_system.Representation.lattice_vectors, OUT_KEY, '.lattice_vectors'
     )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        '.periodic_boundary_conditions',
+    )
 
 
 class ModelSystem(model_system.ModelSystem):

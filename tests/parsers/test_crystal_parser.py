@@ -76,3 +76,52 @@ def test_outputs_electronic_dos_and_band_structure():
     # fallback for f9/f98 is implemented.
     assert output.electronic_dos in [None, []]
     assert output.electronic_band_structures in [None, []]
+
+
+def test_system_fundamental_quantities_mapping():
+    """System gate: parser should populate core model_system quantities used by normalizer."""
+    archive = _parse()
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+
+    if representative.particle_states:
+        assert all(
+            getattr(state, 'chemical_symbol', None) is not None
+            for state in representative.particle_states
+        )
+
+
+def test_outputs_contract_for_normalizer():
+    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    archive = _parse()
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+
+    # Non-electronic core output used by normalizer pipeline.
+    assert output.total_energies or output.total_forces or output.scf_steps is not None
+
+    # Electronic outputs are optional for this fixture set until f9/f98 fallback
+    # for fort.25-compatible mapping is implemented.
+    if output.electronic_dos:
+        dos = output.electronic_dos[0]
+        assert dos.value is not None
+        assert dos.energies is not None
+        assert dos.energies.points is not None
+
+    if output.electronic_band_structures:
+        band_structure = output.electronic_band_structures[0]
+        assert band_structure.value is not None
