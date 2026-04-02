@@ -655,9 +655,7 @@ def test_get_matrix_parameter():
 def test_get_free_energy_calc_type():
     lp = gromacs_parser.GromacsLogParser()
     assert lp.get_free_energy_calc_type({'free-energy': 'yes'}) == 'alchemical'
-    assert (
-        lp.get_free_energy_calc_type({'free-energy': 'slow-growth'}) == 'alchemical'
-    )
+    assert lp.get_free_energy_calc_type({'free-energy': 'slow-growth'}) == 'alchemical'
     assert lp.get_free_energy_calc_type({'free-energy': 'expanded'}) == 'alchemical'
     assert (
         lp.get_free_energy_calc_type({'free-energy': 'umbrella'}) == 'umbrella_sampling'
@@ -711,7 +709,7 @@ def test_get_lambdas_schedule_fe():
     entry = result[0]
     assert entry['interaction_type'] == 'vdw'
     np.testing.assert_array_equal(
-        entry['values'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+        entry['coupling_parameters'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
     )
     assert entry['softcore_enabled'] is True
     assert entry['softcore_alpha'] == '0.5'

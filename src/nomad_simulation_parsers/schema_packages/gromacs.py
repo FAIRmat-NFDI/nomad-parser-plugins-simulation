@@ -332,7 +332,7 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
     # Free energy calculation subsection.
     # Returns None when free-energy = no so the section is not instantiated.
     # Lambdas are built explicitly in parser.py to bypass the
-    # MSection.values() / Lambdas.values Quantity name conflict in from_dict.
+    # MSection.values() conflict (now resolved by renaming to coupling_parameters).
     add_mapping_annotation(
         molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
         LOG_KEY,
@@ -414,9 +414,7 @@ add_mapping_annotation(
     ('get_lambda_state_index', ['.input_parameters']),
 )
 # NOTE: FreeEnergyCalculationParameters.lambdas and all Lambdas.* annotations
-# are intentionally absent.  Lambdas.values (a Quantity) shadows
-# MSection.values(), causing MetainfoParser.from_dict to call the stored numpy
-# array as a function.  Lambdas instances are constructed explicitly in
+# are intentionally absent.  Lambdas instances are constructed explicitly in
 # GromacsArchiveWriter._parse_workflow_section instead.
 
 

@@ -467,8 +467,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         Used as the mapper hook for free_energy_calculation_parameters so that
         the section is only instantiated for FEP runs.  Lambdas are populated
         explicitly in GromacsArchiveWriter._parse_workflow_section to avoid
-        the MSection.values() / Lambdas.values Quantity name collision that
-        breaks MetainfoParser.from_dict.
+        the MSection.values() / Lambdas.coupling_parameters naming issue.
         """
         result = None
         if not source:
@@ -515,7 +514,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                 continue
             entry: dict[str, Any] = {
                 'interaction_type': interaction_type,
-                'values': values,
+                'coupling_parameters': values,
             }
             entry.update(softcore)
             entries.append(entry)
@@ -535,7 +534,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if state_index is None or not schedules:
             return result
         try:
-            result = np.array([s['values'][state_index] for s in schedules])
+            result = np.array(
+                [s['coupling_parameters'][state_index] for s in schedules]
+            )
         except IndexError:
             self.logger.warning(
                 'init-lambda-state %d is out of range for the lambda grids.',
@@ -1084,8 +1085,7 @@ class GromacsArchiveWriter(MDParser):
         self._log_parser.convert(self._simulation_parser)
 
         # Explicitly populate Lambdas on FreeEnergyCalculationParameters.
-        # Lambdas.values (a Quantity) shadows MSection.values(), causing
-        # MetainfoParser.from_dict to call the stored numpy array as a function.
+        # Lambdas.coupling_parameters holds the lambda grid per interaction type.
         # The annotation for free_energy_calculation_parameters.lambdas is
         # therefore intentionally absent; instances are built here instead.
         if isinstance(workflow2, MolecularDynamics) and workflow2.method:
@@ -1097,7 +1097,7 @@ class GromacsArchiveWriter(MDParser):
                     for entry in schedules:
                         lambdas = Lambdas()
                         lambdas.interaction_type = entry.get('interaction_type')
-                        lambdas.values = entry.get('values')
+                        lambdas.coupling_parameters = entry.get('coupling_parameters')
                         lambdas.softcore_enabled = entry.get('softcore_enabled')
                         lambdas.softcore_alpha = entry.get('softcore_alpha')
                         lambdas.softcore_p = entry.get('softcore_p')
