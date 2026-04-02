@@ -37,6 +37,21 @@ class XCComponent(model_method.XCComponent):
 
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.positions, OUT_KEY, '.positions')
+    add_mapping_annotation(model_system.Representation.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.m_def, OUT_KEY, '.labels')
+
+
+class Representation(model_system.Representation):
+    add_mapping_annotation(
+        model_system.Representation.lattice_vectors, OUT_KEY, '.lattice_vectors'
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions, OUT_KEY, '.pbc'
+    )
+
+
+class AtomsState(model_system.AtomsState):
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -63,6 +78,24 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     )
 
 
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, INFO_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, EIGENVALUES_KEY, '.value'
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, INFO_KEY, '.value')
+    add_mapping_annotation(outputs.ElectronicBandGap.value, EIGENVALUES_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, INFO_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, EIGENVALUES_KEY, '.spin_channel'
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_energies, INFO_KEY, '.energies')
@@ -77,8 +110,28 @@ class Outputs(outputs.Outputs):
         EIGENVALUES_KEY,
         ('get_eigenvalues', ['eigenvalues']),
     )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        INFO_KEY,
+        ('get_band_structures', ['eigenvalues.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        EIGENVALUES_KEY,
+        ('get_band_structures', ['eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        INFO_KEY,
+        ('get_band_gaps', ['eigenvalues.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        EIGENVALUES_KEY,
+        ('get_band_gaps', ['eigenvalues']),
+    )
     # TODO(legacy-parity): legacy Octopus parser did not populate explicit
-    # electronic DOS, band-structure, or band-gap result sections.
+    # electronic DOS result sections.
 
 
 class Simulation(general.Simulation):

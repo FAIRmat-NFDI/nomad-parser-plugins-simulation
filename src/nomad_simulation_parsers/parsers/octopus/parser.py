@@ -17,6 +17,7 @@ from nomad_simulation_parsers.schema_packages import octopus
 from .file_parser import EigenvalueParser, InfoParser, InpParser, LogParser, OutParser
 
 LOGGER = get_logger(__name__)
+OCCUPATION_THRESHOLD = 0.5
 
 
 class OctopusMainfileParser(TextParser):
@@ -326,6 +327,7 @@ class OctopusMainfileParser(TextParser):
         if cell is not None:
             npbc = self.data.get('grid', {}).get('npbc', 3)
             self._initial_system['pbc'] = [True for _ in range(npbc)]
+            self._initial_system['lattice_vectors'] = cell
 
         if self.info.get('ReducedCoordinates', None) is not None and cell is not None:
             coordinates = np.dot(coordinates, cell.magnitude)
@@ -400,6 +402,41 @@ class OctopusEigenvalueParser(TextParser):
             dict(eigenvalues=eig * self.unit, occupations=occs[n], kpoints=kpts)
             for n, eig in enumerate(eigs)
         ]
+
+    def get_band_structures(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        return [
+            dict(value=eigenvalue_data['eigenvalues'])
+            for eigenvalue_data in self.get_eigenvalues(source)
+            if eigenvalue_data.get('kpoints') is not None
+        ]
+
+    def get_band_gaps(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        band_gaps = []
+        for spin_channel, eigenvalue_data in enumerate(self.get_eigenvalues(source)):
+            energies = eigenvalue_data.get('eigenvalues')
+            occupations = eigenvalue_data.get('occupations')
+            if energies is None or occupations is None:
+                continue
+
+            energies_values = np.asarray(energies.magnitude, dtype=float)
+            occupations_values = np.asarray(occupations, dtype=float)
+            if energies_values.size == 0 or occupations_values.size == 0:
+                continue
+            if energies_values.shape != occupations_values.shape:
+                continue
+
+            occupied = energies_values[occupations_values >= OCCUPATION_THRESHOLD]
+            unoccupied = energies_values[occupations_values < OCCUPATION_THRESHOLD]
+            if occupied.size == 0:
+                continue
+
+            if unoccupied.size == 0:
+                gap = 0.0
+            else:
+                gap = max(0.0, float(np.min(unoccupied) - np.max(occupied)))
+            band_gaps.append({'value': gap * energies.units, 'spin_channel': spin_channel})
+
+        return band_gaps
 
 
 class OctopusInfoParser(OctopusEigenvalueParser):
