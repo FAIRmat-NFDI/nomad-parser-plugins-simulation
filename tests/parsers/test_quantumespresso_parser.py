@@ -217,9 +217,13 @@ def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
     assert simulation.model_system is not None
     assert len(simulation.model_system) > 0
 
-    representative = next(
-        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
-        simulation.model_system[0],
+    representative_candidates = [
+        s for s in simulation.model_system if s.is_representative
+    ]
+    representative = (
+        representative_candidates[0]
+        if representative_candidates
+        else simulation.model_system[0]
     )
     assert representative.positions is not None
     assert representative.lattice_vectors is not None
@@ -229,6 +233,9 @@ def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
     outputs = simulation.outputs
     assert outputs is not None
     assert len(outputs) > 0
+    for output in outputs:
+        assert output.model_system_ref is not None
+
     output = outputs[0]
     assert output.electronic_dos is not None
     assert len(output.electronic_dos) > 0
