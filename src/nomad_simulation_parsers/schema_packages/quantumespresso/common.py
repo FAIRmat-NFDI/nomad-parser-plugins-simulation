@@ -55,7 +55,26 @@ class AtomsState(model_system.AtomsState):
 
 
 class Representation(model_system.Representation):
-    add_mapping_annotation(model_system.Representation.lattice_vectors, OUT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.Representation.lattice_vectors,
+        OUT_KEY,
+        ('get_value', ['.@'], dict(key='simulation_cell')),
+    )
+    add_mapping_annotation(
+        model_system.Representation.lattice_vectors,
+        XML_KEY,
+        ('apply_unit', ['.__value'], dict(name='length')),
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        XML_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):

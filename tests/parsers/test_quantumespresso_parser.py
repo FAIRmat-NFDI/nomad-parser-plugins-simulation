@@ -1,6 +1,11 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx
+import pytest
 
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoParser,
@@ -193,3 +198,41 @@ def test_pwscf_xml_workflow_and_scf_steps():
         assert output.scf_steps is not None
         assert len(output.scf_steps.energies_total) == 5
         assert len(output.scf_steps.delta_energies_total) == 5
+
+
+def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'DOS-quantumespresso.zip'
+    if not zip_path.is_file():
+        pytest.skip('DOS-quantumespresso.zip fixture not available in repository root test_data.')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        archive = _parse(str(Path(tmpdir) / 'W.out'))
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+    assert len(representative.periodic_boundary_conditions) == 3
+
+    outputs = simulation.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+    assert output.electronic_dos is not None
+    assert len(output.electronic_dos) > 0
+    dos = output.electronic_dos[0]
+    assert dos.value is not None
+    assert dos.energies is not None
+    assert dos.energies.points is not None
