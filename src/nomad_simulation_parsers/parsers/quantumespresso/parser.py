@@ -29,7 +29,10 @@ from nomad_simulations.schema_packages.workflow import (
 )
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    link_outputs_to_model_systems,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
 from .common import libxc_shortcut, xc_functional_map
@@ -636,3 +639,6 @@ class QuantumEspressoParser(MatchingParser):
                     ]
             except Exception:
                 pass
+
+        if archive.data and archive.data.outputs:
+            link_outputs_to_model_systems(archive.data)

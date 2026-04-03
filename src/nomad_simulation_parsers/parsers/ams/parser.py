@@ -26,7 +26,10 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    link_outputs_to_model_systems,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages import ams
 
 from .file_parser import OutParser
@@ -57,8 +60,14 @@ class MainfileParser(TextParser):
         lattice_vectors = source.get('lattice_vectors')
         if lattice_vectors is None:
             return [False, False, False]
-        vectors = lattice_vectors.magnitude if hasattr(lattice_vectors, 'magnitude') else lattice_vectors
-        n_vectors = len(vectors) if hasattr(vectors, '__len__') else 0
+        try:
+            vectors = lattice_vectors.magnitude
+        except AttributeError:
+            vectors = lattice_vectors
+        try:
+            n_vectors = len(vectors)
+        except TypeError:
+            n_vectors = 0
         pbc = [True, True, True]
         for idx in range(n_vectors, 3):
             pbc[idx] = False
@@ -72,10 +81,18 @@ class MainfileParser(TextParser):
     def get_eigenvalues(
         self, source: dict[str, Any] | list[np.ndarray]
     ) -> list[dict[str, np.ndarray]]:
-        energies = source.get('energies', []) if isinstance(source, dict) else []
-        occupations = (
-            source.get('occupations', []) if isinstance(source, dict) else source[2]
-        )
+        if source is None:
+            return []
+
+        if isinstance(source, dict):
+            energies = source.get('energies', [])
+            occupations = source.get('occupations', [])
+        else:
+            if not isinstance(source, tuple | list) or len(source) < 3:
+                return []
+            energies = []
+            occupations = source[2]
+
         nspin = max(len(energies), len(occupations))
         eigenvalues = [dict() for _ in range(nspin)]
         for n, energy in enumerate(energies):
@@ -85,7 +102,10 @@ class MainfileParser(TextParser):
         return [eig for eig in eigenvalues if eig]
 
     def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        if hasattr(source, 'get'):
+        if source is None:
+            return []
+
+        if isinstance(source, dict):
             value = source.get('value')
             if value is None:
                 homo = source.get('energy_highest_occupied')
@@ -142,7 +162,10 @@ class MainfileParser(TextParser):
         return band_gaps
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        if not hasattr(source, 'get'):
+        if source is None:
+            return []
+
+        if not isinstance(source, dict):
             return []
 
         dos = source.get('dos')
@@ -169,7 +192,10 @@ class MainfileParser(TextParser):
 
         scf_options = source.get('scf_options')
         code_specific_quantities = {}
-        if hasattr(scf_options, 'get'):
+        if scf_options is not None:
+            if not isinstance(scf_options, dict):
+                return scf_steps
+
             n_scf_steps_max = scf_options.get('x_ams_ncyclx')
             convrg = scf_options.get('x_ams_convrg')
             if n_scf_steps_max is not None:
@@ -184,7 +210,9 @@ class MainfileParser(TextParser):
 
     def _get_scf_energy_threshold(self, source: dict[str, Any]):
         scf_options = source.get('scf_options')
-        if not hasattr(scf_options, 'get'):
+        if scf_options is None:
+            return None
+        if not isinstance(scf_options, dict):
             return None
         convrg = scf_options.get('x_ams_convrg')
         if convrg is None:
@@ -277,6 +305,8 @@ class AMSArchiveWriter(ArchiveWriter):
             self.parser.data_object.parse()
 
         self.parser.convert(self.metainfo_parser)
+        link_outputs_to_model_systems(self.archive.data)
+
         self.archive.workflow2 = self.parser.build_workflow(self.parser.data)
 
 

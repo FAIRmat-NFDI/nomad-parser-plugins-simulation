@@ -1,4 +1,6 @@
 from pathlib import Path
+import tempfile
+import zipfile
 
 import pytest
 from nomad.datamodel import EntryArchive
@@ -70,7 +72,7 @@ def test_system_fundamental_quantities_mapping():
     assert len(simulation.model_system) > 0
 
     representative = next(
-        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        (s for s in simulation.model_system if s.is_representative),
         simulation.model_system[0],
     )
     assert representative.positions is not None
@@ -84,10 +86,7 @@ def test_system_fundamental_quantities_mapping():
         assert representative.periodic_boundary_conditions is not None
 
     if representative.particle_states:
-        assert all(
-            getattr(state, 'chemical_symbol', None) is not None
-            for state in representative.particle_states
-        )
+        assert all(state.chemical_symbol is not None for state in representative.particle_states)
 
 
 def test_outputs_contract_for_normalizer():
@@ -111,3 +110,36 @@ def test_outputs_contract_for_normalizer():
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
+
+
+def test_root_test_data_ams_zip_outputs_and_system_links():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'FAJZIC_fair_op-ams.zip'
+    if not zip_path.is_file():
+        pytest.skip('FAJZIC_fair_op-ams.zip fixture not available in repository root test_data.')
+
+    parser = AMSParser()
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        parser.parse(str(Path(tmpdir) / 'FAJZIC_fair_op.out'), archive, LOGGER)
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+    assert simulation.outputs is not None
+    assert len(simulation.outputs) > 0
+
+    assert all(out.model_system_ref is not None for out in simulation.outputs)
+    step_outputs = [out for out in simulation.outputs if 'step' in out.m_def.all_quantities]
+    assert all(out.step is not None for out in step_outputs)
+
+    dos_outputs = [out for out in simulation.outputs if out.electronic_dos]
+    assert len(dos_outputs) > 0
+    dos = dos_outputs[0].electronic_dos[0]
+    assert dos.value is not None
+    assert dos.energies is not None
+    assert dos.energies.points is not None

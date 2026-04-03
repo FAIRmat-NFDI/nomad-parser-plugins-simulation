@@ -15,6 +15,29 @@ from nomad.utils import get_logger
 DEFAULT_LOGGER = get_logger(__name__)
 
 
+def link_outputs_to_model_systems(simulation) -> None:
+    """Ensure output sections have stable step indices and model_system references.
+
+    Strategy:
+    - assign `output.step` when missing
+    - assign `output.model_system_ref` when missing
+      * index-matched if number of outputs equals number of model_systems
+      * otherwise fallback to the last model_system when available
+    """
+    model_systems = simulation.model_system or []
+    outputs = simulation.outputs or []
+
+    for index, output in enumerate(outputs):
+        if 'step' in output.m_def.all_quantities and output.step is None:
+            output.step = index
+
+        if output.model_system_ref is None:
+            if len(model_systems) == len(outputs) and len(model_systems) > 0:
+                output.model_system_ref = model_systems[index]
+            elif len(model_systems) > 0:
+                output.model_system_ref = model_systems[-1]
+
+
 def search_files(pattern: str, basedir: str, **kwargs) -> list[str]:
     """Search files following the `pattern` starting from `basedir`. The search is
     performed recursively in all sub-folders (deep=True) or parent folders (deep=False).
