@@ -1,10 +1,12 @@
 from typing import Any
+import os
 
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages import outputs as simulation_outputs
+from nomad_simulations.schema_packages import variables as simulation_variables
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -22,6 +24,7 @@ from nomad_simulations.schema_packages.workflow.single_point import SinglePointM
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoArchiveWriter,
 )
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages.quantumespresso import pwscf
 
 from ..parser import MainfileTextParser, MainfileXMLParser
@@ -92,6 +95,7 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         }
 
         configurations = []
+        header = source.get('header', {}) if isinstance(source, dict) else {}
         for key in methods:
             config = source.get(key)
             if config is None:
@@ -100,9 +104,20 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             if isinstance(sc_config, list):
                 if not sc_config:
                     continue
-                configurations.append(sc_config[-1])
+                sec = sc_config[-1]
             else:
-                configurations.append(sc_config)
+                sec = sc_config
+
+            if isinstance(sec, dict):
+                if sec.get('simulation_cell') is None and header.get('simulation_cell') is not None:
+                    sec = sec.copy()
+                    sec['simulation_cell'] = header.get('simulation_cell')
+                if sec.get('labels_positions') is None and header.get('labels_positions') is not None:
+                    if sec is sc_config:
+                        sec = sec.copy()
+                    sec['labels_positions'] = header.get('labels_positions')
+
+            configurations.append(sec)
         return configurations
 
     def _resolve_scf_source(self, source: Any) -> Any:
@@ -305,34 +320,71 @@ class PWSCFMainfileXMLParser(MainfileXMLParser):
 class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     schema = pwscf
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
-
-    def parse_program(self, archive: EntryArchive, index: int) -> None:
-        super().parse_program(archive, index)
-        if not archive.data or not archive.data.outputs:
-            return
-
-        configurations = self.mainfile_parser.get_configurations(self.mainfile_parser.data)
-        for i, output in enumerate(archive.data.outputs):
-            if i >= len(configurations):
-                break
-            if output.electronic_eigenvalues:
-                continue
-
-            eigenvalues = self.mainfile_parser.get_eigenvalues(configurations[i])
-            if not eigenvalues:
-                continue
-
-            output.electronic_eigenvalues = [
-                simulation_outputs.ElectronicEigenvalues(
-                    value=entry.get('eigenvalues'),
-                    occupation=entry.get('occupations'),
-                    n_levels=entry.get('n_levels'),
-                    spin_channel=entry.get('spin_channel'),
-                )
-                for entry in eigenvalues
-            ]
     _xml_parser = PWSCFMainfileXMLParser()
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
         super().parse_program(archive, index)
         archive.workflow2 = self.mainfile_parser.build_workflow()
+
+        if not archive.data or not archive.data.outputs:
+            return
+
+        if hasattr(self.mainfile_parser, 'get_eigenvalues'):
+            configurations = self.mainfile_parser.get_configurations(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if i >= len(configurations):
+                    break
+                if output.electronic_eigenvalues:
+                    continue
+
+                try:
+                    eigenvalues = self.mainfile_parser.get_eigenvalues(configurations[i])
+                except Exception:
+                    continue
+                if not eigenvalues:
+                    continue
+
+                output.electronic_eigenvalues = [
+                    simulation_outputs.ElectronicEigenvalues(
+                        value=entry.get('eigenvalues'),
+                        occupation=entry.get('occupations'),
+                        n_levels=entry.get('n_levels'),
+                        spin_channel=entry.get('spin_channel'),
+                    )
+                    for entry in eigenvalues
+                ]
+
+        dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(self.mainfile))
+        if not dos_files:
+            return
+
+        dos_data = None
+        for dos_file in dos_files:
+            try:
+                data = np.loadtxt(dos_file, comments='#')
+            except Exception:
+                continue
+            if data is None:
+                continue
+            if data.ndim == 1 and data.size >= 2:
+                data = data.reshape(1, -1)
+            if data.ndim == 2 and data.shape[1] >= 2:
+                dos_data = data
+                break
+
+        if dos_data is None:
+            return
+
+        energies = dos_data[:, 0] * ureg.eV
+        values = np.abs(dos_data[:, 1]) / ureg.eV
+        for output in archive.data.outputs:
+            if output.electronic_dos:
+                continue
+            output.electronic_dos = [
+                simulation_outputs.ElectronicDensityOfStates(
+                    value=values,
+                    energies=simulation_variables.Energy2(points=energies),
+                )
+            ]

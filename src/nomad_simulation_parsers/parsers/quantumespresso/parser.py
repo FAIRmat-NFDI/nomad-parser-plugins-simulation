@@ -246,6 +246,12 @@ class MainfileTextParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
+        cell = self.get_value(source, 'simulation_cell', '')
+        if cell is None:
+            return None
+        return [True, True, True]
+
     @property
     def program_name(self) -> str:
         return self.data_object.get('header', {}).get('program_name_version', [''])[0]
@@ -287,6 +293,12 @@ class MainfileXMLParser(XMLParser):
 
     def get_forces(self, source: np.ndarray):
         return np.reshape(source, (np.size(source) // 3, 3))
+
+    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
+        cell = Path(path='atomic_structure.cell').get_data(source)
+        if cell is None:
+            return None
+        return [True, True, True]
 
     def get_energy_contributions(self, source: dict[str, Any]):
         return [
