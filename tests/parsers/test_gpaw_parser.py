@@ -1,4 +1,6 @@
 from pathlib import Path
+import tempfile
+import zipfile
 
 import pytest
 from nomad.datamodel import EntryArchive
@@ -93,3 +95,31 @@ def test_outputs_contract_for_normalizer():
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
+
+
+def test_root_test_data_gpaw_zip_populates_system():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'WaveFunctions-gpaw.zip'
+    if not zip_path.is_file():
+        pytest.skip('WaveFunctions-gpaw.zip fixture not available in repository root test_data.')
+
+    parser = GPAWParser()
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        parser.parse(str(Path(tmpdir) / 'gs_gw_nowfs.gpw'), archive, LOGGER)
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None

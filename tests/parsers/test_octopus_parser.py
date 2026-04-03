@@ -101,5 +101,8 @@ def test_root_test_data_octopus_zip_populates_system_from_xyz_sidefile():
         archive.data.model_system[0],
     )
     assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+    assert len(representative.periodic_boundary_conditions) == 3
     assert representative.particle_states is not None
     assert len(representative.particle_states) > 0
