@@ -148,6 +148,12 @@ class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotation(
         numerical_settings.KLinePath.high_symmetry_path_values, WOUT_KEY, '.values'
     )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_names, BAND_KEY, '.names'
+    )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_values, BAND_KEY, '.values'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
@@ -180,14 +186,15 @@ class Wannier(model_method.Wannier):
 
 
 # TODO: check whether this section is k-dependent
-class ElectronicBandStructure(properties.ElectronicBandStructure):
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
     # properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
     #     MAPPING_ANNOTATION_KEY, {}
     # ).update(dict(wout=Mapper(mapper='.Nwannier')))
 
-    properties.ElectronicBandStructure.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(band=Mapper(mapper=('get_data', ['.data']))))
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
+    )
+    add_mapping_annotation(outputs.ElectronicBandStructure.k_path, BAND_KEY, '.k_path')
 
 
 class WignerSeitz(variables.WignerSeitz):
@@ -232,7 +239,11 @@ class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
 class Outputs(outputs.Outputs):
     # Legacy parity: Wannier90 band structures come from `*band.dat`; avoid
     # placeholder sections from `.wout` metadata-only mappings.
-    add_mapping_annotation(outputs.Outputs.electronic_band_structures, BAND_KEY, '.@')
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        BAND_KEY,
+        ('get_band_structure', ['.data', '.k_path']),
+    )
     add_mapping_annotation(
         outputs.Outputs.hopping_matrices,
         WHR_KEY,

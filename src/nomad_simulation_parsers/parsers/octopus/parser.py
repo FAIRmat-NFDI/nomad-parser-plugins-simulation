@@ -300,17 +300,22 @@ class OctopusMainfileParser(TextParser):
             # try to read from file
             atoms = None
             file_types = {
-                'PDBCoordinates': 'proteindatabank',
-                'XYZCoordinates': 'xyz',
-                'XSFCoordinates': 'xsf',
+                'PDBCoordinates': ['proteindatabank'],
+                'XYZCoordinates': ['extxyz', 'xyz'],
+                'XSFCoordinates': ['xsf'],
             }
-            for ftype, fformat in file_types.items():
+            for ftype, fformats in file_types.items():
                 filename = self.info.get(ftype)
                 if filename is None:
                     continue
-                try:
-                    atoms = read(os.path.join(self._maindir, filename), format=fformat)
-                except Exception:
+                for fformat in fformats:
+                    try:
+                        atoms = read(os.path.join(self._maindir, filename), format=fformat)
+                    except Exception:
+                        continue
+                    if atoms is not None:
+                        break
+                if atoms is None:
                     self.logger.error(
                         'Error reading coordinates file', data=dict(filename=filename)
                     )
@@ -328,6 +333,14 @@ class OctopusMainfileParser(TextParser):
             npbc = self.data.get('grid', {}).get('npbc', 3)
             self._initial_system['pbc'] = [True for _ in range(npbc)]
             self._initial_system['lattice_vectors'] = cell
+        elif atoms is not None:
+            ase_cell = atoms.get_cell()
+            if ase_cell is not None and np.asarray(ase_cell).size > 0:
+                self._initial_system['lattice_vectors'] = (
+                    np.asarray(ase_cell) * self._units_mapping['angstrom']
+                )
+            if atoms.pbc is not None:
+                self._initial_system['pbc'] = [bool(val) for val in np.asarray(atoms.pbc)]
 
         if self.info.get('ReducedCoordinates', None) is not None and cell is not None:
             coordinates = np.dot(coordinates, cell.magnitude)

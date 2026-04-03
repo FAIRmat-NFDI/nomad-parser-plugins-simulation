@@ -12,6 +12,8 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import numerical_settings as sim_numerical
+from nomad_simulations.schema_packages import outputs as sim_outputs
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -93,6 +95,18 @@ class WBandTextParser(TextParser):
 
     def get_data(self, data: np.ndarray) -> np.ndarray:
         return np.transpose(data)[1:].transpose()
+
+    def get_band_structure(
+        self, data: np.ndarray, k_path: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        transposed = np.transpose(data)
+        band_values = transposed[1:].transpose()
+
+        resolved_k_path = {}
+        if isinstance(k_path, dict):
+            resolved_k_path.update(k_path)
+
+        return dict(value=band_values, k_path=resolved_k_path)
 
 
 class WOutTextParser(TextParser):
@@ -467,6 +481,7 @@ class WannierArchiveWriter(ArchiveWriter):
         Parse band files.
         """
         wband_parser = WBandTextParser(text_parser=DataTextParser())
+        k_path = self.wout_parser.get_k_line_path(self.wout_parser.data.get('k_line_path'))
         # parse band files
         band_files = search_files(
             pattern='*band.dat', basedir=self.basedir, re_pattern=self.basename
@@ -474,9 +489,53 @@ class WannierArchiveWriter(ArchiveWriter):
         for band_file in band_files:
             wband_parser.filepath = band_file
             wband_parser.data_object.parse('data')
+            wband_parser.data['k_path'] = k_path
             self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
             wband_parser.convert(self.data_parser)
+
+            # Fallback: if mapping conversion did not materialize band structures,
+            # create the section directly from parsed band data.
+            output = None
+            if self.archive.data.outputs:
+                output = self.archive.data.outputs[0]
+            else:
+                output = sim_outputs.Outputs()
+                self.archive.data.outputs = [output]
+
+            if not output.electronic_band_structures:
+                band = wband_parser.get_band_structure(
+                    wband_parser.data_object.data, wband_parser.data.get('k_path')
+                )
+                sec_bs = sim_outputs.ElectronicBandStructure(value=band.get('value'))
+                sec_k_path = sim_numerical.KLinePath()
+                kpath = band.get('k_path', {})
+                if isinstance(kpath, dict):
+                    values = kpath.get('values')
+                    if values is not None:
+                        # Build an explicit k-point path compatible with
+                        # electronic-band-structure plotting expectations.
+                        values_array = np.asarray(values, dtype=float)
+                        n_kpoints = np.asarray(band.get('value')).shape[0]
+                        if (
+                            values_array.ndim == 2
+                            and values_array.shape[1] == 3
+                            and values_array.shape[0] > 1
+                            and n_kpoints > 1
+                        ):
+                            n_segments = values_array.shape[0] - 1
+                            points = np.empty((n_kpoints, 3), dtype=float)
+                            for index in range(n_kpoints):
+                                progress = index / (n_kpoints - 1)
+                                scaled = progress * n_segments
+                                segment = int(min(np.floor(scaled), n_segments - 1))
+                                local = scaled - segment
+                                start = values_array[segment]
+                                end = values_array[segment + 1]
+                                points[index] = start + local * (end - start)
+                            sec_k_path.points = points
+                sec_bs.k_path = sec_k_path
+                output.electronic_band_structures = [sec_bs]
         wband_parser.close()
 
     def write_to_archive(self) -> None:

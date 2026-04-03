@@ -1,3 +1,7 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
@@ -96,6 +100,27 @@ def test_outputs_contract_for_normalizer(parsed_archive):
         assert band_structure.value is not None
         assert band_structure.k_path is not None
         assert getattr(band_structure.k_path, 'points', None) is not None
+
+
+def test_root_test_data_wannier90_zip_maps_band_structure():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / '1band-wannier90.zip'
+    if not zip_path.is_file():
+        pytest.skip('1band-wannier90.zip fixture not available in repository root test_data.')
+
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+        parser.parse(str(Path(tmpdir) / '1band.wout'), archive, LOGGER)
+
+    output = archive.data.outputs[0]
+    assert output.electronic_band_structures is not None
+    assert len(output.electronic_band_structures) > 0
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+    assert band_structure.k_path is not None
 
 
 class TestWannierQuantumNumberMapping:
