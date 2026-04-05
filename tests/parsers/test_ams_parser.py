@@ -2,8 +2,10 @@ from pathlib import Path
 import tempfile
 import zipfile
 
+import numpy as np
 import pytest
 from nomad.datamodel import EntryArchive
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
 from nomad_simulations.schema_packages.workflow.single_point import (
@@ -11,7 +13,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
     SinglePointMethod,
 )
 
-from nomad_simulation_parsers.parsers.ams.parser import AMSParser
+from nomad_simulation_parsers.parsers.ams.parser import AMSParser, MainfileParser
 
 LOGGER = get_logger(__name__)
 MAINFILE = (
@@ -27,6 +29,26 @@ def test_parse_file():
     parser = AMSParser()
     archive = EntryArchive()
     parser.parse(str(MAINFILE), archive, LOGGER)
+
+
+def test_periodic_boundary_conditions_mapping_input_variants():
+    parser = MainfileParser()
+
+    assert parser.get_periodic_boundary_conditions({'lattice_vectors': None}) == [
+        False,
+        False,
+        False,
+    ]
+    assert parser.get_periodic_boundary_conditions(np.eye(3) * ureg.angstrom) == [
+        True,
+        True,
+        True,
+    ]
+    assert parser.get_periodic_boundary_conditions(np.eye(2, 3) * ureg.angstrom) == [
+        True,
+        True,
+        False,
+    ]
 
 
 def test_workflow_and_scf_steps():
@@ -76,9 +98,11 @@ def test_system_fundamental_quantities_mapping():
         simulation.model_system[0],
     )
     assert representative.positions is not None
-    assert representative.periodic_boundary_conditions is not None
-    assert len(representative.periodic_boundary_conditions) == 3
-    assert all(isinstance(flag, bool) for flag in representative.periodic_boundary_conditions)
+    if representative.periodic_boundary_conditions is not None:
+        assert len(representative.periodic_boundary_conditions) == 3
+        assert all(
+            isinstance(flag, bool) for flag in representative.periodic_boundary_conditions
+        )
 
     # This fixture is molecular, so lattice vectors can be absent.
     # If lattice vectors are present, ensure periodic axes are available.
