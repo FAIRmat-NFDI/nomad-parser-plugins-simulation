@@ -56,16 +56,34 @@ class MainfileParser(TextParser):
                 )
         return xc_functionals
 
-    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
-        lattice_vectors = source.get('lattice_vectors')
+    def get_periodic_boundary_conditions(self, source: dict[str, Any] | Any) -> list[bool] | None:
+        lattice_vectors = source.get('lattice_vectors') if isinstance(source, dict) else source
         if lattice_vectors is None:
             return [False, False, False]
         try:
             vectors = lattice_vectors.magnitude
         except AttributeError:
             vectors = lattice_vectors
+
         try:
-            n_vectors = len(vectors)
+            vectors = np.asarray(vectors)
+        except Exception:
+            return [False, False, False]
+
+        if vectors.size == 0:
+            return [False, False, False]
+
+        if vectors.ndim == 1:
+            # Accept flattened lattice payloads.
+            n_vectors = min(max(vectors.shape[0] // 3, 0), 3)
+        else:
+            n_vectors = min(vectors.shape[0], 3)
+
+        if n_vectors == 0:
+            return [False, False, False]
+
+        try:
+            n_vectors = int(n_vectors)
         except TypeError:
             n_vectors = 0
         pbc = [True, True, True]
@@ -101,11 +119,11 @@ class MainfileParser(TextParser):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
 
-    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_band_gaps(self, source: Any) -> list[dict[str, Any]]:
         if source is None:
             return []
 
-        if isinstance(source, dict):
+        if hasattr(source, 'get'):
             value = source.get('value')
             if value is None:
                 homo = source.get('energy_highest_occupied')
@@ -212,9 +230,7 @@ class MainfileParser(TextParser):
         scf_options = source.get('scf_options')
         if scf_options is None:
             return None
-        if not isinstance(scf_options, dict):
-            return None
-        convrg = scf_options.get('x_ams_convrg')
+        convrg = scf_options.get('x_ams_convrg') if hasattr(scf_options, 'get') else None
         if convrg is None:
             return None
         return float(convrg) * ureg.hartree
