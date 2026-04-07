@@ -83,6 +83,14 @@ class ControlParser(TextParser):
             else:
                 return np.reshape(val, (3, 3))
 
+        def str_to_int_array(val_in: str) -> np.ndarray:
+            """Parse space-separated integers into numpy array."""
+            return np.array([int(v) for v in val_in.strip().split()], dtype=np.int32)
+
+        def str_to_float_array(val_in: str) -> np.ndarray:
+            """Parse space-separated floats into numpy array."""
+            return np.array([float(v) for v in val_in.strip().split()], dtype=np.float64)
+
         self._quantities = [
             Quantity(
                 'displacement', r'\n *phonon\s*displacement\s*([\d\.]+)', dtype=float
