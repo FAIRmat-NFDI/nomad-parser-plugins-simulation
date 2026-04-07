@@ -273,6 +273,26 @@ class InfoParser(TextParser):
                 out[name] = values
         return out
 
+    def get_fermi_energy(self, source: dict[str, Any]) -> Any:
+        """Resolve Fermi energy from INFO payload (legacy-equivalent source)."""
+        if source is None:
+            return None
+        groundstate = source.get('groundstate') or {}
+
+        # Prefer finalized value when available.
+        final = groundstate.get('final') or {}
+        fermi = final.get('x_exciting_fermi_energy')
+        if fermi is not None:
+            return fermi
+
+        # Fallback to last SCF iteration.
+        scf_iterations = groundstate.get('scf_iteration') or []
+        if scf_iterations:
+            fermi = scf_iterations[-1].get('x_exciting_fermi_energy')
+            if fermi is not None:
+                return fermi
+        return None
+
 
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -471,6 +491,18 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         info_parser.convert(data_parser)
 
+        # Legacy exciting behavior uses INFO.OUT as the canonical source for
+        # reference energy metadata. If the selected mainfile is GW_INFO.OUT
+        # and parsing yields no payload, fallback to sibling INFO.OUT.
+        if not info_parser.data:
+            info_out = os.path.join(maindir, 'INFO.OUT')
+            if (
+                os.path.isfile(info_out)
+                and os.path.abspath(info_out) != os.path.abspath(self.mainfile)
+            ):
+                info_parser.filepath = info_out
+                info_parser.convert(data_parser)
+
         # read xc functionals from input.xml
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
@@ -515,6 +547,22 @@ class ExcitingArchiveWriter(ArchiveWriter):
             dos_parser.close()
 
         self.archive.data = data_parser.data_object
+
+        # Apply legacy-equivalent Fermi reference shift to electronic spectra.
+        fermi_energy = info_parser.get_fermi_energy(info_parser.data)
+        if fermi_energy is not None:
+            for output in self.archive.data.outputs or []:
+                for band_structure in output.electronic_band_structures or []:
+                    if band_structure.value is not None:
+                        band_structure.value = band_structure.value + fermi_energy
+                    if band_structure.highest_occupied is None:
+                        band_structure.highest_occupied = fermi_energy
+
+                for dos in output.electronic_dos or []:
+                    if dos.energies is not None and dos.energies.points is not None:
+                        dos.energies.points = dos.energies.points + fermi_energy
+                    if dos.energies_origin is None:
+                        dos.energies_origin = fermi_energy
 
         # workflow section
         # populate geometry optimization if present
