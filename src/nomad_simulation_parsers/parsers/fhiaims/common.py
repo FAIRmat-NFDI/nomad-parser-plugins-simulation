@@ -83,6 +83,14 @@ class ControlParser(TextParser):
             else:
                 return np.reshape(val, (3, 3))
 
+        def str_to_int_array(val_in: str) -> np.ndarray:
+            """Parse space-separated integers into numpy array."""
+            return np.array([int(v) for v in val_in.strip().split()], dtype=np.int32)
+
+        def str_to_float_array(val_in: str) -> np.ndarray:
+            """Parse space-separated floats into numpy array."""
+            return np.array([float(v) for v in val_in.strip().split()], dtype=np.float64)
+
         self._quantities = [
             Quantity(
                 'displacement', r'\n *phonon\s*displacement\s*([\d\.]+)', dtype=float
@@ -99,4 +107,16 @@ class ControlParser(TextParser):
                 str_operation=str_to_supercell,
             ),
             Quantity('nac', r'\n *phonon nac\s*(.+)', str_operation=str_to_nac),
+            Quantity(
+                'k_grid',
+                r'\n *k_grid\s*([\d ]+)',
+                str_operation=str_to_int_array,
+                convert=False,
+            ),
+            Quantity(
+                'k_offset',
+                r'\n *k_offset\s*([-+\d\. ]+)',
+                str_operation=str_to_float_array,
+                convert=False,
+            ),
         ]
