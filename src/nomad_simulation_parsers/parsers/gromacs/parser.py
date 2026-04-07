@@ -21,7 +21,6 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
 )
 from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
-    Lambdas,
     MolecularDynamics,
 )
 from structlog.stdlib import BoundLogger
@@ -1083,26 +1082,6 @@ class GromacsArchiveWriter(MDParser):
         # parse main log file
         self._simulation_parser.annotation_key = gromacs.LOG_KEY
         self._log_parser.convert(self._simulation_parser)
-
-        # Explicitly populate Lambdas on FreeEnergyCalculationParameters.
-        # Lambdas.coupling_parameters holds the lambda grid per interaction type.
-        # The annotation for free_energy_calculation_parameters.lambdas is
-        # therefore intentionally absent; instances are built here instead.
-        if isinstance(workflow2, MolecularDynamics) and workflow2.method:
-            fep_list = workflow2.method.free_energy_calculation_parameters
-            if fep_list:
-                schedules = self._log_parser.get_lambdas_schedule(self.input_parameters)
-                if schedules:
-                    fep_params = fep_list[0]
-                    for entry in schedules:
-                        lambdas = Lambdas()
-                        lambdas.interaction_type = entry.get('interaction_type')
-                        lambdas.coupling_parameters = entry.get('coupling_parameters')
-                        lambdas.softcore_enabled = entry.get('softcore_enabled')
-                        lambdas.softcore_alpha = entry.get('softcore_alpha')
-                        lambdas.softcore_p = entry.get('softcore_p')
-                        lambdas.softcore_sigma = entry.get('softcore_sigma')
-                        fep_params.lambdas.append(lambdas)
 
         # parse edr file
         self._simulation_parser.annotation_key = gromacs.EDR_KEY

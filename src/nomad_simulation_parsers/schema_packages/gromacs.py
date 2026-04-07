@@ -331,8 +331,6 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
 
     # Free energy calculation subsection.
     # Returns None when free-energy = no so the section is not instantiated.
-    # Lambdas are built explicitly in parser.py to bypass the
-    # MSection.values() conflict (now resolved by renaming to coupling_parameters).
     add_mapping_annotation(
         molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
         LOG_KEY,
@@ -413,9 +411,28 @@ add_mapping_annotation(
     LOG_KEY,
     ('get_lambda_state_index', ['.input_parameters']),
 )
-# NOTE: FreeEnergyCalculationParameters.lambdas and all Lambdas.* annotations
-# are intentionally absent.  Lambdas instances are constructed explicitly in
-# GromacsArchiveWriter._parse_workflow_section instead.
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.lambdas,
+    LOG_KEY,
+    ('get_lambdas_schedule', ['.input_parameters']),
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.m_def, LOG_KEY, '@')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.interaction_type, LOG_KEY, '.interaction_type'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.coupling_parameters, LOG_KEY, '.coupling_parameters'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_enabled, LOG_KEY, '.softcore_enabled'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_alpha, LOG_KEY, '.softcore_alpha'
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.softcore_p, LOG_KEY, '.softcore_p')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_sigma, LOG_KEY, '.softcore_sigma'
+)
 
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
