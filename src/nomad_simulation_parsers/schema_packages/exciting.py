@@ -149,6 +149,7 @@ add_mapping_annotations(
 add_mapping_annotations(
     (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
     (outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'),
+    (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),
     (
         outputs.ElectronicDensityOfStates.projected_dos,
         DOS_XML_KEY,

@@ -292,6 +292,63 @@ class BandstructureXMLParser(XMLParser):
 
     n_spin = 1
 
+    @staticmethod
+    def _as_list(value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]
+
+    @staticmethod
+    def _parse_coord(coord: Any) -> np.ndarray | None:
+        if coord is None:
+            return None
+        if isinstance(coord, str):
+            coord = coord.split()
+        try:
+            parsed = np.array(coord, dtype=float)
+        except Exception:
+            return None
+        if parsed.shape != (3,):
+            return None
+        return parsed
+
+    def get_k_path(self, source: dict[str, Any]) -> dict[str, Any]:
+        bandstructure = source.get('bandstructure', {})
+
+        # Prefer explicit point coordinates from the first band.
+        points: list[np.ndarray] = []
+        bands = self._as_list(bandstructure.get('band'))
+        if bands:
+            band_points = self._as_list(bands[0].get('point'))
+            for point in band_points:
+                coord = self._parse_coord(point.get('@coord'))
+                if coord is not None:
+                    points.append(coord)
+
+        k_path: dict[str, Any] = {}
+        if points:
+            k_path['n_line_points'] = len(points)
+            k_path['points'] = np.array(points, dtype=float)
+
+        # Capture high-symmetry labels and vertices when available.
+        high_symmetry_names: list[str] = []
+        high_symmetry_values: list[np.ndarray] = []
+        for vertex in self._as_list(bandstructure.get('vertex')):
+            label = vertex.get('@label')
+            coord = self._parse_coord(vertex.get('@coord'))
+            if label is None or coord is None:
+                continue
+            high_symmetry_names.append(label)
+            high_symmetry_values.append(coord)
+
+        if high_symmetry_names and high_symmetry_values:
+            k_path['high_symmetry_path_names'] = high_symmetry_names
+            k_path['high_symmetry_path_values'] = np.array(high_symmetry_values)
+
+        return k_path
+
     def get_bandstructures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         # TODO determine format for spin pol case
         energies = [
@@ -301,8 +358,14 @@ class BandstructureXMLParser(XMLParser):
         n_band = len(source['bandstructure']['band']) // n_spin
         n_kpoints = len(source['bandstructure']['band'][0]['point'])
         energies = np.array(energies, dtype=float).reshape((n_spin, n_band, n_kpoints))
+        k_path = self.get_k_path(source)
         return [
-            dict(energies=e.T * ureg.hartree, n_states=n_band, n_kpoints=n_kpoints)
+            dict(
+                energies=e.T * ureg.hartree,
+                n_states=n_band,
+                n_kpoints=n_kpoints,
+                k_path=k_path,
+            )
             for e in energies
         ]
 
