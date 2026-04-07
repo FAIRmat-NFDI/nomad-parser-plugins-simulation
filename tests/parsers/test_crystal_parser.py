@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
@@ -10,6 +11,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 
 from nomad_simulation_parsers.parsers.crystal.parser import CrystalParser
+from nomad_simulation_parsers.parsers.crystal.parser import CrystalOutputParser
 
 LOGGER = get_logger(__name__)
 MAINFILE = (
@@ -125,3 +127,19 @@ def test_outputs_contract_for_normalizer():
     if output.electronic_band_structures:
         band_structure = output.electronic_band_structures[0]
         assert band_structure.value is not None
+
+
+def test_crystal_atom_number_prefix_normalization_sr_238():
+    """CRYSTAL prefixed species numbers should map to canonical atomic numbers."""
+    parser = CrystalOutputParser()
+    source = {
+        'labels_positions': np.array(
+            [['1', 'T', '238', 'Sr', '0.0', '0.0', '0.0']], dtype=str
+        )
+    }
+
+    atoms = parser.get_atoms(source)
+    assert atoms is not None
+    assert len(atoms) == 1
+    assert atoms[0]['label'] == 'Sr'
+    assert atoms[0]['number'] == 38

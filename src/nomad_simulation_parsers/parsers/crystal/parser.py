@@ -121,10 +121,33 @@ class CrystalOutputParser(TextParser):
                 return label if label in chemical_symbols[1:] else unknown
             return unknown
 
-        return [
-            dict(label=normalize_label(label), number=numbers[n])
-            for n, label in enumerate(labels)
-        ] or None
+        def normalize_number(number: Any, normalized_label: str | None) -> int | None:
+            try:
+                raw = int(float(number))
+            except Exception:
+                return None
+
+            # Legacy CRYSTAL parser semantics: NAT atomic numbers are mapped with modulo 100.
+            # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
+            normalized = raw % 100
+            if normalized == 0:
+                return 0
+
+            if 0 < normalized < len(chemical_symbols):
+                return normalized
+
+            return raw
+
+        atoms = []
+        for n, label in enumerate(labels):
+            normalized_label = normalize_label(label)
+            normalized_number = normalize_number(numbers[n], normalized_label)
+            if normalized_label is None and normalized_number is not None:
+                if 0 < normalized_number < len(chemical_symbols):
+                    normalized_label = chemical_symbols[normalized_number]
+            atoms.append(dict(label=normalized_label, number=normalized_number))
+
+        return atoms or None
 
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = set()
