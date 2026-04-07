@@ -928,7 +928,7 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(
-    molecular_dynamics.Lambdas.values,
+    molecular_dynamics.Lambdas.coupling_parameters,
     HDF5_KEY,
     (
         'map_value',
