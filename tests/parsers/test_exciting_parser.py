@@ -1,3 +1,5 @@
+import tempfile
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -220,3 +222,38 @@ def test_outputs_contract_for_normalizer(parsed_archive):
         assert bs.value is not None
         assert bs.k_path is not None
         assert getattr(bs.k_path, 'points', None) is not None
+
+
+def test_root_test_data_exciting_zip_populates_reference_energy_fields(parser):
+    """Parser scope: exciting zip should expose reference-energy fields on outputs."""
+    root_dir = Path(__file__).resolve().parents[3]
+    zip_path = root_dir / 'test_data' / 'Si_gw-exciting.zip'
+    if not zip_path.is_file():
+        pytest.skip('Si_gw-exciting.zip fixture not available in repository root test_data.')
+
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+        extracted = Path(tmpdir)
+        mainfiles = sorted(extracted.rglob('GW_INFO.OUT')) + sorted(
+            extracted.rglob('INFO.OUT')
+        )
+        assert mainfiles
+        parser.parse(str(mainfiles[0]), archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs
+    output = outputs[0]
+
+    # Legacy-equivalent migration behavior: parser should provide a reference
+    # energy for BS and DOS normalization paths.
+    assert output.electronic_band_structures
+    bs = output.electronic_band_structures[0]
+    assert bs.highest_occupied is not None
+
+    assert output.electronic_dos
+    dos = output.electronic_dos[0]
+    assert dos.energies is not None
+    assert dos.energies.points is not None
+    assert dos.energies_origin is not None

@@ -329,6 +329,7 @@ class InfoFileParser(TextParser):
 
         self._miscellaneous_keys_mapping = {
             'x_exciting_gap': (r'Estimated fundamental gap', ureg.hartree),
+            'x_exciting_fermi_energy': (r'Fermi energy', ureg.hartree),
             'time_physical': (r'Wall time \(seconds\)', ureg.s),
         }
 
