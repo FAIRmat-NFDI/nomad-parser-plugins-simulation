@@ -117,6 +117,14 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                         sec = sec.copy()
                     sec['labels_positions'] = header.get('labels_positions')
 
+            payload_target = sec if isinstance(sec, dict) else getattr(sec, 'data', None)
+            if isinstance(payload_target, dict):
+                payload_target['electronic_eigenvalues'] = self.get_eigenvalues(sec)
+                payload_target['electronic_band_structures'] = self.get_band_structures(
+                    sec
+                )
+                payload_target['electronic_dos'] = self.get_dos(sec)
+
             configurations.append(sec)
         return configurations
 
@@ -399,6 +407,14 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
         if not archive.data or not archive.data.outputs:
             return
 
+        # TODO(mapping-migration): remove this parser-side electronic fallback once
+        # PWSCF fixtures are fully covered by mapping-driven population only.
+        # Mapping attempts tried in this iteration:
+        # 1) Outputs mappings via ('get_eigenvalues'|'get_band_structures'|'get_dos', ['.@'])
+        # 2) Precomputing payload keys in get_configurations + direct '.electronic_*' mappings
+        # Both attempts left electronic sections empty on current fixtures
+        # (tests/parsers/test_quantumespresso_parser.py), so we keep this as a
+        # temporary compatibility fallback.
         if hasattr(self.mainfile_parser, 'get_eigenvalues'):
             configurations = self.mainfile_parser.get_configurations(
                 self.mainfile_parser.data

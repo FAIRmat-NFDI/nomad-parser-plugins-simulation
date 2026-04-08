@@ -596,6 +596,8 @@ class QuantumEspressoParser(MatchingParser):
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 
+        # TODO(mapping-migration): remove this parser-level PWSCF fallback once
+        # electronic outputs are reliably populated through mappings only.
         if (
             archive.data
             and archive.data.outputs
