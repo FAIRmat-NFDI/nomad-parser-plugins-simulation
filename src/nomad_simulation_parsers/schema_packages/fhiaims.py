@@ -10,7 +10,6 @@ from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
-    numerical_settings,
     outputs,
     properties,
     workflow,
@@ -85,12 +84,6 @@ class Simulation(general.Simulation):
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
-
-
-class DFT(model_method.DFT):
-    add_mapping_annotation(
-        model_method.DFT.numerical_settings, TEXT_KEY, '.@'
-    )
 
 
 # class DFT(model_method.DFT):
@@ -286,21 +279,6 @@ class GeometryOptimizationMethod(
     workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
-
-
-class NumericalSettings(numerical_settings.NumericalSettings):
-    add_mapping_annotation(
-        numerical_settings.KMesh.m_def, TEXT_KEY, '.@'
-    )
-
-
-class KMesh(numerical_settings.KMesh):
-    add_mapping_annotation(
-        numerical_settings.KMesh.grid, TEXT_KEY, '.k_grid'
-    )
-    add_mapping_annotation(
-        numerical_settings.KMesh.offset, TEXT_KEY, '.k_offset'
-    )
 
 
 try:
