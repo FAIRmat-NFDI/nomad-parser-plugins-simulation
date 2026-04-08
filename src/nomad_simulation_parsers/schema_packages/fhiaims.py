@@ -50,7 +50,7 @@ class Simulation(general.Simulation):
             dict(include=['lattice_vectors', 'structure', 'sub_structure']),
         ),
     )
-    # DFT method - only annotate DFT.m_def, not ModelMethod base class
+    # DFT method
     add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
     add_mapping_annotation(model_method.GW.m_def, TEXT_GW_KEY, '.@')
