@@ -159,8 +159,13 @@ add_mapping_annotations(
 
 
 add_mapping_annotations(
-    (outputs.ElectronicBandGap.value, EIGVAL_KEY, '.value'),
     (outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'),
+)
+add_mapping_annotation(
+    outputs.ElectronicBandGap.value,
+    EIGVAL_KEY,
+    '.value',
+    unit='eV',
 )
 
 add_mapping_annotation(
