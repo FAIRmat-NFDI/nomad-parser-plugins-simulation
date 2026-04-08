@@ -24,12 +24,15 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 )
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import vasp
 
 LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
 EIGENVALUE_COMPONENTS = 2
-OCCUPATION_THRESHOLD = 0.5
 EIGENVALUE_ARRAY_NDIM = 3
 DOS_ARRAY_NDIM = 2
 
@@ -166,29 +169,20 @@ class VasprunParser(XMLParser):
         return result
 
     def get_band_gaps(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues using common utility."""
         result = []
         for eigenvalues in self.get_eigenvalues(source):
-            eigs = np.asarray(eigenvalues.get('eigenvalues'))
-            occs = np.asarray(eigenvalues.get('occupations'))
-            if eigs.size == 0 or occs.size == 0:
-                continue
+            eigs = eigenvalues.get('eigenvalues')
+            occs = eigenvalues.get('occupations')
+            spin_channel = eigenvalues.get('spin_channel')
 
-            occupied = eigs[occs >= OCCUPATION_THRESHOLD]
-            unoccupied = eigs[occs < OCCUPATION_THRESHOLD]
-            if occupied.size == 0:
-                valence_max = np.amin(eigs) - 1.0
-            else:
-                valence_max = np.amax(occupied)
-            if unoccupied.size == 0:
-                conduction_min = np.amin(eigs) - 1.0
-            else:
-                conduction_min = np.amin(unoccupied)
-            band_gap = max(0.0, float(conduction_min - valence_max))
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                eigs, occs, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                result.append(gap_result)
 
-            entry = dict(value=band_gap)
-            if eigenvalues.get('spin_channel') is not None:
-                entry['spin_channel'] = eigenvalues['spin_channel']
-            result.append(entry)
         return result
 
     def _get_fermi_energy(self, source: dict[str, Any] | None) -> float | None:

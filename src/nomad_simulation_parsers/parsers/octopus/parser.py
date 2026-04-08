@@ -12,12 +12,15 @@ from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import octopus
 
 from .file_parser import EigenvalueParser, InfoParser, InpParser, LogParser, OutParser
 
 LOGGER = get_logger(__name__)
-OCCUPATION_THRESHOLD = 0.5
 
 
 class OctopusMainfileParser(TextParser):
@@ -451,32 +454,18 @@ class OctopusEigenvalueParser(TextParser):
         ]
 
     def get_band_gaps(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues using common utility."""
         band_gaps = []
         for spin_channel, eigenvalue_data in enumerate(self.get_eigenvalues(source)):
             energies = eigenvalue_data.get('eigenvalues')
             occupations = eigenvalue_data.get('occupations')
-            if energies is None or occupations is None:
-                continue
 
-            energies_values = np.asarray(energies.magnitude, dtype=float)
-            occupations_values = np.asarray(occupations, dtype=float)
-            if energies_values.size == 0 or occupations_values.size == 0:
-                continue
-            if energies_values.shape != occupations_values.shape:
-                continue
-
-            occupied = energies_values[occupations_values >= OCCUPATION_THRESHOLD]
-            unoccupied = energies_values[occupations_values < OCCUPATION_THRESHOLD]
-            if occupied.size == 0:
-                continue
-
-            if unoccupied.size == 0:
-                gap = 0.0
-            else:
-                gap = max(0.0, float(np.min(unoccupied) - np.max(occupied)))
-            band_gaps.append(
-                {'value': gap * energies.units, 'spin_channel': spin_channel}
+            # Use common utility for band gap calculation (handles units automatically)
+            gap_result = calculate_band_gap_from_occupations(
+                energies, occupations, spin_channel=spin_channel
             )
+            if gap_result is not None:
+                band_gaps.append(gap_result)
 
         return band_gaps
 

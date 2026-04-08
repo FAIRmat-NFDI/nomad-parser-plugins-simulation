@@ -28,13 +28,16 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
 
 LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
-OCCUPATION_THRESHOLD = 0.5
 
 
 ABINIT_NATIVE_IXC = {
@@ -671,25 +674,25 @@ class MainfileParser(TextParser):
     def get_band_gaps(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues and occupations using common utility."""
         if eigenvalues is None or occupations is None:
             return []
+        
         bandstructures = self.get_bandstructures(eigenvalues, occupations)
         gaps = []
         for bandstructure in bandstructures:
-            eigs = np.asarray(bandstructure.get('energies'))
-            occs = np.asarray(bandstructure.get('occupations'))
-            if eigs.size == 0 or occs.size == 0:
-                continue
-            occupied = eigs[occs >= OCCUPATION_THRESHOLD]
-            unoccupied = eigs[occs < OCCUPATION_THRESHOLD]
-            if occupied.size == 0 or unoccupied.size == 0:
-                continue
-            gap = float(np.amin(unoccupied) - np.amax(occupied))
-            entry = dict(value=max(0.0, gap))
+            eigs = bandstructure.get('energies')
+            occs = bandstructure.get('occupations')
             spin_channel = bandstructure.get('spin_channel')
-            if spin_channel is not None:
-                entry['spin_channel'] = spin_channel
-            gaps.append(entry)
+            
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                eigs, occs, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                gaps.append(gap_result)
+        
+        return gaps
         return gaps
 
 
@@ -730,6 +733,16 @@ class AbinitArchiveWriter(ArchiveWriter):
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
+            
+            # Set optimization type based on optcell parameter
+            optcell = self.mainfile_parser.get_input_var('optcell', 1, [0])[0]
+            if optcell == 0:
+                workflow.method.optimization_type = 'atomic'
+            elif optcell == 1:
+                workflow.method.optimization_type = 'cell_volume'
+            elif optcell >= 2:
+                workflow.method.optimization_type = 'cell_shape'
+            
             convergence = self.mainfile_parser.get_geometry_convergence()
             if convergence:
                 workflow.method.convergence_targets = convergence

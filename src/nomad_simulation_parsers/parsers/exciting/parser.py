@@ -32,7 +32,10 @@ from structlog.stdlib import (
     BoundLogger,
 )
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages import exciting
 
 from .eigval_parser import EigvalFileParser
@@ -432,6 +435,7 @@ class EigvalParser(TextParser):
         ]
 
     def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        """Calculate band gaps across all k-points for each spin channel."""
         eigs_occs = source.get('eigenvalues_occupancies') or []
         if not eigs_occs:
             return []
@@ -440,7 +444,6 @@ class EigvalParser(TextParser):
         if n_spin == 0:
             return []
 
-        occupation_threshold = 0.5
         valence_max = np.full(n_spin, -np.inf)
         conduction_min = np.full(n_spin, np.inf)
 
@@ -453,8 +456,8 @@ class EigvalParser(TextParser):
             for spin in range(min(n_spin, eigs.shape[0], occs.shape[0])):
                 spin_eigs = eigs[spin]
                 spin_occs = occs[spin]
-                occupied = spin_eigs[spin_occs >= occupation_threshold]
-                unoccupied = spin_eigs[spin_occs < occupation_threshold]
+                occupied = spin_eigs[spin_occs >= OCCUPATION_THRESHOLD]
+                unoccupied = spin_eigs[spin_occs < OCCUPATION_THRESHOLD]
                 if occupied.size > 0:
                     valence_max[spin] = max(valence_max[spin], np.max(occupied))
                 if unoccupied.size > 0:
