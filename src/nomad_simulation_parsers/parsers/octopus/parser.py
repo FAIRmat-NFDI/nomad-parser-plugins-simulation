@@ -13,7 +13,6 @@ from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import (
-    OCCUPATION_THRESHOLD,
     calculate_band_gap_from_occupations,
 )
 from nomad_simulation_parsers.schema_packages import octopus
