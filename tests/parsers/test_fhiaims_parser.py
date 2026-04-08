@@ -78,16 +78,10 @@ def test_k_mesh():
     dft = archive.data.model_method[0]
     assert dft.m_def.name == 'DFT'
 
-    # Check NumericalSettings/KSpace exists
+    # Check NumericalSettings/KMesh exists
     assert dft.numerical_settings is not None
     assert len(dft.numerical_settings) == 1
-    k_space = dft.numerical_settings[0]
-    assert k_space.m_def.name == 'KSpace'
-
-    # Check KSpace.k_mesh exists
-    assert k_space.k_mesh is not None
-    assert len(k_space.k_mesh) == 1
-    k_mesh = k_space.k_mesh[0]
+    k_mesh = dft.numerical_settings[0]
     assert k_mesh.m_def.name == 'KMesh'
 
     # Check k-grid values
