@@ -28,7 +28,6 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
 from nomad_simulation_parsers.parsers.utils.general import (
-    OCCUPATION_THRESHOLD,
     calculate_band_gap_from_occupations,
 )
 from nomad_simulation_parsers.schema_packages import vasp

@@ -61,13 +61,17 @@ def calculate_band_gap_from_occupations(
 
     Args:
         eigenvalues: Energy eigenvalues array (can have units via pint)
-        occupations: Occupation numbers (typically 0-2 for spin-polarized, 0-1 otherwise)
-        occupation_threshold: Threshold to differentiate occupied/unoccupied (default: 0.5)
+        occupations: Occupation numbers (typically 0-2 for spin-polarized,
+            0-1 otherwise)
+        occupation_threshold: Threshold to differentiate occupied/unoccupied
+            (default: 0.5)
         spin_channel: Optional spin channel index (0=up, 1=down)
-        energy_units: Optional pint units to apply to gap value (if eigenvalues are unitless)
+        energy_units: Optional pint units to apply to gap value (if
+            eigenvalues are unitless)
 
     Returns:
-        Dictionary with 'value' (and optional 'spin_channel') or None if invalid/insufficient data
+        Dictionary with 'value' (and optional 'spin_channel') or None if
+            invalid/insufficient data
 
     Example:
         >>> eigenvalues = np.array([[-5.0, -4.0, -3.0, 3.0, 4.0]])  # eV

@@ -116,18 +116,12 @@ class TestCalculateBandGapFromOccupations:
     def test_none_inputs(self):
         """Test that None inputs return None."""
         assert calculate_band_gap_from_occupations(None, None) is None
-        assert (
-            calculate_band_gap_from_occupations(None, np.array([1.0, 0.0])) is None
-        )
-        assert (
-            calculate_band_gap_from_occupations(np.array([1.0, 0.0]), None) is None
-        )
+        assert calculate_band_gap_from_occupations(None, np.array([1.0, 0.0])) is None
+        assert calculate_band_gap_from_occupations(np.array([1.0, 0.0]), None) is None
 
     def test_empty_arrays(self):
         """Test that empty arrays return None."""
-        assert (
-            calculate_band_gap_from_occupations(np.array([]), np.array([])) is None
-        )
+        assert calculate_band_gap_from_occupations(np.array([]), np.array([])) is None
 
     def test_shape_mismatch(self):
         """Test that mismatched shapes return None."""
