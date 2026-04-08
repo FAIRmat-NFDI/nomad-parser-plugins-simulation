@@ -6,6 +6,7 @@ import pytest
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.gromacs import parser as gromacs_parser
+from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
 
 
 class StubMDAnalysisDataObject:
@@ -956,8 +957,6 @@ def test_xvg_parser_get_results_valid():
     if not xvg_file.exists():
         pytest.skip(f'XVG test data not found: {xvg_file}')
 
-    from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
-
     text_parser = GromacsXvgParser()
     text_parser.mainfile = str(xvg_file)
     text_parser.parse()
@@ -981,7 +980,7 @@ def test_xvg_parser_get_results_valid():
 
 
 def test_integration_fep_xvg_fields_populated():
-    """Integration test: XVG-sourced fields appear in FreeEnergyCalculationParameters."""
+    """Integration test: XVG fields appear in FreeEnergyCalculationParameters."""
     log_file = (
         Path(__file__).parent.parent
         / 'data'
