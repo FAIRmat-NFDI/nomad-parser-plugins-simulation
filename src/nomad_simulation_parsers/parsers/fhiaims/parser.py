@@ -494,31 +494,11 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
-
-        # Create Simulation without manual DFT - let annotations create it
         self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
-
-        # Manually create and populate DFT section since annotations don't work
-        # This is a workaround until the mapping framework issue is resolved
-        from nomad_simulations.schema_packages.model_method import DFT
-        from nomad_simulations.schema_packages.numerical_settings import KMesh
-
-        dft = DFT()
-
-        # Populate k-mesh if present in parsed data
-        # KMesh is a type of NumericalSettings, so add it directly
-        if 'k_grid' in out_parser.data:
-            k_mesh = KMesh(grid=out_parser.data['k_grid'])
-            if 'k_offset' in out_parser.data:
-                k_mesh.offset = out_parser.data['k_offset']
-
-            dft.numerical_settings = [k_mesh]
-
-        self.archive.data.model_method = [dft]
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
