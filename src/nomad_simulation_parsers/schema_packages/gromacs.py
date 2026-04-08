@@ -421,7 +421,7 @@ add_mapping_annotation(
     molecular_dynamics.Lambdas.interaction_type, LOG_KEY, '.interaction_type'
 )
 add_mapping_annotation(
-    molecular_dynamics.Lambdas.coupling_parameters, LOG_KEY, '.coupling_parameters'
+    molecular_dynamics.Lambdas.lambda_values, LOG_KEY, '.lambda_values'
 )
 add_mapping_annotation(
     molecular_dynamics.Lambdas.softcore_enabled, LOG_KEY, '.softcore_enabled'

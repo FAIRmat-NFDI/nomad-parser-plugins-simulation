@@ -709,7 +709,7 @@ def test_get_lambdas_schedule_fe():
     entry = result[0]
     assert entry['interaction_type'] == 'vdw'
     np.testing.assert_array_equal(
-        entry['coupling_parameters'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+        entry['lambda_values'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
     )
     assert entry['softcore_enabled'] is True
     assert entry['softcore_alpha'] == '0.5'

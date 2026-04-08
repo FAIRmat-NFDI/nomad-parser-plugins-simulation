@@ -466,7 +466,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         Used as the mapper hook for free_energy_calculation_parameters so that
         the section is only instantiated for FEP runs.  Lambdas are populated
         explicitly in GromacsArchiveWriter._parse_workflow_section to avoid
-        the MSection.values() / Lambdas.coupling_parameters naming issue.
+        the MSection.values() / Lambdas.lambda_values naming issue.
         """
         result = None
         if not source:
@@ -513,7 +513,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
                 continue
             entry: dict[str, Any] = {
                 'interaction_type': interaction_type,
-                'coupling_parameters': values,
+                'lambda_values': values,
             }
             entry.update(softcore)
             entries.append(entry)
@@ -533,9 +533,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if state_index is None or not schedules:
             return result
         try:
-            result = np.array(
-                [s['coupling_parameters'][state_index] for s in schedules]
-            )
+            result = np.array([s['lambda_values'][state_index] for s in schedules])
         except IndexError:
             self.logger.warning(
                 'init-lambda-state %d is out of range for the lambda grids.',
