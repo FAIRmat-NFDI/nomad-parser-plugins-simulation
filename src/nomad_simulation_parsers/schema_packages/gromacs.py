@@ -23,6 +23,7 @@ LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
 PARTICLE_PARAM_KEY = 'gromacs_particle_params'
+XVG_KEY = 'gromacs_xvg'
 
 
 # =============================================================================
@@ -435,8 +436,52 @@ add_mapping_annotation(
 )
 
 
+# XVG free-energy time-series annotations.
+# Target: a FreeEnergyCalculationParameters instance set as data_object directly
+# (Bug-2 workaround — update_mode cannot propagate into already-populated subsections).
+# When Bug-2 is fixed in MetainfoParser, these annotations will be reachable via a
+# single convert pass targeting the MolecularDynamics workflow object.
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.m_def, XVG_KEY, '@'
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.n_frames,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'n_frames'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.n_states,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'n_states'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.times,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'times'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.energy_derivative,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_total_energy_derivative'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.energy_differences,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_total_energy_differences'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.pv_energy,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_PV_energy'}),
+)
+
+
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
-    # parse from xvg
+    # TODO: XVG files can carry general thermodynamic time series beyond the
+    # free-energy dH/dλ data (which already routes to
+    # FreeEnergyCalculationParameters via XVG_KEY).  Add XVG_KEY annotations
+    # here once the relevant MolecularDynamicsResults quantities are defined in
+    # nomad-simulations (e.g. per-frame pressure, density, box dimensions).
     pass
 
 

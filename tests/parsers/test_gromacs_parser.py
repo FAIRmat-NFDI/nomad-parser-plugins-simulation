@@ -941,3 +941,77 @@ def test_system_hierarchy_composition_formulas():
 
     for mol_group in system.sub_systems:
         check_terminal_formulas(mol_group)
+
+
+def test_xvg_parser_get_results_valid():
+    """Unit test for GromacsXVGParser.get_results() with real XVG data."""
+    xvg_file = (
+        Path(__file__).parent.parent
+        / 'data'
+        / 'gromacs'
+        / 'free_energy_calculations'
+        / 'alchemical_transformation_single_run'
+        / 'fep_run-7.xvg'
+    )
+    if not xvg_file.exists():
+        pytest.skip(f'XVG test data not found: {xvg_file}')
+
+    from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
+
+    text_parser = GromacsXvgParser()
+    text_parser.mainfile = str(xvg_file)
+    text_parser.parse()
+
+    xvg_parser = gromacs_parser.GromacsXVGParser(text_parser=text_parser)
+    xvg_parser.filepath = str(xvg_file)
+
+    results = xvg_parser.get_results()
+    fec = results.get('free_energy_calculations', {})
+
+    assert fec.get('n_frames') == 5001
+    assert fec.get('n_states') == 11
+    assert fec.get('times') is not None
+    assert len(fec['times']) == 5001
+    assert fec.get('value_total_energy_derivative') is not None
+    assert fec['value_total_energy_derivative'].shape == (5001,)
+    assert fec.get('value_total_energy_differences') is not None
+    assert fec['value_total_energy_differences'].shape == (5001, 11)
+    assert fec.get('value_PV_energy') is not None
+    assert fec['value_PV_energy'].shape == (5001,)
+
+
+def test_integration_fep_xvg_fields_populated():
+    """Integration test: XVG-sourced fields appear in FreeEnergyCalculationParameters."""
+    log_file = (
+        Path(__file__).parent.parent
+        / 'data'
+        / 'gromacs'
+        / 'free_energy_calculations'
+        / 'alchemical_transformation_single_run'
+        / 'fep_run-7.log'
+    )
+    if not log_file.exists():
+        pytest.skip(f'FEP test data not found: {log_file}')
+
+    archive = EntryArchive()
+    parser = gromacs_parser.GromacsParser()
+    parser.parse(str(log_file), archive)
+
+    assert archive.workflow2 is not None
+    method = archive.workflow2.method
+    assert method is not None
+    assert method.free_energy_calculation_parameters is not None
+    assert len(method.free_energy_calculation_parameters) > 0
+
+    fep = method.free_energy_calculation_parameters[0]
+
+    assert fep.n_frames == 5001
+    assert fep.n_states == 11
+    assert fep.times is not None
+    assert len(fep.times) == 5001
+    assert fep.energy_derivative is not None
+    assert fep.energy_derivative.shape == (5001,)
+    assert fep.energy_differences is not None
+    assert fep.energy_differences.shape == (5001, 11)
+    assert fep.pv_energy is not None
+    assert fep.pv_energy.shape == (5001,)

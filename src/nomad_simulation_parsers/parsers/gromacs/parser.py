@@ -620,6 +620,13 @@ class GromacsXVGParser(TextParser):
     #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
     # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
     _XVG_FIXED_COLUMNS = 4
+
+    def to_dict(self, **kwargs) -> dict[str, Any]:
+        if self.data_object is not None:
+            self.data_object.parse()
+            return self.data_object._results
+        return {}
+
     # Expected number of array dimensions in column_vals.
     _XVG_EXPECTED_NDIM = 2
     # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
@@ -650,7 +657,7 @@ class GromacsXVGParser(TextParser):
         # Column layout: time | E_total | dH/dlambda | ΔH[0..n-1] | PV
         n_states = columns.shape[1] - self._XVG_FIXED_COLUMNS
         free_energy['n_frames'] = len(columns)
-        free_energy['value_unit'] = str(ENERGY_UNIT.units)
+        free_energy['value_unit'] = str(ENERGY_UNIT._units)
         free_energy['n_states'] = n_states
         xaxis = self.data.get('xaxis', '').lower()
         # The expected columns of the xvg file are:
@@ -659,7 +666,7 @@ class GromacsXVGParser(TextParser):
         # PV Energy
         if 'time' in xaxis:
             free_energy['times'] = columns[:, 0] * ureg.ps
-            energy_cols = columns[:, 1:] * ENERGY_UNIT.magnitude
+            energy_cols = columns[:, 1:] * ENERGY_UNIT
             free_energy['value_total_energy'] = energy_cols[:, 0]
             free_energy['value_total_energy_derivative'] = energy_cols[:, 1]
             diff_start = self._XVG_DIFF_OFFSET
@@ -669,6 +676,18 @@ class GromacsXVGParser(TextParser):
             free_energy['value_PV_energy'] = energy_cols[:, diff_start + n_states]
 
         return results
+
+    def get_fep_xvg_data(self, field: str = '') -> Any:
+        """Return one field from the parsed XVG free-energy block.
+
+        Called as a zero-path transformer (paths=[]) by the MappingParser
+        for each XVG_KEY annotation on FreeEnergyCalculationParameters.
+        """
+        fec = self.get_results().get('free_energy_calculations', {})
+        val = fec.get(field)
+        if val is None:
+            return None
+        return val.magnitude if hasattr(val, 'magnitude') else val
 
 
 class GromacsMDAnalysisParser(MappingParser):
@@ -1084,6 +1103,22 @@ class GromacsArchiveWriter(MDParser):
         # parse edr file
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
+
+        # XVG free-energy time-series: target the already-instantiated fep directly
+        # (subsection-type-mismatch workaround — same pattern as ForceCalculations in
+        # _parse_data_section). Reset _mapper so build_mapper() runs again for
+        # FreeEnergyCalculationParameters with XVG_KEY (the mapper is cached per
+        # data_object type and annotation_key, so swapping both requires a reset).
+        if (
+            isinstance(workflow2, MolecularDynamics)
+            and workflow2.method is not None
+            and workflow2.method.free_energy_calculation_parameters
+        ):
+            fep = workflow2.method.free_energy_calculation_parameters[0]
+            self._simulation_parser.data_object = fep
+            self._simulation_parser.annotation_key = gromacs.XVG_KEY
+            self._simulation_parser.mapper = None
+            self._xvg_parser.convert(self._simulation_parser)  # debug=True
 
         self.archive.workflow2 = workflow2
 
