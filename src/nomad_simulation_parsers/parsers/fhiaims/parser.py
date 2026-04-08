@@ -8,12 +8,6 @@ from ase import Atoms
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
-<<<<<<< HEAD
-=======
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser
-from nomad.parsing.file_parser.mapping_parser import TextParser as TextMappingParser
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
@@ -334,7 +328,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
-<<<<<<< HEAD
     def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
         """
         Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
@@ -413,8 +406,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
         return result
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
         if not scf_iterations:
@@ -592,11 +583,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         return phonopy_obj, force_archives
 
-<<<<<<< HEAD
     def write_to_archive(  # noqa: PLR0915, PLR0912
-=======
-    def write_to_archive(  # noqa: PLR0915
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         self,
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
@@ -670,7 +657,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 ]
             energy_threshold = out_parser.data.get('convergence_energy')
             if energy_threshold is not None:
-<<<<<<< HEAD
                 # Handle both pint Quantity (with units) and plain float
                 if hasattr(energy_threshold, 'units'):
                     threshold_value = energy_threshold
@@ -680,11 +666,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 self.archive.workflow2.method.single_point_convergence_targets = [
                     EnergyConvergenceTarget(
                         threshold=threshold_value,
-=======
-                self.archive.workflow2.method.single_point_convergence_targets = [
-                    EnergyConvergenceTarget(
-                        threshold=energy_threshold * ureg.eV,
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
                         threshold_type='absolute',
                     )
                 ]

@@ -92,13 +92,7 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-<<<<<<< HEAD
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
-=======
-    add_mapping_annotation(
-        model_method.DFT.numerical_settings, TEXT_KEY, '.@'
-    )
->>>>>>> 65beb91 (Add KMesh schema annotations for FHI-aims)
 
 
 # class DFT(model_method.DFT):
