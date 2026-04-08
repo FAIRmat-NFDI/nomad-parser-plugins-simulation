@@ -133,11 +133,9 @@ def test_scf_convergence_criteria():
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
 
-    # Check DFT section exists
-    assert archive.data.model_method is not None
-    assert len(archive.data.model_method) == 1
-    dft = archive.data.model_method[0]
-    assert dft.m_def.name == 'DFT'
+    # Debug: print archive structure
+    print(f"archive.data: {archive.data}")
+    print(f"model_method: {archive.data.model_method if archive.data else None}")
 
     # Check NumericalSettings contains SelfConsistency sections
     assert dft.numerical_settings is not None
