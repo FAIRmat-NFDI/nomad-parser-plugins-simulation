@@ -127,7 +127,8 @@ class CrystalOutputParser(TextParser):
             except Exception:
                 return None
 
-            # Legacy CRYSTAL parser semantics: NAT atomic numbers are mapped with modulo 100.
+            # Legacy CRYSTAL parser semantics: NAT atomic numbers are mapped
+            # with modulo 100.
             # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
             normalized = raw % 100
             if normalized == 0:
@@ -282,6 +283,7 @@ class CrystalOutputParser(TextParser):
             )
         return systems
 
+
 class CrystalF25Parser(TextParser):
     @property
     def logger(self):
@@ -349,7 +351,6 @@ class CrystalArchiveWriter(ArchiveWriter):
         self.output_parser.convert(self.archive_parser)
 
         self.archive.data = self.archive_parser.data_object
-        outputs_before_f25 = list(self.archive.data.outputs or [])
         self.archive.workflow2 = self.output_parser.build_workflow(
             self.output_parser.data
         )

@@ -2,9 +2,9 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-import pytest
 
 from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 
@@ -25,7 +25,7 @@ def test_parse_file():
 
 
 def test_system_fundamental_quantities_mapping():
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     parser = OctopusParser()
     archive = EntryArchive()
     parser.parse('tests/data/octopus/Fe_spinpol/stdout.txt', archive, LOGGER)
@@ -51,7 +51,7 @@ def test_system_fundamental_quantities_mapping():
 
 
 def test_outputs_contract_for_normalizer():
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     parser = OctopusParser()
     archive = EntryArchive()
     parser.parse('tests/data/octopus/Fe_spinpol/stdout.txt', archive, LOGGER)
@@ -83,7 +83,8 @@ def test_root_test_data_octopus_zip_populates_system_from_xyz_sidefile():
     zip_path = root_dir / 'test_data' / 'wrZsJFzHT-q4r3MF3H83lA-octopus.zip'
     if not zip_path.is_file():
         pytest.skip(
-            'wrZsJFzHT-q4r3MF3H83lA-octopus.zip fixture not available in repository root test_data.'
+            'wrZsJFzHT-q4r3MF3H83lA-octopus.zip fixture not available '
+            'in repository root test_data.'
         )
 
     parser = OctopusParser()
@@ -99,7 +100,11 @@ def test_root_test_data_octopus_zip_populates_system_from_xyz_sidefile():
     assert len(archive.data.model_system) > 0
 
     representative = next(
-        (s for s in archive.data.model_system if getattr(s, 'is_representative', False)),
+        (
+            s
+            for s in archive.data.model_system
+            if getattr(s, 'is_representative', False)
+        ),
         archive.data.model_system[0],
     )
     assert representative.positions is not None

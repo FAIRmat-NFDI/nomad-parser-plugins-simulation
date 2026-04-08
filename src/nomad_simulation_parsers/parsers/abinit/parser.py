@@ -620,11 +620,11 @@ class MainfileParser(TextParser):
 
         return [
             EnergyConvergenceTarget(
-                threshold=tolmxde,
-                threshold_type='relative',
+                threshold=tolmxde * ureg.hartree,
+                threshold_type='absolute',
             ),
             ForceConvergenceTarget(
-                threshold=tolmxf,
+                threshold=tolmxf * ureg.hartree / ureg.bohr,
                 threshold_type='maximum',
             ),
         ]
@@ -667,6 +667,7 @@ class MainfileParser(TextParser):
         if extra_columns:
             scf_steps['code_specific_quantities'] = extra_columns
         return scf_steps
+
     def get_band_gaps(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:

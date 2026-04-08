@@ -37,6 +37,7 @@ from .file_parser import RKFParser as RKFTextParser
 
 LOGGER = get_logger(__name__)
 OCCUPATION_THRESHOLD = 0.5
+MIN_TUPLE_FIELDS = 3
 
 
 class MainfileParser(TextParser):
@@ -56,8 +57,12 @@ class MainfileParser(TextParser):
                 )
         return xc_functionals
 
-    def get_periodic_boundary_conditions(self, source: dict[str, Any] | Any) -> list[bool] | None:
-        lattice_vectors = source.get('lattice_vectors') if isinstance(source, dict) else source
+    def get_periodic_boundary_conditions(
+        self, source: dict[str, Any] | Any
+    ) -> list[bool] | None:
+        lattice_vectors = (
+            source.get('lattice_vectors') if isinstance(source, dict) else source
+        )
         if lattice_vectors is None:
             return [False, False, False]
         try:
@@ -106,7 +111,7 @@ class MainfileParser(TextParser):
             energies = source.get('energies', [])
             occupations = source.get('occupations', [])
         else:
-            if not isinstance(source, tuple | list) or len(source) < 3:
+            if not isinstance(source, tuple | list) or len(source) < MIN_TUPLE_FIELDS:
                 return []
             energies = []
             occupations = source[2]
@@ -119,7 +124,7 @@ class MainfileParser(TextParser):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
 
-    def get_band_gaps(self, source: Any) -> list[dict[str, Any]]:
+    def get_band_gaps(self, source: Any) -> list[dict[str, Any]]:  # noqa: PLR0912
         if source is None:
             return []
 
@@ -147,7 +152,7 @@ class MainfileParser(TextParser):
 
         # Fallback for parsed tuple/list payload used by AMS band-energy ranges.
         # Expected form: (energies, ..., occupations) with spin channels separated.
-        if not isinstance(source, tuple | list) or len(source) < 3:
+        if not isinstance(source, tuple | list) or len(source) < MIN_TUPLE_FIELDS:
             return []
 
         energies_channels = source[0] if isinstance(source[0], list) else []
@@ -156,15 +161,19 @@ class MainfileParser(TextParser):
             return []
 
         band_gaps = []
-        for spin_channel, energies in enumerate(energies_channels):
+        for spin_channel, energies_entry in enumerate(energies_channels):
             if spin_channel >= len(occupations_channels):
                 continue
             occupation_data = occupations_channels[spin_channel]
             if not isinstance(occupation_data, list) or not occupation_data:
                 continue
             occupations = np.asarray(occupation_data[0], dtype=float)
-            energies = np.asarray(energies, dtype=float)
-            if energies.size == 0 or occupations.size == 0 or energies.shape != occupations.shape:
+            energies = np.asarray(energies_entry, dtype=float)
+            if (
+                energies.size == 0
+                or occupations.size == 0
+                or energies.shape != occupations.shape
+            ):
                 continue
 
             occupied = energies[occupations >= OCCUPATION_THRESHOLD]
@@ -230,7 +239,9 @@ class MainfileParser(TextParser):
         scf_options = source.get('scf_options')
         if scf_options is None:
             return None
-        convrg = scf_options.get('x_ams_convrg') if hasattr(scf_options, 'get') else None
+        convrg = (
+            scf_options.get('x_ams_convrg') if hasattr(scf_options, 'get') else None
+        )
         if convrg is None:
             return None
         return float(convrg) * ureg.hartree

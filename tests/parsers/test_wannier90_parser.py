@@ -62,7 +62,7 @@ def test_electronic_outputs_mapping():
 
 
 def test_system_fundamental_quantities_mapping(parsed_archive):
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     simulation = parsed_archive.data
     assert simulation is not None
     assert simulation.model_system is not None
@@ -84,7 +84,7 @@ def test_system_fundamental_quantities_mapping(parsed_archive):
 
 
 def test_outputs_contract_for_normalizer(parsed_archive):
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     outputs = parsed_archive.data.outputs
     assert outputs is not None
     assert len(outputs) > 0
@@ -124,7 +124,9 @@ def test_root_test_data_wannier90_zip_maps_band_structure():
     root_dir = Path(__file__).resolve().parents[4]
     zip_path = root_dir / 'test_data' / '1band-wannier90.zip'
     if not zip_path.is_file():
-        pytest.skip('1band-wannier90.zip fixture not available in repository root test_data.')
+        pytest.skip(
+            '1band-wannier90.zip fixture not available in repository root test_data.'
+        )
 
     parser = Wannier90Parser()
     archive = EntryArchive()

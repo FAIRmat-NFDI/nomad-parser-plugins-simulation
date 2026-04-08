@@ -1,6 +1,6 @@
-from pathlib import Path
 import tempfile
 import zipfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -83,7 +83,7 @@ def test_workflow_and_scf_steps():
 
 
 def test_system_fundamental_quantities_mapping():
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     parser = AMSParser()
     archive = EntryArchive()
     parser.parse(str(MAINFILE), archive, LOGGER)
@@ -101,7 +101,8 @@ def test_system_fundamental_quantities_mapping():
     if representative.periodic_boundary_conditions is not None:
         assert len(representative.periodic_boundary_conditions) == 3
         assert all(
-            isinstance(flag, bool) for flag in representative.periodic_boundary_conditions
+            isinstance(flag, bool)
+            for flag in representative.periodic_boundary_conditions
         )
 
     # This fixture is molecular, so lattice vectors can be absent.
@@ -110,11 +111,14 @@ def test_system_fundamental_quantities_mapping():
         assert representative.periodic_boundary_conditions is not None
 
     if representative.particle_states:
-        assert all(state.chemical_symbol is not None for state in representative.particle_states)
+        assert all(
+            state.chemical_symbol is not None
+            for state in representative.particle_states
+        )
 
 
 def test_outputs_contract_for_normalizer():
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     parser = AMSParser()
     archive = EntryArchive()
     parser.parse(str(MAINFILE), archive, LOGGER)
@@ -140,7 +144,9 @@ def test_root_test_data_ams_zip_outputs_and_system_links():
     root_dir = Path(__file__).resolve().parents[4]
     zip_path = root_dir / 'test_data' / 'FAJZIC_fair_op-ams.zip'
     if not zip_path.is_file():
-        pytest.skip('FAJZIC_fair_op-ams.zip fixture not available in repository root test_data.')
+        pytest.skip(
+            'FAJZIC_fair_op-ams.zip fixture not available in repository root test_data.'
+        )
 
     parser = AMSParser()
     archive = EntryArchive()
@@ -158,7 +164,9 @@ def test_root_test_data_ams_zip_outputs_and_system_links():
     assert len(simulation.outputs) > 0
 
     assert all(out.model_system_ref is not None for out in simulation.outputs)
-    step_outputs = [out for out in simulation.outputs if 'step' in out.m_def.all_quantities]
+    step_outputs = [
+        out for out in simulation.outputs if 'step' in out.m_def.all_quantities
+    ]
     assert all(out.step is not None for out in step_outputs)
 
     dos_outputs = [out for out in simulation.outputs if out.electronic_dos]

@@ -1,6 +1,6 @@
-from pathlib import Path
 import tempfile
 import zipfile
+from pathlib import Path
 
 import pytest
 from nomad.datamodel import EntryArchive
@@ -52,7 +52,7 @@ def test_workflow_and_scf_steps():
 
 
 def test_system_fundamental_quantities_mapping():
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     parser = GPAWParser()
     archive = EntryArchive()
     parser.parse(str(MAINFILE), archive, LOGGER)
@@ -78,7 +78,7 @@ def test_system_fundamental_quantities_mapping():
 
 
 def test_outputs_contract_for_normalizer():
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     parser = GPAWParser()
     archive = EntryArchive()
     parser.parse(str(MAINFILE), archive, LOGGER)
@@ -103,7 +103,9 @@ def test_root_test_data_gpaw_zip_populates_system():
     root_dir = Path(__file__).resolve().parents[4]
     zip_path = root_dir / 'test_data' / 'WaveFunctions-gpaw.zip'
     if not zip_path.is_file():
-        pytest.skip('WaveFunctions-gpaw.zip fixture not available in repository root test_data.')
+        pytest.skip(
+            'WaveFunctions-gpaw.zip fixture not available in repository root test_data.'
+        )
 
     parser = GPAWParser()
     archive = EntryArchive()

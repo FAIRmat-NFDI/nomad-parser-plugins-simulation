@@ -287,7 +287,7 @@ class OctopusMainfileParser(TextParser):
         return xc_functionals
 
     @property
-    def initial_system(self) -> dict[str, Any]:
+    def initial_system(self) -> dict[str, Any]:  # noqa: PLR0912
         if self._initial_system is not None:
             return self._initial_system
 
@@ -310,7 +310,9 @@ class OctopusMainfileParser(TextParser):
                     continue
                 for fformat in fformats:
                     try:
-                        atoms = read(os.path.join(self._maindir, filename), format=fformat)
+                        atoms = read(
+                            os.path.join(self._maindir, filename), format=fformat
+                        )
                     except Exception:
                         continue
                     if atoms is not None:
@@ -340,7 +342,9 @@ class OctopusMainfileParser(TextParser):
                     np.asarray(ase_cell) * self._units_mapping['angstrom']
                 )
             if atoms.pbc is not None:
-                self._initial_system['pbc'] = [bool(val) for val in np.asarray(atoms.pbc)]
+                self._initial_system['pbc'] = [
+                    bool(val) for val in np.asarray(atoms.pbc)
+                ]
 
         if self.info.get('ReducedCoordinates', None) is not None and cell is not None:
             coordinates = np.dot(coordinates, cell.magnitude)
@@ -410,7 +414,9 @@ class OctopusEigenvalueParser(TextParser):
     def get_reference_energy(self, source: Any = None):
         eigen_section = source if isinstance(source, dict) else None
         if eigen_section is None:
-            eigen_section = self.data.get('eigenvalues') if hasattr(self, 'data') else None
+            eigen_section = (
+                self.data.get('eigenvalues') if hasattr(self, 'data') else None
+            )
 
         if isinstance(eigen_section, dict):
             fermi = eigen_section.get('fermi_energy')
@@ -468,7 +474,9 @@ class OctopusEigenvalueParser(TextParser):
                 gap = 0.0
             else:
                 gap = max(0.0, float(np.min(unoccupied) - np.max(occupied)))
-            band_gaps.append({'value': gap * energies.units, 'spin_channel': spin_channel})
+            band_gaps.append(
+                {'value': gap * energies.units, 'spin_channel': spin_channel}
+            )
 
         return band_gaps
 

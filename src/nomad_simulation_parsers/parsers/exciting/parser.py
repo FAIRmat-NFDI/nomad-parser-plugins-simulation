@@ -13,6 +13,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 )
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow.general import (
     ChargeConvergenceTarget,
     EnergyConvergenceTarget,
@@ -475,9 +476,8 @@ class EigvalParser(TextParser):
 
 
 class ExcitingArchiveWriter(ArchiveWriter):
-    def write_to_archive(self) -> None:  # noqa: PLR0915
+    def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
         reload(exciting)
-        from nomad_simulations.schema_packages.general import Simulation
 
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
@@ -496,10 +496,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # and parsing yields no payload, fallback to sibling INFO.OUT.
         if not info_parser.data:
             info_out = os.path.join(maindir, 'INFO.OUT')
-            if (
-                os.path.isfile(info_out)
-                and os.path.abspath(info_out) != os.path.abspath(self.mainfile)
-            ):
+            if os.path.isfile(info_out) and os.path.abspath(
+                info_out
+            ) != os.path.abspath(self.mainfile):
                 info_parser.filepath = info_out
                 info_parser.convert(data_parser)
 

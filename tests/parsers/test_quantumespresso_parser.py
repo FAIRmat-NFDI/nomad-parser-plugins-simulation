@@ -2,10 +2,10 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx
-import pytest
 
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoParser,
@@ -204,7 +204,10 @@ def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
     root_dir = Path(__file__).resolve().parents[4]
     zip_path = root_dir / 'test_data' / 'DOS-quantumespresso.zip'
     if not zip_path.is_file():
-        pytest.skip('DOS-quantumespresso.zip fixture not available in repository root test_data.')
+        pytest.skip(
+            'DOS-quantumespresso.zip fixture not available '
+            'in repository root test_data.'
+        )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         with zipfile.ZipFile(zip_path) as zf:
