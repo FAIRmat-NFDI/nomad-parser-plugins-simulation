@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-import re
 import os
+import re
 
 import numpy as np
 from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
@@ -12,6 +12,7 @@ from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -32,6 +33,10 @@ RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
 OCCUPATION_THRESHOLD = 0.5
+MIN_DOSCAR_LINES = 7
+MIN_DOS_HEADER_COLUMNS = 4
+SPIN_POLARIZED_DOS_COLUMNS = 5
+MIN_DOS_COLUMNS = 2
 
 
 def get_key_values(val_in):
@@ -485,12 +490,14 @@ class OutcarParser(MappingTextParser):
 
         return band_gaps
 
-    def get_total_dos(self) -> list[dict[str, Any]]:
+    def get_total_dos(self) -> list[dict[str, Any]]:  # noqa: PLR0911
         maindir = os.path.dirname(self.filepath)
         outcar_suffix = os.path.basename(self.filepath).strip('OUTCAR')
         doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
         doscar_path = (
-            doscar_candidate if os.path.isfile(doscar_candidate) else os.path.join(maindir, 'DOSCAR')
+            doscar_candidate
+            if os.path.isfile(doscar_candidate)
+            else os.path.join(maindir, 'DOSCAR')
         )
         if not os.path.isfile(doscar_path):
             return []
@@ -501,11 +508,11 @@ class OutcarParser(MappingTextParser):
         except Exception:
             return []
 
-        if len(lines) < 7:
+        if len(lines) < MIN_DOSCAR_LINES:
             return []
 
         header = lines[5].split()
-        if len(header) < 4:
+        if len(header) < MIN_DOS_HEADER_COLUMNS:
             return []
 
         try:
@@ -530,7 +537,7 @@ class OutcarParser(MappingTextParser):
         n_cols = dos_data.shape[1]
         energies = dos_data[:, 0]
 
-        if n_cols >= 5:
+        if n_cols >= SPIN_POLARIZED_DOS_COLUMNS:
             return [
                 dict(
                     energies=energies,
@@ -546,8 +553,14 @@ class OutcarParser(MappingTextParser):
                 ),
             ]
 
-        if n_cols >= 2:
-            return [dict(energies=energies, value=np.abs(dos_data[:, 1]), energy_fermi=e_fermi)]
+        if n_cols >= MIN_DOS_COLUMNS:
+            return [
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 1]),
+                    energy_fermi=e_fermi,
+                )
+            ]
 
         return []
 
@@ -630,6 +643,7 @@ class OutcarParser(MappingTextParser):
         if len(durations) == len(energies_total):
             scf_steps['durations'] = durations
         return scf_steps
+
     def get_atoms(self) -> list[dict[str, str]]:
         ions = self.data.get('ions_per_type')
         species = self.data.get('species')
@@ -714,8 +728,6 @@ class OutcarArchiveWriter(ArchiveWriter):
         return workflow
 
     def write_to_archive(self) -> None:
-        from nomad_simulations.schema_packages.general import Simulation
-
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()

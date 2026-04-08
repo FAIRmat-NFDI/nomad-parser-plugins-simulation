@@ -3,9 +3,9 @@ import zipfile
 from pathlib import Path
 
 import numpy as np
+import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-import pytest
 from pytest import approx
 
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser

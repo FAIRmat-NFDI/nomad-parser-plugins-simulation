@@ -10,8 +10,10 @@ from nomad_simulations.schema_packages.workflow.single_point import (
     SinglePointMethod,
 )
 
-from nomad_simulation_parsers.parsers.crystal.parser import CrystalParser
-from nomad_simulation_parsers.parsers.crystal.parser import CrystalOutputParser
+from nomad_simulation_parsers.parsers.crystal.parser import (
+    CrystalOutputParser,
+    CrystalParser,
+)
 
 LOGGER = get_logger(__name__)
 MAINFILE = (
@@ -81,7 +83,7 @@ def test_outputs_electronic_dos_and_band_structure():
 
 
 def test_system_fundamental_quantities_mapping():
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     archive = _parse()
 
     simulation = archive.data
@@ -105,7 +107,7 @@ def test_system_fundamental_quantities_mapping():
 
 
 def test_outputs_contract_for_normalizer():
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     archive = _parse()
 
     outputs = archive.data.outputs

@@ -13,6 +13,7 @@ from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -520,7 +521,9 @@ class WannierArchiveWriter(ArchiveWriter):
         Parse band files.
         """
         wband_parser = WBandTextParser(text_parser=DataTextParser())
-        k_path = self.wout_parser.get_k_line_path(self.wout_parser.data.get('k_line_path'))
+        k_path = self.wout_parser.get_k_line_path(
+            self.wout_parser.data.get('k_line_path')
+        )
         # parse band files
         band_files = search_files(
             pattern='*band.dat', basedir=self.basedir, re_pattern=self.basename
@@ -545,8 +548,6 @@ class WannierArchiveWriter(ArchiveWriter):
         self.wout_parser.filepath = self.mainfile
 
         # construct metainfo parser
-        from nomad_simulations.schema_packages.general import Simulation
-
         data = Simulation()
         self.data_parser = Wannier90MetainfoParser()
         self.data_parser.annotation_key = wannier90.WOUT_KEY

@@ -1,4 +1,5 @@
 from nomad.datamodel import EntryArchive
+from nomad.units import ureg
 from nomad.utils import get_logger
 from pytest import approx
 
@@ -82,11 +83,15 @@ def test_scf_steps_parsing():
     assert len(first_output_steps.energies_total) == 16
     assert len(second_output_steps.energies_total) == 30
 
-    assert first_output_steps.energies_total[0].to('hartree').magnitude == approx(-23.45196)
+    assert first_output_steps.energies_total[0].to('hartree').magnitude == approx(
+        -23.45196
+    )
     assert first_output_steps.energies_total[-1].to('hartree').magnitude == approx(
         -24.6617073
     )
-    first_delta_last = first_output_steps.delta_energies_total[-1].to('hartree').magnitude
+    first_delta_last = (
+        first_output_steps.delta_energies_total[-1].to('hartree').magnitude
+    )
     assert first_delta_last == approx(1.243e-13)
 
     second_delta_last = (
@@ -126,19 +131,26 @@ def test_geometry_optimization_workflow_convergence_section():
 
     energy_target = targets_by_name['EnergyConvergenceTarget']
     force_target = targets_by_name['ForceConvergenceTarget']
-    assert energy_target.threshold_type == 'relative'
-    assert energy_target.threshold == approx(0.0)
+    assert energy_target.threshold_type == 'absolute'
+    energy_threshold = (
+        energy_target.threshold.to('hartree').magnitude
+        if hasattr(energy_target.threshold, 'to')
+        else energy_target.threshold
+    )
+    assert energy_threshold == approx(0.0)
     assert force_target.threshold_type == 'maximum'
     force_threshold = (
         force_target.threshold.to('newton').magnitude
         if hasattr(force_target.threshold, 'to')
         else force_target.threshold
     )
-    assert force_threshold == approx(5.0e-4)
+    assert force_threshold == approx(
+        (5.0e-4 * ureg.hartree / ureg.bohr).to('newton').magnitude
+    )
 
 
 def test_system_fundamental_quantities_mapping():
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     archive = _parse('tests/data/abinit/Fe/Fe.out')
 
     simulation = archive.data
@@ -162,7 +174,7 @@ def test_system_fundamental_quantities_mapping():
 
 
 def test_outputs_contract_for_normalizer():
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     archive = _parse('tests/data/abinit/Fe/Fe.out')
 
     outputs = archive.data.outputs

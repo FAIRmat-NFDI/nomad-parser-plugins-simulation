@@ -21,6 +21,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 )
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import outputs as simulation_outputs
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
@@ -37,6 +38,8 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
 from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
+from .pwscf.file_parser import PWSCFFileParser
+from .pwscf.parser import PWSCFMainfileTextParser
 
 LOGGER = get_logger(__name__)
 PROGRAM_NAME_RE = re.compile(
@@ -249,7 +252,9 @@ class MainfileTextParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
-    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
+    def get_periodic_boundary_conditions(
+        self, source: dict[str, Any]
+    ) -> list[bool] | None:
         cell = self.get_value(source, 'simulation_cell', '')
         if cell is None:
             return None
@@ -297,7 +302,9 @@ class MainfileXMLParser(XMLParser):
     def get_forces(self, source: np.ndarray):
         return np.reshape(source, (np.size(source) // 3, 3))
 
-    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool] | None:
+    def get_periodic_boundary_conditions(
+        self, source: dict[str, Any]
+    ) -> list[bool] | None:
         cell = Path(path='atomic_structure.cell').get_data(source)
         if cell is None:
             return None
@@ -585,7 +592,7 @@ class QuantumEspressoParser(MatchingParser):
 
         return is_mainfile
 
-    def parse(
+    def parse(  # noqa: PLR0912
         self,
         mainfile: str,
         archive: EntryArchive,
@@ -609,15 +616,6 @@ class QuantumEspressoParser(MatchingParser):
             )
         ):
             try:
-                from nomad_simulations.schema_packages import outputs as simulation_outputs
-
-                from nomad_simulation_parsers.parsers.quantumespresso.pwscf.file_parser import (
-                    PWSCFFileParser,
-                )
-                from nomad_simulation_parsers.parsers.quantumespresso.pwscf.parser import (
-                    PWSCFMainfileTextParser,
-                )
-
                 pwscf_parser = PWSCFMainfileTextParser(
                     text_parser=PWSCFFileParser(), filepath=mainfile
                 )

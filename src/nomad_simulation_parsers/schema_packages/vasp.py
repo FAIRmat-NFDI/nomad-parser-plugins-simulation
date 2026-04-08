@@ -194,9 +194,7 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotation(
-        model_system.AtomsState.m_def, XML_KEY, ('get_atoms', [])
-    )
+    add_mapping_annotation(model_system.AtomsState.m_def, XML_KEY, ('get_atoms', []))
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
@@ -344,6 +342,8 @@ class SCFSteps(outputs.SCFSteps):
     add_mapping_annotation(outputs.SCFSteps.durations, XML_KEY, '.durations')
     add_mapping_annotation(outputs.SCFSteps.durations, XML2_KEY, '.durations')
     add_mapping_annotation(outputs.SCFSteps.durations, OUTCAR_KEY, '.durations')
+
+
 class TotalEnergy(properties.energies.TotalEnergy):
     # value is already defined in TotalEnergy since they use the same def
     # get_energy function should be able to handle extraction from both sources
@@ -484,9 +484,7 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
 class Energy2(variables.Energy2):
     add_mapping_annotation(variables.Energy2.points, XML_KEY, '.energies', unit='eV')
     add_mapping_annotation(variables.Energy2.points, XML2_KEY, '.energies', unit='eV')
-    add_mapping_annotation(
-        variables.Energy2.points, OUTCAR_KEY, '.energies', unit='eV'
-    )
+    add_mapping_annotation(variables.Energy2.points, OUTCAR_KEY, '.energies', unit='eV')
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):

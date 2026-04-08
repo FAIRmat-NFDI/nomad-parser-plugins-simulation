@@ -1,10 +1,9 @@
 import os
 from typing import TYPE_CHECKING
 
+from nomad.datamodel import EntryArchive
+
 if TYPE_CHECKING:
-    from nomad.datamodel.datamodel import (
-        EntryArchive,
-    )
     from structlog.stdlib import (
         BoundLogger,
     )
@@ -41,12 +40,12 @@ class VASPParser(MatchingParser):
         if not os.path.isfile(outcar_path):
             return
 
-        from nomad.datamodel import EntryArchive
-
         outcar_archive = EntryArchive()
         OutcarArchiveWriter().write(outcar_path, outcar_archive, logger, child_archives)
 
-        outcar_outputs = getattr(getattr(outcar_archive, 'data', None), 'outputs', None) or []
+        outcar_outputs = (
+            getattr(getattr(outcar_archive, 'data', None), 'outputs', None) or []
+        )
         if not outcar_outputs:
             return
 
@@ -86,6 +85,7 @@ class VASPParser(MatchingParser):
         # electronic payloads are supported in mappings.
         # Attempt tried in this iteration: disable backfill and rely on current
         # XML mappings only; regression remained in
-        # tests/parsers/test_vasp_parser.py::test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing.
+        # tests/parsers/test_vasp_parser.py::
+        # test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing.
         if 'outcar' not in mainfile.lower():
             self._backfill_from_outcar(mainfile, archive, logger, child_archives)

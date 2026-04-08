@@ -174,7 +174,7 @@ def test_electronic_outputs_mapping(parsed_archive):
 
 
 def test_system_fundamental_quantities_mapping(parsed_archive):
-    """System gate: parser should populate core model_system quantities used by normalizer."""
+    """System gate for core model_system quantities used by normalizer."""
     _, archive = parsed_archive
 
     simulation = archive.data
@@ -198,7 +198,7 @@ def test_system_fundamental_quantities_mapping(parsed_archive):
 
 
 def test_outputs_contract_for_normalizer(parsed_archive):
-    """Outputs gate: mapped outputs should include normalizer-required payloads when present."""
+    """Outputs gate for normalizer-required mapped payloads."""
     _, archive = parsed_archive
 
     outputs = archive.data.outputs
@@ -229,7 +229,9 @@ def test_root_test_data_exciting_zip_populates_reference_energy_fields(parser):
     root_dir = Path(__file__).resolve().parents[3]
     zip_path = root_dir / 'test_data' / 'Si_gw-exciting.zip'
     if not zip_path.is_file():
-        pytest.skip('Si_gw-exciting.zip fixture not available in repository root test_data.')
+        pytest.skip(
+            'Si_gw-exciting.zip fixture not available in repository root test_data.'
+        )
 
     archive = EntryArchive()
     with tempfile.TemporaryDirectory() as tmpdir:

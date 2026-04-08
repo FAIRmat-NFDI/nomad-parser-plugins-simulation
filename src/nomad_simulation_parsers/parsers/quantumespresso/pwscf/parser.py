@@ -1,5 +1,5 @@
-from typing import Any
 import os
+from typing import Any
 
 import numpy as np
 from nomad.datamodel import EntryArchive
@@ -31,6 +31,8 @@ from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFFileParser
 
 LOGGER = get_logger(__name__)
+MIN_DOS_COLUMNS = 2
+DOS_ARRAY_NDIM = 2
 
 
 class PWSCFMainfileTextParser(MainfileTextParser):
@@ -60,7 +62,8 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         n_bands = np.size(eigenvalues) // int(n_spin * n_eigs)
         eigenvalues = np.reshape(eigenvalues, (n_spin, n_bands, n_eigs)) * ureg.eV
         results = [
-            dict(eigenvalues=eig, n_levels=eig.shape[-1]) for n, eig in enumerate(eigenvalues)
+            dict(eigenvalues=eig, n_levels=eig.shape[-1])
+            for n, eig in enumerate(eigenvalues)
         ]
         occupations = section.get('occupation_numbers')
         if occupations is not None:
@@ -109,15 +112,23 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                 sec = sc_config
 
             if isinstance(sec, dict):
-                if sec.get('simulation_cell') is None and header.get('simulation_cell') is not None:
+                if (
+                    sec.get('simulation_cell') is None
+                    and header.get('simulation_cell') is not None
+                ):
                     sec = sec.copy()
                     sec['simulation_cell'] = header.get('simulation_cell')
-                if sec.get('labels_positions') is None and header.get('labels_positions') is not None:
+                if (
+                    sec.get('labels_positions') is None
+                    and header.get('labels_positions') is not None
+                ):
                     if sec is sc_config:
                         sec = sec.copy()
                     sec['labels_positions'] = header.get('labels_positions')
 
-            payload_target = sec if isinstance(sec, dict) else getattr(sec, 'data', None)
+            payload_target = (
+                sec if isinstance(sec, dict) else getattr(sec, 'data', None)
+            )
             if isinstance(payload_target, dict):
                 payload_target['electronic_eigenvalues'] = self.get_eigenvalues(sec)
                 payload_target['electronic_band_structures'] = self.get_band_structures(
@@ -226,9 +237,7 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             mainfile = getattr(self, 'filepath', None)
             if not isinstance(mainfile, str) or not mainfile:
                 return []
-            dos_files = search_files(
-                pattern='*.dos', basedir=os.path.dirname(mainfile)
-            )
+            dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(mainfile))
             for dos_file in dos_files:
                 try:
                     data = np.loadtxt(dos_file, comments='#')
@@ -236,9 +245,9 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                     continue
                 if data is None:
                     continue
-                if data.ndim == 1 and data.size >= 2:
+                if data.ndim == 1 and data.size >= MIN_DOS_COLUMNS:
                     data = data.reshape(1, -1)
-                if data.ndim == 2 and data.shape[1] >= 2:
+                if data.ndim == DOS_ARRAY_NDIM and data.shape[1] >= MIN_DOS_COLUMNS:
                     energies = data[:, 0] * ureg.eV
                     values = np.abs(data[:, 1]) / ureg.eV
                     self._cached_dos_payload = dict(
@@ -400,7 +409,7 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
 
-    def parse_program(self, archive: EntryArchive, index: int) -> None:
+    def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)
         archive.workflow2 = self.mainfile_parser.build_workflow()
 
@@ -410,8 +419,10 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
         # TODO(mapping-migration): remove this parser-side electronic fallback once
         # PWSCF fixtures are fully covered by mapping-driven population only.
         # Mapping attempts tried in this iteration:
-        # 1) Outputs mappings via ('get_eigenvalues'|'get_band_structures'|'get_dos', ['.@'])
-        # 2) Precomputing payload keys in get_configurations + direct '.electronic_*' mappings
+        # 1) Outputs mappings via
+        #    ('get_eigenvalues'|'get_band_structures'|'get_dos', ['.@'])
+        # 2) Precomputing payload keys in get_configurations + direct
+        #    '.electronic_*' mappings
         # Both attempts left electronic sections empty on current fixtures
         # (tests/parsers/test_quantumespresso_parser.py), so we keep this as a
         # temporary compatibility fallback.
@@ -426,7 +437,9 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                     continue
 
                 try:
-                    eigenvalues = self.mainfile_parser.get_eigenvalues(configurations[i])
+                    eigenvalues = self.mainfile_parser.get_eigenvalues(
+                        configurations[i]
+                    )
                 except Exception:
                     continue
                 if not eigenvalues:
@@ -478,7 +491,9 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                         if dos.energies_origin is None:
                             dos.energies_origin = reference_energy
 
-        dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(self.mainfile))
+        dos_files = search_files(
+            pattern='*.dos', basedir=os.path.dirname(self.mainfile)
+        )
         if not dos_files:
             return
 
@@ -490,9 +505,9 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                 continue
             if data is None:
                 continue
-            if data.ndim == 1 and data.size >= 2:
+            if data.ndim == 1 and data.size >= MIN_DOS_COLUMNS:
                 data = data.reshape(1, -1)
-            if data.ndim == 2 and data.shape[1] >= 2:
+            if data.ndim == DOS_ARRAY_NDIM and data.shape[1] >= MIN_DOS_COLUMNS:
                 dos_data = data
                 break
 
