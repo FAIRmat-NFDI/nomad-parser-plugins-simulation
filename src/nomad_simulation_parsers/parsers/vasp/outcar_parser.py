@@ -27,12 +27,15 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 )
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import vasp
 
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
-OCCUPATION_THRESHOLD = 0.5
 MIN_DOSCAR_LINES = 7
 MIN_DOS_HEADER_COLUMNS = 4
 SPIN_POLARIZED_DOS_COLUMNS = 5
@@ -464,29 +467,19 @@ class OutcarParser(MappingTextParser):
     def get_band_gaps(
         self, eigenvalues: np.ndarray, parameters: dict[str, Any]
     ) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues using common utility."""
         band_gaps = []
         for eig in self.get_eigenvalues(eigenvalues, parameters):
-            values = np.asarray(eig.get('eigenvalues'))
-            occupations = np.asarray(eig.get('occupations'))
-            if values.size == 0 or occupations.size == 0:
-                continue
-
-            occupied = values[occupations >= OCCUPATION_THRESHOLD]
-            unoccupied = values[occupations < OCCUPATION_THRESHOLD]
-            if occupied.size == 0:
-                valence_max = np.amin(values) - 1.0
-            else:
-                valence_max = np.amax(occupied)
-            if unoccupied.size == 0:
-                conduction_min = np.amin(values) - 1.0
-            else:
-                conduction_min = np.amin(unoccupied)
-
-            entry = dict(value=max(0.0, float(conduction_min - valence_max)))
+            values = eig.get('eigenvalues')
+            occupations = eig.get('occupations')
             spin_channel = eig.get('spin_channel')
-            if spin_channel is not None:
-                entry['spin_channel'] = spin_channel
-            band_gaps.append(entry)
+
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                values, occupations, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                band_gaps.append(gap_result)
 
         return band_gaps
 

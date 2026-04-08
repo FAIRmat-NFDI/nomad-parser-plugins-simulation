@@ -27,6 +27,8 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import (
+    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
     link_outputs_to_model_systems,
     search_files,
 )
@@ -36,7 +38,6 @@ from .file_parser import OutParser
 from .file_parser import RKFParser as RKFTextParser
 
 LOGGER = get_logger(__name__)
-OCCUPATION_THRESHOLD = 0.5
 MIN_TUPLE_FIELDS = 3
 
 
@@ -176,16 +177,14 @@ class MainfileParser(TextParser):
             ):
                 continue
 
-            occupied = energies[occupations >= OCCUPATION_THRESHOLD]
-            unoccupied = energies[occupations < OCCUPATION_THRESHOLD]
-            if occupied.size == 0:
-                continue
-            valence_max = np.max(occupied)
-            if unoccupied.size == 0:
-                band_gap = 0.0
-            else:
-                band_gap = max(0.0, float(np.min(unoccupied) - valence_max))
-            band_gaps.append({'value': band_gap, 'spin_channel': spin_channel})
+            # Use common utility for band gap calculation
+            gaps = calculate_band_gap_from_occupations(
+                energies, occupations, threshold=OCCUPATION_THRESHOLD
+            )
+            if gaps:
+                # Override spin channel from utility with AMS channel index
+                gaps[0]['spin_channel'] = spin_channel
+                band_gaps.extend(gaps)
         return band_gaps
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
