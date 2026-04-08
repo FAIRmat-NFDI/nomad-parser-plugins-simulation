@@ -73,17 +73,35 @@ class GPWParser(MappingParser):
         return forces
 
     def get_eigenvalues(self) -> list[dict[str, Any]]:
+        reference_energy = self.get_reference_energy()
         eigenvalues = self.file_parser.apply_unit(
             self.file_parser.parser.get_array('eigenvalues'), 'energyunit'
         )
         occupations = self.file_parser.parser.get_array('occupation')
         kpoints = self.file_parser.parser.get_array('kpoints')
         return [
-            dict(eigenvalues=eigenvalue, occupations=occupations[n], kpoints=kpoints)
+            dict(
+                eigenvalues=eigenvalue,
+                occupations=occupations[n],
+                kpoints=kpoints,
+                highest_occupied=reference_energy,
+            )
             for n, eigenvalue in enumerate(eigenvalues)
         ]
 
+    def get_reference_energy(self):
+        fermi_level = self.file_parser.parser.get_parameter('fermilevel')
+        if fermi_level is None:
+            return None
+
+        fermi_values = np.asarray(fermi_level, dtype=float).reshape(-1)
+        if fermi_values.size == 0:
+            return None
+
+        return self.file_parser.apply_unit(float(fermi_values[0]), 'energyunit')
+
     def get_band_structures(self) -> list[dict[str, Any]]:
+        reference_energy = self.get_reference_energy()
         band_paths = self.file_parser.parser.get_array('band_paths')
         if callable(band_paths):
             band_paths = band_paths()
@@ -102,6 +120,7 @@ class GPWParser(MappingParser):
             band_structures.append(
                 dict(
                     value=self.file_parser.apply_unit(eigenvalues, 'energyunit'),
+                    highest_occupied=reference_energy,
                 )
             )
         return band_structures

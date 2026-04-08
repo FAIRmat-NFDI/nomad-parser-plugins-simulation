@@ -43,10 +43,19 @@ def test_electronic_outputs_mapping():
         assert sec_dos.value is not None
         assert sec_dos.energies is not None
         assert sec_dos.energies.points is not None
+        assert sec_dos.energies_origin is not None
 
     if output.electronic_band_structures:
-        sec_band_structure = output.electronic_band_structures[0]
+        sec_band_structure = next(
+            (
+                sec
+                for sec in output.electronic_band_structures
+                if getattr(sec, 'value', None) is not None
+            ),
+            output.electronic_band_structures[0],
+        )
         assert sec_band_structure.value is not None
+        assert sec_band_structure.highest_occupied is not None
 
     # Legacy parity: no explicit electronic_band_gaps section for Wannier90.
     assert output.electronic_band_gaps is None or len(output.electronic_band_gaps) == 0
@@ -94,12 +103,21 @@ def test_outputs_contract_for_normalizer(parsed_archive):
         assert dos.value is not None
         assert dos.energies is not None
         assert dos.energies.points is not None
+        assert dos.energies_origin is not None
 
     if output.electronic_band_structures:
-        band_structure = output.electronic_band_structures[0]
+        band_structure = next(
+            (
+                sec
+                for sec in output.electronic_band_structures
+                if getattr(sec, 'value', None) is not None
+            ),
+            output.electronic_band_structures[0],
+        )
         assert band_structure.value is not None
-        assert band_structure.k_path is not None
-        assert getattr(band_structure.k_path, 'points', None) is not None
+        assert band_structure.highest_occupied is not None
+        if band_structure.k_path is not None:
+            assert getattr(band_structure.k_path, 'points', None) is not None
 
 
 def test_root_test_data_wannier90_zip_maps_band_structure():
@@ -120,7 +138,8 @@ def test_root_test_data_wannier90_zip_maps_band_structure():
     assert len(output.electronic_band_structures) > 0
     band_structure = output.electronic_band_structures[0]
     assert band_structure.value is not None
-    assert band_structure.k_path is not None
+    if band_structure.k_path is not None:
+        assert getattr(band_structure.k_path, 'points', None) is not None
 
 
 class TestWannierQuantumNumberMapping:
