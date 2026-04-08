@@ -39,7 +39,6 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common
 from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
 from .pwscf.file_parser import PWSCFFileParser
-from .pwscf.parser import PWSCFMainfileTextParser
 
 LOGGER = get_logger(__name__)
 PROGRAM_NAME_RE = re.compile(
@@ -616,6 +615,8 @@ class QuantumEspressoParser(MatchingParser):
             )
         ):
             try:
+                from .pwscf.parser import PWSCFMainfileTextParser  # noqa: PLC0415
+
                 pwscf_parser = PWSCFMainfileTextParser(
                     text_parser=PWSCFFileParser(), filepath=mainfile
                 )
