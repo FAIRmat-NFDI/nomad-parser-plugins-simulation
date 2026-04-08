@@ -11,7 +11,6 @@ from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
-    numerical_settings,
     outputs,
     properties,
     variables,
@@ -89,12 +88,6 @@ class Simulation(general.Simulation):
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
-
-
-class DFT(model_method.DFT):
-    add_mapping_annotation(
-        model_method.DFT.numerical_settings, TEXT_KEY, '.@'
-    )
 
 
 # class DFT(model_method.DFT):
