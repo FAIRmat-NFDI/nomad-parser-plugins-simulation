@@ -105,7 +105,7 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     dft = archive.data.model_method[0]
     assert dft.m_def.name == 'DFT'
 
-    # Check NumericalSettings/KSpace exists
+    # Check NumericalSettings/KMesh exists
     assert dft.numerical_settings is not None
     # Filter for KSpace (may also contain SelfConsistency criteria)
     k_spaces = [ns for ns in dft.numerical_settings if ns.m_def.name == 'KSpace']

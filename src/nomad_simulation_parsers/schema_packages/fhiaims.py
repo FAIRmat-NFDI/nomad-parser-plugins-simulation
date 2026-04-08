@@ -92,7 +92,9 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
+    add_mapping_annotation(
+        model_method.DFT.numerical_settings, TEXT_KEY, '.@'
+    )
 
 
 # class DFT(model_method.DFT):
@@ -341,8 +343,10 @@ class GeometryOptimizationMethod(
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
-class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(numerical_settings.KSpace.k_mesh, TEXT_KEY, '.@')
+class NumericalSettings(numerical_settings.NumericalSettings):
+    add_mapping_annotation(
+        numerical_settings.KMesh.m_def, TEXT_KEY, '.@'
+    )
 
 
 class KMesh(numerical_settings.KMesh):
