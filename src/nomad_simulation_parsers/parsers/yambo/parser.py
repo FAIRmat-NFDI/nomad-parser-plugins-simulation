@@ -187,6 +187,24 @@ class YamboMainfileParser(TextParser):
     ) -> list[dict[str, Any]]:
         outputs = []
         data = {}
+
+        def get_reference_energy(source: dict[str, Any]):
+            if not hasattr(source, 'get'):
+                return None
+            required_levels = 2
+            valence_conduction = source.get('valence_conduction')
+            if (
+                valence_conduction is not None
+                and len(valence_conduction) >= required_levels
+            ):
+                return float(valence_conduction[0]) * ureg.eV
+
+            valence = source.get('valence')
+            if valence is not None:
+                return float(valence) * ureg.eV
+
+            return None
+
         for key, val in energies_occupations.items():
             if key == 'eigenenergies':
                 kpoints = val.get('kpoints')
@@ -211,6 +229,11 @@ class YamboMainfileParser(TextParser):
                 ]
             else:
                 data[key] = val
+
+        reference_energy = get_reference_energy(data)
+        if reference_energy is not None:
+            data['highest_occupied'] = reference_energy
+
         if data:
             outputs.append(data)
 

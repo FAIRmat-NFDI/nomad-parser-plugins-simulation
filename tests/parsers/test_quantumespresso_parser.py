@@ -243,3 +243,20 @@ def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
     assert dos.value is not None
     assert dos.energies is not None
     assert dos.energies.points is not None
+
+    assert dos.energies_origin is not None
+
+
+def test_pwscf_text_populates_band_structure_and_reference_energy():
+    archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+    assert output.electronic_band_structures is not None
+    assert len(output.electronic_band_structures) > 0
+
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+    assert band_structure.highest_occupied is not None

@@ -637,6 +637,35 @@ class QuantumEspressoParser(MatchingParser):
                         )
                         for entry in eigenvalues
                     ]
+
+                for i, output in enumerate(archive.data.outputs):
+                    if output.electronic_band_structures:
+                        continue
+                    if not output.electronic_eigenvalues:
+                        continue
+
+                    config = configurations[i] if i < len(configurations) else None
+                    reference_energy = (
+                        pwscf_parser.get_reference_energy(config)
+                        if config is not None
+                        else None
+                    )
+
+                    output.electronic_band_structures = [
+                        simulation_outputs.ElectronicBandStructure(
+                            value=eigenvalues.value,
+                            occupation=eigenvalues.occupation,
+                            n_levels=eigenvalues.n_levels,
+                            spin_channel=eigenvalues.spin_channel,
+                            highest_occupied=reference_energy,
+                        )
+                        for eigenvalues in output.electronic_eigenvalues
+                    ]
+
+                    if output.electronic_dos and reference_energy is not None:
+                        for dos in output.electronic_dos:
+                            if dos.energies_origin is None:
+                                dos.energies_origin = reference_energy
             except Exception:
                 pass
 
