@@ -444,36 +444,42 @@ add_mapping_annotation(
 add_mapping_annotation(
     molecular_dynamics.FreeEnergyCalculationParameters.m_def, XVG_KEY, '@'
 )
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.n_frames,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'n_frames'}),
-)
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.n_states,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'n_states'}),
-)
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.times,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'times'}),
-)
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.energy_derivative,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'value_total_energy_derivative'}),
-)
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.energy_differences,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'value_total_energy_differences'}),
-)
-add_mapping_annotation(
-    molecular_dynamics.FreeEnergyCalculationParameters.pv_energy,
-    XVG_KEY,
-    ('get_fep_xvg_data', [], {'field': 'value_PV_energy'}),
-)
+# These quantities were added to FreeEnergyCalculationParameters in
+# nomad-simulations PR #375. Guard with try/except so the parser remains
+# importable against older releases that predate those fields.
+try:
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.n_frames,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'n_frames'}),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.n_states,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'n_states'}),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.times,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'times'}),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.energy_derivative,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'value_total_energy_derivative'}),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.energy_differences,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'value_total_energy_differences'}),
+    )
+    add_mapping_annotation(
+        molecular_dynamics.FreeEnergyCalculationParameters.pv_energy,
+        XVG_KEY,
+        ('get_fep_xvg_data', [], {'field': 'value_PV_energy'}),
+    )
+except AttributeError:
+    pass
 
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
