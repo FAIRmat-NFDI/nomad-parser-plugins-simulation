@@ -178,6 +178,25 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             }
         return scf_steps
 
+    def get_reference_energy(self, source: dict[str, Any]):
+        section = self._resolve_scf_source(source)
+        if section is None or not hasattr(section, 'get'):
+            return None
+
+        homo_lumo = section.get('homo_lumo')
+        if homo_lumo is not None:
+            homo_vals = np.asarray(homo_lumo, dtype=float).reshape(-1)
+            if homo_vals.size > 0:
+                return homo_vals[0] * ureg.eV
+
+        fermi = section.get('fermi_energy')
+        if fermi is not None:
+            fermi_vals = np.asarray(fermi, dtype=float).reshape(-1)
+            if fermi_vals.size > 0:
+                return fermi_vals[-1] * ureg.eV
+
+        return None
+
     def build_workflow(self):
         if self.data.get('bfgs_geometry_optimization') is not None:
             workflow = GeometryOptimization()
@@ -356,6 +375,42 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                     for entry in eigenvalues
                 ]
 
+            for i, output in enumerate(archive.data.outputs):
+                if output.electronic_band_structures:
+                    continue
+
+                if not output.electronic_eigenvalues:
+                    continue
+
+                config = configurations[i] if i < len(configurations) else None
+                reference_energy = (
+                    self.mainfile_parser.get_reference_energy(config)
+                    if config is not None
+                    else None
+                )
+
+                band_structures = []
+                for eigenvalues in output.electronic_eigenvalues:
+                    band_structure = simulation_outputs.ElectronicBandStructure(
+                        value=eigenvalues.value,
+                        occupation=eigenvalues.occupation,
+                        n_levels=eigenvalues.n_levels,
+                        spin_channel=eigenvalues.spin_channel,
+                    )
+
+                    if reference_energy is not None:
+                        band_structure.highest_occupied = reference_energy
+
+                    band_structures.append(band_structure)
+
+                if band_structures:
+                    output.electronic_band_structures = band_structures
+
+                if output.electronic_dos and reference_energy is not None:
+                    for dos in output.electronic_dos:
+                        if dos.energies_origin is None:
+                            dos.energies_origin = reference_energy
+
         dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(self.mainfile))
         if not dos_files:
             return
@@ -388,3 +443,19 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                     energies=simulation_variables.Energy2(points=energies),
                 )
             ]
+
+        if hasattr(self.mainfile_parser, 'get_configurations'):
+            configurations = self.mainfile_parser.get_configurations(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if i >= len(configurations) or not output.electronic_dos:
+                    continue
+                reference_energy = self.mainfile_parser.get_reference_energy(
+                    configurations[i]
+                )
+                if reference_energy is None:
+                    continue
+                for dos in output.electronic_dos:
+                    if dos.energies_origin is None:
+                        dos.energies_origin = reference_energy
