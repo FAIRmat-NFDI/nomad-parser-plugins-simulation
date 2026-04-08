@@ -70,10 +70,20 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupations'
     )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        GPW_KEY,
+        '.highest_occupied',
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(outputs.ElectronicBandStructure.value, GPW_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        GPW_KEY,
+        '.highest_occupied',
+    )
 
 
 class ElectronicBandGap(outputs.ElectronicBandGap):

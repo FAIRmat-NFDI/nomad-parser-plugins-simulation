@@ -76,12 +76,32 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, EIGENVALUES_KEY, '.occupations'
     )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        INFO_KEY,
+        '.highest_occupied',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        EIGENVALUES_KEY,
+        '.highest_occupied',
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(outputs.ElectronicBandStructure.value, INFO_KEY, '.value')
     add_mapping_annotation(
         outputs.ElectronicBandStructure.value, EIGENVALUES_KEY, '.value'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        INFO_KEY,
+        '.highest_occupied',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        EIGENVALUES_KEY,
+        '.highest_occupied',
     )
 
 

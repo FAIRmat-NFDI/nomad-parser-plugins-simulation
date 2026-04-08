@@ -197,6 +197,57 @@ class PWSCFMainfileTextParser(MainfileTextParser):
 
         return None
 
+    def get_band_structures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        reference_energy = self.get_reference_energy(source)
+        band_structures = []
+        for eigenvalues in self.get_eigenvalues(source):
+            band_structures.append(
+                dict(
+                    value=eigenvalues.get('eigenvalues'),
+                    occupation=eigenvalues.get('occupations'),
+                    n_levels=eigenvalues.get('n_levels'),
+                    spin_channel=eigenvalues.get('spin_channel'),
+                    highest_occupied=reference_energy,
+                )
+            )
+        return band_structures
+
+    def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if not hasattr(self, '_cached_dos_payload'):
+            self._cached_dos_payload = None
+            mainfile = getattr(self, 'filepath', None)
+            if not isinstance(mainfile, str) or not mainfile:
+                return []
+            dos_files = search_files(
+                pattern='*.dos', basedir=os.path.dirname(mainfile)
+            )
+            for dos_file in dos_files:
+                try:
+                    data = np.loadtxt(dos_file, comments='#')
+                except Exception:
+                    continue
+                if data is None:
+                    continue
+                if data.ndim == 1 and data.size >= 2:
+                    data = data.reshape(1, -1)
+                if data.ndim == 2 and data.shape[1] >= 2:
+                    energies = data[:, 0] * ureg.eV
+                    values = np.abs(data[:, 1]) / ureg.eV
+                    self._cached_dos_payload = dict(
+                        value=values,
+                        energies=dict(points=energies),
+                    )
+                    break
+
+        if self._cached_dos_payload is None:
+            return []
+
+        result = dict(self._cached_dos_payload)
+        reference_energy = self.get_reference_energy(source)
+        if reference_energy is not None:
+            result['energies_origin'] = reference_energy
+        return [result]
+
     def build_workflow(self):
         if self.data.get('bfgs_geometry_optimization') is not None:
             workflow = GeometryOptimization()

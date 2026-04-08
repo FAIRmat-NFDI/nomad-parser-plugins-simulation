@@ -407,18 +407,39 @@ class OctopusEigenvalueParser(TextParser):
     def logger(self):
         return LOGGER
 
+    def get_reference_energy(self, source: Any = None):
+        eigen_section = source if isinstance(source, dict) else None
+        if eigen_section is None:
+            eigen_section = self.data.get('eigenvalues') if hasattr(self, 'data') else None
+
+        if isinstance(eigen_section, dict):
+            fermi = eigen_section.get('fermi_energy')
+            if fermi is not None:
+                return fermi.to(self.unit)
+
+        return None
+
     def get_eigenvalues(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        reference_energy = self.get_reference_energy(source)
         kpts, eigs, occs = list(zip(*[e for e in source if e is not None]))
         eigs = np.transpose(eigs, axes=(2, 0, 1))
         occs = np.transpose(occs, axes=(2, 0, 1))
         return [
-            dict(eigenvalues=eig * self.unit, occupations=occs[n], kpoints=kpts)
+            dict(
+                eigenvalues=eig * self.unit,
+                occupations=occs[n],
+                kpoints=kpts,
+                highest_occupied=reference_energy,
+            )
             for n, eig in enumerate(eigs)
         ]
 
     def get_band_structures(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
         return [
-            dict(value=eigenvalue_data['eigenvalues'])
+            dict(
+                value=eigenvalue_data['eigenvalues'],
+                highest_occupied=eigenvalue_data.get('highest_occupied'),
+            )
             for eigenvalue_data in self.get_eigenvalues(source)
             if eigenvalue_data.get('kpoints') is not None
         ]

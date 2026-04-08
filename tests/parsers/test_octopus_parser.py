@@ -67,10 +67,12 @@ def test_outputs_contract_for_normalizer():
         eig = output.electronic_eigenvalues[0]
         assert eig.value is not None
         assert eig.occupation is not None
+        assert eig.highest_occupied is not None
 
     if output.electronic_band_structures:
         bs = output.electronic_band_structures[0]
         assert bs.value is not None
+        assert bs.highest_occupied is not None
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None

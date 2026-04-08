@@ -46,6 +46,7 @@ def test_workflow_and_scf_steps():
     )
     if outputs[0].electronic_band_structures:
         assert outputs[0].electronic_band_structures[0].value is not None
+        assert outputs[0].electronic_band_structures[0].highest_occupied is not None
     if outputs[0].electronic_band_gaps:
         assert outputs[0].electronic_band_gaps[0].value is not None
 
@@ -92,6 +93,7 @@ def test_outputs_contract_for_normalizer():
     if output.electronic_band_structures:
         bs = output.electronic_band_structures[0]
         assert bs.value is not None
+        assert bs.highest_occupied is not None
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None

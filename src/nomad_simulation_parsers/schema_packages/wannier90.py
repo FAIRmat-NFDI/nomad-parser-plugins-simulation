@@ -191,10 +191,13 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
     #     MAPPING_ANNOTATION_KEY, {}
     # ).update(dict(wout=Mapper(mapper='.Nwannier')))
 
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
-    )
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, BAND_KEY, '.value')
     add_mapping_annotation(outputs.ElectronicBandStructure.k_path, BAND_KEY, '.k_path')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        BAND_KEY,
+        '.highest_occupied',
+    )
 
 
 class WignerSeitz(variables.WignerSeitz):
@@ -232,6 +235,11 @@ class Energy2(variables.Energy2):
 class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
     add_mapping_annotation(
         properties.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        properties.ElectronicDensityOfStates.energies_origin,
+        DOS_KEY,
+        '.energies_origin',
     )
     add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 

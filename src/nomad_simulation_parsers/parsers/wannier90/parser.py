@@ -11,9 +11,8 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages import numerical_settings as sim_numerical
-from nomad_simulations.schema_packages import outputs as sim_outputs
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -84,7 +83,10 @@ class WDosTextParser(TextParser):
 
     def get_dos(self, source: np.ndarray) -> dict[str, Any]:
         data = np.transpose(source)
-        return dict(energies=data[0], value=data[1])
+        result = dict(energies=data[0], value=data[1])
+        if self.data.get('energies_origin') is not None:
+            result['energies_origin'] = self.data.get('energies_origin')
+        return result
 
 
 class WBandTextParser(TextParser):
@@ -106,7 +108,11 @@ class WBandTextParser(TextParser):
         if isinstance(k_path, dict):
             resolved_k_path.update(k_path)
 
-        return dict(value=band_values, k_path=resolved_k_path)
+        result = dict(value=band_values, k_path=resolved_k_path)
+        if self.data.get('highest_occupied') is not None:
+            result['highest_occupied'] = self.data.get('highest_occupied')
+
+        return result
 
 
 class WOutTextParser(TextParser):
@@ -437,7 +443,37 @@ class WannierArchiveWriter(ArchiveWriter):
         self.data_parser.annotation_key = wannier90.WIN_KEY
         self.data_parser.data_object = self.archive.data
         win_parser.convert(self.data_parser)
+
+        reference_energy = win_parser.data.get('energy_fermi')
+        if reference_energy is None:
+            reference_energy = self.get_reference_energy_from_win_file(win_files[0])
+        if reference_energy is not None:
+            self.reference_energy = float(reference_energy) * ureg.eV
+
         win_parser.close()
+
+    def get_reference_energy(self):
+        return getattr(self, 'reference_energy', None)
+
+    def get_reference_energy_from_win_file(self, win_file: str):
+        try:
+            with open(win_file) as handle:
+                content = handle.read()
+        except Exception:
+            return None
+
+        match = re.search(
+            r'^\s*fermi_energy\s*=\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)',
+            content,
+            flags=re.MULTILINE,
+        )
+        if not match:
+            return None
+
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
 
     def parse_hr(self) -> None:
         """
@@ -471,6 +507,9 @@ class WannierArchiveWriter(ArchiveWriter):
         for dos_file in dos_files:
             wdos_parser.filepath = dos_file
             wdos_parser.data_object.parse('data')
+            reference_energy = self.get_reference_energy()
+            if reference_energy is not None:
+                wdos_parser.data['energies_origin'] = reference_energy
             self.data_parser.annotation_key = wannier90.DOS_KEY
             self.data_parser.data_object = self.archive.data
             wdos_parser.convert(self.data_parser)
@@ -490,52 +529,12 @@ class WannierArchiveWriter(ArchiveWriter):
             wband_parser.filepath = band_file
             wband_parser.data_object.parse('data')
             wband_parser.data['k_path'] = k_path
+            reference_energy = self.get_reference_energy()
+            if reference_energy is not None:
+                wband_parser.data['highest_occupied'] = reference_energy
             self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
             wband_parser.convert(self.data_parser)
-
-            # Fallback: if mapping conversion did not materialize band structures,
-            # create the section directly from parsed band data.
-            output = None
-            if self.archive.data.outputs:
-                output = self.archive.data.outputs[0]
-            else:
-                output = sim_outputs.Outputs()
-                self.archive.data.outputs = [output]
-
-            if not output.electronic_band_structures:
-                band = wband_parser.get_band_structure(
-                    wband_parser.data_object.data, wband_parser.data.get('k_path')
-                )
-                sec_bs = sim_outputs.ElectronicBandStructure(value=band.get('value'))
-                sec_k_path = sim_numerical.KLinePath()
-                kpath = band.get('k_path', {})
-                if isinstance(kpath, dict):
-                    values = kpath.get('values')
-                    if values is not None:
-                        # Build an explicit k-point path compatible with
-                        # electronic-band-structure plotting expectations.
-                        values_array = np.asarray(values, dtype=float)
-                        n_kpoints = np.asarray(band.get('value')).shape[0]
-                        if (
-                            values_array.ndim == 2
-                            and values_array.shape[1] == 3
-                            and values_array.shape[0] > 1
-                            and n_kpoints > 1
-                        ):
-                            n_segments = values_array.shape[0] - 1
-                            points = np.empty((n_kpoints, 3), dtype=float)
-                            for index in range(n_kpoints):
-                                progress = index / (n_kpoints - 1)
-                                scaled = progress * n_segments
-                                segment = int(min(np.floor(scaled), n_segments - 1))
-                                local = scaled - segment
-                                start = values_array[segment]
-                                end = values_array[segment + 1]
-                                points[index] = start + local * (end - start)
-                            sec_k_path.points = points
-                sec_bs.k_path = sec_k_path
-                output.electronic_band_structures = [sec_bs]
         wband_parser.close()
 
     def write_to_archive(self) -> None:
@@ -553,6 +552,7 @@ class WannierArchiveWriter(ArchiveWriter):
         self.data_parser.annotation_key = wannier90.WOUT_KEY
         self.data_parser.data_object = data
         self.archive.data = data
+        self.reference_energy = None
 
         self.wout_parser.convert(self.data_parser)
 
