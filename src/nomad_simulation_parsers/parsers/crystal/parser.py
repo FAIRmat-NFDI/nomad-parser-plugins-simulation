@@ -366,20 +366,6 @@ class CrystalArchiveWriter(ArchiveWriter):
             )
 
             self.f25_parser.convert(self.archive_parser)
-            outputs_after_f25 = self.archive.data.outputs or []
-            if outputs_before_f25:
-                if not outputs_after_f25:
-                    self.archive.data.outputs = outputs_before_f25
-                else:
-                    for idx, output in enumerate(outputs_before_f25):
-                        if idx >= len(outputs_after_f25):
-                            outputs_after_f25.append(output)
-                            continue
-                        if (
-                            outputs_after_f25[idx].scf_steps is None
-                            and output.scf_steps is not None
-                        ):
-                            outputs_after_f25[idx].scf_steps = output.scf_steps
 
 
 class CrystalParser(MatchingParser):

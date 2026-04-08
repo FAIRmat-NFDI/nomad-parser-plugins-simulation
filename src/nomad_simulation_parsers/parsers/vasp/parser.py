@@ -81,7 +81,11 @@ class VASPParser(MatchingParser):
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 
-        # Some VASP XML datasets do not expose electronic outputs through current XML
-        # extraction while equivalent OUTCAR payload is available in the same folder.
+        # TODO(mapping-migration): replace this parser-side XML->OUTCAR backfill
+        # with a mapping-driven source merge when XML fixtures with missing
+        # electronic payloads are supported in mappings.
+        # Attempt tried in this iteration: disable backfill and rely on current
+        # XML mappings only; regression remained in
+        # tests/parsers/test_vasp_parser.py::test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing.
         if 'outcar' not in mainfile.lower():
             self._backfill_from_outcar(mainfile, archive, logger, child_archives)
