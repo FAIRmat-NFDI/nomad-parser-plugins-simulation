@@ -89,7 +89,9 @@ class ControlParser(TextParser):
 
         def str_to_float_array(val_in: str) -> np.ndarray:
             """Parse space-separated floats into numpy array."""
-            return np.array([float(v) for v in val_in.strip().split()], dtype=np.float64)
+            return np.array(
+                [float(v) for v in val_in.strip().split()], dtype=np.float64
+            )
 
         self._quantities = [
             Quantity(
