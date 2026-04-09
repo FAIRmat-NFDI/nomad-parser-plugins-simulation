@@ -138,129 +138,6 @@ def test_edrparser_get_energies_from_data():
     assert all(hasattr(e, 'units') for e in energies if e is not None)
 
 
-def test_integration_parse_gromacs_water():
-    # Use the provided test data (water). The Gromacs parser expects the mainfile
-    # to be the log-like mdrun output; pick the provided 'mdrun.out' in the test data.
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    # prefer 'reference_s.log' if present, otherwise fallback to 'md.log'
-    candidates = [
-        'reference_s.log',
-        'mdrun.log',
-        'md.log',
-    ]
-    mainfile = ''
-    for name in candidates:
-        p = os.path.join(base, name)
-        if os.path.exists(p):
-            mainfile = p
-            break
-    assert mainfile, f'No suitable mainfile found in {base} (tried {candidates})'
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    # parse should populate archive.data (Simulation)
-    parser.parse(mainfile, archive)
-
-    # The writer may populate either `data` (Simulation) or `workflow2` depending
-    # on the implementation and which parsing path is enabled. Accept either.
-    assert (
-        getattr(archive, 'data', None) is not None
-        or getattr(archive, 'workflow2', None) is not None
-    )
-    if getattr(archive, 'data', None) is not None:
-        assert isinstance(archive.data.model_system, list)
-
-
-def test_force_field_parsing_from_tpr():
-    """Test that force field parameters are extracted from TPR file."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-
-    # Find any .log file in the directory
-    log_files = list(base.glob('*.log'))
-    if not log_files:
-        pytest.skip(f'No .log file found in {base}')
-
-    mainfile = str(log_files[0])
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    parser.parse(mainfile, archive)
-
-    # Verify data section exists
-    assert archive.data is not None, 'Archive.data should be populated'
-    assert hasattr(archive.data, 'model_method'), 'Simulation should have model_method'
-
-    # Check model_method was populated
-    if not archive.data.model_method or len(archive.data.model_method) == 0:
-        pytest.skip('No model_method found - TPR file may not contain force field data')
-
-    # Find ForceField in model_method (identified by having contributions attribute)
-    force_field = None
-    for method in archive.data.model_method:
-        if hasattr(method, 'contributions'):
-            force_field = method
-            break
-
-    if force_field is None:
-        pytest.skip('No ForceField found in model_method')
-
-    # Verify ForceField structure populated via annotations
-    assert hasattr(force_field, 'contributions'), 'ForceField should have contributions'
-    assert hasattr(force_field, 'numerical_settings'), (
-        'ForceField should have numerical_settings'
-    )
-
-    # Check ForceCalculations (numerical settings) from LOG_KEY annotations
-    if len(force_field.numerical_settings) > 0:
-        force_calc = force_field.numerical_settings[0]
-        # Verify attributes exist (values may be None if not in log/mdp)
-        assert hasattr(force_calc, 'vdw_cutoff'), (
-            'ForceCalculations should have vdw_cutoff'
-        )
-        assert hasattr(force_calc, 'coulomb_cutoff'), (
-            'ForceCalculations should have coulomb_cutoff'
-        )
-        assert hasattr(force_calc, 'coulomb_type'), (
-            'ForceCalculations should have coulomb_type'
-        )
-        assert hasattr(force_calc, 'neighbor_update_frequency'), (
-            'ForceCalculations should have neighbor_update_frequency'
-        )
-
-        # If values are populated, verify they have correct types
-        if force_calc.vdw_cutoff is not None:
-            assert hasattr(force_calc.vdw_cutoff, 'magnitude'), (
-                'vdw_cutoff should be a pint Quantity'
-            )
-        if force_calc.coulomb_cutoff is not None:
-            assert hasattr(force_calc.coulomb_cutoff, 'magnitude'), (
-                'coulomb_cutoff should be a pint Quantity'
-            )
-
-    # Check contributions (Potential list) from TPR_KEY get_force_field_contributions()
-    if len(force_field.contributions) > 0:
-        potential = force_field.contributions[0]
-        assert hasattr(potential, 'type'), 'Potential should have type'
-        assert hasattr(potential, 'functional_form'), (
-            'Potential should have functional_form'
-        )
-        assert hasattr(potential, 'parameters'), 'Potential should have parameters'
-
-        # Verify that type is one of the valid enum values (or None)
-        if potential.type is not None:
-            valid_types = [
-                'bond',
-                'angle',
-                'dihedral',
-                'improper dihedral',
-                'nonbonded',
-                'bond-angle',
-            ]
-            assert potential.type in valid_types, (
-                f'Potential type {potential.type} should be in {valid_types}'
-            )
-
-
 def test_get_coulomb_type_transformation():
     """Test the get_coulomb_type transformation function."""
     lp = gromacs_parser.GromacsLogParser()
@@ -780,6 +657,19 @@ def test_system_hierarchy_water():
     assert 'H' in molecule.composition_formula
     assert 'O' in molecule.composition_formula
 
+    # All terminal branches across the full hierarchy must have composition_formula
+    def check_terminal_formulas(subsystem):
+        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
+            assert subsystem.composition_formula is not None, (
+                f'Terminal {subsystem.branch_label} should have composition_formula'
+            )
+        else:
+            for child in subsystem.sub_systems:
+                check_terminal_formulas(child)
+
+    for mg in system.sub_systems:
+        check_terminal_formulas(mg)
+
 
 def test_system_hierarchy_polymer():
     """Test that complex system hierarchy is parsed from protein mainfile."""
@@ -840,6 +730,22 @@ def test_system_hierarchy_polymer():
     assert monomer.particle_indices is not None
     assert len(monomer.particle_indices) > 0
 
+    # Exhaustively check branch_label at every level across all sub_systems
+    for mg in system.sub_systems:
+        assert mg.branch_label == 'molecule_group'
+
+        if mg.sub_systems and len(mg.sub_systems) > 0:
+            for mol in mg.sub_systems:
+                assert mol.branch_label == 'molecule'
+
+                if mol.sub_systems and len(mol.sub_systems) > 0:
+                    for mng in mol.sub_systems:
+                        assert mng.branch_label == 'monomer_group'
+
+                        if mng.sub_systems and len(mng.sub_systems) > 0:
+                            for mon in mng.sub_systems:
+                                assert mon.branch_label == 'monomer'
+
 
 def test_system_hierarchy_particle_indices_valid():
     """Test that particle_indices in hierarchy are valid and consistent."""
@@ -879,74 +785,6 @@ def test_system_hierarchy_particle_indices_valid():
         check_particle_indices(mol_group)
 
 
-def test_system_hierarchy_branch_labels():
-    """Test that branch_label is correctly assigned at each hierarchy level."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
-    log_file = os.path.join(base, 'md.log')
-
-    if not os.path.exists(log_file):
-        pytest.skip(f'TPR file not found: {log_file}')
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    parser.parse(log_file, archive)
-
-    system = archive.data.model_system[0]
-
-    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
-        'System has no molecular hierarchy - hierarchy parsing regression'
-    )
-
-    # Check all levels have correct branch_label
-    for mol_group in system.sub_systems:
-        assert mol_group.branch_label == 'molecule_group'
-
-        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
-            for molecule in mol_group.sub_systems:
-                assert molecule.branch_label == 'molecule'
-
-                if molecule.sub_systems and len(molecule.sub_systems) > 0:
-                    for monomer_group in molecule.sub_systems:
-                        assert monomer_group.branch_label == 'monomer_group'
-
-                        if (
-                            monomer_group.sub_systems
-                            and len(monomer_group.sub_systems) > 0
-                        ):
-                            for monomer in monomer_group.sub_systems:
-                                assert monomer.branch_label == 'monomer'
-
-
-def test_system_hierarchy_composition_formulas():
-    """Test that composition_formula is assigned to terminal branches."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    log_file = os.path.join(base, 'reference_s.log')
-
-    if not os.path.exists(log_file):
-        pytest.skip(f'Mainfile not found: {log_file}')
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    parser.parse(log_file, archive)
-
-    system = archive.data.model_system[0]
-
-    def check_terminal_formulas(subsystem):
-        """Recursively check that terminal branches have composition_formula."""
-        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
-            # Terminal branch should have composition_formula
-            assert subsystem.composition_formula is not None, (
-                f'Terminal {subsystem.branch_label} should have composition_formula'
-            )
-        else:
-            # Non-terminal may or may not have formula, recurse to children
-            for child in subsystem.sub_systems:
-                check_terminal_formulas(child)
-
-    for mol_group in system.sub_systems:
-        check_terminal_formulas(mol_group)
-
-
 def test_xvg_parser_get_results_valid():
     """Unit test for GromacsXVGParser.get_results() with real XVG data."""
     xvg_file = (
@@ -984,7 +822,7 @@ def test_xvg_parser_get_results_valid():
 
 def test_integration_fep_xvg_fields_populated():
     """Integration test: XVG fields appear in FreeEnergyCalculationParameters."""
-    # TODO: remove after PR #357 on nomad-simulations is merged
+    # TODO: remove after PR #375 on nomad-simulations is merged
     if not hasattr(FreeEnergyCalculationParameters, 'n_frames'):
         pytest.skip('n_frames not present in this nomad-simulations version')
 

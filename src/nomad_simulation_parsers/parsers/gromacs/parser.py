@@ -77,7 +77,7 @@ class GromacsThermodynamicsParser(MappingParser):
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
             data = dict(
-                m_def=gromacs.Outpus.m_def.qualified_name(),
+                m_def=gromacs.Outputs.m_def.qualified_name(),
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -464,9 +464,10 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         """Return source dict when free-energy is active, None otherwise.
 
         Used as the mapper hook for free_energy_calculation_parameters so that
-        the section is only instantiated for FEP runs.  Lambdas are populated
-        explicitly in GromacsArchiveWriter._parse_workflow_section to avoid
-        the MSection.values() / Lambdas.lambda_values naming issue.
+        the section is only instantiated for FEP runs. Lambda-related data is
+        populated through the mapping transformer helpers (get_lambdas_schedule,
+        get_current_lambdas, get_lambda_state_index, get_free_energy_calc_type)
+        via LOG_KEY annotations on FreeEnergyCalculationParameters.
         """
         result = None
         if not source:
@@ -620,6 +621,7 @@ class GromacsXVGParser(TextParser):
     #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
     # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
     _XVG_FIXED_COLUMNS = 4
+    _results_cache: dict[str, Any] | None = None
 
     def to_dict(self, **kwargs) -> dict[str, Any]:
         if self.data_object is not None:
@@ -657,7 +659,7 @@ class GromacsXVGParser(TextParser):
         # Column layout: time | E_total | dH/dlambda | ΔH[0..n-1] | PV
         n_states = columns.shape[1] - self._XVG_FIXED_COLUMNS
         free_energy['n_frames'] = len(columns)
-        free_energy['value_unit'] = str(ENERGY_UNIT._units)
+        free_energy['value_unit'] = str(ENERGY_UNIT)
         free_energy['n_states'] = n_states
         xaxis = self.data.get('xaxis', '').lower()
         # The expected columns of the xvg file are:
@@ -683,7 +685,9 @@ class GromacsXVGParser(TextParser):
         Called as a zero-path transformer (paths=[]) by the MappingParser
         for each XVG_KEY annotation on FreeEnergyCalculationParameters.
         """
-        fec = self.get_results().get('free_energy_calculations', {})
+        if self._results_cache is None:
+            self._results_cache = self.get_results()
+        fec = self._results_cache.get('free_energy_calculations', {})
         val = fec.get(field)
         if val is None:
             return None
@@ -771,8 +775,7 @@ class GromacsMDAnalysisParser(MappingParser):
         labels = self.data_object.get_atom_labels(index)
         try:
             symbols2numbers(labels)
-        # TODO: remove blanked `Exception`, hides too many problems.
-        except Exception:
+        except KeyError:
             labels = ['CGX'] * len(labels)
         return labels
 
