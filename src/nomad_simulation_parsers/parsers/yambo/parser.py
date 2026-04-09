@@ -267,7 +267,9 @@ class YamboMainfileParser(TextParser):
         return outputs
 
 
-class YamboSpectraParser(TextParser):
+class YamboSpectraParser(MappingParser):  # EM
+    self.spectra_parser = SpectraParser(mainfile=self.filepath)   # EM
+    
     @property
     def logger(self):
         return LOGGER
