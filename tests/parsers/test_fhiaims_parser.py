@@ -1,6 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-from pytest import approx
+from pytest import approx, mark
 
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 
@@ -67,55 +67,33 @@ def test_scf_steps_quantities():
     )
 
 
-def test_k_mesh():
-    parser = FHIAimsParser()
-    archive = EntryArchive()
-    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
-
-    # Check DFT section exists
-    assert archive.data.model_method is not None
-    assert len(archive.data.model_method) == 1
-    dft = archive.data.model_method[0]
-    assert dft.m_def.name == 'DFT'
-
-    # Check NumericalSettings/KSpace exists
-    assert dft.numerical_settings is not None
-    assert len(dft.numerical_settings) == 1
-    k_space = dft.numerical_settings[0]
-    assert k_space.m_def.name == 'KSpace'
-
-    # Check KSpace.k_mesh exists
-    assert k_space.k_mesh is not None
-    assert len(k_space.k_mesh) == 1
-    k_mesh = k_space.k_mesh[0]
-    assert k_mesh.m_def.name == 'KMesh'
-
-    # Check k-grid values
-    assert k_mesh.grid is not None
-    assert list(k_mesh.grid) == [8, 8, 8]
-
-    # Check k_offset default (FHI-aims uses Gamma-centered by default)
-    assert k_mesh.offset is not None
-    assert list(k_mesh.offset) == approx([0.0, 0.0, 0.0])
-
-
-def test_k_mesh_with_offset(tmp_path):
-    """Test k-mesh parsing when k_offset is present."""
+@mark.parametrize(
+    'k_offset_line,expected_offset',
+    [
+        (None, [0.0, 0.0, 0.0]),
+        ('  k_offset                           0.5 0.25 0.0\n', [0.5, 0.25, 0.0]),
+    ],
+    ids=['default_offset', 'explicit_offset'],
+)
+def test_k_mesh(tmp_path, k_offset_line, expected_offset):
+    """Test k-mesh parsing with and without explicit k_offset."""
     source_path = 'tests/data/fhiaims/Si_geomopt/out.out'
-    with open(source_path, encoding='utf-8') as f:
-        content = f.read()
 
-    # Inject k_offset line after k_grid
-    modified_content = content.replace(
-        '  Found k-point grid:         8         8         8\n',
-        '  Found k-point grid:         8         8         8\n'
-        '  k_offset                           0.5 0.25 0.0\n',
-        1,
-    )
-    assert modified_content != content, 'Failed to inject k_offset line'
-
-    test_file = tmp_path / 'out_with_k_offset.out'
-    test_file.write_text(modified_content, encoding='utf-8')
+    if k_offset_line is None:
+        # Use original file (no k_offset)
+        test_file = source_path
+    else:
+        # Inject k_offset line after k_grid
+        with open(source_path, encoding='utf-8') as f:
+            content = f.read()
+        modified_content = content.replace(
+            '  Found k-point grid:         8         8         8\n',
+            '  Found k-point grid:         8         8         8\n' + k_offset_line,
+            1,
+        )
+        assert modified_content != content, 'Failed to inject k_offset line'
+        test_file = tmp_path / 'out_with_k_offset.out'
+        test_file.write_text(modified_content, encoding='utf-8')
 
     parser = FHIAimsParser()
     archive = EntryArchive()
@@ -143,6 +121,6 @@ def test_k_mesh_with_offset(tmp_path):
     assert k_mesh.grid is not None
     assert list(k_mesh.grid) == [8, 8, 8]
 
-    # Check k_offset values
+    # Check k_offset values (default or explicit)
     assert k_mesh.offset is not None
-    assert list(k_mesh.offset) == approx([0.5, 0.25, 0.0])
+    assert list(k_mesh.offset) == approx(expected_offset)

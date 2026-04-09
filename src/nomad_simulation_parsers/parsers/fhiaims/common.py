@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -83,15 +84,13 @@ class ControlParser(TextParser):
             else:
                 return np.reshape(val, (3, 3))
 
-        def str_to_int_array(val_in: str) -> np.ndarray:
-            """Parse space-separated integers into numpy array."""
-            return np.array([int(v) for v in val_in.strip().split()], dtype=np.int32)
+        def str_to_array(val_in: str, dtype) -> np.ndarray:
+            """Parse space-separated values into numpy array."""
+            converter = int if dtype == np.int32 else float
+            return np.array([converter(v) for v in val_in.strip().split()], dtype=dtype)
 
-        def str_to_float_array(val_in: str) -> np.ndarray:
-            """Parse space-separated floats into numpy array."""
-            return np.array(
-                [float(v) for v in val_in.strip().split()], dtype=np.float64
-            )
+        str_to_int_array = partial(str_to_array, dtype=np.int32)
+        str_to_float_array = partial(str_to_array, dtype=np.float64)
 
         self._quantities = [
             Quantity(

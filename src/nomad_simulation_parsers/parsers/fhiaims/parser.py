@@ -308,7 +308,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
-    def get_k_offset_with_default(self, k_offset):
+    def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
         """
         Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
 
