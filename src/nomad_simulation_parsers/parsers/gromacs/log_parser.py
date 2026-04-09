@@ -130,7 +130,7 @@ class GromacsLogParser(TextParser):
             ),
             Quantity(
                 'version',
-                r'GROMACS(?:\s+version[:\s]+|:\s*\S+,\s*[Vv]ersion\s+)(\S+)',
+                r'GROMACS(?:\s+version[:\s]+|:\s*.+?,\s*[Vv]ersion\s+)(\S+)',
             ),
             Quantity('execution_path', r'Executable:\s*(.+)'),
             Quantity('working_path', r'Data prefix:\s*(.+)'),

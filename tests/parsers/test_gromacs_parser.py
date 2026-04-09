@@ -4,9 +4,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 from nomad.datamodel import EntryArchive
-from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
-    FreeEnergyCalculationParameters,
-)
 
 from nomad_simulation_parsers.parsers.gromacs import parser as gromacs_parser
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
@@ -822,10 +819,6 @@ def test_xvg_parser_get_results_valid():
 
 def test_integration_fep_xvg_fields_populated():
     """Integration test: XVG fields appear in FreeEnergyCalculationParameters."""
-    # TODO: remove after PR #375 on nomad-simulations is merged
-    if not hasattr(FreeEnergyCalculationParameters, 'n_frames'):
-        pytest.skip('n_frames not present in this nomad-simulations version')
-
     log_file = (
         Path(__file__).parent.parent
         / 'data'

@@ -128,7 +128,9 @@ class ModelSystem(model_system.ModelSystem):
       monomers)
     """
 
-    add_mapping_annotation(model_system.ModelSystem.n_particles, TPR_KEY, '.n_atoms')
+    add_mapping_annotation(
+        model_system.ModelSystem.n_particles, TPR_KEY, '.n_particles'
+    )
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
@@ -203,16 +205,14 @@ class Simulation(general.Simulation):
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
     # TODO: Replace explicit ForceField + ForceCalculations instantiation in
-    # parser.py._parse_data_section once two upstream MetainfoParser bugs are fixed:
-    #   1. build_update_mode_tree must recurse into MetainfoBaseMapper (not only Mapper)
-    #      so update_mode propagates to nested section mappers.
-    #   2. Level 3 type resolution (build_section_mapper ~L2291) must correctly
-    #      instantiate concrete SubSection types (ForceField) instead of the base type.
-    # After both fixes the explicit instantiation block can be replaced with:
-    # add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
-    # add_mapping_annotation(
-    #     general.Simulation.model_method, LOG_KEY, '.@', update_mode='merge@last'
-    # )
+    # parser.py._parse_data_section if the upstream silent-drop issue is fixed.
+    # Root cause: MetainfoParser.from_dict (mapping_parser.py ~L2171) finds the
+    # already-existing model_method[0] (MolecularDynamicsMethod from LOG pass) and
+    # recurses into it for the TPR pass. Quantities from ForceField are absent on
+    # MolecularDynamicsMethod, so m_set skips them silently. The post-write
+    # emptiness check (~L2187) then removes the subsection. Data is silently dropped.
+    # Until fixed: instantiate ForceField explicitly and target it directly.
+    # See parser.py._parse_data_section for the workaround blocks.
 
 
 add_mapping_annotation(outputs.TrajectoryOutputs.m_def, LOG_KEY, ('get_outputs', []))
@@ -437,10 +437,11 @@ add_mapping_annotation(
 
 
 # XVG free-energy time-series annotations.
-# Target: a FreeEnergyCalculationParameters instance set as data_object directly
-# (Bug-2 workaround — update_mode cannot propagate into already-populated subsections).
-# When Bug-2 is fixed in MetainfoParser, these annotations will be reachable via a
-# single convert pass targeting the MolecularDynamics workflow object.
+# Target: a FreeEnergyCalculationParameters instance set as data_object directly.
+# from_dict would silently drop XVG data if the subsection at index 0 already
+# holds an instance of a different type — quantities absent from that type are
+# skipped by m_set, then the emptiness check removes the subsection entirely.
+# Targeting the correct existing instance avoids the index collision.
 add_mapping_annotation(
     molecular_dynamics.FreeEnergyCalculationParameters.m_def, XVG_KEY, '@'
 )
@@ -509,9 +510,10 @@ add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 
 
 # Force Field
-# TODO: update_mode='append' on m_def annotation does not work with MetainfoParser:
-# build_update_mode_tree only recurses into Mapper, not MetainfoBaseMapper.
-# Explicit instantiation in parser.py is required until this is fixed upstream.
+# Explicit instantiation in parser.py is required: a second convert() pass would
+# silently drop ForceField data because from_dict finds the existing model_method[0]
+# (MolecularDynamicsMethod) and attempts to set ForceField quantities on it — they
+# are absent, skipped silently, and the emptiness check removes the subsection.
 class ForceField(force_field.ForceField):
     pass
 

@@ -195,7 +195,7 @@ class MDAnalysisParser(FileParser):
                 except Exception:
                     continue
 
-        self._results['n_atoms'] = self.universe.atoms.n_atoms
+        self._results['n_particles'] = self.universe.atoms.n_atoms
         self._results['n_frames'] = len(self.universe.trajectory)
 
     def get_fragtypes(self):
