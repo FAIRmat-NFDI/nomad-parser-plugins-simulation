@@ -249,13 +249,18 @@ class GPW2FileParser(FileParser):
             'kpoints': lambda: self.ulm.IBZKPoints,
             'density': lambda: self.ulm.density.density,
             'potential_effective': lambda: self.ulm.hamiltonian.potential,
-            'band_paths': self.ulm.wave_functions.band_paths.asdict,
+            # Not all GPAW files provide band path data (e.g., nowfs snapshots).
+            'band_paths': lambda: getattr(
+                getattr(self.ulm, 'wave_functions', None), 'band_paths', None
+            ),
         }
         try:
             if key in values:
                 val = values.get(key)
                 if callable(val):
                     val = val()
+                if hasattr(val, 'asdict'):
+                    val = val.asdict()
             else:
                 val = self.ulm.asdict().get(key, None)
         except Exception:
@@ -336,9 +341,12 @@ class GPWFileParser(FileParser):
         self._results['atom_positions'] = self.apply_unit(
             self.parser.get_array('atom_positions'), 'lengthunit'
         )
-        self._results['labels'] = [
-            ase.data.chemical_symbols[z] for z in self.parser.get_array('atomicnumbers')
-        ]
+        atomic_numbers = self.parser.get_array('atomicnumbers')
+        self._results['labels'] = (
+            [ase.data.chemical_symbols[z] for z in atomic_numbers]
+            if atomic_numbers is not None
+            else []
+        )
 
         pbc = np.ones(3, bool) if self.get_mode() == 'pw' else np.zeros(3, bool)
         if self.parser.get_array('boundary_conditions') is not None:
