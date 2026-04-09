@@ -308,6 +308,17 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
+    def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
+        """
+        Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
+
+        FHI-aims uses Gamma-centered grids by default when k_offset
+        is not specified in control.in.
+        """
+        if k_offset is None:
+            return np.array([0.0, 0.0, 0.0])
+        return k_offset
+
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
         if not scf_iterations:
@@ -494,8 +505,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
-        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)

@@ -743,6 +743,12 @@ class FHIAimsOutFileParser(TextParser):
                 'k_grid', rf'{RE_N} *Found k-point grid:\s*([\d ]+)', repeats=False
             ),  # taken from tests/data/fhi_aims
             Quantity(
+                'k_offset',
+                rf'{RE_N} *k_offset\s*([-+\d\.Ee ]+)',
+                repeats=False,
+                str_operation=lambda value: np.fromstring(value, sep=' '),
+            ),
+            Quantity(
                 'controlInOut_MD_time_step',
                 rf'{RE_N} *Molecular dynamics time step\s*=\s*([\d\.]+)\s*'
                 rf'(?P<__unit>[\w]+)',
