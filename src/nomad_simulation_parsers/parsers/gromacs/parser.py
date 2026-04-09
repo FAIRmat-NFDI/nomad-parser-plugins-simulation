@@ -1245,7 +1245,13 @@ class GromacsArchiveWriter(MDParser):
         self._basename = os.path.basename(self.mainfile).rsplit('.', 1)[0]
 
         # set up source parsers
-        self._log_parser.filepath = self.get_gromacs_file('log')
+        log_file = self.get_gromacs_file('log')
+        mainfile_ext = os.path.splitext(self.mainfile)[1].lower()
+        if mainfile_ext == '.log':
+            log_file = self.mainfile
+        elif not log_file:
+            log_file = self.mainfile
+        self._log_parser.filepath = log_file
         self._edr_parser.filepath = self.get_gromacs_file('edr')
         self._mdanalysis_parser.filepath = self.get_gromacs_file('tpr')
         # TODO include input parameters read from mdp parser
