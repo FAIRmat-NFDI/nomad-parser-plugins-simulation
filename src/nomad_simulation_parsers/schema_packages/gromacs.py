@@ -172,7 +172,7 @@ class TotalForce(outputs.TotalForce):
     add_mapping_annotation(outputs.TotalForce.value, TPR_KEY, '.@')
 
 
-class Outpus(outputs.TrajectoryOutputs):
+class Outputs(outputs.TrajectoryOutputs):
     add_mapping_annotation(outputs.TrajectoryOutputs.step, LOG_KEY, '.step')
     add_mapping_annotation(outputs.TrajectoryOutputs.step, EDR_KEY, '.step')
     add_mapping_annotation(outputs.Outputs.total_energies, LOG_KEY, '.energy')
