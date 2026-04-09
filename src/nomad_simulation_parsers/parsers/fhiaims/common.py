@@ -89,9 +89,6 @@ class ControlParser(TextParser):
             converter = int if dtype == np.int32 else float
             return np.array([converter(v) for v in val_in.strip().split()], dtype=dtype)
 
-        str_to_int_array = partial(str_to_array, dtype=np.int32)
-        str_to_float_array = partial(str_to_array, dtype=np.float64)
-
         self._quantities = [
             Quantity(
                 'displacement', r'\n *phonon\s*displacement\s*([\d\.]+)', dtype=float
@@ -111,13 +108,13 @@ class ControlParser(TextParser):
             Quantity(
                 'k_grid',
                 r'\n *k_grid\s*([\d ]+)',
-                str_operation=str_to_int_array,
+                str_operation=partial(str_to_array, dtype=np.int32),
                 convert=False,
             ),
             Quantity(
                 'k_offset',
                 r'\n *k_offset\s*([-+\d\. ]+)',
-                str_operation=str_to_float_array,
+                str_operation=partial(str_to_array, dtype=np.float64),
                 convert=False,
             ),
         ]
