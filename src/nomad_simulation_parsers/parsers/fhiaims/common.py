@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any
 
 import numpy as np
@@ -84,11 +83,6 @@ class ControlParser(TextParser):
             else:
                 return np.reshape(val, (3, 3))
 
-        def str_to_array(val_in: str, dtype) -> np.ndarray:
-            """Parse space-separated values into numpy array."""
-            converter = int if dtype == np.int32 else float
-            return np.array([converter(v) for v in val_in.strip().split()], dtype=dtype)
-
         self._quantities = [
             Quantity(
                 'displacement', r'\n *phonon\s*displacement\s*([\d\.]+)', dtype=float
@@ -105,16 +99,6 @@ class ControlParser(TextParser):
                 str_operation=str_to_supercell,
             ),
             Quantity('nac', r'\n *phonon nac\s*(.+)', str_operation=str_to_nac),
-            Quantity(
-                'k_grid',
-                r'\n *k_grid\s*([\d ]+)',
-                str_operation=partial(str_to_array, dtype=np.int32),
-                convert=False,
-            ),
-            Quantity(
-                'k_offset',
-                r'\n *k_offset\s*([-+\d\. ]+)',
-                str_operation=partial(str_to_array, dtype=np.float64),
-                convert=False,
-            ),
+            Quantity('k_grid', r'\n *k_grid\s*([\d ]+)', dtype=np.int32),
+            Quantity('k_offset', r'\n *k_offset\s*([-+\d\. ]+)', dtype=np.float64),
         ]
