@@ -592,8 +592,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
-        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
