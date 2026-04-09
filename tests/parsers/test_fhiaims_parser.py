@@ -94,8 +94,9 @@ def test_k_mesh():
     assert k_mesh.grid is not None
     assert list(k_mesh.grid) == [8, 8, 8]
 
-    # k_offset is not in test file, so it should be None
-    assert k_mesh.offset is None
+    # Check k_offset default (FHI-aims uses Gamma-centered by default)
+    assert k_mesh.offset is not None
+    assert list(k_mesh.offset) == approx([0.0, 0.0, 0.0])
 
 
 def test_k_mesh_with_offset(tmp_path):

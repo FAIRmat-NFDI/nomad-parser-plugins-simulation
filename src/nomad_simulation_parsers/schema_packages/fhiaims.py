@@ -292,7 +292,11 @@ class KSpace(numerical_settings.KSpace):
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(numerical_settings.KMesh.grid, TEXT_KEY, '.k_grid')
-    add_mapping_annotation(numerical_settings.KMesh.offset, TEXT_KEY, '.k_offset')
+    add_mapping_annotation(
+        numerical_settings.KMesh.offset,
+        TEXT_KEY,
+        ('get_k_offset_with_default', ['.k_offset']),
+    )
 
 
 try:
