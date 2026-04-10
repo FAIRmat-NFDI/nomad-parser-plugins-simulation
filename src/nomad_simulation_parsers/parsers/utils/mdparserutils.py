@@ -24,8 +24,6 @@ import numpy as np
 from ase.symbols import symbols2numbers
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.utils import get_logger
-
-# from runschema.method import Interaction, Model
 from nomad_simulations.schema_packages import workflow
 from nomad_simulations.schema_packages.atoms_state import (
     AtomsState,
@@ -33,11 +31,7 @@ from nomad_simulations.schema_packages.atoms_state import (
     ParticleState,
 )
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import (
-    ModelSystem,
-)
-
-# nomad-simulations
+from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages.outputs import (
     TotalEnergy,
     TotalForce,
@@ -180,12 +174,12 @@ class MDParser(ArchiveWriter):
         self._thermodynamics_steps.sort()
 
     @property
-    def n_atoms(self) -> int:
-        return np.amax(self.info.get('n_atoms', [0]))
+    def n_particles(self) -> int:
+        return np.amax(self.info.get('n_particles', [0]))
 
-    @n_atoms.setter
-    def n_atoms(self, value: Iterable | int):
-        self.info['n_atoms'] = [value] if not isinstance(value, Iterable) else value
+    @n_particles.setter
+    def n_particles(self, value: Iterable | int):
+        self.info['n_particles'] = [value] if not isinstance(value, Iterable) else value
 
     @property
     def archive_sampling_rate(self) -> int:
@@ -194,11 +188,11 @@ class MDParser(ArchiveWriter):
         """
         if self.info.get('archive_sampling_rate') is None:
             n_frames = self.info.get('n_frames', len(self._trajectory_steps))
-            n_atoms = np.amax(self.n_atoms)
-            if not n_atoms or not n_frames:
+            n_particles = np.amax(self.n_particles)
+            if not n_particles or not n_frames:
                 self.info['archive_sampling_rate'] = 1
             else:
-                cum_atoms = n_atoms * n_frames
+                cum_atoms = n_particles * n_frames
                 self.info['archive_sampling_rate'] = (
                     1
                     if cum_atoms <= self.cum_max_atoms
@@ -223,6 +217,9 @@ class MDParser(ArchiveWriter):
     ) -> None:
         """
         Create a system section and write the provided data.
+        Particle labels are resolved at parse time: if all labels are valid
+        element symbols, `AtomsState` instances are created; otherwise generic
+        `ParticleState` instances are used (e.g. for coarse-grained beads).
         """
         if simulation is None:
             return
