@@ -77,7 +77,6 @@ class GromacsThermodynamicsParser(MappingParser):
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
             data = dict(
-                m_def=gromacs.Outputs.m_def.qualified_name(),
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -128,6 +127,22 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
     def __init__(self, **kwargs):
         self._trajectory_steps_sampled: list[int] = []
+        self._FREE_ENERGY_CALC_TYPE_MAP = {
+            'yes': 'alchemical',
+            'slow-growth': 'alchemical',
+            'expanded': 'alchemical',
+            'umbrella': 'umbrella_sampling',
+        }
+        # Maps GROMACS all-lambdas keys to Lambdas.interaction_type values.
+        self._LAMBDA_INTERACTION_MAP = {
+            'fep-lambdas': 'fep',
+            'mass-lambdas': 'mass',
+            'coul-lambdas': 'coulomb',
+            'vdw-lambdas': 'vdw',
+            'bonded-lambdas': 'bonded',
+            'restraint-lambdas': 'restraint',
+            'temperature-lambdas': 'temperature',
+        }
         super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
@@ -225,24 +240,20 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             else None
         )
 
-    def get_coulomb_type(self, coulombtype: str) -> str:
-        """Map GROMACS coulombtype to NOMAD schema enum."""
-        result = None
-        if not coulombtype:
-            return result
-
-        coulombtype_lower = coulombtype.lower().replace('_', '-')
-        coulomb_map = {
-            'cut-off': 'cutoff',
-            'cutoff': 'cutoff',
-            'ewald': 'ewald',
-            'pme': 'particle_mesh_ewald',
-            'p3m-ad': 'particle_particle_particle_mesh',
-            'reaction-field': 'reaction_field',
-            'reaction-field-zero': 'reaction_field',
-        }
-        result = coulomb_map.get(coulombtype_lower)
-        return result
+    def get_coulomb_type(self, coulombtype: str) -> str | None:
+        normalized = coulombtype.lower().replace('_', '-') if coulombtype else None
+        return self._map_enum(
+            normalized,
+            {
+                'cut-off': 'cutoff',
+                'cutoff': 'cutoff',
+                'ewald': 'ewald',
+                'pme': 'particle_mesh_ewald',
+                'p3m-ad': 'particle_particle_particle_mesh',
+                'reaction-field': 'reaction_field',
+                'reaction-field-zero': 'reaction_field',
+            },
+        )
 
     def get_coordinate_save_frequency(self, input_params: dict[str, Any]) -> int | None:
         """Get coordinate save frequency, preferring compressed output."""
@@ -285,97 +296,79 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return result
 
     def get_thermostat_type(self, tcoupl: str) -> str | None:
-        """Map GROMACS tcoupl to NOMAD thermostat_type enum."""
+        return self._map_enum(
+            tcoupl,
+            {
+                'berendsen': 'berendsen',
+                'nose-hoover': 'nose_hoover',
+                'v-rescale': 'velocity_rescaling',
+                'andersen': 'andersen',
+                'andersen-massive': 'andersen_massive',
+            },
+            skip=frozenset({'no'}),
+        )
+
+    @staticmethod
+    def _get_grpopts_scalar(
+        input_params: dict[str, Any], key: str
+    ) -> Any:
+        """Read a scalar from grpopts[key], falling back to input_params[key].
+
+        Keys are stored with hyphens in grpopts and with underscores at the
+        top level after log normalization. When the value is a list (multiple
+        coupling groups), returns only the first element.
+        """
         result = None
-        if not tcoupl:
-            return result
-
-        tcoupl_lower = tcoupl.lower()
-        if tcoupl_lower == 'no':
-            return result
-
-        thermostat_map = {
-            'berendsen': 'berendsen',
-            'nose-hoover': 'nose_hoover',
-            'v-rescale': 'velocity_rescaling',
-            'andersen': 'andersen',
-            'andersen-massive': 'andersen_massive',
-        }
-        result = thermostat_map.get(tcoupl_lower)
+        if input_params:
+            grpopts = input_params.get('grpopts') or {}
+            val = grpopts.get(key) or input_params.get(key.replace('-', '_'))
+            if val is not None:
+                result = val[0] if isinstance(val, list) and len(val) > 0 else val
         return result
 
     def get_reference_temperature(self, input_params: dict[str, Any]) -> float | None:
-        """Extract reference temperature from ref-t inside grpopts."""
-        result = None
-        if not input_params:
-            return result
-
-        grpopts = input_params.get('grpopts') or {}
-        ref_t = grpopts.get('ref-t') or input_params.get('ref_t')
-        if ref_t is None:
-            return result
-
-        if isinstance(ref_t, list):
-            result = ref_t[0] if len(ref_t) > 0 else None
-        else:
-            result = ref_t
-
-        return result
+        return self._get_grpopts_scalar(input_params, 'ref-t')
 
     def get_thermostat_coupling_constant(
         self, input_params: dict[str, Any]
     ) -> float | None:
-        """Extract thermostat coupling constant from tau-t inside grpopts."""
+        return self._get_grpopts_scalar(input_params, 'tau-t')
+
+    @staticmethod
+    def _map_enum(
+        value: str | None,
+        mapping: dict[str, str],
+        skip: frozenset[str] = frozenset(),
+    ) -> str | None:
         result = None
-        if not input_params:
-            return result
-
-        grpopts = input_params.get('grpopts') or {}
-        tau_t = grpopts.get('tau-t') or input_params.get('tau_t')
-        if tau_t is None:
-            return result
-
-        if isinstance(tau_t, list):
-            result = tau_t[0] if len(tau_t) > 0 else None
-        else:
-            result = tau_t
-
+        if value:
+            lowered = value.lower()
+            if lowered not in skip:
+                result = mapping.get(lowered)
         return result
 
     def get_barostat_type(self, pcoupl: str) -> str | None:
-        """Map GROMACS pcoupl to NOMAD barostat_type enum."""
-        result = None
-        if not pcoupl:
-            return result
-
-        pcoupl_lower = pcoupl.lower()
-        if pcoupl_lower == 'no':
-            return result
-
-        barostat_map = {
-            'berendsen': 'berendsen',
-            'parrinello-rahman': 'parrinello_rahman',
-            'mttk': 'mttk',
-            'c-rescale': 'c_rescale',
-        }
-        result = barostat_map.get(pcoupl_lower)
-        return result
+        return self._map_enum(
+            pcoupl,
+            {
+                'berendsen': 'berendsen',
+                'parrinello-rahman': 'parrinello_rahman',
+                'mttk': 'mttk',
+                'c-rescale': 'c_rescale',
+            },
+            skip=frozenset({'no'}),
+        )
 
     def get_barostat_coupling_type(self, pcoupltype: str) -> str | None:
-        """Map GROMACS pcoupltype to NOMAD coupling_type enum."""
-        result = None
-        if not pcoupltype:
-            return result
-
-        pcoupltype_lower = pcoupltype.lower()
-        coupling_map = {
-            'isotropic': 'isotropic',
-            'semiisotropic': 'semi_isotropic',
-            'anisotropic': 'anisotropic',
-            'surface-tension': 'surface_tension',
-        }
-        result = coupling_map.get(pcoupltype_lower)
-        return result
+        return self._map_enum(
+            pcoupltype,
+            {
+                'isotropic': 'isotropic',
+                'semiisotropic': 'semi_isotropic',
+                'anisotropic': 'anisotropic',
+                'surface-tension': 'surface_tension',
+            },
+        )
 
     def get_matrix_parameter(
         self, input_params: dict[str, Any], param_key: str
@@ -390,23 +383,23 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
         if isinstance(params, list):
             if not all(isinstance(row, list) for row in params):
-                self.logger.warning('%s is not a matrix, not parsing.', param_key)
+                self.logger.warning('Not a matrix, not parsing', param_key=param_key)
                 params = None
             else:
                 params = np.array(params)
         elif not isinstance(params, np.ndarray):
             self.logger.warning(
-                '%s has unexpected type %s, expected np.ndarray. Not parsing.',
-                param_key,
-                type(params),
+                'Wrong type, expected np.ndarray',
+                param_key=param_key,
+                param_type=type(params),
             )
             params = None
 
         if params is not None and params.shape != (3, 3):
             self.logger.warning(
-                '%s has unexpected shape %s, expected (3, 3) matrix. Not parsing.',
-                param_key,
-                params.shape,
+                'Wrong shape, expected (3, 3) matrix',
+                param_key=param_key,
+                actual_shape=params.shape,
             )
             params = None
 
@@ -427,24 +420,6 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             result = tau_p
 
         return result
-
-    _FREE_ENERGY_CALC_TYPE_MAP = {
-        'yes': 'alchemical',
-        'slow-growth': 'alchemical',
-        'expanded': 'alchemical',
-        'umbrella': 'umbrella_sampling',
-    }
-
-    # Maps GROMACS all-lambdas keys to Lambdas.interaction_type values.
-    _LAMBDA_INTERACTION_MAP = {
-        'fep-lambdas': 'fep',
-        'mass-lambdas': 'mass',
-        'coul-lambdas': 'coulomb',
-        'vdw-lambdas': 'vdw',
-        'bonded-lambdas': 'bonded',
-        'restraint-lambdas': 'restraint',
-        'temperature-lambdas': 'temperature',
-    }
 
     def get_free_energy_calc_type(
         self, input_params: dict[str, Any] | None
@@ -508,7 +483,9 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             try:
                 values = np.array([float(v) for v in str(raw).split()])
             except (TypeError, ValueError):
-                self.logger.warning('Could not parse lambda grid for %s: %s', key, raw)
+                self.logger.warning(
+                    'Could not parse lambda grid.', key=key, raw_string=raw
+                )
                 continue
             if not np.any(values != 0.0):
                 continue
@@ -537,8 +514,8 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             result = np.array([s['lambda_values'][state_index] for s in schedules])
         except IndexError:
             self.logger.warning(
-                'init-lambda-state %d is out of range for the lambda grids.',
-                state_index,
+                'init-lambda-state is out of range for the lambda grids.',
+                state_index=state_index,
             )
         return result
 
@@ -554,7 +531,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             if idx >= 0:
                 result = idx
         except (TypeError, ValueError):
-            self.logger.warning('Could not parse init-lambda-state value: %s', value)
+            self.logger.warning('Could not parse init-lambda-state value.', value=value)
         return result
 
 
@@ -617,24 +594,24 @@ class GromacsEDRParser(GromacsThermodynamicsParser):
 
 
 class GromacsXVGParser(TextParser):
-    # XVG free-energy column layout:
-    #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
-    # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
-    _XVG_FIXED_COLUMNS = 4
-    _results_cache: dict[str, Any] | None = None
+    def __init__(self, **kwargs):
+        # XVG free-energy column layout:
+        #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
+        # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
+        self._XVG_FIXED_COLUMNS = 4
+        # Expected number of array dimensions in column_vals.
+        self._XVG_EXPECTED_NDIM = 2
+        # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
+        self._XVG_DIFF_OFFSET = 2
+        self._results_cache: dict[str, Any] | None = None
+        self.input_parameters: dict[str, Any] = {}
+        super().__init__(**kwargs)
 
     def to_dict(self, **kwargs) -> dict[str, Any]:
         if self.data_object is not None:
             self.data_object.parse()
             return self.data_object._results
         return {}
-
-    # Expected number of array dimensions in column_vals.
-    _XVG_EXPECTED_NDIM = 2
-    # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
-    _XVG_DIFF_OFFSET = 2
-
-    input_parameters = {}
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -791,8 +768,8 @@ class GromacsMDAnalysisParser(MappingParser):
         - 'charge' (float, elementary charge): partial charge when available
         """
         particles_info = {}
-        if self.data_object is not None and hasattr(self.data_object, 'get'):
-            particles_info = self.data_object.get('atoms_info', {}) or {}
+        if self.data_object is not None:
+            particles_info = self.data_object.get('atoms_info') or {}
         raw_names = particles_info.get('names', []) or []
         elements = particles_info.get('elements', []) or []
         # Fall back to get_particle_labels when particles_info is not populated
@@ -1136,13 +1113,6 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.LOG_KEY
         self._log_parser.convert(self._simulation_parser)
 
-        # Program is pre-initialized, so the LOG annotation pass cannot populate
-        # version (MappingParser skips already-set SubSections). Set it directly.
-        raw_version = self._log_parser.data_object.get('version')
-        version = self._log_parser.get_version(raw_version)
-        if version is not None:
-            self.archive.data.program.version = version
-
         # parse edr file
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
@@ -1224,9 +1194,7 @@ class GromacsArchiveWriter(MDParser):
         # set up source parsers
         log_file = self.get_gromacs_file('log')
         mainfile_ext = os.path.splitext(self.mainfile)[1].lower()
-        if mainfile_ext == '.log':
-            log_file = self.mainfile
-        elif not log_file:
+        if mainfile_ext == '.log' or not log_file:
             log_file = self.mainfile
         self._log_parser.filepath = log_file
         self._edr_parser.filepath = self.get_gromacs_file('edr')

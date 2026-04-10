@@ -43,8 +43,24 @@ class StubMDAnalysisDataObject:
         )
 
     def get_interactions(self):
-        # Return empty list for stub (no bonds by default)
         return []
+
+    def get(self, key, default=None):  # noqa: ARG002
+        return default
+
+
+class StubInteractionsDataObject:
+    """Stub data_object exposing only get_interactions(), for unit tests that
+    exercise bond-list and force-field-contribution extraction."""
+
+    def __init__(self, interactions: list):
+        self._interactions = interactions
+
+    def get_interactions(self):
+        return self._interactions
+
+    def get(self, key, default=None):  # noqa: ARG002
+        return default
 
 
 @pytest.fixture
@@ -178,15 +194,7 @@ def test_get_force_field_contributions_transformation():
         },
     ]
 
-    # Mock the data_object to return interactions
-    mdap.data_object = type(
-        'obj',
-        (object,),
-        {
-            'get': lambda self, key: 'GROMACS 2024' if key == 'version' else None,
-            'get_interactions': lambda self: mock_interactions,
-        },
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     contributions = mdap.get_force_field_contributions()
 
@@ -259,9 +267,7 @@ def test_get_bond_list():
         {'type': 'angle', 'atom_indices': [1, 0, 2], 'atom_labels': ['H', 'O', 'H']},
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
 
@@ -282,9 +288,7 @@ def test_get_bond_list_no_bonds():
         {'type': 'angle', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
     assert bond_list is None
@@ -294,7 +298,7 @@ def test_get_bond_list_empty_interactions():
     """Test bond list extraction with empty interactions."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    mdap.data_object = type('obj', (object,), {'get_interactions': lambda self: []})()
+    mdap.data_object = StubInteractionsDataObject([])
 
     bond_list = mdap.get_bond_list()
     assert bond_list is None
@@ -312,9 +316,7 @@ def test_get_bond_list_invalid_bond_indices():
         {'type': 'bond', 'atom_indices': [4, 5], 'atom_labels': ['O', 'H']},
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
 
