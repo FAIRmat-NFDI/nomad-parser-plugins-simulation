@@ -776,6 +776,22 @@ class FHIAimsOutFileParser(TextParser):
                 dtype=float,
             ),
             Quantity(
+                'convergence_density',
+                rf'Convergence accuracy of self-consistent charge density: *({RE_FLOAT})',
+                dtype=float,
+            ),
+            Quantity(
+                'convergence_eigenvalues',
+                rf'Convergence accuracy of sum of eigenvalues: *({RE_FLOAT})',
+                dtype=float,
+                unit='eV',
+            ),
+            Quantity(
+                'max_scf_iterations',
+                rf'Maximum number of self-consistency iterations:\s*(\d+)',
+                dtype=int,
+            ),
+            Quantity(
                 'convergence_forces',
                 rf'Convergence accuracy for geometry relaxation: '
                 rf'Maximum force < *({RE_FLOAT}) *eV/A',

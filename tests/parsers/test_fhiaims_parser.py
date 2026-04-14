@@ -124,3 +124,43 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     # Check k_offset values (default or explicit)
     assert k_mesh.offset is not None
     assert list(k_mesh.offset) == approx(expected_offset)
+
+
+def test_scf_convergence_criteria():
+    """Test extraction of SCF convergence criteria."""
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    # Check DFT section exists
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) == 1
+    dft = archive.data.model_method[0]
+    assert dft.m_def.name == 'DFT'
+
+    # Check NumericalSettings contains SelfConsistency sections
+    assert dft.numerical_settings is not None
+    # Should have at least: KSpace + 3 SelfConsistency (energy, density, eigenvalues)
+    assert len(dft.numerical_settings) >= 4
+
+    # Filter for SelfConsistency sections
+    scf_criteria = [ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency']
+    assert len(scf_criteria) == 3
+
+    # Create a mapping for easier checking
+    criteria_by_unit = {sc.threshold_change_unit: sc for sc in scf_criteria}
+
+    # Check energy convergence criterion
+    energy_criterion = criteria_by_unit.get('energy')
+    assert energy_criterion is not None
+    assert energy_criterion.threshold_change == approx(1.0e-5)
+
+    # Check electron density convergence criterion
+    density_criterion = criteria_by_unit.get('electron_density')
+    assert density_criterion is not None
+    assert density_criterion.threshold_change == approx(1.0e-4)
+
+    # Check sum of eigenvalues convergence criterion
+    eigenvalues_criterion = criteria_by_unit.get('sum_eigenvalues')
+    assert eigenvalues_criterion is not None
+    assert eigenvalues_criterion.threshold_change == approx(1.0e-2)
