@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+import numpy as np
+
 from nomad.datamodel.metainfo.annotations import Mapper
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
@@ -83,12 +85,21 @@ class Simulation(general.Simulation):
     )
 
 
+
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
 
 
 class DFT(model_method.DFT):
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
+
+
+# Add SelfConsistency instances to DFT numerical_settings
+add_mapping_annotation(
+    numerical_settings.SelfConsistency.m_def,
+    TEXT_KEY,
+    ('get_scf_convergence_criteria', ['.@']),
+)
 
 
 # class DFT(model_method.DFT):

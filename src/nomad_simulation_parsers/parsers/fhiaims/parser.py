@@ -319,6 +319,62 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return np.array([0.0, 0.0, 0.0])
         return k_offset
 
+    def get_scf_convergence_criteria(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract SCF convergence criteria and return as list of SelfConsistency dicts.
+
+        FHI-aims supports multiple convergence criteria:
+        - Total energy convergence (eV)
+        - Charge density convergence (dimensionless)
+        - Sum of eigenvalues convergence (eV)
+        - Maximum number of SCF iterations
+
+        Returns:
+            List of dictionaries, each representing one SelfConsistency section.
+        """
+        convergence_criteria = []
+
+        # Energy convergence threshold
+        conv_energy = source.get('convergence_energy')
+        if conv_energy is not None:
+            convergence_criteria.append(
+                {
+                    'threshold_change': conv_energy,
+                    'threshold_change_unit': 'energy',
+                }
+            )
+
+        # Charge density convergence threshold
+        conv_density = source.get('convergence_density')
+        if conv_density is not None:
+            convergence_criteria.append(
+                {
+                    'threshold_change': conv_density,
+                    'threshold_change_unit': 'electron_density',
+                }
+            )
+
+        # Sum of eigenvalues convergence threshold
+        conv_eigenvalues = source.get('convergence_eigenvalues')
+        if conv_eigenvalues is not None:
+            convergence_criteria.append(
+                {
+                    'threshold_change': conv_eigenvalues,
+                    'threshold_change_unit': 'sum_eigenvalues',
+                }
+            )
+
+        # Maximum iterations (add to all criteria if specified)
+        if source:
+            max_iterations = source.get('max_scf_iterations')
+            if max_iterations is not None:
+                for criterion in convergence_criteria:
+                    criterion['n_max_iterations'] = max_iterations
+
+        return convergence_criteria
+
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
         if not scf_iterations:
