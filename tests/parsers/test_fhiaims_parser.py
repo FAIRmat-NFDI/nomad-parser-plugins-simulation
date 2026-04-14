@@ -147,6 +147,10 @@ def test_scf_convergence_criteria():
     scf_criteria = [ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency']
     assert len(scf_criteria) == 3
 
+    # DEBUG: Print what we got
+    for i, sc in enumerate(scf_criteria):
+        print(f"DEBUG SelfConsistency[{i}]: threshold_change={getattr(sc, 'threshold_change', 'MISSING')}, threshold_change_unit={getattr(sc, 'threshold_change_unit', 'MISSING')}")
+
     # Create a mapping for easier checking
     criteria_by_unit = {sc.threshold_change_unit: sc for sc in scf_criteria}
 
