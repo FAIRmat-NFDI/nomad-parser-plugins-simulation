@@ -112,7 +112,7 @@ class XCFunctional(model_method.XCFunctional):
 add_mapping_annotation(
     numerical_settings.SelfConsistency.m_def,
     TEXT_KEY,
-    ('get_scf_convergence_criteria', ['.@']),
+    ('get_scf_convergence_criteria', ['@']),
 )
 
 
