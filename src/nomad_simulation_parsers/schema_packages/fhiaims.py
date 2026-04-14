@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
 from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -87,6 +88,7 @@ class Simulation(general.Simulation):
     )
 
 
+
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
 
@@ -106,6 +108,24 @@ class XCFunctional(model_method.XCFunctional):
         TEXT_KEY,
         ('get_functional_key', ['.controlInOut_xc']),
     )
+# Add SelfConsistency instances to DFT numerical_settings
+add_mapping_annotation(
+    numerical_settings.SelfConsistency.m_def,
+    TEXT_KEY,
+    ('get_scf_convergence_criteria', ['.@']),
+)
+
+
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
+
+
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper='.name')))
 
 
 class GW(model_method.GW):
