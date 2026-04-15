@@ -3,10 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-import numpy as np
 
 from nomad.datamodel.metainfo.annotations import Mapper
-from nomad.metainfo import Quantity, SchemaPackage
+from nomad.metainfo import SchemaPackage
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
@@ -83,7 +82,6 @@ class Simulation(general.Simulation):
             dict(include=['total_dos_files', 'species_projected_dos_files']),
         ),
     )
-
 
 
 class Program(general.Program):

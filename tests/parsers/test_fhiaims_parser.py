@@ -145,7 +145,9 @@ def test_scf_convergence_criteria():
     assert len(dft.numerical_settings) >= 4
 
     # Filter for SelfConsistency sections
-    scf_criteria = [ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency']
+    scf_criteria = [
+        ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency'
+    ]
     assert len(scf_criteria) == 3
 
     # Create a mapping for easier checking
