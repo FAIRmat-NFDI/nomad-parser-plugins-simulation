@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
@@ -86,7 +85,6 @@ class Simulation(general.Simulation):
             dict(include=['total_dos_files', 'species_projected_dos_files']),
         ),
     )
-
 
 
 class Program(general.Program):

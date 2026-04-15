@@ -797,7 +797,10 @@ class FHIAimsOutFileParser(TextParser):
             ),
             Quantity(
                 'convergence_density',
-                rf'Convergence accuracy of self-consistent charge density: *({RE_FLOAT})',
+                (
+                    rf'Convergence accuracy of self-consistent '
+                    rf'charge density: *({RE_FLOAT})'
+                ),
                 dtype=float,
             ),
             Quantity(
@@ -808,7 +811,7 @@ class FHIAimsOutFileParser(TextParser):
             ),
             Quantity(
                 'max_scf_iterations',
-                rf'Maximum number of self-consistency iterations:\s*(\d+)',
+                r'Maximum number of self-consistency iterations:\s*(\d+)',
                 dtype=int,
             ),
             Quantity(
