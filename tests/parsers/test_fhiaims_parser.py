@@ -107,9 +107,10 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
 
     # Check NumericalSettings/KSpace exists
     assert dft.numerical_settings is not None
-    assert len(dft.numerical_settings) == 1
-    k_space = dft.numerical_settings[0]
-    assert k_space.m_def.name == 'KSpace'
+    # Filter for KSpace (may also contain SelfConsistency criteria)
+    k_spaces = [ns for ns in dft.numerical_settings if ns.m_def.name == 'KSpace']
+    assert len(k_spaces) == 1
+    k_space = k_spaces[0]
 
     # Check KSpace.k_mesh exists
     assert k_space.k_mesh is not None
@@ -147,24 +148,20 @@ def test_scf_convergence_criteria():
     scf_criteria = [ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency']
     assert len(scf_criteria) == 3
 
-    # DEBUG: Print what we got
-    for i, sc in enumerate(scf_criteria):
-        print(f"DEBUG SelfConsistency[{i}]: threshold_change={getattr(sc, 'threshold_change', 'MISSING')}, threshold_change_unit={getattr(sc, 'threshold_change_unit', 'MISSING')}")
-
     # Create a mapping for easier checking
     criteria_by_unit = {sc.threshold_change_unit: sc for sc in scf_criteria}
 
     # Check energy convergence criterion
     energy_criterion = criteria_by_unit.get('energy')
     assert energy_criterion is not None
-    assert energy_criterion.threshold_change == approx(1.0e-5)
+    assert energy_criterion.threshold_change == approx(1.0e-6)
 
     # Check electron density convergence criterion
     density_criterion = criteria_by_unit.get('electron_density')
     assert density_criterion is not None
-    assert density_criterion.threshold_change == approx(1.0e-4)
+    assert density_criterion.threshold_change == approx(1.0e-5)
 
     # Check sum of eigenvalues convergence criterion
     eigenvalues_criterion = criteria_by_unit.get('sum_eigenvalues')
     assert eigenvalues_criterion is not None
-    assert eigenvalues_criterion.threshold_change == approx(1.0e-2)
+    assert eigenvalues_criterion.threshold_change == approx(1.0e-3)

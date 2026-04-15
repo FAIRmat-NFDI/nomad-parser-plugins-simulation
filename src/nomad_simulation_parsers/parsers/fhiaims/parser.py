@@ -334,7 +334,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
         Returns:
             List of dictionaries, each representing one SelfConsistency section.
         """
-        print(f"DEBUG get_scf_convergence_criteria: source type={type(source)}, keys={list(source.keys())[:20] if isinstance(source, dict) else 'not dict'}")
         convergence_criteria = []
 
         # Energy convergence threshold
@@ -374,7 +373,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
                 for criterion in convergence_criteria:
                     criterion['n_max_iterations'] = max_iterations
 
-        print(f"DEBUG get_scf_convergence_criteria: returning {len(convergence_criteria)} criteria: {convergence_criteria}")
         return convergence_criteria
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
