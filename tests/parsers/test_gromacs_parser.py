@@ -256,15 +256,23 @@ def test_get_coordinate_save_frequency():
 
 
 def test_get_bond_list():
-    """Test bond list extraction from MDAnalysis interactions."""
+    """Test bond list extraction from MDAnalysis interactions.
+
+    MDAnalysis sets inter.btype to a topology-specific string (e.g. 'OW-HW'),
+    never to the literal 'bond'. Bonds are identified solely by having exactly
+    2 particle indices.
+    """
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Test with bond interactions
     mock_interactions = [
-        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [0, 2], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [3, 4], 'atom_labels': ['O', 'H']},
-        {'type': 'angle', 'atom_indices': [1, 0, 2], 'atom_labels': ['H', 'O', 'H']},
+        {'type': 'OW-HW', 'atom_indices': [0, 1], 'atom_labels': ['OW', 'HW']},
+        {'type': 'OW-HW', 'atom_indices': [0, 2], 'atom_labels': ['OW', 'HW']},
+        {'type': 'CT-CT', 'atom_indices': [3, 4], 'atom_labels': ['CT', 'CT']},
+        {
+            'type': 'HW-OW-HW',
+            'atom_indices': [1, 0, 2],
+            'atom_labels': ['HW', 'OW', 'HW'],
+        },
     ]
 
     mdap.data_object = StubInteractionsDataObject(mock_interactions)
@@ -280,12 +288,11 @@ def test_get_bond_list():
 
 
 def test_get_bond_list_no_bonds():
-    """Test bond list extraction when no bonds are present."""
+    """Test bond list extraction when only higher-order interactions are present."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Only angles, no bonds
     mock_interactions = [
-        {'type': 'angle', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
+        {'type': 'HW-OW-HW', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
     ]
 
     mdap.data_object = StubInteractionsDataObject(mock_interactions)
@@ -305,15 +312,18 @@ def test_get_bond_list_empty_interactions():
 
 
 def test_get_bond_list_invalid_bond_indices():
-    """Test bond list extraction filters out invalid bond entries."""
+    """Test bond list extraction skips entries with None or wrong-count indices."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Mix of valid and invalid bond interactions
     mock_interactions = [
-        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': None, 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [2, 3, 4], 'atom_labels': ['O', 'H', 'C']},
-        {'type': 'bond', 'atom_indices': [4, 5], 'atom_labels': ['O', 'H']},
+        {'type': 'OW-HW', 'atom_indices': [0, 1], 'atom_labels': ['OW', 'HW']},
+        {'type': 'OW-HW', 'atom_indices': None, 'atom_labels': ['OW', 'HW']},
+        {
+            'type': 'OW-HW-XX',
+            'atom_indices': [2, 3, 4],
+            'atom_labels': ['OW', 'HW', 'XX'],
+        },
+        {'type': 'CT-CT', 'atom_indices': [4, 5], 'atom_labels': ['CT', 'CT']},
     ]
 
     mdap.data_object = StubInteractionsDataObject(mock_interactions)
