@@ -204,10 +204,10 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
-    # ForceField is populated via the annotation-driven LOG and TPR passes
-    # (both target archive.data). ForceField.m_def has LOG_KEY and TPR_KEY '@',
-    # so the LOG pass creates ForceField in model_method via polymorphism and
-    # the TPR pass (update_mode='merge') merges contributions into it.
+    # The LOG pass on archive.data creates ForceField in model_method via
+    # ModelMethod polymorphism. ForceField-specific TPR contributions are then
+    # applied by a dedicated pass in parser.py that targets model_method[0]
+    # directly; they do not come from the Simulation-level TPR pass here.
 
 
 add_mapping_annotation(Outputs.m_def, LOG_KEY, ('get_outputs', []))

@@ -1129,8 +1129,9 @@ class GromacsArchiveWriter(MDParser):
         # ForceField contributions: target model_method[0] directly, mirroring
         # the XVG/FEP pattern. This avoids depending on from_dict's in-place
         # sub-section update behaviour to preserve numerical_settings across passes.
-        # ForceField.m_def has no TPR_KEY annotation so the Simulation-level TPR
-        # pass above does not touch model_method; this pass is authoritative.
+        # The Simulation-level TPR pass above has no Simulation->model_method
+        # mapping for TPR_KEY, so it does not traverse model_method; this pass
+        # is authoritative for ForceField content.
         if self.archive.data.model_method:
             self._simulation_parser.data_object = self.archive.data.model_method[0]
             self._simulation_parser.annotation_key = gromacs.TPR_KEY
