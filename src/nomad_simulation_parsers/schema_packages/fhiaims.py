@@ -93,6 +93,7 @@ class DFT(model_method.DFT):
 
 
 # Add SelfConsistency instances to DFT numerical_settings
+# Must be at module level for multi-mapper detection to work
 add_mapping_annotation(
     numerical_settings.SelfConsistency.m_def,
     TEXT_KEY,
