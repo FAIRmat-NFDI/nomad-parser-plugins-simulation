@@ -24,6 +24,10 @@ def _write_minimal_h5md_file(path: Path) -> None:
 
         particles = h5_file.create_group('particles')
         particles_all = particles.create_group('all')
+        box = particles_all.create_group('box')
+        box.attrs['dimension'] = np.int32(3)
+        box.attrs['boundary'] = np.array([False, False, False])
+
         position = particles_all.create_group('position')
         position.attrs['unit'] = 'angstrom'
         position.create_dataset('step', data=np.array([0, 1], dtype=np.int64))
@@ -62,7 +66,7 @@ def test_h5md_schema_checks_attribute_dimensions_against_datasets(tmp_path):
     mainfile = tmp_path / 'invalid_boundary_dimension.h5'
     _write_minimal_h5md_file(mainfile)
     with h5py.File(mainfile, 'a') as h5_file:
-        box = h5_file['particles/all'].create_group('box')
+        box = h5_file['particles/all/box']
         box.attrs['boundary'] = np.array([True, True])
 
     result = validate_hdf5_file(mainfile, load_schema())
@@ -73,6 +77,61 @@ def test_h5md_schema_checks_attribute_dimensions_against_datasets(tmp_path):
         and "Expected dimension 'spatial_dimension'=2, got 3." == issue.message
         for issue in result.issues
     )
+
+
+def test_h5md_schema_allows_optional_time_dataset(tmp_path):
+    mainfile = tmp_path / 'without_time.h5'
+    _write_minimal_h5md_file(mainfile)
+    with h5py.File(mainfile, 'a') as h5_file:
+        del h5_file['particles/all/position/time']
+
+    result = validate_hdf5_file(mainfile, load_schema())
+
+    assert result.is_valid, [
+        f'{issue.path}: {issue.message}' for issue in result.issues
+    ]
+
+
+def test_h5md_schema_allows_different_element_frame_counts(tmp_path):
+    mainfile = tmp_path / 'different_frame_counts.h5'
+    _write_minimal_h5md_file(mainfile)
+    with h5py.File(mainfile, 'a') as h5_file:
+        velocity = h5_file['particles/all'].create_group('velocity')
+        velocity.create_dataset('step', data=np.array([0], dtype=np.int64))
+        velocity.create_dataset('value', data=np.ones((1, 3, 3)))
+
+    result = validate_hdf5_file(mainfile, load_schema())
+
+    assert result.is_valid, [
+        f'{issue.path}: {issue.message}' for issue in result.issues
+    ]
+
+
+def test_h5md_schema_allows_string_boundary_and_static_edges(tmp_path):
+    mainfile = tmp_path / 'string_boundary_static_edges.h5'
+    _write_minimal_h5md_file(mainfile)
+    with h5py.File(mainfile, 'a') as h5_file:
+        box = h5_file['particles/all/box']
+        box.attrs['boundary'] = np.array([b'periodic', b'periodic', b'none'])
+        box.create_dataset('edges', data=np.eye(3))
+
+    result = validate_hdf5_file(mainfile, load_schema())
+
+    assert result.is_valid, [
+        f'{issue.path}: {issue.message}' for issue in result.issues
+    ]
+
+
+def test_h5md_schema_requires_box_for_particles_group(tmp_path):
+    mainfile = tmp_path / 'missing_box.h5'
+    _write_minimal_h5md_file(mainfile)
+    with h5py.File(mainfile, 'a') as h5_file:
+        del h5_file['particles/all/box']
+
+    result = validate_hdf5_file(mainfile, load_schema())
+
+    assert not result.is_valid
+    assert any(issue.path == '/particles/all/box' for issue in result.issues)
 
 
 def test_h5md_schema_validates_reference_fixture():

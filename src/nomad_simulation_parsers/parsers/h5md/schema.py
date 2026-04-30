@@ -63,7 +63,8 @@ def validate_hdf5_file(
     if h5py is None:
         raise RuntimeError('h5py is required to validate HDF5 files.')
 
-    schema = schema or load_schema()
+    if schema is None:
+        schema = load_schema()
     with h5py.File(path, 'r') as h5_file:
         return validate_hdf5(h5_file, schema)
 
@@ -86,6 +87,10 @@ def _validate_node(
     result: ValidationResult,
     dimensions: dict[str, int],
 ) -> None:
+    if 'any_of' in node_schema:
+        _validate_any_of(h5_object, node_schema, path, result, dimensions)
+        return
+
     node_type = node_schema.get('type', 'group')
     if node_type == 'group':
         _validate_group(h5_object, node_schema, path, result, dimensions)
@@ -93,6 +98,35 @@ def _validate_node(
         _validate_dataset(h5_object, node_schema, path, result, dimensions)
     else:
         result.add(path, f'Unsupported node type {node_type!r}.')
+
+
+def _validate_any_of(
+    h5_object: Any,
+    node_schema: dict[str, Any],
+    path: str,
+    result: ValidationResult,
+    dimensions: dict[str, int],
+) -> None:
+    issues_by_alternative: list[list[ValidationIssue]] = []
+    for alternative in node_schema['any_of']:
+        alternative_result = ValidationResult()
+        alternative_dimensions = dimensions.copy()
+        _validate_node(
+            h5_object,
+            alternative,
+            path,
+            alternative_result,
+            alternative_dimensions,
+        )
+        if alternative_result.is_valid:
+            dimensions.clear()
+            dimensions.update(alternative_dimensions)
+            return
+        issues_by_alternative.append(alternative_result.issues)
+
+    result.add(path, 'Does not match any allowed schema alternative.')
+    if issues_by_alternative and issues_by_alternative[0]:
+        result.issues.extend(issues_by_alternative[0])
 
 
 def _validate_group(
@@ -214,13 +248,33 @@ def _validate_attributes(
 
 def _validate_dtype(
     actual_dtype: Any,
-    expected_dtype: str | None,
+    expected_dtype: str | list[str] | None,
     path: str,
     result: ValidationResult,
 ) -> None:
-    if expected_dtype in {None, 'any'}:
+    if expected_dtype is None or expected_dtype == 'any':
         return
 
+    expected_dtypes = (
+        [expected_dtype] if isinstance(expected_dtype, str) else expected_dtype
+    )
+    if any(
+        _matches_dtype(actual_dtype, dtype, path, result, report=False)
+        for dtype in expected_dtypes
+    ):
+        return
+
+    expected = ', '.join(expected_dtypes)
+    result.add(path, f'Expected dtype {expected}, got {actual_dtype}.')
+
+
+def _matches_dtype(
+    actual_dtype: Any,
+    expected_dtype: str,
+    path: str,
+    result: ValidationResult,
+    report: bool = True,
+) -> bool:
     kind = np.dtype(actual_dtype).kind
     expected_kinds = {
         'bool': {'b'},
@@ -232,11 +286,14 @@ def _validate_dtype(
     }
 
     if expected_dtype not in expected_kinds:
-        result.add(path, f'Unsupported dtype constraint {expected_dtype!r}.')
-        return
+        if report:
+            result.add(path, f'Unsupported dtype constraint {expected_dtype!r}.')
+        return False
 
-    if kind not in expected_kinds[expected_dtype]:
+    matches = kind in expected_kinds[expected_dtype]
+    if not matches and report:
         result.add(path, f'Expected dtype {expected_dtype}, got {actual_dtype}.')
+    return matches
 
 
 def _validate_shape(

@@ -3,7 +3,12 @@ schema_version: 0.1.0
 description: >
   First machine-readable slice of the H5MD-NOMAD HDF5 layout. This focuses on
   the structural header and the core particles/all trajectory groups used by
-  the current parser/export discussion.
+  the current parser/export discussion. It is intentionally an H5MD-NOMAD
+  profile, not a complete strict H5MD schema.
+limitations:
+  - Fixed-step storage with scalar step/time increments and offsets is not yet modeled.
+  - Hard-link equality between shared step/time datasets is not yet enforced.
+  - Observables, connectivity, and parameters are only represented as optional root groups.
 
 root:
   type: group
@@ -64,45 +69,60 @@ root:
           children:
             box:
               type: group
-              required: false
+              required: true
               attributes:
                 dimension:
                   dtype: integer
                   shape: []
                   required: false
                 boundary:
-                  dtype: bool
+                  description: >
+                    H5MD stores boundary as strings such as periodic/none.
+                    H5MD-NOMAD also accepts the documented boolean form where
+                    true means periodic.
+                  dtype: [bool, string]
                   shape: [spatial_dimension]
                   required: false
               children:
                 edges:
-                  type: group
                   required: false
-                  attributes:
-                    unit:
-                      dtype: string
-                      shape: []
-                      required: false
-                    unit_factor:
+                  any_of:
+                    - type: group
+                      attributes:
+                        unit:
+                          dtype: string
+                          shape: []
+                          required: false
+                        unit_factor:
+                          dtype: numeric
+                          shape: []
+                          required: false
+                      children:
+                        step:
+                          type: dataset
+                          dtype: integer
+                          shape: [box_frames]
+                          required: true
+                        time:
+                          type: dataset
+                          dtype: numeric
+                          shape: [box_frames]
+                          required: false
+                        value:
+                          required: true
+                          any_of:
+                            - type: dataset
+                              dtype: numeric
+                              shape: [box_frames, spatial_dimension]
+                            - type: dataset
+                              dtype: numeric
+                              shape: [box_frames, spatial_dimension, spatial_dimension]
+                    - type: dataset
                       dtype: numeric
-                      shape: []
-                      required: false
-                  children:
-                    step:
-                      type: dataset
-                      dtype: integer
-                      shape: [n_frames]
-                      required: false
-                    time:
-                      type: dataset
+                      shape: [spatial_dimension]
+                    - type: dataset
                       dtype: numeric
-                      shape: [n_frames]
-                      required: false
-                    value:
-                      type: dataset
-                      dtype: numeric
-                      shape: [n_frames, spatial_dimension, spatial_dimension]
-                      required: false
+                      shape: [spatial_dimension, spatial_dimension]
             position:
               type: group
               required: false
@@ -119,17 +139,17 @@ root:
                 step:
                   type: dataset
                   dtype: integer
-                  shape: [n_frames]
+                  shape: [position_frames]
                   required: true
                 time:
                   type: dataset
                   dtype: numeric
-                  shape: [n_frames]
-                  required: true
+                  shape: [position_frames]
+                  required: false
                 value:
                   type: dataset
                   dtype: numeric
-                  shape: [n_frames, n_particles, spatial_dimension]
+                  shape: [position_frames, n_particles, spatial_dimension]
                   required: true
             velocity:
               type: group
@@ -147,20 +167,21 @@ root:
                 step:
                   type: dataset
                   dtype: integer
-                  shape: [n_frames]
+                  shape: [velocity_frames]
                   required: true
                 time:
                   type: dataset
                   dtype: numeric
-                  shape: [n_frames]
-                  required: true
+                  shape: [velocity_frames]
+                  required: false
                 value:
                   type: dataset
                   dtype: numeric
-                  shape: [n_frames, n_particles, spatial_dimension]
+                  shape: [velocity_frames, n_particles, spatial_dimension]
                   required: true
             species_label:
               type: dataset
+              description: H5MD-NOMAD extension for particle species labels.
               dtype: string
               shape: [n_particles]
               required: false
