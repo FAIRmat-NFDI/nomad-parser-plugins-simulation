@@ -52,7 +52,7 @@ md = [
     "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "MDAnalysis>=2.4.0",
 ]
-dev = ["ruff", "pytest", "structlog"]
+dev = ["ruff", "pytest", "structlog", "h5py", "pyyaml"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.

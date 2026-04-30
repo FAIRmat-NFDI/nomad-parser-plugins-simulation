@@ -1,12 +1,9 @@
 from pathlib import Path
 
+import h5py
 import numpy as np
-import pytest
 
-h5py = pytest.importorskip('h5py')
-pytest.importorskip('yaml')
-
-from nomad_simulation_parsers.parsers.h5md.schema import (  # noqa: E402
+from nomad_simulation_parsers.parsers.h5md.schema import (
     load_schema,
     validate_hdf5_file,
 )
