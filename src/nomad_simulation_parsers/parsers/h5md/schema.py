@@ -106,7 +106,13 @@ def _validate_group(
         result.add(path, 'Expected HDF5 group.')
         return
 
-    _validate_attributes(group.attrs, group_schema.get('attributes', {}), path, result)
+    _validate_attributes(
+        group.attrs,
+        group_schema.get('attributes', {}),
+        path,
+        result,
+        dimensions,
+    )
 
     for name, child_schema in group_schema.get('children', {}).items():
         child_path = _join_path(path, name)
@@ -141,7 +147,11 @@ def _validate_dataset(
         dataset.shape, dataset_schema.get('shape'), path, result, dimensions
     )
     _validate_attributes(
-        dataset.attrs, dataset_schema.get('attributes', {}), path, result
+        dataset.attrs,
+        dataset_schema.get('attributes', {}),
+        path,
+        result,
+        dimensions,
     )
 
 
@@ -173,6 +183,7 @@ def _validate_attributes(
     attribute_schemas: dict[str, Any],
     owner_path: str,
     result: ValidationResult,
+    dimensions: dict[str, int],
 ) -> None:
     for name, attribute_schema in attribute_schemas.items():
         if owner_path == '/':
@@ -197,7 +208,7 @@ def _validate_attributes(
             attribute_schema.get('shape'),
             attribute_path,
             result,
-            {},
+            dimensions,
         )
 
 

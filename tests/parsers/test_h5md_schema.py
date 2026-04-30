@@ -58,6 +58,23 @@ def test_h5md_schema_reports_missing_required_header(tmp_path):
     assert any(issue.path == '/h5md/creator' for issue in result.issues)
 
 
+def test_h5md_schema_checks_attribute_dimensions_against_datasets(tmp_path):
+    mainfile = tmp_path / 'invalid_boundary_dimension.h5'
+    _write_minimal_h5md_file(mainfile)
+    with h5py.File(mainfile, 'a') as h5_file:
+        box = h5_file['particles/all'].create_group('box')
+        box.attrs['boundary'] = np.array([True, True])
+
+    result = validate_hdf5_file(mainfile, load_schema())
+
+    assert not result.is_valid
+    assert any(
+        issue.path == '/particles/all/position/value'
+        and "Expected dimension 'spatial_dimension'=2, got 3." == issue.message
+        for issue in result.issues
+    )
+
+
 def test_h5md_schema_validates_reference_fixture():
     mainfile = (
         Path(__file__).resolve().parents[1]
