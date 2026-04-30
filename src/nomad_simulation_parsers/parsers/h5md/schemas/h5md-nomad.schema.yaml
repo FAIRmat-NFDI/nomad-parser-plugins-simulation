@@ -1,0 +1,185 @@
+schema: h5md-nomad
+schema_version: 0.1.0
+description: >
+  First machine-readable slice of the H5MD-NOMAD HDF5 layout. This focuses on
+  the structural header and the core particles/all trajectory groups used by
+  the current parser/export discussion.
+
+root:
+  type: group
+  children:
+    h5md:
+      type: group
+      required: true
+      attributes:
+        version:
+          dtype: integer
+          shape: [2]
+          required: true
+      children:
+        author:
+          type: group
+          required: true
+          attributes:
+            name:
+              dtype: string
+              shape: []
+              required: true
+            email:
+              dtype: string
+              shape: []
+              required: false
+        creator:
+          type: group
+          required: true
+          attributes:
+            name:
+              dtype: string
+              shape: []
+              required: true
+            version:
+              dtype: string
+              shape: []
+              required: true
+        program:
+          type: group
+          required: false
+          attributes:
+            name:
+              dtype: string
+              shape: []
+              required: true
+            version:
+              dtype: string
+              shape: []
+              required: true
+
+    particles:
+      type: group
+      required: false
+      children:
+        all:
+          type: group
+          required: true
+          children:
+            box:
+              type: group
+              required: false
+              attributes:
+                dimension:
+                  dtype: integer
+                  shape: []
+                  required: false
+                boundary:
+                  dtype: bool
+                  shape: [spatial_dimension]
+                  required: false
+              children:
+                edges:
+                  type: group
+                  required: false
+                  attributes:
+                    unit:
+                      dtype: string
+                      shape: []
+                      required: false
+                    unit_factor:
+                      dtype: numeric
+                      shape: []
+                      required: false
+                  children:
+                    step:
+                      type: dataset
+                      dtype: integer
+                      shape: [n_frames]
+                      required: false
+                    time:
+                      type: dataset
+                      dtype: numeric
+                      shape: [n_frames]
+                      required: false
+                    value:
+                      type: dataset
+                      dtype: numeric
+                      shape: [n_frames, spatial_dimension, spatial_dimension]
+                      required: false
+            position:
+              type: group
+              required: false
+              attributes:
+                unit:
+                  dtype: string
+                  shape: []
+                  required: false
+                unit_factor:
+                  dtype: numeric
+                  shape: []
+                  required: false
+              children:
+                step:
+                  type: dataset
+                  dtype: integer
+                  shape: [n_frames]
+                  required: true
+                time:
+                  type: dataset
+                  dtype: numeric
+                  shape: [n_frames]
+                  required: true
+                value:
+                  type: dataset
+                  dtype: numeric
+                  shape: [n_frames, n_particles, spatial_dimension]
+                  required: true
+            velocity:
+              type: group
+              required: false
+              attributes:
+                unit:
+                  dtype: string
+                  shape: []
+                  required: false
+                unit_factor:
+                  dtype: numeric
+                  shape: []
+                  required: false
+              children:
+                step:
+                  type: dataset
+                  dtype: integer
+                  shape: [n_frames]
+                  required: true
+                time:
+                  type: dataset
+                  dtype: numeric
+                  shape: [n_frames]
+                  required: true
+                value:
+                  type: dataset
+                  dtype: numeric
+                  shape: [n_frames, n_particles, spatial_dimension]
+                  required: true
+            species_label:
+              type: dataset
+              dtype: string
+              shape: [n_particles]
+              required: false
+            id:
+              type: group
+              required: false
+              children:
+                value:
+                  type: dataset
+                  dtype: integer
+                  shape: [n_particles]
+                  required: true
+
+    observables:
+      type: group
+      required: false
+    connectivity:
+      type: group
+      required: false
+    parameters:
+      type: group
+      required: false

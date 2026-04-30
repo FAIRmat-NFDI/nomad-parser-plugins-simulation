@@ -309,9 +309,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         )
 
     @staticmethod
-    def _get_grpopts_scalar(
-        input_params: dict[str, Any], key: str
-    ) -> Any:
+    def _get_grpopts_scalar(input_params: dict[str, Any], key: str) -> Any:
         """Read a scalar from grpopts[key], falling back to input_params[key].
 
         Keys are stored with hyphens in grpopts and with underscores at the
