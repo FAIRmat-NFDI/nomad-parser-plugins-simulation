@@ -75,7 +75,7 @@ class GromacsThermodynamicsParser(MappingParser):
         times = source.get('Time', [])
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
-            data = dict(
+            data: dict[str, Any] = dict(
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -216,7 +216,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         outputs = super().get_outputs(data)
         return outputs
 
-    def get_integrator_type(self, integrator: str) -> str:
+    def get_integrator_type(self, integrator: str) -> str | None:
         integrator = (integrator or 'md').lower()
         integrator_map = {
             'steep': 'steepest_descent',
@@ -308,9 +308,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         )
 
     @staticmethod
-    def _get_grpopts_scalar(
-        input_params: dict[str, Any], key: str
-    ) -> Any:
+    def _get_grpopts_scalar(input_params: dict[str, Any], key: str) -> Any:
         """Read a scalar from grpopts[key], falling back to input_params[key].
 
         Keys are stored with hyphens in grpopts and with underscores at the
@@ -1122,9 +1120,7 @@ class GromacsArchiveWriter(MDParser):
         # LOG/EDR from_dict wrote into target.data back into the root. ForceField
         # contributions are handled by a dedicated pass below, not here.
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
-        self._mdanalysis_parser.convert(
-            self._simulation_parser, update_mode='replace'
-        )
+        self._mdanalysis_parser.convert(self._simulation_parser, update_mode='replace')
 
         # ForceField contributions: target model_method[0] directly, mirroring
         # the XVG/FEP pattern. This avoids depending on from_dict's in-place
