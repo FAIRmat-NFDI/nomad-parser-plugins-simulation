@@ -350,11 +350,25 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
     def _generate_chemical_formula(
         self, particle_indices: np.ndarray, particle_arrays: dict
     ) -> str:
-        """Generate chemical formula from particle indices using ASE."""
+        """Generate chemical formula from particle indices.
 
+        Uses ASE for atomistic systems. Falls back to counting residue names
+        for coarse-grained particles with unrecognized element symbols.
+        """
         elements = particle_arrays['elements'][particle_indices]
-        atoms = Atoms(symbols=list(elements))
-        result = atoms.get_chemical_formula(mode='hill')
+        valid_symbols = set(chemical_symbols[1:])
+        valid_mask = np.array([str(e) in valid_symbols for e in elements])
+
+        if valid_mask.all():
+            atoms = Atoms(symbols=list(elements))
+            result = atoms.get_chemical_formula(mode='hill')
+        else:
+            resnames = particle_arrays['resnames'][particle_indices]
+            unique_names, counts = np.unique(resnames, return_counts=True)
+            result = ''.join(
+                f'{name}{count}' if count > 1 else str(name)
+                for name, count in zip(unique_names, counts)
+            )
         return result
 
     def _get_particles_info_from_universe(self) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
+    numerical_settings,
     outputs,
     properties,
     variables,
@@ -50,7 +51,7 @@ class Simulation(general.Simulation):
             dict(include=['lattice_vectors', 'structure', 'sub_structure']),
         ),
     )
-    # DFT method
+    # DFT method - only annotate DFT.m_def, not ModelMethod base class
     add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
     add_mapping_annotation(model_method.GW.m_def, TEXT_GW_KEY, '.@')
@@ -87,6 +88,10 @@ class Simulation(general.Simulation):
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
+
+
+class DFT(model_method.DFT):
+    add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
 
 
 # class DFT(model_method.DFT):
@@ -321,6 +326,19 @@ class GeometryOptimizationMethod(
     workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
+
+
+class KSpace(numerical_settings.KSpace):
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, TEXT_KEY, '.@')
+
+
+class KMesh(numerical_settings.KMesh):
+    add_mapping_annotation(numerical_settings.KMesh.grid, TEXT_KEY, '.k_grid')
+    add_mapping_annotation(
+        numerical_settings.KMesh.offset,
+        TEXT_KEY,
+        ('get_k_offset_with_default', ['.k_offset']),
+    )
 
 
 try:

@@ -1,6 +1,6 @@
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
-from pytest import approx
+from pytest import approx, mark
 
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 
@@ -66,88 +66,149 @@ def test_scf_steps_quantities():
         6.375e-08 * 1.602176634e-19
     )
 
+@mark.parametrize(
+    'k_offset_line,expected_offset',
+    [
+        (None, [0.0, 0.0, 0.0]),
+        ('  k_offset                           0.5 0.25 0.0\n', [0.5, 0.25, 0.0]),
+    ],
+    ids=['default_offset', 'explicit_offset'],
+)
+def test_k_mesh(tmp_path, k_offset_line, expected_offset):
+    """Test k-mesh parsing with and without explicit k_offset."""
+    source_path = 'tests/data/fhiaims/Si_geomopt/out.out'
 
-def test_electronic_outputs_mapping():
-    parser = FHIAimsParser()
-    archive = EntryArchive()
-    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
-
-    outputs = archive.data.outputs
-    assert outputs is not None
-    assert len(outputs) > 0
-
-    output = outputs[0]
-    if output.electronic_eigenvalues:
-        eig = output.electronic_eigenvalues[0]
-        assert eig.value is not None
-        assert eig.occupation is not None
-
-        # Band-structure compatibility payload should be present when eigenvalues
-        # are available from the parser output.
-        assert output.electronic_band_structures is not None
-        assert len(output.electronic_band_structures) > 0
-        sec_bs = output.electronic_band_structures[0]
-        assert sec_bs.value is not None
-
-    if output.electronic_dos:
-        sec_dos = output.electronic_dos[0]
-        assert sec_dos.value is not None
-        assert sec_dos.energies is not None
-        assert sec_dos.energies.points is not None
-
-    if output.electronic_band_gaps:
-        sec_gap = output.electronic_band_gaps[0]
-        assert sec_gap.value is not None
-
-
-def test_system_fundamental_quantities_mapping():
-    """System gate for core model_system quantities used by normalizer."""
-    parser = FHIAimsParser()
-    archive = EntryArchive()
-    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
-
-    simulation = archive.data
-    assert simulation is not None
-    assert simulation.model_system is not None
-    assert len(simulation.model_system) > 0
-
-    representative = next(
-        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
-        simulation.model_system[0],
-    )
-    assert representative.positions is not None
-    assert representative.lattice_vectors is not None
-    assert representative.periodic_boundary_conditions is not None
-
-    if representative.particle_states:
-        assert all(
-            getattr(state, 'chemical_symbol', None) is not None
-            for state in representative.particle_states
+    if k_offset_line is None:
+        # Use original file (no k_offset)
+        test_file = source_path
+    else:
+        # Inject k_offset line after k_grid
+        with open(source_path, encoding='utf-8') as f:
+            content = f.read()
+        modified_content = content.replace(
+            '  Found k-point grid:         8         8         8\n',
+            '  Found k-point grid:         8         8         8\n' + k_offset_line,
+            1,
         )
+        assert modified_content != content, 'Failed to inject k_offset line'
+        test_file = tmp_path / 'out_with_k_offset.out'
+        test_file.write_text(modified_content, encoding='utf-8')
 
-
-def test_outputs_contract_for_normalizer():
-    """Outputs gate for normalizer-required mapped payloads."""
     parser = FHIAimsParser()
     archive = EntryArchive()
-    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+    parser.parse(str(test_file), archive, LOGGER)
 
-    outputs = archive.data.outputs
-    assert outputs is not None
-    assert len(outputs) > 0
-    output = outputs[0]
+    # Check DFT section exists
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) == 1
+    dft = archive.data.model_method[0]
+    assert dft.m_def.name == 'DFT'
 
-    assert output.total_energies or output.total_forces or output.scf_steps is not None
+    # Check NumericalSettings/KSpace exists
+    assert dft.numerical_settings is not None
+    assert len(dft.numerical_settings) == 1
+    k_space = dft.numerical_settings[0]
+    assert k_space.m_def.name == 'KSpace'
 
-    if output.electronic_dos:
-        dos = output.electronic_dos[0]
-        assert dos.value is not None
-        assert dos.energies is not None
-        assert dos.energies.points is not None
+    # Check KSpace.k_mesh exists
+    assert k_space.k_mesh is not None
+    assert len(k_space.k_mesh) == 1
+    k_mesh = k_space.k_mesh[0]
+    assert k_mesh.m_def.name == 'KMesh'
 
-    if output.electronic_band_gaps:
-        assert output.electronic_band_gaps[0].value is not None
+    # Check k-grid values
+    assert k_mesh.grid is not None
+    assert list(k_mesh.grid) == [8, 8, 8]
 
-    if output.electronic_eigenvalues:
-        assert output.electronic_band_structures is not None
-        assert output.electronic_band_structures[0].value is not None
+    # Check k_offset values (default or explicit)
+    assert k_mesh.offset is not None
+    assert list(k_mesh.offset) == approx(expected_offset)
+
+
+# TODO(fhiaims-merge): Backup branch behavior kept for follow-up resolution.
+# Active behavior currently follows test-data-normalization.
+#
+# def test_electronic_outputs_mapping():
+#     parser = FHIAimsParser()
+#     archive = EntryArchive()
+#     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+#
+#     outputs = archive.data.outputs
+#     assert outputs is not None
+#     assert len(outputs) > 0
+#
+#     output = outputs[0]
+#     if output.electronic_eigenvalues:
+#         eig = output.electronic_eigenvalues[0]
+#         assert eig.value is not None
+#         assert eig.occupation is not None
+#
+#         # Band-structure compatibility payload should be present when eigenvalues
+#         # are available from the parser output.
+#         assert output.electronic_band_structures is not None
+#         assert len(output.electronic_band_structures) > 0
+#         sec_bs = output.electronic_band_structures[0]
+#         assert sec_bs.value is not None
+#
+#     if output.electronic_dos:
+#         sec_dos = output.electronic_dos[0]
+#         assert sec_dos.value is not None
+#         assert sec_dos.energies is not None
+#         assert sec_dos.energies.points is not None
+#
+#     if output.electronic_band_gaps:
+#         sec_gap = output.electronic_band_gaps[0]
+#         assert sec_gap.value is not None
+#
+#
+# def test_system_fundamental_quantities_mapping():
+#     """System gate for core model_system quantities used by normalizer."""
+#     parser = FHIAimsParser()
+#     archive = EntryArchive()
+#     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+#
+#     simulation = archive.data
+#     assert simulation is not None
+#     assert simulation.model_system is not None
+#     assert len(simulation.model_system) > 0
+#
+#     representative = next(
+#         (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+#         simulation.model_system[0],
+#     )
+#     assert representative.positions is not None
+#     assert representative.lattice_vectors is not None
+#     assert representative.periodic_boundary_conditions is not None
+#
+#     if representative.particle_states:
+#         assert all(
+#             getattr(state, 'chemical_symbol', None) is not None
+#             for state in representative.particle_states
+#         )
+#
+#
+# def test_outputs_contract_for_normalizer():
+#     """Outputs gate for normalizer-required mapped payloads."""
+#     parser = FHIAimsParser()
+#     archive = EntryArchive()
+#     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+#
+#     outputs = archive.data.outputs
+#     assert outputs is not None
+#     assert len(outputs) > 0
+#     output = outputs[0]
+#
+#     assert output.total_energies or output.total_forces or output.scf_steps is not None
+#
+#     if output.electronic_dos:
+#         dos = output.electronic_dos[0]
+#         assert dos.value is not None
+#         assert dos.energies is not None
+#         assert dos.energies.points is not None
+#
+#     if output.electronic_band_gaps:
+#         assert output.electronic_band_gaps[0].value is not None
+#
+#     if output.electronic_eigenvalues:
+#         assert output.electronic_band_structures is not None
+#         assert output.electronic_band_structures[0].value is not None

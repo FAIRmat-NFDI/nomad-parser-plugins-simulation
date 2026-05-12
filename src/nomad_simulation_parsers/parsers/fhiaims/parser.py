@@ -328,20 +328,34 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
-    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        humo = source.get('humo')
-        lumo = source.get('lumo')
-        if humo is None or lumo is None:
-            return []
+    def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
+        """
+        Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
 
-        gap = lumo - humo
-        if hasattr(gap, 'magnitude'):
-            if gap.magnitude < 0:
-                gap = 0 * gap.units
-        elif gap < 0:
-            gap = 0.0
+        FHI-aims uses Gamma-centered grids by default when k_offset
+        is not specified in control.in.
+        """
+        if k_offset is None:
+            return np.array([0.0, 0.0, 0.0])
+        return k_offset
 
-        return [dict(value=gap)]
+    # TODO(fhiaims-merge): Backup branch behavior kept for follow-up resolution.
+    # Active behavior currently follows test-data-normalization.
+    #
+    # def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+    #     humo = source.get('humo')
+    #     lumo = source.get('lumo')
+    #     if humo is None or lumo is None:
+    #         return []
+    #
+    #     gap = lumo - humo
+    #     if hasattr(gap, 'magnitude'):
+    #         if gap.magnitude < 0:
+    #             gap = 0 * gap.units
+    #     elif gap < 0:
+    #         gap = 0.0
+    #
+    #     return [dict(value=gap)]
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
@@ -529,8 +543,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
-        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
