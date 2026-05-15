@@ -12,7 +12,6 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_simulations.schema_packages import force_field
 from nomad_simulations.schema_packages.force_field import (
     ParticleParametersContainer,
 )
@@ -76,7 +75,7 @@ class GromacsThermodynamicsParser(MappingParser):
         times = source.get('Time', [])
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
-            data = dict(
+            data: dict[str, Any] = dict(
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -217,7 +216,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         outputs = super().get_outputs(data)
         return outputs
 
-    def get_integrator_type(self, integrator: str) -> str:
+    def get_integrator_type(self, integrator: str) -> str | None:
         integrator = (integrator or 'md').lower()
         integrator_map = {
             'steep': 'steepest_descent',
@@ -309,9 +308,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         )
 
     @staticmethod
-    def _get_grpopts_scalar(
-        input_params: dict[str, Any], key: str
-    ) -> Any:
+    def _get_grpopts_scalar(input_params: dict[str, Any], key: str) -> Any:
         """Read a scalar from grpopts[key], falling back to input_params[key].
 
         Keys are stored with hyphens in grpopts and with underscores at the
@@ -842,17 +839,18 @@ class GromacsMDAnalysisParser(MappingParser):
         if not interactions:
             return result
 
-        # Filter for bond interactions only
+        # Filter for bond interactions only: bonds have exactly 2 particle indices.
+        # The 'type' field carries inter.btype (a topology-specific string such as
+        # 'CT-CT'), not the literal 'bond', so we identify bonds by particle count.
         bonds = []
         n_bond_particles: int = 2
         for interaction in interactions:
-            if interaction.get('type') == 'bond':
-                particle_indices = interaction.get('atom_indices')
-                if (
-                    particle_indices is not None
-                    and len(particle_indices) == n_bond_particles
-                ):
-                    bonds.append(list(particle_indices))
+            particle_indices = interaction.get('atom_indices')
+            if (
+                particle_indices is not None
+                and len(particle_indices) == n_bond_particles
+            ):
+                bonds.append(list(particle_indices))
 
         if bonds:
             result = np.array(bonds, dtype=int)
@@ -1117,66 +1115,28 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
 
-        # parse mdanalysis trajectory files
+        # parse mdanalysis trajectory files (model_system data only)
+        # Use update_mode='replace' to avoid merging the old plain-key dicts that
+        # LOG/EDR from_dict wrote into target.data back into the root. ForceField
+        # contributions are handled by a dedicated pass below, not here.
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
-        self._mdanalysis_parser.convert(self._simulation_parser)
+        self._mdanalysis_parser.convert(self._simulation_parser, update_mode='replace')
 
-        # TODO: The three explicit instantiation blocks below (ForceField,
-        # ForceCalculations, ParticleParametersContainer) are required because of a
-        # silent data-loss pattern in MetainfoParser.from_dict (mapping_parser.py):
-        # when a second convert() pass targets a repeating SubSection whose index 0
-        # already holds an instance of a different concrete type, from_dict recurses
-        # into that existing instance and attempts to set quantities on it. Those
-        # quantities are absent from the wrong type, so m_set skips them silently.
-        # The post-write emptiness check (from_dict ~L2187) then removes the
-        # subsection because nothing was written. The data is silently dropped.
-        # Workaround: instantiate the target concrete type explicitly and run a
-        # dedicated convert() pass with that instance as data_object, then append
-        # it to the list manually. See also gromacs.py Simulation TODO.
+        # ForceField contributions: target model_method[0] directly, mirroring
+        # the XVG/FEP pattern. This avoids depending on from_dict's in-place
+        # sub-section update behaviour to preserve numerical_settings across passes.
+        # The Simulation-level TPR pass above has no Simulation->model_method
+        # mapping for TPR_KEY, so it does not traverse model_method; this pass
+        # is authoritative for ForceField content.
+        if self.archive.data.model_method:
+            self._simulation_parser.data_object = self.archive.data.model_method[0]
+            self._simulation_parser.annotation_key = gromacs.TPR_KEY
+            self._simulation_parser.mapper = None
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            self._simulation_parser.data_object = self.archive.data
 
-        # --- from_dict silent-drop workaround: ForceField ---
-        # model_method[0] (MolecularDynamicsMethod, from LOG pass) already exists;
-        # a TPR pass via annotations would silently drop ForceField data into it.
-        # Instantiate explicitly and target ff directly.
-        ff = gromacs.ForceField()
-        self._simulation_parser.data_object = ff
-        self._simulation_parser.annotation_key = gromacs.TPR_KEY
-        self._mdanalysis_parser.convert(self._simulation_parser)
-
-        # --- annotation gap workaround: ForceField.contributions ---
-        # build_section_mapper skips a SubSection if its child quantities have no
-        # annotations for the current key (L2341), even when the SubSection itself
-        # has an m_def annotation. The loop below replaces:
-        #   add_mapping_annotation(
-        #       force_field.ForceField.contributions, TPR_KEY,
-        #       ('get_force_field_contributions', [])
-        #   )
-        for contrib in self._mdanalysis_parser.get_force_field_contributions():
-            ff.contributions.append(
-                force_field.Potential(
-                    functional_form=contrib.get('functional_form'),
-                    particle_indices=np.array(contrib['particle_indices']),
-                    # TODO: particle_labels is a numpy array of strings; archive
-                    # string quantities are treated as potential keywords, triggering
-                    # numpy ambiguous-truth-value error on `if keyword:`.
-                    # particle_labels=contrib.get('particle_labels'),
-                )
-            )
-
-        # --- from_dict silent-drop workaround: ForceCalculations ---
-        # numerical_settings[0] would already exist if LOG annotations ran via
-        # ForceField.m_def (they don't, by design — see above). Targeting fc directly
-        # avoids the index-0 collision and appends cleanly.
-        fc = gromacs.ForceCalculations()
-        self._simulation_parser.data_object = fc
-        self._simulation_parser.annotation_key = gromacs.LOG_KEY
-        self._log_parser.convert(self._simulation_parser)
-        ff.numerical_settings.append(fc)
-        self.archive.data.model_method.append(ff)
-
-        # --- from_dict silent-drop workaround: ParticleParametersContainer ---
-        # numerical_settings[0] already holds ForceCalculations; a second pass via
-        # annotations would silently drop ppc data into it. Target ppc directly.
+        # ParticleParametersContainer: no annotation path from Simulation to
+        # model_method for PARTICLE_PARAM_KEY; target directly.
         if self.archive.data.model_method:
             ppc = ParticleParametersContainer()
             self._simulation_parser.data_object = ppc
