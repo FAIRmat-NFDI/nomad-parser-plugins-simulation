@@ -204,15 +204,10 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
-    # TODO: Replace explicit ForceField + ForceCalculations instantiation in
-    # parser.py._parse_data_section if the upstream silent-drop issue is fixed.
-    # Root cause: MetainfoParser.from_dict (mapping_parser.py ~L2171) finds the
-    # already-existing model_method[0] (MolecularDynamicsMethod from LOG pass) and
-    # recurses into it for the TPR pass. Quantities from ForceField are absent on
-    # MolecularDynamicsMethod, so m_set skips them silently. The post-write
-    # emptiness check (~L2187) then removes the subsection. Data is silently dropped.
-    # Until fixed: instantiate ForceField explicitly and target it directly.
-    # See parser.py._parse_data_section for the workaround blocks.
+    # The LOG pass on archive.data creates ForceField in model_method via
+    # ModelMethod polymorphism. ForceField-specific TPR contributions are then
+    # applied by a dedicated pass in parser.py that targets model_method[0]
+    # directly; they do not come from the Simulation-level TPR pass here.
 
 
 add_mapping_annotation(Outputs.m_def, LOG_KEY, ('get_outputs', []))
@@ -502,14 +497,25 @@ add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 
 
 # Force Field
-# Explicit instantiation in parser.py is required: a second convert() pass would
-# silently drop ForceField data because from_dict finds the existing model_method[0]
-# (MolecularDynamicsMethod) and attempts to set ForceField quantities on it — they
-# are absent, skipped silently, and the emptiness check removes the subsection.
+# LOG pass on archive.data (Simulation):
+# - ForceField.m_def has LOG_KEY '@': LOG pass creates ForceField in model_method
+#   via ModelMethod polymorphism; ForceCalculations populated via numerical_settings
+#   recursion (ForceCalculations.m_def has LOG_KEY '@').
+# TPR contributions pass in parser.py:
+# - After the Simulation-level TPR pass (model_system only), parser.py targets
+#   model_method[0] (the existing ForceField instance) directly as data_object and
+#   runs a dedicated convert with TPR_KEY. This mirrors the XVG/FEP pattern and
+#   avoids depending on from_dict's in-place sub-section update behaviour.
+# ParticleParametersContainer uses a dedicated PARTICLE_PARAM_KEY pass in parser.py.
 class ForceField(force_field.ForceField):
-    pass
+    add_mapping_annotation(
+        force_field.ForceField.contributions,
+        TPR_KEY,
+        ('get_force_field_contributions', []),
+    )
 
 
+add_mapping_annotation(ForceField.m_def, LOG_KEY, '@')
 add_mapping_annotation(ForceField.m_def, TPR_KEY, '@')
 
 
@@ -539,12 +545,20 @@ class ForceCalculations(force_field.ForceCalculations):
 
 
 add_mapping_annotation(force_field.Potential.m_def, TPR_KEY, '@')
+add_mapping_annotation(
+    force_field.Potential.functional_form, TPR_KEY, '.functional_form'
+)
+add_mapping_annotation(
+    force_field.Potential.particle_indices, TPR_KEY, '.particle_indices'
+)
+# NOTE: particle_labels is intentionally not annotated — it is a numpy array of
+# strings; archive string quantities are treated as potential keywords, which
+# triggers a numpy ambiguous-truth-value error on `if keyword:`.
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
 # ParticleParametersContainer is populated via a dedicated PARTICLE_PARAM_KEY convert
 # pass that targets a fresh ParticleParametersContainer() as data_object, then
-# appends it to ForceField.numerical_settings in parser.py. This avoids the
-# index-0 collision with ForceCalculations written by the earlier LOG pass.
+# appended to ForceField.numerical_settings in parser.py.
 add_mapping_annotation(
     force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
 )
