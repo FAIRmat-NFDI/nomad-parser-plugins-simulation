@@ -315,11 +315,6 @@ class LammpsArchiveWriter(MDParser):
             if compressibility is not None:
                 params.compressibility = compressibility
 
-            # Extract modulus and convert to compressibility
-            compressibility = self._extract_modulus(fix_cmd)
-            if compressibility is not None:
-                params.compressibility = compressibility
-
             return params
         return None
 
@@ -506,7 +501,7 @@ class LammpsArchiveWriter(MDParser):
                 self._bond_list = bond_array
 
         for step in self.trajectory_steps:
-            traj_n = self.trajectory_steps.index(step)
+            traj_n = self._trajectory_steps.index(step)
 
             # Extract and apply units to trajectory data
             lattice_vectors = _get_quantity_with_units(
