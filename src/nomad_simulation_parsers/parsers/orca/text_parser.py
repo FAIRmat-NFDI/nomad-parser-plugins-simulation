@@ -1148,6 +1148,17 @@ class OutReader(TextParser):
                             dtype=int,
                         ),
                         Quantity(
+                            'pt_method',
+                            r'PT2\s*=\s*([A-Z0-9_\-]+)',
+                            convert=False,
+                        ),
+                        Quantity(
+                            'qd_nevpt_type',
+                            r'QD\-NEVPT2?\s+Type\s*\.+\s*(.+)',
+                            convert=False,
+                            flatten=False,
+                        ),
+                        Quantity(
                             'block',
                             r'(BLOCK\s+\d+\s+WEIGHT=\s*[-+]?\d*\.?\d+\s*[\s\S]+?)(?=(?:BLOCK|\Z))',
                             repeats=True,

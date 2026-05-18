@@ -30,6 +30,7 @@ from nomad_simulations.schema_packages.model_method import (
     LocalCorrelation,
     LocalCorrelationSpace,
     MultireferenceCI,
+    MultireferencePT,
     MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
@@ -240,6 +241,45 @@ class OutParser(MappingTextParser):
     ) -> list[dict[str, Any]]:
         method_data = self._get_multireference_method_data(source)
         return [method_data] if method_data else []
+
+    def get_multireference_pt_methods(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        method_data = self._get_multireference_method_data(source)
+        if not method_data:
+            return []
+
+        casscf = self._as_dict(source.get('single_point', {}).get('casscf'))
+        input_file = source.get('input_file') or ''
+        if isinstance(input_file, (list, tuple, np.ndarray)):
+            input_file = ' '.join(str(item) for item in input_file)
+
+        pt_method = self._scalar(casscf.get('pt_method'))
+        qd_nevpt_type = self._scalar(casscf.get('qd_nevpt_type'))
+        method_hints = f'{pt_method or ""}\n{qd_nevpt_type or ""}\n{input_file}'.upper()
+        if 'NEVPT2' not in method_hints:
+            return []
+
+        is_qd = 'QD' in method_hints
+        is_strongly_contracted = (
+            'SC_NEVPT2' in method_hints or 'SC-NEVPT2' in method_hints
+        )
+
+        name_parts = []
+        if is_qd:
+            name_parts.append('QD')
+        if is_strongly_contracted:
+            name_parts.append('SC')
+        name_parts.append('NEVPT2')
+
+        return [
+            {
+                **method_data,
+                'type': 'NEVPT',
+                'order': 2,
+                'name': '-'.join(name_parts),
+            }
+        ]
 
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         basis_set_names = self._as_dict(source.get('basis_set_name'))
@@ -671,6 +711,25 @@ class OutParser(MappingTextParser):
         return MultireferenceCI(**kwargs)
 
     @staticmethod
+    def _build_multireference_pt_section(
+        method_data: dict[str, Any],
+    ) -> MultireferencePT:
+        kwargs = {
+            'name': method_data.get('name'),
+            'type': method_data.get('type'),
+            'order': method_data.get('order'),
+            'reference_type': method_data.get('reference_type'),
+            'n_state_groups': method_data.get('n_state_groups'),
+            'state_multiplicities': method_data.get('state_multiplicities'),
+            'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
+            'state_weights': method_data.get('state_weights'),
+            'active_space': OutParser._build_active_space_section(
+                method_data.get('active_space')
+            ),
+        }
+        return MultireferencePT(**kwargs)
+
+    @staticmethod
     def _build_perturbation_section(method_data: dict[str, Any]) -> PerturbationMethod:
         kwargs = {
             'type': method_data.get('type'),
@@ -833,13 +892,19 @@ class OutParser(MappingTextParser):
             self._build_multireference_ci_section(method_data)
             for method_data in self.get_multireference_ci_methods(source)
         )
+        method_sequence.extend(
+            self._build_multireference_pt_section(method_data)
+            for method_data in self.get_multireference_pt_methods(source)
+        )
         if not method_sequence:
             return
 
         existing_methods = [
             method
             for method in (simulation.model_method or [])
-            if not isinstance(method, (MultireferenceSCF, MultireferenceCI))
+            if not isinstance(
+                method, (MultireferenceSCF, MultireferenceCI, MultireferencePT)
+            )
         ]
         simulation.model_method = existing_methods + method_sequence
 

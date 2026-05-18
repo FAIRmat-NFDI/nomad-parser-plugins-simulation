@@ -9,6 +9,7 @@ from nomad_simulations.schema_packages.model_method import (
     DFT,
     HF,
     MultireferenceCI,
+    MultireferencePT,
     MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
@@ -245,3 +246,19 @@ def test_multireference_parsing(case):
     assert list(method.state_multiplicities) == case['multiplicities']
     assert list(method.n_roots_per_multiplicity) == case['roots']
     assert len(method.state_weights) == sum(case['roots'])
+
+
+def test_qd_nevpt2_method_parsing():
+    archive = _parse_orca('CoPc_CASCI_QD.out')
+    method = _single_method(archive, MultireferencePT)
+
+    assert method.name == 'QD-SC-NEVPT2'
+    assert method.type == 'NEVPT'
+    assert method.order == 2
+    assert method.active_space is not None
+    assert method.active_space.n_active_electrons == 13
+    assert method.active_space.n_active_orbitals == 8
+    assert method.active_space.orbital_space_type == 'CAS'
+    assert list(method.state_multiplicities) == [4, 2]
+    assert list(method.n_roots_per_multiplicity) == [40, 115]
+    assert len(method.state_weights) == 155
