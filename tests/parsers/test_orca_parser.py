@@ -100,6 +100,9 @@ def _assert_mp2_method(mp2, localization):
     assert thresholds['TCutPNO'].value == pytest.approx(1.0e-8)
     assert thresholds['TCutPNOSingles'].value == pytest.approx(3.0e-10)
     assert thresholds['TCutMP2Pairs'].value == pytest.approx(1.0e-7)
+    assert thresholds['TCutMKN'].value == pytest.approx(1.0e-3)
+    assert thresholds['TCutPAO'].value == pytest.approx(1.0e-3)
+    assert thresholds['TCutDO'].value == pytest.approx(1.0e-2)
 
 
 def _assert_cc_method(cc, localization):
@@ -121,6 +124,16 @@ def _assert_cc_method(cc, localization):
     assert thresholds['TCutPNO'].applies_to == 'orbital'
     assert thresholds['TCutPNOSingles'].value == pytest.approx(3.0e-10)
     assert thresholds['TCutPNOSingles'].applies_to == 'orbital'
+    assert thresholds['TCutMP2Pairs'].value == pytest.approx(1.0e-7)
+    assert thresholds['TCutMKN'].value == pytest.approx(1.0e-3)
+    assert thresholds['TCutPAO'].value == pytest.approx(1.0e-3)
+    assert thresholds['TCutEN'].value == pytest.approx(9.7e-1)
+    assert thresholds['TCutDO'].value == pytest.approx(1.0e-2)
+    assert thresholds['TCutTNO'].value == pytest.approx(1.0e-9)
+    assert thresholds['TCutDOStrong'].value == pytest.approx(2.0e-3)
+    assert thresholds['TCutMKNStrong'].value == pytest.approx(1.0e-2)
+    assert thresholds['TCutMKNWeak'].value == pytest.approx(1.0e-1)
+    assert thresholds['TCutDOWeak'].value == pytest.approx(4.0e-3)
 
 
 def _assert_local_cc_workflow(archive, hf):
@@ -164,6 +177,11 @@ def test_dft_xc_canonicalization():
 
 def test_local_cc_parsing():
     archive = _parse_orca('dlpno-coupled-cluster.out')
+
+    system = archive.data.model_system[0]
+    assert system.positions[0][0].to('angstrom').magnitude == pytest.approx(-1.487532)
+    assert system.total_charge == 0
+    assert system.total_spin == 0
 
     hf = _single_method(archive, HF)
     assert hf.type == 'RHF'

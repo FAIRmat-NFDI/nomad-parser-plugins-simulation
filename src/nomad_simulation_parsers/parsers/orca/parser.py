@@ -15,6 +15,7 @@ from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.basis_set import (
     AtomCenteredBasisSet,
@@ -66,7 +67,7 @@ def str_to_cartesian_coordinates(val_in):
             coordinates.append(val_in_cleaned[i + 1 : i + 4])
             # print(coordinates)
         coordinates = np.array(coordinates, dtype=float)
-        return symbols, coordinates
+        return symbols, coordinates * ureg.angstrom
 
 
 class OutParser(MappingTextParser):
@@ -96,13 +97,26 @@ class OutParser(MappingTextParser):
 
     def get_atoms(self, src: dict[str, Any]):
         # ← revert to the original nested lookup
-        coords = src.get('single_point', {}).get('cartesian_coordinates', [])
+        single_point = self._as_dict(src.get('single_point', {}))
+        coords = single_point.get('cartesian_coordinates', [])
         if not coords:
             return []
 
         syms, pos = str_to_cartesian_coordinates(coords)
         atoms = [{'chemical_symbol': s} for s in syms]
-        return [{'positions': pos, 'particle_states': atoms}]
+        system = {'positions': pos, 'particle_states': atoms}
+
+        self_consistent = self._as_dict(single_point.get('self_consistent', {}))
+        scf_settings = self._as_dict(self_consistent.get('scf_settings', {}))
+        total_charge = self._scalar(scf_settings.get('total_charge'))
+        if total_charge is not None:
+            system['total_charge'] = int(total_charge)
+
+        multiplicity = self._scalar(scf_settings.get('multiplicity'))
+        if multiplicity is not None:
+            system['total_spin'] = int(multiplicity) - 1
+
+        return [system]
 
     def get_dft(self, src: dict[str, Any]) -> dict[str, Any]:
         """
@@ -378,6 +392,58 @@ class OutParser(MappingTextParser):
             )
         return thresholds
 
+    @staticmethod
+    def _deduplicate_thresholds(
+        thresholds: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduplicated = []
+        seen = set()
+        for threshold in thresholds:
+            key = (
+                threshold.get('name'),
+                threshold.get('applies_to'),
+                threshold.get('value'),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduplicated.append(threshold)
+        return deduplicated
+
+    @staticmethod
+    def _dlpno_threshold_mapping(
+        include_triples: bool = True,
+    ) -> tuple[tuple[str, str, str], ...]:
+        mapping = [
+            ('tCutPairs', 'TCutPairs', 'pair_screening'),
+            ('tCutPNO', 'TCutPNO', 'orbital'),
+            ('tCutPNOSingles', 'TCutPNOSingles', 'orbital'),
+            ('tCutMP2Pairs', 'TCutMP2Pairs', 'pair_screening'),
+            ('tCutMKN', 'TCutMKN', 'domain'),
+            ('tCutPAO', 'TCutPAO', 'orbital'),
+            ('tCutEN', 'TCutEN', 'domain'),
+            ('tCutPAOExt', 'TCutPAOExt', 'orbital'),
+            ('tCutPre', 'TCutPre', 'pair_screening'),
+            ('tCutOSV', 'TCutOSV', 'orbital'),
+            ('tCutDOij', 'TCutDOij', 'pair_screening'),
+            ('tCutDO', 'TCutDO', 'domain'),
+            ('tCutC', 'TCutC', 'domain'),
+            ('tCutCPAO', 'TCutCPAO', 'domain'),
+            ('tCutCMO', 'TCutCMO', 'domain'),
+            ('paoOverlapThresh', 'PAOOverlapThresh', 'orbital'),
+        ]
+        if include_triples:
+            mapping.extend(
+                [
+                    ('tCutTNO', 'TCutTNO', 'orbital'),
+                    ('tCutDOStrong', 'TCutDOStrong', 'domain'),
+                    ('tCutMKNStrong', 'TCutMKNStrong', 'domain'),
+                    ('tCutMKNWeak', 'TCutMKNWeak', 'domain'),
+                    ('tCutDOWeak', 'TCutDOWeak', 'domain'),
+                ]
+            )
+        return tuple(mapping)
+
     def get_orbital_localization_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
@@ -467,16 +533,8 @@ class OutParser(MappingTextParser):
                 ],
             }
 
-        thresholds = []
-        thresholds.extend(
-            self._local_thresholds(
-                cc_data,
-                (
-                    ('tCutPairs', 'TCutPairs', 'pair_screening'),
-                    ('tCutPNO', 'TCutPNO', 'orbital'),
-                    ('tCutPNOSingles', 'TCutPNOSingles', 'orbital'),
-                ),
-            )
+        thresholds = self._local_thresholds(
+            cc_data, self._dlpno_threshold_mapping(include_triples=False)
         )
         thresholds.extend(
             self._local_thresholds(
@@ -484,6 +542,7 @@ class OutParser(MappingTextParser):
                 (('tCutMP2Pairs', 'TCutMP2Pairs', 'pair_screening'),),
             )
         )
+        thresholds = self._deduplicate_thresholds(thresholds)
         if thresholds:
             method['numerical_settings'] = [{'screening_thresholds': thresholds}]
 
@@ -537,14 +596,7 @@ class OutParser(MappingTextParser):
                 ],
             }
 
-        thresholds = self._local_thresholds(
-            cc_data,
-            (
-                ('tCutPairs', 'TCutPairs', 'pair_screening'),
-                ('tCutPNO', 'TCutPNO', 'orbital'),
-                ('tCutPNOSingles', 'TCutPNOSingles', 'orbital'),
-            ),
-        )
+        thresholds = self._local_thresholds(cc_data, self._dlpno_threshold_mapping())
         if thresholds:
             method['numerical_settings'] = [{'screening_thresholds': thresholds}]
 
