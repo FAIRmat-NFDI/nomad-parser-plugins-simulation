@@ -83,7 +83,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.MultireferenceSCF.m_def,
     OUT_KEY,
-    ('get_multireference_methods', ['.@']),
+    ('get_multireference_scf_methods', ['.@']),
 )
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
 add_mapping_annotation(
@@ -124,6 +124,35 @@ add_mapping_annotation(
     '.active_space.orbital_space_type',
 )
 
+add_mapping_annotation(
+    model_method.MultireferenceCI.m_def,
+    OUT_KEY,
+    ('get_multireference_ci_methods', ['.@']),
+)
+add_mapping_annotation(model_method.MultireferenceCI.type, OUT_KEY, '.type')
+add_mapping_annotation(
+    model_method.MultireferenceCI.reference_type, OUT_KEY, '.reference_type'
+)
+add_mapping_annotation(
+    model_method.MultireferenceCI.n_state_groups, OUT_KEY, '.n_state_groups'
+)
+add_mapping_annotation(
+    model_method.MultireferenceCI.state_multiplicities,
+    OUT_KEY,
+    '.state_multiplicities',
+)
+add_mapping_annotation(
+    model_method.MultireferenceCI.n_roots_per_multiplicity,
+    OUT_KEY,
+    '.n_roots_per_multiplicity',
+)
+add_mapping_annotation(
+    model_method.MultireferenceCI.state_weights, OUT_KEY, '.state_weights'
+)
+add_mapping_annotation(
+    model_method.MultireferenceCI.active_space, OUT_KEY, '.active_space'
+)
+
 ############# Local CC ###################
 
 add_mapping_annotation(
@@ -131,9 +160,7 @@ add_mapping_annotation(
     OUT_KEY,
     ('get_orbital_localization_methods', ['.@']),
 )
-add_mapping_annotation(
-    model_method.OrbitalLocalization.method, OUT_KEY, '.method'
-)
+add_mapping_annotation(model_method.OrbitalLocalization.method, OUT_KEY, '.method')
 add_mapping_annotation(
     model_method.OrbitalLocalization.n_localized_orbitals,
     OUT_KEY,
@@ -160,7 +187,9 @@ add_mapping_annotation(
 )
 add_mapping_annotation(model_method.CC.determinant, OUT_KEY, '.determinant')
 add_mapping_annotation(model_method.CC.local_correlation, OUT_KEY, '.local_correlation')
-add_mapping_annotation(model_method.CC.numerical_settings, OUT_KEY, '.numerical_settings')
+add_mapping_annotation(
+    model_method.CC.numerical_settings, OUT_KEY, '.numerical_settings'
+)
 
 add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.LocalCorrelation.spaces, OUT_KEY, '.spaces')
@@ -180,9 +209,7 @@ add_mapping_annotation(
     '.excitation_order',
 )
 
-add_mapping_annotation(
-    numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@'
-)
+add_mapping_annotation(numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@')
 add_mapping_annotation(
     numerical_settings.LocalCorrelationSettings.screening_thresholds,
     OUT_KEY,

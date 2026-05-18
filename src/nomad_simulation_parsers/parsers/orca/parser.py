@@ -25,8 +25,11 @@ from nomad_simulations.schema_packages.model_method import (
     CC,
     DFT,
     HF,
+    ActiveSpace,
     LocalCorrelation,
     LocalCorrelationSpace,
+    MultireferenceCI,
+    MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
 )
@@ -42,6 +45,7 @@ from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annota
 from .text_parser import OutReader
 
 LOGGER = get_logger(__name__)
+ORBITAL_RANGE_BOUNDS = 2
 
 
 def str_to_cartesian_coordinates(val_in):
@@ -151,14 +155,12 @@ class OutParser(MappingTextParser):
             'threshold_change': scf_convergence.get('energy_change_tolerance', 1e-8),
         }
 
-    def get_multireference_methods(
-        self, source: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _get_multireference_method_data(self, source: dict[str, Any]) -> dict[str, Any]:
         casscf = source.get('single_point', {}).get('casscf') if source else None
         if hasattr(casscf, '_results'):
             casscf = casscf._results
         if not casscf:
-            return []
+            return {}
 
         active_space = {
             'n_active_electrons': casscf.get('n_active_electrons'),
@@ -180,6 +182,16 @@ class OutParser(MappingTextParser):
             n_roots_per_multiplicity.append(len(weights) or n_roots)
             state_weights.extend(weights)
 
+        input_file = source.get('input_file') or ''
+        if isinstance(input_file, (list, tuple, np.ndarray)):
+            input_file = ' '.join(str(item) for item in input_file)
+        is_casci = 'MAXITER 1' in str(input_file).upper()
+        if not is_casci:
+            is_casci = any(
+                self._as_dict(block).get('casci_marker') is not None
+                for block in casscf.get('block') or []
+            )
+
         reference_type = (
             'state_averaged'
             if state_weights and len(state_weights) > 1
@@ -187,17 +199,33 @@ class OutParser(MappingTextParser):
         )
         n_state_groups = len(state_multiplicities) if state_multiplicities else None
 
-        return [
-            {
-                'type': 'CASSCF',
-                'active_space': active_space or None,
-                'reference_type': reference_type,
-                'n_state_groups': n_state_groups,
-                'state_multiplicities': state_multiplicities or None,
-                'n_roots_per_multiplicity': n_roots_per_multiplicity or None,
-                'state_weights': state_weights or None,
-            }
-        ]
+        return {
+            'type': 'CASCI' if is_casci else 'CASSCF',
+            'active_space': active_space or None,
+            'reference_type': reference_type,
+            'n_state_groups': n_state_groups,
+            'state_multiplicities': state_multiplicities or None,
+            'n_roots_per_multiplicity': n_roots_per_multiplicity or None,
+            'state_weights': state_weights or None,
+        }
+
+    def get_multireference_scf_methods(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        method_data = self._get_multireference_method_data(source)
+        return [method_data] if method_data.get('type') == 'CASSCF' else []
+
+    def get_multireference_ci_methods(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        method_data = self._get_multireference_method_data(source)
+        return [method_data] if method_data.get('type') == 'CASCI' else []
+
+    def get_multireference_methods(
+        self, source: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        method_data = self._get_multireference_method_data(source)
+        return [method_data] if method_data else []
 
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         basis_set_names = self._as_dict(source.get('basis_set_name'))
@@ -376,7 +404,10 @@ class OutParser(MappingTextParser):
             n_localized_orbitals = None
             if isinstance(orbital_range, np.ndarray):
                 orbital_range = orbital_range.tolist()
-            if isinstance(orbital_range, (list, tuple)) and len(orbital_range) >= 2:
+            if (
+                isinstance(orbital_range, (list, tuple))
+                and len(orbital_range) >= ORBITAL_RANGE_BOUNDS
+            ):
                 try:
                     start = int(orbital_range[0])
                     end = int(orbital_range[1])
@@ -399,17 +430,16 @@ class OutParser(MappingTextParser):
         )
         return [methods[0]]
 
-    def get_perturbation_methods(
-        self, source: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def get_perturbation_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         cc_data = self._as_dict(source.get('single_point', {}).get('cc'))
         ci_data = self._as_dict(source.get('single_point', {}).get('ci'))
         if not ci_data:
             return []
 
-        if ci_data.get('mp2_total_energy') is None and ci_data.get(
-            'sl_mp2_correlation_energy'
-        ) is None:
+        if (
+            ci_data.get('mp2_total_energy') is None
+            and ci_data.get('sl_mp2_correlation_energy') is None
+        ):
             return []
 
         local_type = self._infer_local_correlation_type(source, cc_data)
@@ -482,7 +512,10 @@ class OutParser(MappingTextParser):
         perturbative_triples = self._scalar(
             cc_data.get('perturbative_triple_excitations_on_off')
         )
-        if isinstance(perturbative_triples, str) and perturbative_triples.upper() == 'ON':
+        if (
+            isinstance(perturbative_triples, str)
+            and perturbative_triples.upper() == 'ON'
+        ):
             method['perturbative_correction'] = '(T)'
             method['perturbative_correction_order'] = [3]
 
@@ -542,6 +575,48 @@ class OutParser(MappingTextParser):
     @staticmethod
     def _build_dft_section(method_data: dict[str, Any]) -> DFT:
         return DFT(**method_data)
+
+    @staticmethod
+    def _build_active_space_section(
+        active_space_data: dict[str, Any] | None,
+    ) -> ActiveSpace | None:
+        if not active_space_data:
+            return None
+        return ActiveSpace(**active_space_data)
+
+    @staticmethod
+    def _build_multireference_scf_section(
+        method_data: dict[str, Any],
+    ) -> MultireferenceSCF:
+        kwargs = {
+            'type': method_data.get('type'),
+            'reference_type': method_data.get('reference_type'),
+            'n_state_groups': method_data.get('n_state_groups'),
+            'state_multiplicities': method_data.get('state_multiplicities'),
+            'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
+            'state_weights': method_data.get('state_weights'),
+            'active_space': OutParser._build_active_space_section(
+                method_data.get('active_space')
+            ),
+        }
+        return MultireferenceSCF(**kwargs)
+
+    @staticmethod
+    def _build_multireference_ci_section(
+        method_data: dict[str, Any],
+    ) -> MultireferenceCI:
+        kwargs = {
+            'type': method_data.get('type'),
+            'reference_type': method_data.get('reference_type'),
+            'n_state_groups': method_data.get('n_state_groups'),
+            'state_multiplicities': method_data.get('state_multiplicities'),
+            'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
+            'state_weights': method_data.get('state_weights'),
+            'active_space': OutParser._build_active_space_section(
+                method_data.get('active_space')
+            ),
+        }
+        return MultireferenceCI(**kwargs)
 
     @staticmethod
     def _build_perturbation_section(method_data: dict[str, Any]) -> PerturbationMethod:
@@ -667,9 +742,7 @@ class OutParser(MappingTextParser):
         if localization is not None:
             method_sequence.append(localization)
 
-        mp2_method = (
-            self._build_perturbation_section(mp2_data[0]) if mp2_data else None
-        )
+        mp2_method = self._build_perturbation_section(mp2_data[0]) if mp2_data else None
         if (
             mp2_method is not None
             and mp2_method.local_correlation is not None
@@ -693,6 +766,30 @@ class OutParser(MappingTextParser):
 
         if method_sequence:
             simulation.model_method = method_sequence
+
+    def enrich_multireference_methods(self, simulation: Simulation) -> None:
+        if simulation is None:
+            return
+
+        source = self.text_parser.results or {}
+        method_sequence = []
+        method_sequence.extend(
+            self._build_multireference_scf_section(method_data)
+            for method_data in self.get_multireference_scf_methods(source)
+        )
+        method_sequence.extend(
+            self._build_multireference_ci_section(method_data)
+            for method_data in self.get_multireference_ci_methods(source)
+        )
+        if not method_sequence:
+            return
+
+        existing_methods = [
+            method
+            for method in (simulation.model_method or [])
+            if not isinstance(method, (MultireferenceSCF, MultireferenceCI))
+        ]
+        simulation.model_method = existing_methods + method_sequence
 
     def enrich_basis_sets(self, simulation: Simulation) -> None:
         if simulation is None or not simulation.model_method:
@@ -732,17 +829,17 @@ class OutParser(MappingTextParser):
                 method.numerical_settings = []
             method.numerical_settings.append(basis_container)
 
-    def build_workflow(
-        self, simulation: Simulation, logger: 'BoundLogger'
-    ):
+    def build_workflow(self, simulation: Simulation, logger: 'BoundLogger'):
         if simulation is None or not simulation.model_method:
             return None
 
         hf_method = next(
-            (method for method in simulation.model_method if isinstance(method, HF)), None
+            (method for method in simulation.model_method if isinstance(method, HF)),
+            None,
         )
         cc_method = next(
-            (method for method in simulation.model_method if isinstance(method, CC)), None
+            (method for method in simulation.model_method if isinstance(method, CC)),
+            None,
         )
         if hf_method is None or cc_method is None:
             return None
@@ -750,7 +847,8 @@ class OutParser(MappingTextParser):
         workflow = SerialWorkflow()
         tasks = [Task(name='HF')]
         if any(
-            isinstance(method, OrbitalLocalization) for method in simulation.model_method
+            isinstance(method, OrbitalLocalization)
+            for method in simulation.model_method
         ):
             tasks.append(Task(name='Orbital localization'))
         if any(
@@ -797,6 +895,7 @@ class OrcaParser(MatchingParser):
         archive.data = meta.data_object
 
         reader.enrich_local_correlation_methods(archive.data)
+        reader.enrich_multireference_methods(archive.data)
         reader.enrich_basis_sets(archive.data)
         reader.archive = archive
         archive.workflow2 = reader.build_workflow(archive.data, logger)

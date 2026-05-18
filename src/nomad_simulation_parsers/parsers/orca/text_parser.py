@@ -1043,7 +1043,7 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'block',
-                            r'BLOCK\s+\d+\s+WEIGHT=\s*([-+]?\d*\.?\d+)\s*([\s\S]+?)(?=(?:BLOCK|\Z))',
+                            r'(BLOCK\s+\d+\s+WEIGHT=\s*[-+]?\d*\.?\d+\s*[\s\S]+?)(?=(?:BLOCK|\Z))',
                             repeats=True,
                             sub_parser=TextParser(
                                 quantities=[
@@ -1077,6 +1077,11 @@ class OutReader(TextParser):
                                         r'ROOT=\d+\s+WEIGHT=\s*([-+]?\d*\.?\d+)',
                                         repeats=True,
                                         dtype=float,
+                                    ),
+                                    Quantity(
+                                        'casci_marker',
+                                        r'(MaxMacroIter\s+1\s+detected\s+>>>\s*CAS\-CI)',
+                                        convert=False,
                                     ),
                                 ]
                             ),
