@@ -1,0 +1,33 @@
+warning: The `tool.uv.dev-dependencies` field (used in `/home/nathan/Documents/nomad-distro-schema/pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead
+Traceback (most recent call last):
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/bin/nomad", line 10, in <module>
+    sys.exit(run_cli())
+             ^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/packages/nomad-FAIR/nomad/cli/cli.py", line 77, in run_cli
+    return cli(obj=POPO())  # pylint: disable=E1120,E1123
+           ^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/lib/python3.12/site-packages/click/core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/lib/python3.12/site-packages/click/core.py", line 1406, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/lib/python3.12/site-packages/click/core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/lib/python3.12/site-packages/click/core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/.venv/lib/python3.12/site-packages/click/core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/packages/nomad-FAIR/nomad/cli/parse.py", line 110, in _parse
+    entry_archives = parse(mainfile, **kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/packages/nomad-FAIR/nomad/client/processing.py", line 61, in parse
+    parser, mainfile_keys = parsers.match_parser(
+                            ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nathan/Documents/nomad-distro-schema/packages/nomad-FAIR/nomad/parsing/parsers.py", line 79, in match_parser
+    with open(mainfile_path, 'rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nathan/Documents/nomad-distro-schema/packages/nomad-parser-plugins-simulation/packages/nomad-parser-plugins-simulation/tests/data/ams/scf/phenylrSmall-metagga.out'

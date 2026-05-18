@@ -3,11 +3,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
+    numerical_settings,
     outputs,
     properties,
     workflow,
@@ -47,7 +50,7 @@ class Simulation(general.Simulation):
             dict(include=['lattice_vectors', 'structure', 'sub_structure']),
         ),
     )
-    # DFT method
+    # DFT method - only annotate DFT.m_def, not ModelMethod base class
     add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
     add_mapping_annotation(model_method.GW.m_def, TEXT_GW_KEY, '.@')
@@ -58,7 +61,15 @@ class Simulation(general.Simulation):
         (
             'get_sections',
             ['.@'],
-            dict(include=['energy', 'energy_components', 'forces', 'eigenvalues']),
+            dict(
+                include=[
+                    'energy',
+                    'energy_components',
+                    'forces',
+                    'eigenvalues',
+                    'self_consistency',
+                ]
+            ),
         ),
     )
     add_mapping_annotation(
@@ -77,19 +88,19 @@ class Program(general.Program):
 
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
+    add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        TEXT_KEY,
-        ('get_xc_functionals', ['.controlInOut_xc']),
-    )
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
 
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, TEXT_KEY, '.name')
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper='.name')))
 
 
 class GW(model_method.GW):
@@ -120,8 +131,20 @@ class AtomsState(model_system.AtomsState):
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(
-        outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
+    # outputs.Outputs.total_energies.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            text=Mapper(
+                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
+            )
+        )
     )
     add_mapping_annotation(
         outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
@@ -143,6 +166,24 @@ class Outputs(outputs.Outputs):
             ],
         ),
     )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        TEXT_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, TEXT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_density_rms, TEXT_KEY, '.delta_density_rms'
+    )
+    add_mapping_annotation(outputs.SCFSteps.durations, TEXT_KEY, '.durations')
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, TEXT_KEY, '.code_specific_quantities'
+    )
 
 
 class TotalEnergy(properties.energies.TotalEnergy):
@@ -162,15 +203,15 @@ class TotalForce(properties.forces.TotalForce):
 
 # TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    add_mapping_annotation(
-        properties.ElectronicEigenvalues.n_levels, TEXT_KEY, '.nbands'
-    )
-    add_mapping_annotation(
-        properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'
-    )
-    add_mapping_annotation(
-        properties.ElectronicEigenvalues.occupation, TEXT_KEY, '.occupations'
-    )
+    # properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(text=Mapper(mapper='.nbands')))
+    properties.ElectronicEigenvalues.value.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper='.eigenvalues')))
+    properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper='.occupations')))
 
 
 class DOSProfile(properties.spectral_profile.DOSProfile):
@@ -220,61 +261,42 @@ add_mapping_annotation(
 
 
 class MolecularDynamics(workflow.MolecularDynamics):
-    add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsMethod.m_def, MD_WORKFLOW_KEY, '.@'
-    )
-    add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsResults.m_def,
-        MD_WORKFLOW_KEY,
-        '.@',
-    )
+    # workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(md_workflow=Mapper(mapper='.@')))
+    workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(md_workflow=Mapper(mapper='.@')))
 
 
 class GeometryOptimization(workflow.GeometryOptimization):
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
-        GEO_OPT_WORKFLOW_KEY,
-        '.@',
-    )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationResults.m_def,
-        GEO_OPT_WORKFLOW_KEY,
-        '.@',
-    )
+    workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
+    workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
 
 
 class GeometryOptimizationMethod(
     workflow.geometry_optimization.GeometryOptimizationMethod
 ):
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
+
+
+class KSpace(numerical_settings.KSpace):
+    add_mapping_annotation(numerical_settings.KSpace.k_mesh, TEXT_KEY, '.@')
+
+
+class KMesh(numerical_settings.KMesh):
+    add_mapping_annotation(numerical_settings.KMesh.grid, TEXT_KEY, '.k_grid')
     add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
-        GEO_OPT_WORKFLOW_KEY,
-        '.geometry_relaxation_method',
+        numerical_settings.KMesh.offset,
+        TEXT_KEY,
+        ('get_k_offset_with_default', ['.k_offset']),
     )
-
-
-class MolecularDynamicsMethod(workflow.molecular_dynamics.MolecularDynamicsMethod):
-    add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsMethod.integration_timestep,
-        MD_WORKFLOW_KEY,
-        '.control_inout.md_timestep',
-    )
-    add_mapping_annotation(
-        workflow.molecular_dynamics.MolecularDynamicsMethod.thermodynamic_ensemble,
-        MD_WORKFLOW_KEY,
-        '.control_inout.md_run[0].ensemble',
-    )
-
-
-class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
-    pass
-
-
-add_mapping_annotation(
-    workflow.molecular_dynamics.MolecularDynamicsResults.temperatures,
-    MD_WORKFLOW_KEY,
-    'molecular_dynamics[*].md_calculation_info."Temperature (nuclei)"',
-)
 
 
 try:

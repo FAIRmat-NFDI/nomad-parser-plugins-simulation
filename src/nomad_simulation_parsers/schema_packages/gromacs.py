@@ -4,6 +4,10 @@ from nomad_simulations.schema_packages import (
     general,
     model_system,
     outputs,
+    properties,
+)
+from nomad_simulations.schema_packages.workflow import (
+    general as workflow_general,
 )
 from nomad_simulations.schema_packages.workflow import (
     geometry_optimization,
@@ -18,6 +22,8 @@ m_package = SchemaPackage()
 LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
+PARTICLE_PARAM_KEY = 'gromacs_particle_params'
+XVG_KEY = 'gromacs_xvg'
 
 
 # =============================================================================
@@ -92,12 +98,14 @@ EDR_KEY = 'gromacs_edr'
 
 class Program(general.Program):
     add_mapping_annotation(
-        general.Program.version, LOG_KEY, ('get_version', ['.version'])
+        general.Program.version, LOG_KEY, ('get_version', ['version'])
     )
 
 
 class AtomsState(model_system.AtomsState):
-    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.label')
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, TPR_KEY, '.element')
+    add_mapping_annotation(model_system.AtomsState.mass, TPR_KEY, '.mass', unit='amu')
 
 
 add_mapping_annotation(
@@ -120,7 +128,9 @@ class ModelSystem(model_system.ModelSystem):
       monomers)
     """
 
-    add_mapping_annotation(model_system.ModelSystem.n_particles, TPR_KEY, '.n_atoms')
+    add_mapping_annotation(
+        model_system.ModelSystem.n_particles, TPR_KEY, '.n_particles'
+    )
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
@@ -164,12 +174,26 @@ class TotalForce(outputs.TotalForce):
     add_mapping_annotation(outputs.TotalForce.value, TPR_KEY, '.@')
 
 
-class Outpus(outputs.Outputs):
+class Outputs(outputs.TrajectoryOutputs):
+    add_mapping_annotation(outputs.TrajectoryOutputs.step, LOG_KEY, '.step')
+    add_mapping_annotation(outputs.TrajectoryOutputs.step, EDR_KEY, '.step')
     add_mapping_annotation(outputs.Outputs.total_energies, LOG_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.total_energies, EDR_KEY, '.energy')
     add_mapping_annotation(outputs.Outputs.model_system_ref, LOG_KEY, '.system_ref')
     add_mapping_annotation(outputs.Outputs.model_system_ref, EDR_KEY, '.system_ref')
     add_mapping_annotation(outputs.Outputs.total_forces, TPR_KEY, '.forces')
+    add_mapping_annotation(outputs.TrajectoryOutputs.time, LOG_KEY, '.time')
+    add_mapping_annotation(outputs.TrajectoryOutputs.time, EDR_KEY, '.time')
+    add_mapping_annotation(
+        outputs.TrajectoryOutputs.temperatures, LOG_KEY, '.temperatures'
+    )
+    add_mapping_annotation(
+        outputs.TrajectoryOutputs.temperatures, EDR_KEY, '.temperatures'
+    )
+    add_mapping_annotation(properties.Temperature.value, LOG_KEY, '.value')
+    add_mapping_annotation(properties.Temperature.value, EDR_KEY, '.value')
+    add_mapping_annotation(properties.Temperature.name, LOG_KEY, '.name')
+    add_mapping_annotation(properties.Temperature.name, EDR_KEY, '.name')
 
 
 class Simulation(general.Simulation):
@@ -180,13 +204,15 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system, TPR_KEY, ('get_configurations', [])
     )
-    add_mapping_annotation(general.Simulation.outputs, LOG_KEY, ('get_outputs', []))
-    add_mapping_annotation(general.Simulation.outputs, TPR_KEY, ('get_outputs', []))
-    add_mapping_annotation(general.Simulation.outputs, EDR_KEY, ('get_outputs', ['.@']))
-    add_mapping_annotation(general.Simulation.model_method, TPR_KEY, '.@')
-    add_mapping_annotation(general.Simulation.model_method, LOG_KEY, '.@')
+    # The LOG pass on archive.data creates ForceField in model_method via
+    # ModelMethod polymorphism. ForceField-specific TPR contributions are then
+    # applied by a dedicated pass in parser.py that targets model_method[0]
+    # directly; they do not come from the Simulation-level TPR pass here.
 
 
+add_mapping_annotation(Outputs.m_def, LOG_KEY, ('get_outputs', []))
+add_mapping_annotation(Outputs.m_def, TPR_KEY, ('get_outputs', []))
+add_mapping_annotation(Outputs.m_def, EDR_KEY, ('get_outputs', ['.@']))
 add_mapping_annotation(general.Simulation.m_def, LOG_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, TPR_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, EDR_KEY, '@')
@@ -203,14 +229,6 @@ class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
         LOG_KEY,
         '.input_parameters.nsteps',
     )
-    # TODO: Re-enable when nomad-simulations#260 is merged
-    # add_mapping_annotation(
-    #     geometry_optimization.GeometryOptimizationMethod
-    #         .convergence_tolerance_force_maximum,
-    #     LOG_KEY,
-    #     '.input_parameters.emtol',
-    #     unit='kilojoule/avogadro_number/nanometer',
-    # )
 
 
 class GeometryOptimizationResults(geometry_optimization.GeometryOptimizationResults):
@@ -305,6 +323,14 @@ class MolecularDynamicsModel(molecular_dynamics.MolecularDynamicsMethod):
         '@',
     )
 
+    # Free energy calculation subsection.
+    # Returns None when free-energy = no so the section is not instantiated.
+    add_mapping_annotation(
+        molecular_dynamics.MolecularDynamicsMethod.free_energy_calculation_parameters,
+        LOG_KEY,
+        ('get_fep_params_if_active', ['.@']),
+    )
+
 
 ## ThermostatParameters annotations
 
@@ -345,7 +371,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     molecular_dynamics.BarostatParameters.reference_pressure,
     LOG_KEY,
-    ('get_reference_pressure', ['.input_parameters']),
+    ('get_matrix_parameter', ['.input_parameters'], {'param_key': 'ref-p'}),
     unit='bar',
 )
 
@@ -359,13 +385,97 @@ add_mapping_annotation(
 add_mapping_annotation(
     molecular_dynamics.BarostatParameters.compressibility,
     LOG_KEY,
-    ('get_compressibility', ['.input_parameters']),
+    ('get_matrix_parameter', ['.input_parameters'], {'param_key': 'compressibility'}),
     unit='1/bar',
+)
+
+# Free energy method annotations
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.calc_type,
+    LOG_KEY,
+    ('get_free_energy_calc_type', ['.input_parameters']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.current_lambdas,
+    LOG_KEY,
+    ('get_current_lambdas', ['.input_parameters']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.current_lambda_index,
+    LOG_KEY,
+    ('get_lambda_state_index', ['.input_parameters']),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.lambdas,
+    LOG_KEY,
+    ('get_lambdas_schedule', ['.input_parameters']),
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.m_def, LOG_KEY, '@')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.interaction_type, LOG_KEY, '.interaction_type'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.lambda_values, LOG_KEY, '.lambda_values'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_enabled, LOG_KEY, '.softcore_enabled'
+)
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_alpha, LOG_KEY, '.softcore_alpha'
+)
+add_mapping_annotation(molecular_dynamics.Lambdas.softcore_p, LOG_KEY, '.softcore_p')
+add_mapping_annotation(
+    molecular_dynamics.Lambdas.softcore_sigma, LOG_KEY, '.softcore_sigma'
+)
+
+
+# XVG free-energy time-series annotations.
+# Target: a FreeEnergyCalculationParameters instance set as data_object directly.
+# from_dict would silently drop XVG data if the subsection at index 0 already
+# holds an instance of a different type — quantities absent from that type are
+# skipped by m_set, then the emptiness check removes the subsection entirely.
+# Targeting the correct existing instance avoids the index collision.
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.m_def, XVG_KEY, '@'
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.n_frames,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'n_frames'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.n_states,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'n_states'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.times,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'times'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.energy_derivative,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_total_energy_derivative'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.energy_differences,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_total_energy_differences'}),
+)
+add_mapping_annotation(
+    molecular_dynamics.FreeEnergyCalculationParameters.pv_energy,
+    XVG_KEY,
+    ('get_fep_xvg_data', [], {'field': 'value_PV_energy'}),
 )
 
 
 class MolecularDynamicsResults(molecular_dynamics.MolecularDynamicsResults):
-    # parse from xvg
+    # TODO: XVG files can carry general thermodynamic time series beyond the
+    # free-energy dH/dλ data (which already routes to
+    # FreeEnergyCalculationParameters via XVG_KEY).  Add XVG_KEY annotations
+    # here once the relevant MolecularDynamicsResults quantities are defined in
+    # nomad-simulations (e.g. per-frame pressure, density, box dimensions).
     pass
 
 
@@ -376,18 +486,37 @@ class MolecularDynamics(molecular_dynamics.MolecularDynamics):
 
 
 # Workflow
+# Block Level 3 polymorphism on tasks: prevents GeometryOptimization/MolecularDynamics
+# from being instantiated as sub-tasks via the MappingParser. Tasks are filled in by
+# map_tasks() during normalization from outputs (same pattern as FHI-aims parser).
+add_mapping_annotation(workflow_general.SimulationWorkflow.tasks, LOG_KEY, '.tasks')
+add_mapping_annotation(workflow_general.SimulationWorkflow.tasks, EDR_KEY, '.tasks')
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, LOG_KEY, '@')
 add_mapping_annotation(geometry_optimization.GeometryOptimization.m_def, EDR_KEY, '@')
 add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 
 
 # Force Field
+# LOG pass on archive.data (Simulation):
+# - ForceField.m_def has LOG_KEY '@': LOG pass creates ForceField in model_method
+#   via ModelMethod polymorphism; ForceCalculations populated via numerical_settings
+#   recursion (ForceCalculations.m_def has LOG_KEY '@').
+# TPR contributions pass in parser.py:
+# - After the Simulation-level TPR pass (model_system only), parser.py targets
+#   model_method[0] (the existing ForceField instance) directly as data_object and
+#   runs a dedicated convert with TPR_KEY. This mirrors the XVG/FEP pattern and
+#   avoids depending on from_dict's in-place sub-section update behaviour.
+# ParticleParametersContainer uses a dedicated PARTICLE_PARAM_KEY pass in parser.py.
 class ForceField(force_field.ForceField):
     add_mapping_annotation(
         force_field.ForceField.contributions,
         TPR_KEY,
         ('get_force_field_contributions', []),
     )
+
+
+add_mapping_annotation(ForceField.m_def, LOG_KEY, '@')
+add_mapping_annotation(ForceField.m_def, TPR_KEY, '@')
 
 
 class ForceCalculations(force_field.ForceCalculations):
@@ -415,9 +544,47 @@ class ForceCalculations(force_field.ForceCalculations):
     )
 
 
-# add_mapping_annotation(force_field.ForceField.m_def, TPR_KEY, '@')
 add_mapping_annotation(force_field.Potential.m_def, TPR_KEY, '@')
+add_mapping_annotation(
+    force_field.Potential.functional_form, TPR_KEY, '.functional_form'
+)
+add_mapping_annotation(
+    force_field.Potential.particle_indices, TPR_KEY, '.particle_indices'
+)
+# NOTE: particle_labels is intentionally not annotated — it is a numpy array of
+# strings; archive string quantities are treated as potential keywords, which
+# triggers a numpy ambiguous-truth-value error on `if keyword:`.
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
+
+# ParticleParametersContainer is populated via a dedicated PARTICLE_PARAM_KEY convert
+# pass that targets a fresh ParticleParametersContainer() as data_object, then
+# appended to ForceField.numerical_settings in parser.py.
+add_mapping_annotation(
+    force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
+)
+add_mapping_annotation(
+    force_field.ParticleParametersContainer.particle_parameters,
+    PARTICLE_PARAM_KEY,
+    ('get_particle_parameters_by_type', []),
+)
+add_mapping_annotation(force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@')
+add_mapping_annotation(
+    force_field.ParticleParameters.particle_type,
+    PARTICLE_PARAM_KEY,
+    '.particle_type',
+)
+add_mapping_annotation(
+    force_field.ParticleParameters.partial_charge,
+    PARTICLE_PARAM_KEY,
+    '.partial_charge',
+    unit='elementary_charge',
+)
+add_mapping_annotation(
+    force_field.ParticleParameters.effective_mass,
+    PARTICLE_PARAM_KEY,
+    '.effective_mass',
+    unit='amu',
+)
 
 
 try:

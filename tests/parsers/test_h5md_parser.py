@@ -18,6 +18,8 @@
 
 # tests/parsers/test_h5md_parser.py
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from nomad import utils
@@ -368,6 +370,14 @@ def assert_workflow(archive: EntryArchive) -> None:
     sec_workflow = archive.workflow2
     sec_workflow_results = sec_workflow.results
 
+    # TODO: Adjust after permanent recursion bug fix.
+    # Regression: after normalization tasks must be shallow (no nested tasks).
+    # Recursive parsing would produce MolecularDynamics nested inside each task.
+    for task in sec_workflow.tasks:
+        assert not any(
+            hasattr(inp, 'tasks') and inp.tasks for inp in (task.inputs or [])
+        )
+
     assert_md_method(sec_workflow)
     assert_thermostats_barostats_shear(sec_workflow)
     assert_radial_distribution_functions(sec_workflow_results)
@@ -379,11 +389,20 @@ def assert_workflow(archive: EntryArchive) -> None:
 
 def test_md(parser):
     archive = EntryArchive()
+    mainfile = (
+        Path(__file__).resolve().parents[1]
+        / 'data'
+        / 'h5md'
+        / 'test_traj_openmm_reduced-SOL_5frames_07-10-25.h5'
+    )
     parser.parse(
-        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        str(mainfile),
         archive,
         None,
     )
+    # Regression: parser must not populate tasks (would cause infinite recursion).
+    # Tasks are filled post-parse by the workflow normalizer from outputs.
+    assert archive.workflow2.tasks == []
     normalize_all(archive, logger=logger)
 
     assert_h5md_header(archive)

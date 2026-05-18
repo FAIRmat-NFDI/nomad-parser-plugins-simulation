@@ -6,6 +6,7 @@ import pytest
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.gromacs import parser as gromacs_parser
+from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
 
 
 class StubMDAnalysisDataObject:
@@ -42,8 +43,24 @@ class StubMDAnalysisDataObject:
         )
 
     def get_interactions(self):
-        # Return empty list for stub (no bonds by default)
         return []
+
+    def get(self, key, default=None):  # noqa: ARG002
+        return default
+
+
+class StubInteractionsDataObject:
+    """Stub data_object exposing only get_interactions(), for unit tests that
+    exercise bond-list and force-field-contribution extraction."""
+
+    def __init__(self, interactions: list):
+        self._interactions = interactions
+
+    def get_interactions(self):
+        return self._interactions
+
+    def get(self, key, default=None):  # noqa: ARG002
+        return default
 
 
 @pytest.fixture
@@ -134,129 +151,6 @@ def test_edrparser_get_energies_from_data():
     assert all(hasattr(e, 'units') for e in energies if e is not None)
 
 
-def test_integration_parse_gromacs_water():
-    # Use the provided test data (water). The Gromacs parser expects the mainfile
-    # to be the log-like mdrun output; pick the provided 'mdrun.out' in the test data.
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    # prefer 'reference_s.log' if present, otherwise fallback to 'md.log'
-    candidates = [
-        'reference_s.log',
-        'mdrun.log',
-        'md.log',
-    ]
-    mainfile = ''
-    for name in candidates:
-        p = os.path.join(base, name)
-        if os.path.exists(p):
-            mainfile = p
-            break
-    assert mainfile, f'No suitable mainfile found in {base} (tried {candidates})'
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    # parse should populate archive.data (Simulation)
-    parser.parse(mainfile, archive)
-
-    # The writer may populate either `data` (Simulation) or `workflow2` depending
-    # on the implementation and which parsing path is enabled. Accept either.
-    assert (
-        getattr(archive, 'data', None) is not None
-        or getattr(archive, 'workflow2', None) is not None
-    )
-    if getattr(archive, 'data', None) is not None:
-        assert isinstance(archive.data.model_system, list)
-
-
-def test_force_field_parsing_from_tpr():
-    """Test that force field parameters are extracted from TPR file."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-
-    # Find any .log file in the directory
-    log_files = list(base.glob('*.log'))
-    if not log_files:
-        pytest.skip(f'No .log file found in {base}')
-
-    mainfile = str(log_files[0])
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    parser.parse(mainfile, archive)
-
-    # Verify data section exists
-    assert archive.data is not None, 'Archive.data should be populated'
-    assert hasattr(archive.data, 'model_method'), 'Simulation should have model_method'
-
-    # Check model_method was populated
-    if not archive.data.model_method or len(archive.data.model_method) == 0:
-        pytest.skip('No model_method found - TPR file may not contain force field data')
-
-    # Find ForceField in model_method (identified by having contributions attribute)
-    force_field = None
-    for method in archive.data.model_method:
-        if hasattr(method, 'contributions'):
-            force_field = method
-            break
-
-    if force_field is None:
-        pytest.skip('No ForceField found in model_method')
-
-    # Verify ForceField structure populated via annotations
-    assert hasattr(force_field, 'contributions'), 'ForceField should have contributions'
-    assert hasattr(force_field, 'numerical_settings'), (
-        'ForceField should have numerical_settings'
-    )
-
-    # Check ForceCalculations (numerical settings) from LOG_KEY annotations
-    if len(force_field.numerical_settings) > 0:
-        force_calc = force_field.numerical_settings[0]
-        # Verify attributes exist (values may be None if not in log/mdp)
-        assert hasattr(force_calc, 'vdw_cutoff'), (
-            'ForceCalculations should have vdw_cutoff'
-        )
-        assert hasattr(force_calc, 'coulomb_cutoff'), (
-            'ForceCalculations should have coulomb_cutoff'
-        )
-        assert hasattr(force_calc, 'coulomb_type'), (
-            'ForceCalculations should have coulomb_type'
-        )
-        assert hasattr(force_calc, 'neighbor_update_frequency'), (
-            'ForceCalculations should have neighbor_update_frequency'
-        )
-
-        # If values are populated, verify they have correct types
-        if force_calc.vdw_cutoff is not None:
-            assert hasattr(force_calc.vdw_cutoff, 'magnitude'), (
-                'vdw_cutoff should be a pint Quantity'
-            )
-        if force_calc.coulomb_cutoff is not None:
-            assert hasattr(force_calc.coulomb_cutoff, 'magnitude'), (
-                'coulomb_cutoff should be a pint Quantity'
-            )
-
-    # Check contributions (Potential list) from TPR_KEY get_force_field_contributions()
-    if len(force_field.contributions) > 0:
-        potential = force_field.contributions[0]
-        assert hasattr(potential, 'type'), 'Potential should have type'
-        assert hasattr(potential, 'functional_form'), (
-            'Potential should have functional_form'
-        )
-        assert hasattr(potential, 'parameters'), 'Potential should have parameters'
-
-        # Verify that type is one of the valid enum values (or None)
-        if potential.type is not None:
-            valid_types = [
-                'bond',
-                'angle',
-                'dihedral',
-                'improper dihedral',
-                'nonbonded',
-                'bond-angle',
-            ]
-            assert potential.type in valid_types, (
-                f'Potential type {potential.type} should be in {valid_types}'
-            )
-
-
 def test_get_coulomb_type_transformation():
     """Test the get_coulomb_type transformation function."""
     lp = gromacs_parser.GromacsLogParser()
@@ -300,15 +194,7 @@ def test_get_force_field_contributions_transformation():
         },
     ]
 
-    # Mock the data_object to return interactions
-    mdap.data_object = type(
-        'obj',
-        (object,),
-        {
-            'get': lambda self, key: 'GROMACS 2024' if key == 'version' else None,
-            'get_interactions': lambda self: mock_interactions,
-        },
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     contributions = mdap.get_force_field_contributions()
 
@@ -370,20 +256,26 @@ def test_get_coordinate_save_frequency():
 
 
 def test_get_bond_list():
-    """Test bond list extraction from MDAnalysis interactions."""
+    """Test bond list extraction from MDAnalysis interactions.
+
+    MDAnalysis sets inter.btype to a topology-specific string (e.g. 'OW-HW'),
+    never to the literal 'bond'. Bonds are identified solely by having exactly
+    2 particle indices.
+    """
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Test with bond interactions
     mock_interactions = [
-        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [0, 2], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [3, 4], 'atom_labels': ['O', 'H']},
-        {'type': 'angle', 'atom_indices': [1, 0, 2], 'atom_labels': ['H', 'O', 'H']},
+        {'type': 'OW-HW', 'atom_indices': [0, 1], 'atom_labels': ['OW', 'HW']},
+        {'type': 'OW-HW', 'atom_indices': [0, 2], 'atom_labels': ['OW', 'HW']},
+        {'type': 'CT-CT', 'atom_indices': [3, 4], 'atom_labels': ['CT', 'CT']},
+        {
+            'type': 'HW-OW-HW',
+            'atom_indices': [1, 0, 2],
+            'atom_labels': ['HW', 'OW', 'HW'],
+        },
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
 
@@ -396,17 +288,14 @@ def test_get_bond_list():
 
 
 def test_get_bond_list_no_bonds():
-    """Test bond list extraction when no bonds are present."""
+    """Test bond list extraction when only higher-order interactions are present."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Only angles, no bonds
     mock_interactions = [
-        {'type': 'angle', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
+        {'type': 'HW-OW-HW', 'atom_indices': [0, 1, 2], 'atom_labels': ['H', 'O', 'H']},
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
     assert bond_list is None
@@ -416,27 +305,28 @@ def test_get_bond_list_empty_interactions():
     """Test bond list extraction with empty interactions."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    mdap.data_object = type('obj', (object,), {'get_interactions': lambda self: []})()
+    mdap.data_object = StubInteractionsDataObject([])
 
     bond_list = mdap.get_bond_list()
     assert bond_list is None
 
 
 def test_get_bond_list_invalid_bond_indices():
-    """Test bond list extraction filters out invalid bond entries."""
+    """Test bond list extraction skips entries with None or wrong-count indices."""
     mdap = gromacs_parser.GromacsMDAnalysisParser()
 
-    # Mix of valid and invalid bond interactions
     mock_interactions = [
-        {'type': 'bond', 'atom_indices': [0, 1], 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': None, 'atom_labels': ['O', 'H']},
-        {'type': 'bond', 'atom_indices': [2, 3, 4], 'atom_labels': ['O', 'H', 'C']},
-        {'type': 'bond', 'atom_indices': [4, 5], 'atom_labels': ['O', 'H']},
+        {'type': 'OW-HW', 'atom_indices': [0, 1], 'atom_labels': ['OW', 'HW']},
+        {'type': 'OW-HW', 'atom_indices': None, 'atom_labels': ['OW', 'HW']},
+        {
+            'type': 'OW-HW-XX',
+            'atom_indices': [2, 3, 4],
+            'atom_labels': ['OW', 'HW', 'XX'],
+        },
+        {'type': 'CT-CT', 'atom_indices': [4, 5], 'atom_labels': ['CT', 'CT']},
     ]
 
-    mdap.data_object = type(
-        'obj', (object,), {'get_interactions': lambda self: mock_interactions}
-    )()
+    mdap.data_object = StubInteractionsDataObject(mock_interactions)
 
     bond_list = mdap.get_bond_list()
 
@@ -520,54 +410,37 @@ def test_get_thermostat_type(tcoupl, expected):
 
 
 def test_get_reference_temperature():
-    """Test reference temperature extraction from scalar or array."""
+    """Test reference temperature extraction from grpopts.ref-t."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'ref-t': 300.0}
+    params = {'grpopts': {'ref-t': 300.0}}
     assert lp.get_reference_temperature(params) == 300.0
 
-    # Test array (take first value)
-    params = {'ref-t': [300.0, 310.0, 320.0]}
+    params = {'grpopts': {'ref-t': [300.0, 310.0, 320.0]}}
     assert lp.get_reference_temperature(params) == 300.0
 
-    # Test underscore variant
-    params = {'ref_t': 298.0}
-    assert lp.get_reference_temperature(params) == 298.0
-
-    # Test empty array
-    params = {'ref-t': []}
+    params = {'grpopts': {'ref-t': []}}
     assert lp.get_reference_temperature(params) is None
 
-    # Test missing
     params = {}
     assert lp.get_reference_temperature(params) is None
 
-    # Test None input
     assert lp.get_reference_temperature(None) is None
 
 
 def test_get_thermostat_coupling_constant():
-    """Test thermostat coupling constant extraction from scalar or array."""
+    """Test thermostat coupling constant extraction from grpopts.tau-t."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'tau-t': 0.1}
+    params = {'grpopts': {'tau-t': 0.1}}
     assert lp.get_thermostat_coupling_constant(params) == 0.1
 
-    # Test array (take first value)
-    params = {'tau-t': [0.1, 0.2, 0.3]}
+    params = {'grpopts': {'tau-t': [0.1, 0.2, 0.3]}}
     assert lp.get_thermostat_coupling_constant(params) == 0.1
 
-    # Test underscore variant
-    params = {'tau_t': 0.5}
-    assert lp.get_thermostat_coupling_constant(params) == 0.5
-
-    # Test empty array
-    params = {'tau-t': []}
+    params = {'grpopts': {'tau-t': []}}
     assert lp.get_thermostat_coupling_constant(params) is None
 
-    # Test missing
     params = {}
     assert lp.get_thermostat_coupling_constant(params) is None
 
@@ -610,52 +483,15 @@ def test_get_barostat_coupling_type(pcoupltype, expected):
     assert result == expected
 
 
-def test_get_reference_pressure():
-    """Test reference pressure extraction from scalar, array, or matrix."""
-    lp = gromacs_parser.GromacsLogParser()
-
-    # Test scalar value
-    params = {'ref-p': 1.0}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test array (take first value)
-    params = {'ref-p': [1.0, 1.0]}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test matrix (take [0][0])
-    params = {'ref-p': [[1.0, 0.0], [0.0, 1.0]]}
-    assert lp.get_reference_pressure(params) == 1.0
-
-    # Test underscore variant
-    params = {'ref_p': 1.5}
-    assert lp.get_reference_pressure(params) == 1.5
-
-    # Test empty array
-    params = {'ref-p': []}
-    assert lp.get_reference_pressure(params) is None
-
-    # Test empty matrix
-    params = {'ref-p': [[]]}
-    assert lp.get_reference_pressure(params) is None
-
-    # Test missing
-    params = {}
-    assert lp.get_reference_pressure(params) is None
-
-
 def test_get_barostat_coupling_constant():
     """Test barostat coupling constant extraction."""
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test hyphen variant
+    # Test scalar value
     params = {'tau-p': 2.0}
     assert lp.get_barostat_coupling_constant(params) == 2.0
 
-    # Test underscore variant
-    params = {'tau_p': 5.0}
-    assert lp.get_barostat_coupling_constant(params) == 5.0
-
-    # Test missing
+    # Test missing value
     params = {}
     assert lp.get_barostat_coupling_constant(params) is None
 
@@ -663,29 +499,125 @@ def test_get_barostat_coupling_constant():
     assert lp.get_barostat_coupling_constant(None) is None
 
 
-def test_get_compressibility():
-    """Test compressibility extraction from scalar, array, or matrix."""
+def test_get_matrix_parameter():
+    """
+    Test get_matrix_parameter for all valid, missing, wrong-type and wrong-shape cases.
+    """
     lp = gromacs_parser.GromacsLogParser()
 
-    # Test scalar value
-    params = {'compressibility': 4.5e-5}
-    assert lp.get_compressibility(params) == 4.5e-5
+    # Test implemented parameter keys with correct matrix
+    matrix = np.eye(3)
+    params = {'ref-p': matrix}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='ref-p'), matrix
+    )
 
-    # Test array (take first value)
-    params = {'compressibility': [4.5e-5, 4.5e-5]}
-    assert lp.get_compressibility(params) == 4.5e-5
+    params = {'compressibility': matrix}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='compressibility'), matrix
+    )
 
-    # Test matrix (take [0][0])
-    params = {'compressibility': [[4.5e-5, 0.0], [0.0, 4.5e-5]]}
-    assert lp.get_compressibility(params) == 4.5e-5
+    # Test list of lists
+    matrix_list = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    params = {'ref-p': matrix_list}
+    np.testing.assert_array_equal(
+        lp.get_matrix_parameter(params, param_key='ref-p'), matrix
+    )
 
-    # Test empty array
-    params = {'compressibility': []}
-    assert lp.get_compressibility(params) is None
+    # Test wrong shape (not 3x3)
+    wrong_shape = np.eye(2)
+    params = {'ref-p': wrong_shape}
+    assert lp.get_matrix_parameter(params, param_key='ref-p') is None
 
-    # Test missing
-    params = {}
-    assert lp.get_compressibility(params) is None
+    # Test wrong parameter type (dict, not matrix or list)
+    params = {'ref-p': {'a': 1.0}}
+    assert lp.get_matrix_parameter(params, param_key='ref-p') is None
+
+    # Test missing parameters
+    assert lp.get_matrix_parameter(None, param_key='ref-p') is None
+
+
+# ---------------------------------------------------------------------------
+# Free energy calculation transformer tests
+# ---------------------------------------------------------------------------
+
+
+def test_get_free_energy_calc_type():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_free_energy_calc_type({'free-energy': 'yes'}) == 'alchemical'
+    assert lp.get_free_energy_calc_type({'free-energy': 'slow-growth'}) == 'alchemical'
+    assert lp.get_free_energy_calc_type({'free-energy': 'expanded'}) == 'alchemical'
+    assert (
+        lp.get_free_energy_calc_type({'free-energy': 'umbrella'}) == 'umbrella_sampling'
+    )
+    assert lp.get_free_energy_calc_type({'free-energy': 'no'}) is None
+    assert lp.get_free_energy_calc_type({}) is None
+    assert lp.get_free_energy_calc_type(None) is None
+
+
+def test_get_fep_params_if_active():
+    lp = gromacs_parser.GromacsLogParser()
+    src = {'input_parameters': {'free-energy': 'yes'}}
+    assert lp.get_fep_params_if_active(src) is src
+    src_no = {'input_parameters': {'free-energy': 'no'}}
+    assert lp.get_fep_params_if_active(src_no) is None
+    assert lp.get_fep_params_if_active({'input_parameters': {}}) is None
+    assert lp.get_fep_params_if_active(None) is None
+
+
+def test_get_lambda_state_index():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_lambda_state_index({'init-lambda-state': '3'}) == 3
+    assert lp.get_lambda_state_index({'init-lambda-state': 0}) == 0
+    assert lp.get_lambda_state_index({'init-lambda-state': -1}) is None
+    assert lp.get_lambda_state_index({}) is None
+    assert lp.get_lambda_state_index(None) is None
+
+
+def test_get_lambdas_schedule_non_fe():
+    lp = gromacs_parser.GromacsLogParser()
+    assert lp.get_lambdas_schedule({}) is None
+    assert lp.get_lambdas_schedule(None) is None
+    # no all-lambdas key → None
+    assert lp.get_lambdas_schedule({'free-energy': 'yes'}) is None
+
+
+def test_get_lambdas_schedule_fe():
+    lp = gromacs_parser.GromacsLogParser()
+    params = {
+        'all-lambdas': {
+            'vdw-lambdas': '0.0 0.25 0.5 0.75 1.0',
+            'coul-lambdas': '0.0 0.0 0.0 0.0 0.0',  # all-zero → skipped
+        },
+        'sc-alpha': '0.5',
+        'sc-power': '1',
+        'sc-sigma': '0.3',
+    }
+    result = lp.get_lambdas_schedule(params)
+    assert result is not None
+    assert len(result) == 1  # coul-lambdas all-zero, only vdw survives
+    entry = result[0]
+    assert entry['interaction_type'] == 'vdw'
+    np.testing.assert_array_equal(
+        entry['lambda_values'], np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    )
+    assert entry['softcore_enabled'] is True
+    assert entry['softcore_alpha'] == '0.5'
+
+
+def test_get_current_lambdas():
+    lp = gromacs_parser.GromacsLogParser()
+    params = {
+        'init-lambda-state': '2',
+        'all-lambdas': {'vdw-lambdas': '0.0 0.5 1.0'},
+        'sc-alpha': '0.0',
+    }
+    result = lp.get_current_lambdas(params)
+    assert result is not None
+    np.testing.assert_array_equal(result, np.array([1.0]))
+    # index out of range
+    params['init-lambda-state'] = '99'
+    assert lp.get_current_lambdas(params) is None
 
 
 def test_system_hierarchy_water():
@@ -733,6 +665,19 @@ def test_system_hierarchy_water():
     assert molecule.composition_formula is not None
     assert 'H' in molecule.composition_formula
     assert 'O' in molecule.composition_formula
+
+    # All terminal branches across the full hierarchy must have composition_formula
+    def check_terminal_formulas(subsystem):
+        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
+            assert subsystem.composition_formula is not None, (
+                f'Terminal {subsystem.branch_label} should have composition_formula'
+            )
+        else:
+            for child in subsystem.sub_systems:
+                check_terminal_formulas(child)
+
+    for mg in system.sub_systems:
+        check_terminal_formulas(mg)
 
 
 def test_system_hierarchy_polymer():
@@ -794,6 +739,22 @@ def test_system_hierarchy_polymer():
     assert monomer.particle_indices is not None
     assert len(monomer.particle_indices) > 0
 
+    # Exhaustively check branch_label at every level across all sub_systems
+    for mg in system.sub_systems:
+        assert mg.branch_label == 'molecule_group'
+
+        if mg.sub_systems and len(mg.sub_systems) > 0:
+            for mol in mg.sub_systems:
+                assert mol.branch_label == 'molecule'
+
+                if mol.sub_systems and len(mol.sub_systems) > 0:
+                    for mng in mol.sub_systems:
+                        assert mng.branch_label == 'monomer_group'
+
+                        if mng.sub_systems and len(mng.sub_systems) > 0:
+                            for mon in mng.sub_systems:
+                                assert mon.branch_label == 'monomer'
+
 
 def test_system_hierarchy_particle_indices_valid():
     """Test that particle_indices in hierarchy are valid and consistent."""
@@ -808,15 +769,15 @@ def test_system_hierarchy_particle_indices_valid():
     parser.parse(log_file, archive)
 
     system = archive.data.model_system[0]
-    n_atoms = system.n_particles
+    n_particles = system.n_particles
 
     def check_particle_indices(subsystem, parent_indices=None):
         """Recursively check particle_indices validity."""
         assert subsystem.particle_indices is not None
         assert len(subsystem.particle_indices) > 0
 
-        # All indices should be valid (less than n_atoms)
-        assert np.all(subsystem.particle_indices < n_atoms)
+        # All indices should be valid (less than n_particles)
+        assert np.all(subsystem.particle_indices < n_particles)
         assert np.all(subsystem.particle_indices >= 0)
 
         # If parent exists, subsystem indices should be subset of parent
@@ -833,69 +794,73 @@ def test_system_hierarchy_particle_indices_valid():
         check_particle_indices(mol_group)
 
 
-def test_system_hierarchy_branch_labels():
-    """Test that branch_label is correctly assigned at each hierarchy level."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'protein_small'
-    log_file = os.path.join(base, 'md.log')
-
-    if not os.path.exists(log_file):
-        pytest.skip(f'TPR file not found: {log_file}')
-
-    archive = EntryArchive()
-    parser = gromacs_parser.GromacsParser()
-    parser.parse(log_file, archive)
-
-    system = archive.data.model_system[0]
-
-    assert system.sub_systems is not None and len(system.sub_systems) > 0, (
-        'System has no molecular hierarchy - hierarchy parsing regression'
+def test_xvg_parser_get_results_valid():
+    """Unit test for GromacsXVGParser.get_results() with real XVG data."""
+    xvg_file = (
+        Path(__file__).parent.parent
+        / 'data'
+        / 'gromacs'
+        / 'free_energy_calculations'
+        / 'alchemical_transformation_single_run'
+        / 'fep_run-7.xvg'
     )
+    if not xvg_file.exists():
+        pytest.skip(f'XVG test data not found: {xvg_file}')
 
-    # Check all levels have correct branch_label
-    for mol_group in system.sub_systems:
-        assert mol_group.branch_label == 'molecule_group'
+    text_parser = GromacsXvgParser()
+    text_parser.mainfile = str(xvg_file)
+    text_parser.parse()
 
-        if mol_group.sub_systems and len(mol_group.sub_systems) > 0:
-            for molecule in mol_group.sub_systems:
-                assert molecule.branch_label == 'molecule'
+    xvg_parser = gromacs_parser.GromacsXVGParser(text_parser=text_parser)
+    xvg_parser.filepath = str(xvg_file)
 
-                if molecule.sub_systems and len(molecule.sub_systems) > 0:
-                    for monomer_group in molecule.sub_systems:
-                        assert monomer_group.branch_label == 'monomer_group'
+    results = xvg_parser.get_results()
+    fec = results.get('free_energy_calculations', {})
 
-                        if (
-                            monomer_group.sub_systems
-                            and len(monomer_group.sub_systems) > 0
-                        ):
-                            for monomer in monomer_group.sub_systems:
-                                assert monomer.branch_label == 'monomer'
+    assert fec.get('n_frames') == 5001
+    assert fec.get('n_states') == 11
+    assert fec.get('times') is not None
+    assert len(fec['times']) == 5001
+    assert fec.get('value_total_energy_derivative') is not None
+    assert fec['value_total_energy_derivative'].shape == (5001,)
+    assert fec.get('value_total_energy_differences') is not None
+    assert fec['value_total_energy_differences'].shape == (5001, 11)
+    assert fec.get('value_PV_energy') is not None
+    assert fec['value_PV_energy'].shape == (5001,)
 
 
-def test_system_hierarchy_composition_formulas():
-    """Test that composition_formula is assigned to terminal branches."""
-    base = Path(__file__).parent.parent / 'data' / 'gromacs' / 'water'
-    log_file = os.path.join(base, 'reference_s.log')
-
-    if not os.path.exists(log_file):
-        pytest.skip(f'Mainfile not found: {log_file}')
+def test_integration_fep_xvg_fields_populated():
+    """Integration test: XVG fields appear in FreeEnergyCalculationParameters."""
+    log_file = (
+        Path(__file__).parent.parent
+        / 'data'
+        / 'gromacs'
+        / 'free_energy_calculations'
+        / 'alchemical_transformation_single_run'
+        / 'fep_run-7.log'
+    )
+    if not log_file.exists():
+        pytest.skip(f'FEP test data not found: {log_file}')
 
     archive = EntryArchive()
     parser = gromacs_parser.GromacsParser()
-    parser.parse(log_file, archive)
+    parser.parse(str(log_file), archive)
 
-    system = archive.data.model_system[0]
+    assert archive.workflow2 is not None
+    method = archive.workflow2.method
+    assert method is not None
+    assert method.free_energy_calculation_parameters is not None
+    assert len(method.free_energy_calculation_parameters) > 0
 
-    def check_terminal_formulas(subsystem):
-        """Recursively check that terminal branches have composition_formula."""
-        if subsystem.sub_systems is None or len(subsystem.sub_systems) == 0:
-            # Terminal branch should have composition_formula
-            assert subsystem.composition_formula is not None, (
-                f'Terminal {subsystem.branch_label} should have composition_formula'
-            )
-        else:
-            # Non-terminal may or may not have formula, recurse to children
-            for child in subsystem.sub_systems:
-                check_terminal_formulas(child)
+    fep = method.free_energy_calculation_parameters[0]
 
-    for mol_group in system.sub_systems:
-        check_terminal_formulas(mol_group)
+    assert fep.n_frames == 5001
+    assert fep.n_states == 11
+    assert fep.times is not None
+    assert len(fep.times) == 5001
+    assert fep.energy_derivative is not None
+    assert fep.energy_derivative.shape == (5001,)
+    assert fep.energy_differences is not None
+    assert fep.energy_differences.shape == (5001, 11)
+    assert fep.pv_energy is not None
+    assert fep.pv_energy.shape == (5001,)

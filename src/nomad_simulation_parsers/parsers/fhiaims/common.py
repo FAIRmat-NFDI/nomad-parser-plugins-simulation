@@ -99,4 +99,6 @@ class ControlParser(TextParser):
                 str_operation=str_to_supercell,
             ),
             Quantity('nac', r'\n *phonon nac\s*(.+)', str_operation=str_to_nac),
+            Quantity('k_grid', r'\n *k_grid\s*([\d ]+)', dtype=np.int32),
+            Quantity('k_offset', r'\n *k_offset\s*([-+\d\. ]+)', dtype=np.float64),
         ]

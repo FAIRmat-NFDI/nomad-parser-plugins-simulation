@@ -105,7 +105,9 @@ class LammpsArchiveWriter(MDParser):
         if n_traj is None:
             return False
 
-        self.n_atoms = [self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)]
+        self.n_particles = [
+            self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)
+        ]
         self.trajectory_steps = [
             step
             for n in range(n_traj)
@@ -302,7 +304,7 @@ class LammpsArchiveWriter(MDParser):
             ]
 
             particles_elements = np.array(
-                particles_info.get('elements', ['CGX'] * self.n_atoms)
+                particles_info.get('elements', ['CGX'] * self.n_particles)
             )
             particles_types = np.array(particles_info.get('types', []))
 
@@ -553,7 +555,7 @@ class LammpsArchiveWriter(MDParser):
         else:
             # TODO: Assumes the extension is always a valid lammps dump format, improve
             # Fallback to file extension
-            file_type = traj_file.split('.', 1)[-1]
+            file_type = traj_file.rsplit('.', maxsplit=1)[-1]
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:

@@ -129,7 +129,8 @@ class GromacsLogParser(TextParser):
                 r'rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
             ),
             Quantity(
-                'module_version', r'GROMACS:\s*(.+?),\s*VERSION\s*(\S+)', flatten=False
+                'version',
+                r'GROMACS(?:\s+version[:\s]+|:\s*.+?,\s*[Vv]ersion\s+)(\S+)',
             ),
             Quantity('execution_path', r'Executable:\s*(.+)'),
             Quantity('working_path', r'Data prefix:\s*(.+)'),
@@ -149,7 +150,7 @@ class GromacsLogParser(TextParser):
                 r'Input Parameters:\s*\n([\s\S]+?)\n\n',
                 str_operation=str_to_input_parameters,
             ),
-            Quantity('maximum_force', r'Norm of force\s*([\s\S]+?)\n\n', flatten=False),
+            Quantity('maximum_force', r'Maximum force\s*=\s*([\d.eE+\-]+)'),
             Quantity(
                 'step',
                 r'(Step\s*Time[\s\S]+?Energies[\s\S]+?\n\n)',

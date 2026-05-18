@@ -12,6 +12,9 @@ from nomad.parsing.file_parser.mapping_parser import (
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.force_field import (
+    ParticleParametersContainer,
+)
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -72,7 +75,7 @@ class GromacsThermodynamicsParser(MappingParser):
         times = source.get('Time', [])
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
-            data = dict(
+            data: dict[str, Any] = dict(
                 step=step,
                 time=times[n] * ureg.picosecond if times[n] is not None else None,
             )
@@ -89,7 +92,11 @@ class GromacsThermodynamicsParser(MappingParser):
                             'contributions', []
                         ).append(dict(value=val_n, label=self._energy_label_map[key]))
                 elif key in self._base_calc_unit_map:
-                    data[key] = val[n] * self._base_calc_unit_map[key]
+                    val_n = val[n] * self._base_calc_unit_map[key]
+                    if key == 'Temperature':
+                        data['temperatures'] = [{'value': val_n, 'name': 'Temperature'}]
+                    else:
+                        data[key] = val_n
             if step in self._trajectory_steps:
                 data['system_ref'] = (
                     f'/data/model_system/{self._trajectory_steps.index(step)}'
@@ -119,6 +126,22 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
     def __init__(self, **kwargs):
         self._trajectory_steps_sampled: list[int] = []
+        self._FREE_ENERGY_CALC_TYPE_MAP = {
+            'yes': 'alchemical',
+            'slow-growth': 'alchemical',
+            'expanded': 'alchemical',
+            'umbrella': 'umbrella_sampling',
+        }
+        # Maps GROMACS all-lambdas keys to Lambdas.interaction_type values.
+        self._LAMBDA_INTERACTION_MAP = {
+            'fep-lambdas': 'fep',
+            'mass-lambdas': 'mass',
+            'coul-lambdas': 'coulomb',
+            'vdw-lambdas': 'vdw',
+            'bonded-lambdas': 'bonded',
+            'restraint-lambdas': 'restraint',
+            'temperature-lambdas': 'temperature',
+        }
         super().__init__(**kwargs)
 
     # TODO: temporary fix for structlog unable to propagate logger
@@ -141,12 +164,30 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
         input_parameters = data_object.get('input_parameters') or {}
         normalize(input_parameters)
+
+        # GROMACS log files may place top-level parameters inside named
+        # subsection blocks (e.g. `qm-opts:`) due to indentation structure.
+        # Lift any scalar values from nested subsections to the top level so
+        # that transformer functions can access them via flat key lookup.
+        # Existing top-level keys are never overwritten.
+        def _hoist_nested(d: dict[str, Any]) -> None:
+            for val in list(d.values()):
+                if isinstance(val, dict):
+                    _hoist_nested(val)
+                    for k, v in val.items():
+                        if not isinstance(v, dict) and k not in input_parameters:
+                            input_parameters[k] = v
+
+        _hoist_nested(input_parameters)
         data_object._results['input_parameters'] = input_parameters
 
         return data_object
 
-    def get_version(self, source: str) -> str:
-        return (source or 'unknown').lstrip('VERSION')
+    def get_version(self, source: str | float | None) -> str | None:
+        result = None
+        if source is not None:
+            result = str(source).lstrip('VERSION').strip() or None
+        return result
 
     def get_configurations(self):
         pbc = [
@@ -175,7 +216,7 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         outputs = super().get_outputs(data)
         return outputs
 
-    def get_integrator_type(self, integrator: str) -> str:
+    def get_integrator_type(self, integrator: str) -> str | None:
         integrator = (integrator or 'md').lower()
         integrator_map = {
             'steep': 'steepest_descent',
@@ -198,24 +239,20 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             else None
         )
 
-    def get_coulomb_type(self, coulombtype: str) -> str:
-        """Map GROMACS coulombtype to NOMAD schema enum."""
-        result = None
-        if not coulombtype:
-            return result
-
-        coulombtype_lower = coulombtype.lower().replace('_', '-')
-        coulomb_map = {
-            'cut-off': 'cutoff',
-            'cutoff': 'cutoff',
-            'ewald': 'ewald',
-            'pme': 'particle_mesh_ewald',
-            'p3m-ad': 'particle_particle_particle_mesh',
-            'reaction-field': 'reaction_field',
-            'reaction-field-zero': 'reaction_field',
-        }
-        result = coulomb_map.get(coulombtype_lower)
-        return result
+    def get_coulomb_type(self, coulombtype: str) -> str | None:
+        normalized = coulombtype.lower().replace('_', '-') if coulombtype else None
+        return self._map_enum(
+            normalized,
+            {
+                'cut-off': 'cutoff',
+                'cutoff': 'cutoff',
+                'ewald': 'ewald',
+                'pme': 'particle_mesh_ewald',
+                'p3m-ad': 'particle_particle_particle_mesh',
+                'reaction-field': 'reaction_field',
+                'reaction-field-zero': 'reaction_field',
+            },
+        )
 
     def get_coordinate_save_frequency(self, input_params: dict[str, Any]) -> int | None:
         """Get coordinate save frequency, preferring compressed output."""
@@ -258,118 +295,112 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return result
 
     def get_thermostat_type(self, tcoupl: str) -> str | None:
-        """Map GROMACS tcoupl to NOMAD thermostat_type enum."""
+        return self._map_enum(
+            tcoupl,
+            {
+                'berendsen': 'berendsen',
+                'nose-hoover': 'nose_hoover',
+                'v-rescale': 'velocity_rescaling',
+                'andersen': 'andersen',
+                'andersen-massive': 'andersen_massive',
+            },
+            skip=frozenset({'no'}),
+        )
+
+    @staticmethod
+    def _get_grpopts_scalar(input_params: dict[str, Any], key: str) -> Any:
+        """Read a scalar from grpopts[key], falling back to input_params[key].
+
+        Keys are stored with hyphens in grpopts and with underscores at the
+        top level after log normalization. When the value is a list (multiple
+        coupling groups), returns only the first element.
+        """
         result = None
-        if not tcoupl:
-            return result
-
-        tcoupl_lower = tcoupl.lower()
-        if tcoupl_lower == 'no':
-            return result
-
-        thermostat_map = {
-            'berendsen': 'berendsen',
-            'nose-hoover': 'nose_hoover',
-            'v-rescale': 'velocity_rescaling',
-            'andersen': 'andersen',
-            'andersen-massive': 'andersen_massive',
-        }
-        result = thermostat_map.get(tcoupl_lower)
+        if input_params:
+            grpopts = input_params.get('grpopts') or {}
+            val = grpopts.get(key) or input_params.get(key.replace('-', '_'))
+            if val is not None:
+                result = val[0] if isinstance(val, list) and len(val) > 0 else val
         return result
 
     def get_reference_temperature(self, input_params: dict[str, Any]) -> float | None:
-        """Extract reference temperature from ref_t (handle scalar or array)."""
-        result = None
-        if not input_params:
-            return result
-
-        ref_t = input_params.get('ref-t') or input_params.get('ref_t')
-        if ref_t is None:
-            return result
-
-        # Handle array (take first value) or scalar
-        if isinstance(ref_t, list):
-            result = ref_t[0] if len(ref_t) > 0 else None
-        else:
-            result = ref_t
-
-        return result
+        return self._get_grpopts_scalar(input_params, 'ref-t')
 
     def get_thermostat_coupling_constant(
         self, input_params: dict[str, Any]
     ) -> float | None:
-        """Extract thermostat coupling constant from tau_t (handle scalar or array)."""
+        return self._get_grpopts_scalar(input_params, 'tau-t')
+
+    @staticmethod
+    def _map_enum(
+        value: str | None,
+        mapping: dict[str, str],
+        skip: frozenset[str] = frozenset(),
+    ) -> str | None:
         result = None
-        if not input_params:
-            return result
-
-        tau_t = input_params.get('tau-t') or input_params.get('tau_t')
-        if tau_t is None:
-            return result
-
-        # Handle array (take first value) or scalar
-        if isinstance(tau_t, list):
-            result = tau_t[0] if len(tau_t) > 0 else None
-        else:
-            result = tau_t
-
+        if value:
+            lowered = value.lower()
+            if lowered not in skip:
+                result = mapping.get(lowered)
         return result
 
     def get_barostat_type(self, pcoupl: str) -> str | None:
-        """Map GROMACS pcoupl to NOMAD barostat_type enum."""
-        result = None
-        if not pcoupl:
-            return result
-
-        pcoupl_lower = pcoupl.lower()
-        if pcoupl_lower == 'no':
-            return result
-
-        barostat_map = {
-            'berendsen': 'berendsen',
-            'parrinello-rahman': 'parrinello_rahman',
-            'mttk': 'mttk',
-            'c-rescale': 'c_rescale',
-        }
-        result = barostat_map.get(pcoupl_lower)
-        return result
+        return self._map_enum(
+            pcoupl,
+            {
+                'berendsen': 'berendsen',
+                'parrinello-rahman': 'parrinello_rahman',
+                'mttk': 'mttk',
+                'c-rescale': 'c_rescale',
+            },
+            skip=frozenset({'no'}),
+        )
 
     def get_barostat_coupling_type(self, pcoupltype: str) -> str | None:
-        """Map GROMACS pcoupltype to NOMAD coupling_type enum."""
-        result = None
-        if not pcoupltype:
-            return result
+        return self._map_enum(
+            pcoupltype,
+            {
+                'isotropic': 'isotropic',
+                'semiisotropic': 'semi_isotropic',
+                'anisotropic': 'anisotropic',
+                'surface-tension': 'surface_tension',
+            },
+        )
 
-        pcoupltype_lower = pcoupltype.lower()
-        coupling_map = {
-            'isotropic': 'isotropic',
-            'semiisotropic': 'semi_isotropic',
-            'anisotropic': 'anisotropic',
-            'surface-tension': 'surface_tension',
-        }
-        result = coupling_map.get(pcoupltype_lower)
-        return result
-
-    def get_reference_pressure(self, input_params: dict[str, Any]) -> float | None:
-        """Extract reference pressure from ref_p (handle scalar or matrix)."""
+    def get_matrix_parameter(
+        self, input_params: dict[str, Any], param_key: str
+    ) -> np.ndarray | None:
+        """Extract a (3,3) matrix parameter (e.g. ref-p, compressibility)."""
         result = None
         if not input_params:
             return result
-
-        ref_p = input_params.get('ref-p') or input_params.get('ref_p')
-        if ref_p is None:
+        params = input_params.get(param_key)
+        if params is None:
             return result
 
-        # Handle matrix/array (take first value) or scalar
-        if isinstance(ref_p, list):
-            if isinstance(ref_p[0], list):
-                # Matrix: take [0][0]
-                result = ref_p[0][0] if len(ref_p) > 0 and len(ref_p[0]) > 0 else None
+        if isinstance(params, list):
+            if not all(isinstance(row, list) for row in params):
+                self.logger.warning('Not a matrix, not parsing', param_key=param_key)
+                params = None
             else:
-                # Array: take first value
-                result = ref_p[0] if len(ref_p) > 0 else None
-        else:
-            result = ref_p
+                params = np.array(params)
+        elif not isinstance(params, np.ndarray):
+            self.logger.warning(
+                'Wrong type, expected np.ndarray',
+                param_key=param_key,
+                param_type=type(params),
+            )
+            params = None
+
+        if params is not None and params.shape != (3, 3):
+            self.logger.warning(
+                'Wrong shape, expected (3, 3) matrix',
+                param_key=param_key,
+                actual_shape=params.shape,
+            )
+            params = None
+
+        result = params
 
         return result
 
@@ -381,35 +412,123 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         if not input_params:
             return result
 
-        tau_p = input_params.get('tau-p') or input_params.get('tau_p')
+        tau_p = input_params.get('tau-p')
         if tau_p is not None:
             result = tau_p
 
         return result
 
-    def get_compressibility(self, input_params: dict[str, Any]) -> float | None:
-        """Extract compressibility (handle scalar or matrix)."""
+    def get_free_energy_calc_type(
+        self, input_params: dict[str, Any] | None
+    ) -> str | None:
         result = None
         if not input_params:
             return result
-
-        compressibility = input_params.get('compressibility')
-        if compressibility is None:
+        value = input_params.get('free-energy')
+        if value is None:
             return result
+        result = self._FREE_ENERGY_CALC_TYPE_MAP.get(str(value).lower())
+        return result
 
-        # Handle matrix/array (take first value) or scalar
-        if isinstance(compressibility, list):
-            if len(compressibility) == 0:
-                result = None
-            elif isinstance(compressibility[0], list):
-                # Matrix: take [0][0]
-                result = compressibility[0][0] if len(compressibility[0]) > 0 else None
-            else:
-                # Array: take first value
-                result = compressibility[0]
-        else:
-            result = compressibility
+    def get_fep_params_if_active(
+        self, source: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        """Return source dict when free-energy is active, None otherwise.
 
+        Used as the mapper hook for free_energy_calculation_parameters so that
+        the section is only instantiated for FEP runs. Lambda-related data is
+        populated through the mapping transformer helpers (get_lambdas_schedule,
+        get_current_lambdas, get_lambda_state_index, get_free_energy_calc_type)
+        via LOG_KEY annotations on FreeEnergyCalculationParameters.
+        """
+        result = None
+        if not source:
+            return result
+        input_params = source.get('input_parameters') or {}
+        fe_value = input_params.get('free-energy')
+        if fe_value is not None and str(fe_value).lower() in (
+            self._FREE_ENERGY_CALC_TYPE_MAP
+        ):
+            result = source
+        return result
+
+    def get_lambdas_schedule(
+        self, input_params: dict[str, Any] | None
+    ) -> list[dict[str, Any]] | None:
+        """
+        Build one dict per non-zero interaction from the all-lambdas block.
+        Skips rows where all values are zero (inactive interactions).
+        """
+        result = None
+        if not input_params:
+            return result
+        all_lambdas = input_params.get('all-lambdas')
+        if not all_lambdas:
+            return result
+        softcore_enabled = float(input_params.get('sc-alpha', 0.0)) != 0.0
+        softcore = {
+            'softcore_enabled': softcore_enabled,
+            'softcore_alpha': input_params.get('sc-alpha'),
+            'softcore_p': input_params.get('sc-power'),
+            'softcore_sigma': input_params.get('sc-sigma'),
+        }
+        entries = []
+        for key, interaction_type in self._LAMBDA_INTERACTION_MAP.items():
+            raw = all_lambdas.get(key)
+            if raw is None:
+                continue
+            try:
+                values = np.array([float(v) for v in str(raw).split()])
+            except (TypeError, ValueError):
+                self.logger.warning(
+                    'Could not parse lambda grid.', key=key, raw_string=raw
+                )
+                continue
+            if not np.any(values != 0.0):
+                continue
+            entry: dict[str, Any] = {
+                'interaction_type': interaction_type,
+                'lambda_values': values,
+            }
+            entry.update(softcore)
+            entries.append(entry)
+        if entries:
+            result = entries
+        return result
+
+    def get_current_lambdas(
+        self, input_params: dict[str, Any] | None
+    ) -> np.ndarray | None:
+        """Per-interaction lambda values at the current state index."""
+        result = None
+        if not input_params:
+            return result
+        state_index = self.get_lambda_state_index(input_params)
+        schedules = self.get_lambdas_schedule(input_params)
+        if state_index is None or not schedules:
+            return result
+        try:
+            result = np.array([s['lambda_values'][state_index] for s in schedules])
+        except IndexError:
+            self.logger.warning(
+                'init-lambda-state is out of range for the lambda grids.',
+                state_index=state_index,
+            )
+        return result
+
+    def get_lambda_state_index(self, input_params: dict[str, Any] | None) -> int | None:
+        result = None
+        if not input_params:
+            return result
+        value = input_params.get('init-lambda-state')
+        if value is None:
+            return result
+        try:
+            idx = int(value)
+            if idx >= 0:
+                result = idx
+        except (TypeError, ValueError):
+            self.logger.warning('Could not parse init-lambda-state value.', value=value)
         return result
 
 
@@ -472,7 +591,24 @@ class GromacsEDRParser(GromacsThermodynamicsParser):
 
 
 class GromacsXVGParser(TextParser):
-    input_parameters = {}
+    def __init__(self, **kwargs):
+        # XVG free-energy column layout:
+        #   time | E_total | dH/dlambda | ΔH[0..n_states-1] | PV
+        # The 4 fixed columns are: time, E_total, dH/dlambda, PV.
+        self._XVG_FIXED_COLUMNS = 4
+        # Expected number of array dimensions in column_vals.
+        self._XVG_EXPECTED_NDIM = 2
+        # Offset within energy_cols (columns[:, 1:]) where ΔH differences start.
+        self._XVG_DIFF_OFFSET = 2
+        self._results_cache: dict[str, Any] | None = None
+        self.input_parameters: dict[str, Any] = {}
+        super().__init__(**kwargs)
+
+    def to_dict(self, **kwargs) -> dict[str, Any]:
+        if self.data_object is not None:
+            self.data_object.parse()
+            return self.data_object._results
+        return {}
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -488,21 +624,48 @@ class GromacsXVGParser(TextParser):
 
         free_energy = results.setdefault('free_energy_calculations', {})
         columns = self.data.get('column_vals')
+        if (
+            columns is None
+            or columns.ndim != self._XVG_EXPECTED_NDIM
+            or columns.shape[1] < self._XVG_FIXED_COLUMNS
+        ):
+            return results
+        # Column layout: time | E_total | dH/dlambda | ΔH[0..n-1] | PV
+        n_states = columns.shape[1] - self._XVG_FIXED_COLUMNS
         free_energy['n_frames'] = len(columns)
-        free_energy['value_unit'] = str(ENERGY_UNIT.units)
-        # TODO get n_states from input_parameters
-        free_energy['n_states'] = self.input_parameters.get('n_states')
+        free_energy['value_unit'] = str(ENERGY_UNIT)
+        free_energy['n_states'] = n_states
         xaxis = self.data.get('xaxis', '').lower()
         # The expected columns of the xvg file are:
-        # Total Energy
-        # dH/dlambda current lambda
-        # Delta H between each lambda and current lambda (n_lambda columns)
+        # time, Total Energy, dH/dlambda current lambda,
+        # Delta H between each lambda and current lambda (n_states columns),
         # PV Energy
-        if 'time' in xaxis and columns[:, 3:-1].shape[1] == free_energy['n_states']:
+        if 'time' in xaxis:
             free_energy['times'] = columns[:, 0] * ureg.ps
-            columns = columns[:, 1:] * ENERGY_UNIT.magnitude
+            energy_cols = columns[:, 1:] * ENERGY_UNIT
+            free_energy['value_total_energy'] = energy_cols[:, 0]
+            free_energy['value_total_energy_derivative'] = energy_cols[:, 1]
+            diff_start = self._XVG_DIFF_OFFSET
+            free_energy['value_total_energy_differences'] = energy_cols[
+                :, diff_start : diff_start + n_states
+            ]
+            free_energy['value_PV_energy'] = energy_cols[:, diff_start + n_states]
 
         return results
+
+    def get_fep_xvg_data(self, field: str = '') -> Any:
+        """Return one field from the parsed XVG free-energy block.
+
+        Called as a zero-path transformer (paths=[]) by the MappingParser
+        for each XVG_KEY annotation on FreeEnergyCalculationParameters.
+        """
+        if self._results_cache is None:
+            self._results_cache = self.get_results()
+        fec = self._results_cache.get('free_energy_calculations', {})
+        val = fec.get(field)
+        if val is None:
+            return None
+        return val.magnitude if hasattr(val, 'magnitude') else val
 
 
 class GromacsMDAnalysisParser(MappingParser):
@@ -561,9 +724,10 @@ class GromacsMDAnalysisParser(MappingParser):
             List of subsystem dicts from this level
         """
         # Root call: first frame gets the full hierarchy; others get nothing.
-        # The check 'n_atoms' in source distinguishes a top-level configuration
-        # dict (produced by get_configurations) from a nested subsystem dict.
-        if 'n_atoms' in source and 'sub_systems' not in source:
+        # The check 'n_particles' in source distinguishes a top-level
+        # configuration dict (produced by get_configurations) from a nested
+        # subsystem dict.
+        if 'n_particles' in source and 'sub_systems' not in source:
             if self._subsystems_hierarchy and not self._hierarchy_returned:
                 self._hierarchy_returned = True
                 return self._subsystems_hierarchy
@@ -582,13 +746,78 @@ class GromacsMDAnalysisParser(MappingParser):
                 self.mdanalysis_parser.auxilliary_files = self.aux_files
         return self.mdanalysis_parser
 
-    def get_atom_labels(self, index: int = 0) -> list[str]:
-        labels = self.data_object.get_atom_labels(index)
+    def get_particle_labels(self, index: int = 0) -> list[str]:
+        labels = list(self.data_object.get_atom_labels(index) or [])
         try:
             symbols2numbers(labels)
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             labels = ['CGX'] * len(labels)
         return labels
+
+    def get_particle_parameters(self) -> list[dict[str, Any]]:
+        """Return per-particle topology parameters as a list of dicts.
+
+        Each dict contains:
+        - 'label' (str): raw force-field site name (e.g. 'OW', 'HW1', 'CA')
+        - 'element' (str): chemical element symbol (e.g. 'O', 'H', 'C'),
+          absent for coarse-grained or unresolvable particles
+        - 'mass' (float, amu): particle mass when available from MDAnalysis
+        - 'charge' (float, elementary charge): partial charge when available
+        """
+        particles_info = {}
+        if self.data_object is not None:
+            particles_info = self.data_object.get('atoms_info') or {}
+        raw_names = particles_info.get('names', []) or []
+        elements = particles_info.get('elements', []) or []
+        # Fall back to get_particle_labels when particles_info is not populated
+        # (e.g. in tests)
+        if not raw_names and not elements:
+            fallback = self.get_particle_labels(0)
+            raw_names = fallback
+            elements = fallback
+        n_particles = max(len(raw_names), len(elements))
+        result: list[dict[str, Any]] = []
+        for i in range(n_particles):
+            label = raw_names[i] if i < len(raw_names) else None
+            element = elements[i] if i < len(elements) else None
+            entry: dict[str, Any] = {'label': label or element or 'CGX'}
+            if element and element != 'CGX':
+                entry['element'] = element
+            result.append(entry)
+        universe = getattr(self.data_object, 'universe', None)
+        if universe is not None:
+            try:
+                for i, mass in enumerate(universe.atoms.masses):
+                    result[i]['mass'] = float(mass)
+            except Exception:
+                pass
+            try:
+                for i, charge in enumerate(universe.atoms.charges):
+                    result[i]['charge'] = float(charge)
+            except Exception:
+                pass
+        return result
+
+    def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
+        """Return per-type particle parameters grouped from per-particle data.
+
+        Calls `get_particle_parameters()` and groups by particle-type label. Each unique
+        label produces one dict with keys ``particle_type``, and optionally
+        ``partial_charge`` (elementary charge) and ``effective_mass`` (amu),
+        taken from the first particle of that type encountered.
+        """
+        per_particle = self.get_particle_parameters()
+        seen: dict[str, dict[str, Any]] = {}
+        for entry in per_particle:
+            atype = entry['label']
+            if atype not in seen:
+                type_entry: dict[str, Any] = {'particle_type': atype}
+                if 'charge' in entry:
+                    type_entry['partial_charge'] = entry['charge']
+                if 'mass' in entry:
+                    type_entry['effective_mass'] = entry['mass']
+                seen[atype] = type_entry
+        return list(seen.values())
 
     def get_outputs(self) -> list[dict[str, Any]]:
         outputs = []
@@ -610,14 +839,18 @@ class GromacsMDAnalysisParser(MappingParser):
         if not interactions:
             return result
 
-        # Filter for bond interactions only
+        # Filter for bond interactions only: bonds have exactly 2 particle indices.
+        # The 'type' field carries inter.btype (a topology-specific string such as
+        # 'CT-CT'), not the literal 'bond', so we identify bonds by particle count.
         bonds = []
-        n_bond_atoms: int = 2
+        n_bond_particles: int = 2
         for interaction in interactions:
-            if interaction.get('type') == 'bond':
-                atom_indices = interaction.get('atom_indices')
-                if atom_indices is not None and len(atom_indices) == n_bond_atoms:
-                    bonds.append(list(atom_indices))
+            particle_indices = interaction.get('atom_indices')
+            if (
+                particle_indices is not None
+                and len(particle_indices) == n_bond_particles
+            ):
+                bonds.append(list(particle_indices))
 
         if bonds:
             result = np.array(bonds, dtype=int)
@@ -625,9 +858,9 @@ class GromacsMDAnalysisParser(MappingParser):
         return result
 
     def get_configurations(self) -> list[dict[str, Any]]:
-        # Labels, n_atoms and bond_list are frame-independent; compute once.
-        labels = self.get_atom_labels(0)
-        n_atoms = self.data_object.get_n_atoms(0)
+        # Labels, n_particles and bond_list are frame-independent; compute once.
+        labels = self.get_particle_parameters()
+        n_particles = self.data_object.get_n_atoms(0)
         bond_list = self.get_bond_list()
 
         configurations = []
@@ -635,7 +868,7 @@ class GromacsMDAnalysisParser(MappingParser):
             # get_frame_data performs a single trajectory seek for all per-frame data.
             frame_data = self.data_object.get_frame_data(n)
             config = dict(
-                n_atoms=n_atoms,
+                n_particles=n_particles,
                 labels=labels,
                 positions=frame_data['positions'],
                 velocities=frame_data['velocities'],
@@ -712,12 +945,12 @@ class GromacsMDAnalysisParser(MappingParser):
             all_indices = []
             all_labels = []
             for inter in int_list:
-                atom_indices = inter.get('atom_indices')
-                atom_labels = inter.get('atom_labels')
-                if atom_indices is not None and len(atom_indices) > 0:
-                    all_indices.append(list(atom_indices))
-                if atom_labels is not None and len(atom_labels) > 0:
-                    all_labels.append(list(atom_labels))
+                particle_indices = inter.get('atom_indices')
+                particle_labels = inter.get('atom_labels')
+                if particle_indices is not None and len(particle_indices) > 0:
+                    all_indices.append(list(particle_indices))
+                if particle_labels is not None and len(particle_labels) > 0:
+                    all_labels.append(list(particle_labels))
 
             if len(all_indices) == 0:
                 continue
@@ -850,6 +1083,24 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
 
+        # XVG free-energy time-series: target the already-instantiated fep directly.
+        # from_dict silently drops data when the existing subsection at index 0 is of
+        # a different concrete type — quantities not present on that type are skipped
+        # by m_set, leaving the subsection empty, which triggers removal. Targeting
+        # the correct instance directly avoids the index collision entirely.
+        # Reset _mapper so build_mapper() runs for FreeEnergyCalculationParameters
+        # with XVG_KEY (mapper is cached per data_object type + annotation_key).
+        if (
+            isinstance(workflow2, MolecularDynamics)
+            and workflow2.method is not None
+            and workflow2.method.free_energy_calculation_parameters
+        ):
+            fep = workflow2.method.free_energy_calculation_parameters[0]
+            self._simulation_parser.data_object = fep
+            self._simulation_parser.annotation_key = gromacs.XVG_KEY
+            self._simulation_parser.mapper = None
+            self._xvg_parser.convert(self._simulation_parser)  # debug=True
+
         self.archive.workflow2 = workflow2
 
     def _parse_data_section(self):
@@ -864,9 +1115,35 @@ class GromacsArchiveWriter(MDParser):
         self._simulation_parser.annotation_key = gromacs.EDR_KEY
         self._edr_parser.convert(self._simulation_parser)
 
-        # parse mdanalysis trajectory files
+        # parse mdanalysis trajectory files (model_system data only)
+        # Use update_mode='replace' to avoid merging the old plain-key dicts that
+        # LOG/EDR from_dict wrote into target.data back into the root. ForceField
+        # contributions are handled by a dedicated pass below, not here.
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
-        self._mdanalysis_parser.convert(self._simulation_parser)
+        self._mdanalysis_parser.convert(self._simulation_parser, update_mode='replace')
+
+        # ForceField contributions: target model_method[0] directly, mirroring
+        # the XVG/FEP pattern. This avoids depending on from_dict's in-place
+        # sub-section update behaviour to preserve numerical_settings across passes.
+        # The Simulation-level TPR pass above has no Simulation->model_method
+        # mapping for TPR_KEY, so it does not traverse model_method; this pass
+        # is authoritative for ForceField content.
+        if self.archive.data.model_method:
+            self._simulation_parser.data_object = self.archive.data.model_method[0]
+            self._simulation_parser.annotation_key = gromacs.TPR_KEY
+            self._simulation_parser.mapper = None
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            self._simulation_parser.data_object = self.archive.data
+
+        # ParticleParametersContainer: no annotation path from Simulation to
+        # model_method for PARTICLE_PARAM_KEY; target directly.
+        if self.archive.data.model_method:
+            ppc = ParticleParametersContainer()
+            self._simulation_parser.data_object = ppc
+            self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            if ppc.particle_parameters:
+                self.archive.data.model_method[-1].numerical_settings.append(ppc)
 
     def write_to_archive(self):
         # intitialize variables
@@ -875,7 +1152,11 @@ class GromacsArchiveWriter(MDParser):
         self._basename = os.path.basename(self.mainfile).rsplit('.', 1)[0]
 
         # set up source parsers
-        self._log_parser.filepath = self.mainfile
+        log_file = self.get_gromacs_file('log')
+        mainfile_ext = os.path.splitext(self.mainfile)[1].lower()
+        if mainfile_ext == '.log' or not log_file:
+            log_file = self.mainfile
+        self._log_parser.filepath = log_file
         self._edr_parser.filepath = self.get_gromacs_file('edr')
         self._mdanalysis_parser.filepath = self.get_gromacs_file('tpr')
         # TODO include input parameters read from mdp parser
@@ -897,12 +1178,13 @@ class GromacsArchiveWriter(MDParser):
             **self._log_parser.data_object.get('input_parameters', {}),
             **self._mdp_parser.data_object.get('input_parameters', {}),
         }
+        self._xvg_parser.input_parameters = self.input_parameters
 
         # determine sampled trajectory steps
         n_frames = self._mdanalysis_parser.data_object.get('n_frames', 0)
         traj_sampling_rate = self.input_parameters.get('nstxout', 1)
-        n_atoms_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
-        self.n_atoms = [n_atoms_per_frame] * n_frames
+        n_particles_per_frame = self._mdanalysis_parser.data_object.get_n_atoms(0)
+        self.n_particles = [n_particles_per_frame] * n_frames
         traj_steps = [n * traj_sampling_rate for n in range(n_frames)]
         self.trajectory_steps = traj_steps
 
@@ -927,7 +1209,7 @@ class GromacsArchiveWriter(MDParser):
 
         self._parse_data_section()
 
-        # self._parse_workflow_section()
+        self._parse_workflow_section()
 
         for parser in [
             self._simulation_parser,

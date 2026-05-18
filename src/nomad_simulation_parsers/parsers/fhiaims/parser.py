@@ -11,6 +11,7 @@ from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as TextMappingParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
@@ -20,7 +21,15 @@ from nomad_simulations.schema_packages.workflow import (
     Phonon,
     SinglePoint,
 )
-from nomad_simulations.schema_packages.workflow.general import SimulationTaskReference
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+    SimulationTaskReference,
+)
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from structlog.stdlib import BoundLogger
@@ -299,6 +308,60 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
+    def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
+        """
+        Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
+
+        FHI-aims uses Gamma-centered grids by default when k_offset
+        is not specified in control.in.
+        """
+        if k_offset is None:
+            return np.array([0.0, 0.0, 0.0])
+        return k_offset
+
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('self_consistency', [])
+        if not scf_iterations:
+            return {}
+
+        delta_energies_total = []
+        delta_density_rms = []
+        durations = []
+        delta_sum_eigenvalues = []
+
+        for iteration in scf_iterations:
+            convergence = iteration.get('scf_convergence', {})
+            delta_energy = convergence.get('Change of total energy')
+            if delta_energy is not None:
+                delta_energies_total.append(abs(delta_energy))
+
+            delta_density = convergence.get('Change of charge density')
+            if delta_density is not None:
+                delta_density_rms.append(
+                    abs(float(delta_density)) * ureg.elementary_charge
+                )
+
+            delta_eig = convergence.get('Change of sum of eigenvalues')
+            if delta_eig is not None:
+                delta_sum_eigenvalues.append(delta_eig)
+
+            duration = iteration.get('time_calculation')
+            if duration is not None:
+                durations.append(float(duration))
+
+        scf_steps = {}
+        if delta_energies_total:
+            scf_steps['delta_energies_total'] = delta_energies_total
+        if delta_density_rms:
+            scf_steps['delta_density_rms'] = delta_density_rms
+        if len(durations) == len(scf_iterations):
+            scf_steps['durations'] = durations
+        if delta_sum_eigenvalues:
+            scf_steps['code_specific_quantities'] = {
+                'delta_sum_eigenvalues': delta_sum_eigenvalues
+            }
+        return scf_steps
+
     def get_sections(self, source: dict[str, Any], **kwargs) -> list[dict[str, Any]]:
         result = []
         include = kwargs.get('include')
@@ -433,7 +496,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         return phonopy_obj, force_archives
 
-    def write_to_archive(
+    def write_to_archive(  # noqa: PLR0915
         self,
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
@@ -442,8 +505,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
-        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
@@ -457,12 +520,41 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         if out_parser.data.get('geometry_optimization'):
             workflow_key = 'geo_opt_workflow'
             self.archive.workflow2 = GeometryOptimization()
+            self.archive.workflow2.method = GeometryOptimizationMethod()
+            self.archive.workflow2.method.optimization_method = out_parser.data.get(
+                'geometry_relaxation_method'
+            )
+            force_threshold = out_parser.data.get('convergence_forces')
+            if force_threshold is not None:
+                self.archive.workflow2.method.convergence_targets = [
+                    ForceConvergenceTarget(
+                        threshold=force_threshold,
+                        threshold_type='maximum',
+                    )
+                ]
+            energy_threshold = out_parser.data.get('convergence_energy')
+            if energy_threshold is not None:
+                self.archive.workflow2.method.single_point_convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=energy_threshold * ureg.eV,
+                        threshold_type='absolute',
+                    )
+                ]
         elif out_parser.data.get('molecular_dynamics'):
             workflow_key = 'md_workflow'
             self.archive.workflow2 = MolecularDynamics()
         else:
             workflow_key = None
             self.archive.workflow2 = SinglePoint()
+            self.archive.workflow2.method = SinglePointMethod()
+            energy_threshold = out_parser.data.get('convergence_energy')
+            if energy_threshold is not None:
+                self.archive.workflow2.method.convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=energy_threshold * ureg.eV,
+                        threshold_type='absolute',
+                    )
+                ]
         if workflow_key:
             archive_handler.data_object = self.archive.workflow2
             archive_handler.annotation_key = workflow_key

@@ -1,4 +1,6 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -40,12 +42,35 @@ class WannierSphericalSymmetryState(atoms_state.SphericalSymmetryState):
     )
 
 
+# class OrbitalsState(atoms_state.OrbitalsState):
+#     atoms_state.OrbitalsState.l_quantum_symbol.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(win=Mapper(mapper='.l')))
+
+#     atoms_state.OrbitalsState.ml_quantum_symbol.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(win=Mapper(mapper='.m')))
+
+
 class AtomsState(model_system.AtomsState):
-    add_mapping_annotation(model_system.AtomsState.chemical_symbol, WOUT_KEY, '.@')
-    add_mapping_annotation(
-        model_system.AtomsState.electronic_state,
-        WIN_KEY,
-        ('get_orbitals_state', ['.projection[1]']),
+    model_system.AtomsState.chemical_symbol.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(wout=Mapper(mapper='.@')))
+
+    # model_system.AtomsState.orbitals_state.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(win=Mapper(mapper=('get_orbitals_state', ['.projection[1]']))))
+
+
+class AtomicCell(model_system.Representation):
+    model_system.Representation.lattice_vectors.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            wout=Mapper(
+                mapper=('get_lattice_vectors', ['lattice_vectors']), unit='angstrom'
+            )
+        )
     )
 
 
@@ -156,12 +181,13 @@ class Wannier(model_method.Wannier):
 
 # TODO: check whether this section is k-dependent
 class ElectronicBandStructure(properties.ElectronicBandStructure):
-    add_mapping_annotation(
-        properties.ElectronicBandStructure.n_levels, WOUT_KEY, '.Nwannier'
-    )
-    add_mapping_annotation(
-        properties.ElectronicBandStructure.value, BAND_KEY, ('get_data', ['.data'])
-    )
+    # properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
+    #     MAPPING_ANNOTATION_KEY, {}
+    # ).update(dict(wout=Mapper(mapper='.Nwannier')))
+
+    properties.ElectronicBandStructure.value.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(band=Mapper(mapper=('get_data', ['.data']))))
 
 
 class WignerSeitz(variables.WignerSeitz):

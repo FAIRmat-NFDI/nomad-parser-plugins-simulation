@@ -37,16 +37,16 @@ class XCComponent(model_method.XCComponent):
     )
 
 
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        OUT_KEY,
-        ('get_xc_functionals', ['.xc_functional']),
-    )
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper='.XC_functional_name')))
 
 
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.xc_functional']))))
 
 
 class AtomsState(model_system.AtomsState):
