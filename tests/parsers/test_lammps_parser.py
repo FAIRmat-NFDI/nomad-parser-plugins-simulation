@@ -28,6 +28,8 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_system import ModelSystem
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import LogParser
 from nomad_simulation_parsers.parsers.lammps.parser import (
@@ -1141,3 +1143,79 @@ def test_md_method_integrator_type_extraction():
     writer._log_parser._results = {'run_style': 'unknown_style'}
     integrator = writer._extract_integrator_type()
     assert integrator == 'velocity_verlet'
+
+
+class _MockLogThermo:
+    """Minimal log-parser stub for parse_thermodynamic_data tests."""
+
+    def __init__(self, thermo_data=None):
+        self._thermo_data = thermo_data
+
+    def get(self, key, default=None):
+        return None  # no timestep
+
+    def get_thermodynamic_data(self):
+        return self._thermo_data
+
+
+def _make_writer_with_systems(thermo_data, n_systems=3):
+    """Return (writer, simulation) wired for parse_thermodynamic_data."""
+    writer = LammpsArchiveWriter()
+    writer.archive = EntryArchive()
+    writer._log_parser = _MockLogThermo(thermo_data)
+    simulation = Simulation()
+    for _ in range(n_systems):
+        simulation.model_system.append(ModelSystem())
+    writer.trajectory_steps = list(range(0, n_systems * 100, 100))
+    return writer, simulation
+
+
+def test_parse_thermodynamic_data_creates_outputs():
+    """
+    Happy path: outputs are created for every thermo step with correct
+    energy value, temperature, contribution labels, and model_system_ref.
+    """
+    thermo_data = {
+        'Step': np.array([0.0, 100.0, 200.0]),
+        'TotEng': np.array([-1000.0, -999.5, -999.0]) * ureg.eV,
+        'KinEng': np.array([50.0, 50.5, 51.0]) * ureg.eV,
+        'PotEng': np.array([-1050.0, -1050.0, -1050.0]) * ureg.eV,
+        'E_bond': np.array([5.0, 5.1, 5.2]) * ureg.eV,
+        'Temp': np.array([300.0, 301.0, 302.0]) * ureg.kelvin,
+    }
+    writer, simulation = _make_writer_with_systems(thermo_data)
+
+    writer.parse_thermodynamic_data(simulation)
+
+    assert writer.thermodynamics_steps == [0, 100, 200]
+    assert len(simulation.outputs) == 3
+
+    out0 = simulation.outputs[0]
+    assert out0.step == 0
+    assert len(out0.total_energies) == 1
+    assert out0.total_energies[0].value.to('eV').magnitude == pytest.approx(-1000.0)
+    assert len(out0.temperatures) == 1
+    assert out0.temperatures[0].value.to('kelvin').magnitude == pytest.approx(300.0)
+
+    labels = {c.label for c in out0.total_energies[0].contributions}
+    assert 'kinetic' in labels
+    assert 'potential' in labels
+    assert 'bond' in labels
+
+    assert out0.model_system_ref is not None
+    assert simulation.outputs[1].model_system_ref is not None
+    assert simulation.outputs[2].model_system_ref is not None
+
+
+def test_parse_thermodynamic_data_no_data():
+    """
+    Graceful degradation: no outputs are created and no exception is raised
+    when thermo data is absent or missing the Step key.
+    """
+    writer, simulation = _make_writer_with_systems(None)
+    writer.parse_thermodynamic_data(simulation)
+    assert len(simulation.outputs) == 0
+
+    writer2, simulation2 = _make_writer_with_systems({'TotEng': np.array([1.0])})
+    writer2.parse_thermodynamic_data(simulation2)
+    assert len(simulation2.outputs) == 0

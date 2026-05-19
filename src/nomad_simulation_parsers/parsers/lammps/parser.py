@@ -40,6 +40,21 @@ class LammpsArchiveWriter(MDParser):
     _magic_four: int = 4
     _magic_five: int = 5
 
+    _energy_contribution_keys: dict[str, str] = {
+        'KinEng': 'kinetic',
+        'PotEng': 'potential',
+        'E_pair': 'pair',
+        'E_bond': 'bond',
+        'E_angle': 'angle',
+        'E_dihed': 'dihedral',
+        'E_impro': 'improper',
+        'E_vdwl': 'van_der_waals',
+        'E_coul': 'coulomb',
+        'E_kspce': 'kspace',
+        'E_long': 'long_range',
+        'E_tail': 'tail_correction',
+    }
+
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
             value = value * self._log_parser.units.get(unit, 1)
@@ -762,27 +777,49 @@ class LammpsArchiveWriter(MDParser):
         """
         Parse thermodynamic output data from log file.
 
-        TODO: Migrate from legacy parser
-        - Extract thermodynamic data from log file or aux log file
-        - Map thermodynamic quantities to TrajectoryOutputs:
-          * Step number and physical time (step * timestep)
-          * Energy contributions (kinetic, potential, pair, bond, angle, etc.)
-          * Total energy (TotEng)
-          * Pressure and temperature
-          * Forces (if available in trajectory)
-          * Calculation time (CPU)
-        - Create TrajectoryOutputs for each thermodynamic step
-        - Link outputs to corresponding model_system via model_system_ref
-
-        Legacy implementation: lines 971-1036 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations TrajectoryOutputs instead of Calculation
-        - Map energy types using self._energy_mapping
-        - Coordinate with parse_output_step in mdparserutils.py (lines 186-238)
-        - Extract timestep from log file (get_time_step method)
-        - Match thermodynamics_steps with trajectory_steps
+        Extracts per-step thermo data (energy, temperature) and creates a
+        TrajectoryOutputs section for each step. model_system_ref is linked
+        automatically by parse_output_step when the step number matches a
+        sampled trajectory step.
         """
-        pass
+        thermo_data = self._log_parser.get_thermodynamic_data()
+        if thermo_data is None:
+            return
+
+        steps = thermo_data.get('Step')
+        if steps is None or len(steps) == 0:
+            return
+
+        self.thermodynamics_steps = [int(s) for s in steps]
+
+        timestep = self._extract_timestep()
+
+        for n, step in enumerate(self.thermodynamics_steps):
+            data: dict[str, Any] = {'step': step}
+
+            if timestep is not None:
+                data['time'] = float(step) * timestep
+
+            energy_data: dict[str, Any] = {}
+            tot_eng = thermo_data.get('TotEng')
+            if tot_eng is not None and n < len(tot_eng):
+                energy_data['value'] = tot_eng[n]
+
+            contributions = []
+            for lammps_key, label in self._energy_contribution_keys.items():
+                vals = thermo_data.get(lammps_key)
+                if vals is not None and n < len(vals):
+                    contributions.append({'value': vals[n], 'label': label})
+            if contributions:
+                energy_data['contributions'] = contributions
+            if energy_data:
+                data['total_energies'] = energy_data
+
+            temp = thermo_data.get('Temp')
+            if temp is not None and n < len(temp):
+                data['temperatures'] = {'value': temp[n]}
+
+            self.parse_output_step(data, simulation)
 
     def parse_workflow(self, simulation: Simulation) -> None:
         """
@@ -955,10 +992,10 @@ class LammpsArchiveWriter(MDParser):
     def _parse_content_sections(self) -> None:
         self.parse_method(self.archive.data)
         self.parse_system(self.archive.data)
+        self.parse_thermodynamic_data(self.archive.data)
 
         # TODO: uncomment when implemented
         # self.parse_input(self.archive.data)
-        # self.parse_thermodynamic_data(self.archive.data)
         # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
