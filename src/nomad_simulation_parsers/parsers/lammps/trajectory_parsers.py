@@ -21,12 +21,16 @@ class TrajParser(TextParser):
     def __init__(self) -> None:
         self._masses = None
         self._chemical_symbols = None
+        # TODO: add self._atom_type_overrides: dict[int, int] = {} here
+        # once virtual-type support is implemented.  Maps atom_id to a
+        # synthetic type_id whose chemical_symbol holds the overridden label.
         super().__init__(None)
 
     def reset(self):
         super().reset()
         self._masses = None
         self._chemical_symbols = None
+        # TODO: reset self._atom_type_overrides = {} here as well.
 
     def get_pbc_cell(self, val: str) -> tuple[list, np.ndarray]:
         # TODO: extend logic to handle all LAMMPS-supported pbc styles
@@ -148,9 +152,20 @@ class TrajParser(TextParser):
         if self.chemical_symbols is None:
             return default
 
+        # TODO: when virtual-type support is implemented, resolve per-atom
+        # type overrides here before the chemical_symbols lookup:
+        #   effective_types = [
+        #       self._atom_type_overrides.get(int(aid), int(atype))
+        #       for aid, atype in zip(atoms_id, atoms_type)
+        #   ]
+        # then replace atoms_type with effective_types below.
         atom_labels = [self._chemical_symbols[atype] for atype in atoms_type]
 
-        return [label for label in atom_labels if label is not None]
+        return [
+            'CGX' if label == 'X' else label
+            for label in atom_labels
+            if label is not None
+        ]
 
     def _get_frame_atoms_info(self, idx: int) -> dict:
         """Helper to get atoms_info for a specific frame."""

@@ -1,11 +1,26 @@
 import os
+import re
 from typing import Any
 
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad_simulations.schema_packages.force_field import (
+    ForceField,
+    ParticleParameters,
+    ParticleParametersContainer,
+)
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.workflow.general import (
+    ForceConvergenceTarget,
+)
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+    GeometryOptimizationModel,
+    GeometryOptimizationResults,
+)
 from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
     BarostatParameters,
     MolecularDynamicsMethod,
@@ -18,6 +33,10 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,
     XYZTrajParser,
+)
+from nomad_simulation_parsers.parsers.utils.constants import (
+    CHEMICAL_SYMBOLS,
+    REFERENCE_MASSES,
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
@@ -35,7 +54,9 @@ class LammpsArchiveWriter(MDParser):
         )
         self._data_parser = DataParser()
         self._bond_list = None
+        self._md_method: MolecularDynamicsMethod | None = None
 
+    _magic_two: int = 2
     _magic_three: int = 3
     _magic_four: int = 4
     _magic_five: int = 5
@@ -53,6 +74,15 @@ class LammpsArchiveWriter(MDParser):
         'E_kspce': 'kspace',
         'E_long': 'long_range',
         'E_tail': 'tail_correction',
+    }
+
+    _min_style_map: dict[str, str] = {
+        'cg': 'polak_ribiere_conjugant_gradient',
+        'sd': 'steepest_descent',
+        'hftn': 'hessian_free_truncated_newton',
+        'quickmin': 'damped_dynamics',
+        'fire': 'damped_dynamics',
+        'spin': 'damped_dynamics',
     }
 
     def apply_unit(self, value: Any, unit: str) -> float:
@@ -218,22 +248,261 @@ class LammpsArchiveWriter(MDParser):
             _thermo_freq = None
         return _thermo_freq
 
-    def _extract_masses(self) -> np.ndarray | None:
-        """Extract particle masses from data file."""
+    def _masses_from_data_file(self) -> dict[int, float]:
+        """Parse Masses section from data file → {type_id: mass}."""
+        type_mass: dict[int, float] = {}
         masses_data = self._data_parser.get('Masses', None)
-        if (
-            not masses_data
-            or not isinstance(masses_data, list)
-            or len(masses_data) == 0
+        if not masses_data or not isinstance(masses_data, list):
+            return type_mass
+        raw = (
+            masses_data[0][1]
+            if isinstance(masses_data[0], tuple)
+            else masses_data
+        )
+        if raw is None or len(raw) == 0:
+            return type_mass
+        for row in raw:
+            try:
+                type_mass[int(row[0])] = float(row[1])
+            except (ValueError, TypeError, IndexError):
+                continue
+        return type_mass
+
+    def _apply_mass_commands(self, type_mass: dict[int, float]) -> None:
+        """Apply `mass T M` input-script commands to the type→mass map."""
+        mass_cmds = self._log_parser.get('mass')
+        if mass_cmds is None:
+            return
+        if isinstance(mass_cmds, list) and mass_cmds and isinstance(
+            mass_cmds[0], str
         ):
+            mass_cmds = [mass_cmds]
+        for cmd in mass_cmds:
+            try:
+                if len(cmd) >= self._magic_two:
+                    type_mass[int(float(cmd[0]))] = float(cmd[1])
+            except (ValueError, TypeError, IndexError):
+                continue
+
+    @staticmethod
+    def _parse_set_mass_cmd(
+        cmd: list[str],
+    ) -> tuple[str | None, str | None, float | None]:
+        """Return (style, target, mass) from a parsed `set` token list.
+
+        Scans keyword-value pairs after the style and target tokens.
+        Returns (None, None, None) if the command does not set mass.
+        """
+        _MIN_LEN = 3
+        if not isinstance(cmd, list) or len(cmd) < _MIN_LEN:
+            return None, None, None
+        style = cmd[0]
+        target = cmd[1]
+        i = _MIN_LEN - 1
+        while i < len(cmd) - 1:
+            if cmd[i] == 'mass':
+                try:
+                    return style, target, float(cmd[i + 1])
+                except (ValueError, IndexError):
+                    return style, target, None
+            i += 2
+        return style, target, None
+
+    def _apply_set_type_masses(self, type_mass: dict[int, float]) -> None:
+        """Apply `set type T mass M` commands; warn on per-atom overrides."""
+        set_cmds = self._log_parser.get('set')
+        if set_cmds is None:
+            return
+        if isinstance(set_cmds, list) and set_cmds and isinstance(
+            set_cmds[0], str
+        ):
+            set_cmds = [set_cmds]
+        for cmd in set_cmds:
+            style, target, mass_val = self._parse_set_mass_cmd(cmd)
+            if style is None or mass_val is None:
+                continue
+            if style == 'type':
+                try:
+                    type_mass[int(float(target))] = mass_val
+                except (ValueError, TypeError):
+                    pass
+            elif style in ('atom', 'group', 'region'):
+                # TODO: implement virtual-type mass overrides for `set atom`
+                # For `set atom ID mass M`:
+                #   1. Build atom_id → type_id from the data file Atoms
+                #      section (_atom_id_to_type helper).
+                #   2. Allocate a synthetic type_id (e.g. max_real_type + n)
+                #      that is unique within this simulation.
+                #   3. Add {synthetic_type_id: mass_val} to type_mass.
+                #   4. Store {atom_id: synthetic_type_id} in a new instance
+                #      dict (e.g. self._atom_type_overrides) so it can be
+                #      passed to TrajParser via _set_parser_masses.
+                # `set group` / `set region` require parsing group membership,
+                # which is only feasible for simple id-range groups; leave
+                # those with the existing warning for now.
+                self.logger.warning(
+                    'Per-atom mass override not applied to per-type map',
+                    set_style=style,
+                    target=target,
+                )
+
+    def _masses_from_eam_bop(self) -> None:
+        """Stub for EAM/BOP potential-file mass extraction.
+
+        EAM and BOP potential files may embed masses that take precedence
+        over data/input-script values. Parsing those files is not yet
+        implemented; a warning is emitted and the caller falls back to
+        whatever masses were already collected.
+        """
+        pair_style_raw = self._log_parser.get('pair_style')
+        if pair_style_raw is None:
+            return
+        ps = (
+            pair_style_raw[0]
+            if isinstance(pair_style_raw, list)
+            else pair_style_raw
+        )
+        if isinstance(ps, str) and ps.lower() in ('eam', 'bop'):
+            self.logger.warning(
+                'EAM/BOP potential files may embed masses; '
+                'potential-file mass override not implemented, '
+                'using data/input-script masses as fallback'
+            )
+
+    def _extract_masses(self) -> np.ndarray | None:
+        """Build a per-type mass array with sequential override semantics.
+
+        Priority order (later wins):
+        1. Data file ``Masses`` section
+        2. ``mass T M`` commands in the input script
+        3. ``set type T mass M`` commands in the input script
+
+        ``set atom/group/region mass`` overrides are noted via a warning
+        but are not applied to the per-type map. EAM/BOP potential-file
+        masses are not implemented; a warning is emitted if detected.
+
+        Returns an ``(n_types, 2)`` array ``[[type_id, mass], ...]``,
+        or ``None`` if no mass data was found.
+        """
+        type_mass = self._masses_from_data_file()
+        self._apply_mass_commands(type_mass)
+        self._apply_set_type_masses(type_mass)
+        self._masses_from_eam_bop()
+        if not type_mass:
             return None
-        return masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
+        return np.array(
+            [[tid, m] for tid, m in sorted(type_mass.items())]
+        )
+
+    def _extract_per_type_charges(self) -> dict[int, float]:
+        """Return a {type_id: charge} map from the Atoms section.
+
+        Only populated for atom_styles 'full' and 'charge'; empty otherwise.
+        """
+        atom_style_raw = self._log_parser.get('atom_style')
+        atom_style = (
+            atom_style_raw[0]
+            if isinstance(atom_style_raw, list) and atom_style_raw
+            else (atom_style_raw or '')
+        )
+        per_type_charge: dict[int, float] = {}
+        if atom_style not in ('full', 'charge'):
+            return per_type_charge
+        type_col, charge_col = (2, 3) if atom_style == 'full' else (1, 2)
+        atoms_data = self._data_parser.get('Atoms', None)
+        if atoms_data is None or len(atoms_data) == 0:
+            return per_type_charge
+        atoms_arr = (
+            atoms_data[0][1] if isinstance(atoms_data[0], tuple) else None
+        )
+        if (
+            atoms_arr is not None
+            and atoms_arr.ndim == self._magic_two
+            and atoms_arr.shape[1] > charge_col
+        ):
+            for row in atoms_arr:
+                t = int(row[type_col])
+                if t not in per_type_charge:
+                    per_type_charge[t] = float(row[charge_col])
+        return per_type_charge
+
+    def _get_particle_parameters_by_type(
+        self,
+    ) -> list[dict[str, Any]]:
+        """Return per-type particle parameters.
+
+        One dict per unique particle label with keys ``particle_type``
+        (matching ``ps.label`` in either ``AtomsState`` or
+        ``CGBeadState``), ``effective_mass`` (pint Quantity), and
+        optionally ``partial_charge`` (pint Quantity).
+
+        The label mapping is taken from ``TrajParser.chemical_symbols``
+        when available so that ``particle_type`` is always consistent
+        with what ``get_atom_labels`` returns, regardless of whether
+        the particles are atomic or coarse-grained.
+        """
+        masses_array = self._extract_masses()
+        if masses_array is None or len(masses_array) == 0:
+            return []
+
+        mass_unit = self._log_parser.units.get('mass', ureg.amu)
+        charge_unit = self._log_parser.units.get(
+            'charge', ureg.elementary_charge
+        )
+
+        # Use the label mapping already computed by TrajParser so that
+        # particle_type agrees exactly with ps.label.  TrajParser keys
+        # are np.float64 values; probe with both the raw array value and
+        # a plain float to handle both representations.
+        chem_sym = self.traj_parsers.eval('chemical_symbols')
+
+        type_to_label: dict[int, str] = {}
+        for row in masses_array:
+            type_id = int(row[0])
+            mass_val = float(row[1])
+            label = None
+            if chem_sym is not None:
+                label = chem_sym.get(row[0]) or chem_sym.get(float(type_id))
+            if label is None:
+                symbol_idx = int(np.argmin(np.abs(REFERENCE_MASSES - mass_val)))
+                label = CHEMICAL_SYMBOLS[symbol_idx]
+            if label == 'X':
+                label = 'CGX'
+            type_to_label[type_id] = label
+
+        per_type_charge = self._extract_per_type_charges()
+
+        # One ParticleParameters entry per unique label.  Multiple type
+        # IDs that resolve to the same label share one entry because
+        # ps.label is also the same for all of them.
+        seen: dict[str, dict[str, Any]] = {}
+        for row in masses_array:
+            type_id = int(row[0])
+            mass_val = float(row[1])
+            label = type_to_label[type_id]
+            if label not in seen:
+                entry: dict[str, Any] = {
+                    'particle_type': label,
+                    'effective_mass': mass_val * mass_unit,
+                }
+                if type_id in per_type_charge:
+                    entry['partial_charge'] = (
+                        per_type_charge[type_id] * charge_unit
+                    )
+                seen[label] = entry
+        return list(seen.values())
 
     def _set_parser_masses(self, masses: np.ndarray | None) -> None:
         """Set masses on trajectory parsers."""
         for parser in self.traj_parsers._parsers:
             if isinstance(parser, TrajParser):
                 parser.masses = masses
+                # TODO: also pass self._atom_type_overrides here once
+                # virtual-type support is implemented in
+                # _apply_set_type_masses.  TrajParser will need a new
+                # `atom_type_overrides` attribute (dict[int, int]) that
+                # get_atom_labels checks before the chemical_symbols
+                # lookup, overriding the type_id for specific atom IDs.
 
     def _extract_integrator_type(self) -> str | None:
         """Extract integrator type from run_style command.
@@ -397,38 +666,8 @@ class LammpsArchiveWriter(MDParser):
                 result['force'] = frequency
         return result
 
-    def parse_method(self, simulation: Simulation) -> None:
-        """
-        Parse method information from data file and log file.
-
-        Extracts:
-        - Integration parameters (timestep, n_steps, integrator_type)
-        - Thermostat parameters from fix commands (nvt, langevin, temp/berendsen, etc.)
-        - Barostat parameters from fix commands (npt, nph, press/berendsen)
-        - Thermodynamic ensemble (NVE, NVT, NPH, NPT)
-        - Save frequencies from dump/thermo commands
-
-        TODO: Still to migrate from legacy parser
-        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
-          bond_coeffs, angle_coeffs, etc.) using MDAnalysis
-        - Set ForceField with Model containing interactions
-        - Parse force calculation parameters:
-          * pair_style: extract vdw_cutoff, coulomb_cutoff
-          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh,
-            multilevel_summation)
-        - Parse neighbor searching parameters:
-          * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
-          * neigh_modify: extract neighbor_update_frequency from 'every' parameter
-
-        Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
-        """
-
-        if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
-            return
-
-        if self.traj_parsers.eval('n_frames') is None:
-            return
-
+    def _build_md_method(self) -> MolecularDynamicsMethod:
+        """Build and return a MolecularDynamicsMethod from log file data."""
         method = MolecularDynamicsMethod()
 
         integrator_type = self._extract_integrator_type()
@@ -458,7 +697,9 @@ class LammpsArchiveWriter(MDParser):
         if ensemble is not None:
             method.thermodynamic_ensemble = ensemble
 
-        frequencies = self._extract_dump_frequencies(self._log_parser.get('dump'))
+        frequencies = self._extract_dump_frequencies(
+            self._log_parser.get('dump')
+        )
         if frequencies['coordinate'] is not None:
             method.coordinate_save_frequency = frequencies['coordinate']
         if frequencies['velocity'] is not None:
@@ -470,10 +711,61 @@ class LammpsArchiveWriter(MDParser):
         if thermo_freq is not None:
             method.thermodynamics_save_frequency = thermo_freq
 
+        return method
+
+    def _build_force_field(self) -> ForceField | None:
+        """Build a ForceField with ParticleParametersContainer from data file.
+
+        Returns None when no particle parameters are available.
+        """
+        pp_by_type = self._get_particle_parameters_by_type()
+        if not pp_by_type:
+            return None
+
+        ppc = ParticleParametersContainer()
+        for entry in pp_by_type:
+            pp = ParticleParameters()
+            pp.particle_type = entry['particle_type']
+            if 'effective_mass' in entry:
+                pp.effective_mass = entry['effective_mass']
+            if 'partial_charge' in entry:
+                pp.partial_charge = entry['partial_charge']
+            ppc.particle_parameters.append(pp)
+
+        force_field = ForceField()
+        force_field.numerical_settings.append(ppc)
+        return force_field
+
+    def parse_method(self, simulation: Simulation) -> None:
+        """
+        Parse method information from data file and log file.
+
+        Populates simulation.model_method with a ForceField (particle
+        parameters) and stores MolecularDynamicsMethod in self._md_method
+        for later attachment to the workflow section.
+
+        TODO: Still to migrate from legacy parser
+        - Parse force calculation parameters (pair_style, kspace_style,
+          neighbor) into ForceField.numerical_settings as ForceCalculations.
+        - Populate ForceField.contributions from MDAnalysis interactions.
+        """
+        if (
+            self.traj_parsers[0].mainfile is None
+            or self._data_parser.mainfile is None
+        ):
+            return
+
+        if self.traj_parsers.eval('n_frames') is None:
+            return
+
+        self._md_method = self._build_md_method()
+
         masses = self._extract_masses()
         self._set_parser_masses(masses)
 
-        simulation.model_method.append(method)
+        force_field = self._build_force_field()
+        if force_field is not None:
+            simulation.model_method.append(force_field)
 
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
@@ -823,34 +1115,90 @@ class LammpsArchiveWriter(MDParser):
 
             self.parse_output_step(data, simulation)
 
+    @staticmethod
+    def _parse_minimization_stats(
+        stats: str,
+    ) -> dict[str, float | None]:
+        result: dict[str, float | None] = {
+            'final_energy_difference': None,
+            'final_force_maximum': None,
+        }
+        energy_match = re.search(
+            r'Energy initial, next-to-last, final\s*=\s*'
+            r'[\d\.\+\-eE]+\s+([\d\.\+\-eE]+)\s+([\d\.\+\-eE]+)',
+            stats,
+        )
+        if energy_match:
+            nml = float(energy_match.group(1))
+            final = float(energy_match.group(2))
+            result['final_energy_difference'] = abs(nml - final)
+        force_match = re.search(
+            r'Force max component initial, final\s*='
+            r'\s*[\d\.\+\-eE]+\s+([\d\.\+\-eE]+)',
+            stats,
+        )
+        if force_match:
+            result['final_force_maximum'] = float(force_match.group(1))
+        return result
+
+    def _parse_geometry_optimization_workflow(self) -> None:
+        model = GeometryOptimizationModel()
+        model.optimization_type = 'atomic'
+
+        min_style = self._log_parser.get('min_style')
+        if min_style is not None and len(min_style) > 0:
+            style = min_style[0]
+            model.optimization_method = self._min_style_map.get(style, style)
+
+        minimize_cmd = self._log_parser.get(
+            'minimize'
+        ) or self._log_parser.get('minimize/kk')
+        if minimize_cmd is not None and len(minimize_cmd) > 0:
+            args = minimize_cmd[0]
+            if isinstance(args, list) and len(args) >= self._magic_three:
+                try:
+                    ftol = float(args[1])
+                    maxiter = int(float(args[2]))
+                    model.n_steps_maximum = maxiter
+                    if ftol > 0.0:
+                        force_unit = self._log_parser.units.get('force', 1)
+                        fc_target = ForceConvergenceTarget()
+                        fc_target.threshold = ftol * force_unit
+                        fc_target.threshold_type = 'maximum'
+                        model.convergence_targets.append(fc_target)
+                except (ValueError, IndexError):
+                    pass
+
+        results = GeometryOptimizationResults()
+        min_stats = self._log_parser.get('minimization_stats')
+        if min_stats is not None:
+            parsed = self._parse_minimization_stats(min_stats)
+            energy_unit = self._log_parser.units.get('energy', 1)
+            force_unit = self._log_parser.units.get('force', 1)
+            de = parsed.get('final_energy_difference')
+            if de is not None:
+                results.final_energy_difference = de * energy_unit
+            fmax = parsed.get('final_force_maximum')
+            if fmax is not None:
+                results.final_force_maximum = fmax * force_unit
+
+        sec_workflow = GeometryOptimization()
+        sec_workflow.method = model
+        sec_workflow.results = results
+        self.archive.workflow2 = sec_workflow
+
     def parse_workflow(self, simulation: Simulation) -> None:
-        """
-        Parse workflow information for geometry optimization runs.
-
-        TODO: Migrate from legacy parser
-        - Detect minimization runs from log file (minimization_stats)
-        - Create GeometryOptimization workflow:
-          * Extract minimization method (cg, hftn, sd, quickmin, fire, spin)
-          * Map to standard method names (polak_ribiere_conjugant_gradient,
-            hessian_free_truncated_newton, steepest_descent, damped_dynamics)
-          * Parse optimization parameters (max steps, force convergence)
-        - Extract optimization results:
-          * Final energy difference
-          * Final force maximum
-        - Parse minimize/minimize/kk parameters:
-          * optimization_steps_maximum
-          * convergence_tolerance_force_maximum
-        - Handle unit conversions using self._log_parser.units
-
-        Legacy implementation: lines 1037-1120 in
-        atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Determine which simulation workflow schema to use from nomad_simulations
-        - Check if GeometryOptimization is available in nomad_simulations
-        - Adapt to simulation.workflow structure if different from sec_run.workflow
-        - Update unit conversion to use apply_unit method
-        """
-        pass
+        min_stats = self._log_parser.get('minimization_stats')
+        if min_stats is not None:
+            self._parse_geometry_optimization_workflow()
+        else:
+            self.parse_md_workflow({})
+            if (
+                self._md_method is not None
+                and self.archive is not None
+                and self.archive.workflow2 is not None
+            ):
+                self.archive.workflow2.method = self._md_method
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
@@ -996,9 +1344,8 @@ class LammpsArchiveWriter(MDParser):
         self.parse_system(self.archive.data)
         self.parse_thermodynamic_data(self.archive.data)
 
-        # TODO: uncomment when implemented
+        self.parse_workflow(self.archive.data)
         # self.parse_input(self.archive.data)
-        # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
