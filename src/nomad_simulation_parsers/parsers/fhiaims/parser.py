@@ -582,15 +582,28 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         from nomad_simulations.schema_packages.numerical_settings import SelfConsistency
         if self.archive.data.model_method:
             dft = self.archive.data.model_method[0]
+
+            # Collect all criteria
+            criteria = []
             scf_criteria = out_parser.get_scf_energy_criterion(out_parser.data)
             if scf_criteria:
-                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
+                criteria.append(scf_criteria)
             scf_criteria = out_parser.get_scf_density_criterion(out_parser.data)
             if scf_criteria:
-                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
+                criteria.append(scf_criteria)
             scf_criteria = out_parser.get_scf_eigenvalues_criterion(out_parser.data)
             if scf_criteria:
-                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
+                criteria.append(scf_criteria)
+
+            # If no thresholds parsed but max_iterations present, preserve it
+            if not criteria:
+                max_iterations = out_parser.data.get('max_scf_iterations')
+                if max_iterations is not None:
+                    criteria.append({'n_max_iterations': max_iterations})
+
+            # Add all criteria to numerical_settings
+            for criterion in criteria:
+                dft.numerical_settings.append(SelfConsistency(**criterion))
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
