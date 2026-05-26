@@ -787,7 +787,6 @@ class FHIAimsOutFileParser(TextParser):
                 'convergence_eigenvalues',
                 rf'Convergence accuracy of sum of eigenvalues: *({RE_FLOAT})',
                 dtype=float,
-                unit='eV',
             ),
             Quantity(
                 'max_scf_iterations',
