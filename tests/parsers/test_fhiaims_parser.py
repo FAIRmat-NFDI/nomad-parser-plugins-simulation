@@ -170,5 +170,7 @@ def test_scf_convergence_criteria():
     assert energy_criterion.threshold_change == approx(1.0e-6)
 
     # Eigenvalues criterion has larger threshold (1e-3 eV)
-    eigenvalues_criterion = next(sc for sc in ev_criteria if sc.threshold_change > 1.0e-5)
+    eigenvalues_criterion = next(
+        sc for sc in ev_criteria if sc.threshold_change > 1.0e-5
+    )
     assert eigenvalues_criterion.threshold_change == approx(1.0e-3)

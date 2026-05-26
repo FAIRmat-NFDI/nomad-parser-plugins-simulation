@@ -562,7 +562,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         return phonopy_obj, force_archives
 
-    def write_to_archive(  # noqa: PLR0915
+    def write_to_archive(  # noqa: PLR0915, PLR0912
         self,
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
@@ -579,7 +579,10 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         # Manually create SelfConsistency instances for SCF convergence criteria
         # (multi-mapper doesn't support function-returns-list pattern)
-        from nomad_simulations.schema_packages.numerical_settings import SelfConsistency
+        from nomad_simulations.schema_packages.numerical_settings import (  # noqa: PLC0415
+            SelfConsistency,
+        )
+
         if self.archive.data.model_method:
             dft = self.archive.data.model_method[0]
 
