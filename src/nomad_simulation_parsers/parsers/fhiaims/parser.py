@@ -319,61 +319,71 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return np.array([0.0, 0.0, 0.0])
         return k_offset
 
-    def get_scf_convergence_criteria(
-        self, source: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def get_scf_energy_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
         """
-        Extract SCF convergence criteria and return as list of SelfConsistency dicts.
-
-        FHI-aims supports multiple convergence criteria:
-        - Total energy convergence (eV)
-        - Charge density convergence (dimensionless)
-        - Sum of eigenvalues convergence (eV)
-        - Maximum number of SCF iterations
+        Extract energy convergence criterion for SCF.
 
         Returns:
-            List of dictionaries, each representing one SelfConsistency section.
+            Dictionary representing energy SelfConsistency section, or empty dict.
         """
-        convergence_criteria = []
-
-        # Energy convergence threshold
         conv_energy = source.get('convergence_energy')
-        if conv_energy is not None:
-            convergence_criteria.append(
-                {
-                    'threshold_change': conv_energy,
-                    'threshold_change_unit': 'energy',
-                }
-            )
+        if conv_energy is None:
+            return {}
 
-        # Charge density convergence threshold
+        result = {
+            'threshold_change': conv_energy,
+            'threshold_change_unit': 'energy',
+        }
+
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
+
+    def get_scf_density_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract density convergence criterion for SCF.
+
+        Returns:
+            Dictionary representing density SelfConsistency section, or empty dict.
+        """
         conv_density = source.get('convergence_density')
-        if conv_density is not None:
-            convergence_criteria.append(
-                {
-                    'threshold_change': conv_density,
-                    'threshold_change_unit': 'electron_density',
-                }
-            )
+        if conv_density is None:
+            return {}
 
-        # Sum of eigenvalues convergence threshold
+        result = {
+            'threshold_change': conv_density,
+            'threshold_change_unit': 'electron_density',
+        }
+
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
+
+    def get_scf_eigenvalues_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract eigenvalues convergence criterion for SCF.
+
+        Returns:
+            Dictionary representing eigenvalues SelfConsistency section, or empty dict.
+        """
         conv_eigenvalues = source.get('convergence_eigenvalues')
-        if conv_eigenvalues is not None:
-            convergence_criteria.append(
-                {
-                    'threshold_change': conv_eigenvalues,
-                    'threshold_change_unit': 'sum_eigenvalues',
-                }
-            )
+        if conv_eigenvalues is None:
+            return {}
 
-        # Maximum iterations (add to all criteria if specified)
-        if source:
-            max_iterations = source.get('max_scf_iterations')
-            if max_iterations is not None:
-                for criterion in convergence_criteria:
-                    criterion['n_max_iterations'] = max_iterations
+        result = {
+            'threshold_change': conv_eigenvalues,
+            'threshold_change_unit': 'sum_eigenvalues',
+        }
 
-        return convergence_criteria
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('self_consistency', [])
@@ -566,6 +576,21 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
+
+        # Manually create SelfConsistency instances for SCF convergence criteria
+        # (multi-mapper doesn't support function-returns-list pattern)
+        from nomad_simulations.schema_packages.numerical_settings import SelfConsistency
+        if self.archive.data.model_method:
+            dft = self.archive.data.model_method[0]
+            scf_criteria = out_parser.get_scf_energy_criterion(out_parser.data)
+            if scf_criteria:
+                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
+            scf_criteria = out_parser.get_scf_density_criterion(out_parser.data)
+            if scf_criteria:
+                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
+            scf_criteria = out_parser.get_scf_eigenvalues_criterion(out_parser.data)
+            if scf_criteria:
+                dft.numerical_settings.append(SelfConsistency(**scf_criteria))
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
