@@ -92,13 +92,8 @@ class DFT(model_method.DFT):
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
 
 
-# Add SelfConsistency instances to DFT numerical_settings
-# Must be at module level for multi-mapper detection to work
-add_mapping_annotation(
-    numerical_settings.SelfConsistency.m_def,
-    TEXT_KEY,
-    ('get_scf_convergence_criteria', ['@']),
-)
+# SelfConsistency instances are created manually in parser.py write_to_archive()
+# because multi-mapper doesn't support function-returns-list pattern
 
 
 # class DFT(model_method.DFT):
