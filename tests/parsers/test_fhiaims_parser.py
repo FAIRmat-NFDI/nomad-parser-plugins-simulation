@@ -151,19 +151,24 @@ def test_scf_convergence_criteria():
     assert len(scf_criteria) == 3
 
     # Create a mapping for easier checking
+    # Note: Two criteria have 'eV' units (energy and eigenvalues), so we need to
+    # distinguish by threshold value
     criteria_by_unit = {sc.threshold_change_unit: sc for sc in scf_criteria}
 
-    # Check energy convergence criterion
-    energy_criterion = criteria_by_unit.get('energy')
-    assert energy_criterion is not None
-    assert energy_criterion.threshold_change == approx(1.0e-6)
-
-    # Check electron density convergence criterion
-    density_criterion = criteria_by_unit.get('electron_density')
+    # Check electron density convergence criterion (dimensionless)
+    density_criterion = criteria_by_unit.get('dimensionless')
     assert density_criterion is not None
     assert density_criterion.threshold_change == approx(1.0e-5)
 
-    # Check sum of eigenvalues convergence criterion
-    eigenvalues_criterion = criteria_by_unit.get('sum_eigenvalues')
-    assert eigenvalues_criterion is not None
+    # Check energy and eigenvalues convergence criteria (both in eV)
+    # Need to distinguish by threshold value since both use 'eV'
+    ev_criteria = [sc for sc in scf_criteria if sc.threshold_change_unit == 'eV']
+    assert len(ev_criteria) == 2
+
+    # Energy criterion has smaller threshold (1e-6 eV)
+    energy_criterion = next(sc for sc in ev_criteria if sc.threshold_change < 1.0e-5)
+    assert energy_criterion.threshold_change == approx(1.0e-6)
+
+    # Eigenvalues criterion has larger threshold (1e-3 eV)
+    eigenvalues_criterion = next(sc for sc in ev_criteria if sc.threshold_change > 1.0e-5)
     assert eigenvalues_criterion.threshold_change == approx(1.0e-3)

@@ -332,7 +332,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
         result = {
             'threshold_change': conv_energy,
-            'threshold_change_unit': 'energy',
+            'threshold_change_unit': 'eV',
         }
 
         max_iterations = source.get('max_scf_iterations')
@@ -354,7 +354,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
         result = {
             'threshold_change': conv_density,
-            'threshold_change_unit': 'electron_density',
+            'threshold_change_unit': 'dimensionless',
         }
 
         max_iterations = source.get('max_scf_iterations')
@@ -376,7 +376,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
         result = {
             'threshold_change': conv_eigenvalues,
-            'threshold_change_unit': 'sum_eigenvalues',
+            'threshold_change_unit': 'eV',
         }
 
         max_iterations = source.get('max_scf_iterations')
