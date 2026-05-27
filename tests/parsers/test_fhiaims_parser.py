@@ -150,13 +150,11 @@ def test_scf_convergence_criteria():
     ]
     assert len(scf_criteria) == 3
 
-    # Create a mapping for easier checking
-    # Note: Two criteria have 'eV' units (energy and eigenvalues), so we need to
-    # distinguish by threshold value
-    criteria_by_unit = {sc.threshold_change_unit: sc for sc in scf_criteria}
-
     # Check electron density convergence criterion (dimensionless)
-    density_criterion = criteria_by_unit.get('dimensionless')
+    density_criterion = next(
+        (sc for sc in scf_criteria if sc.threshold_change_unit == 'dimensionless'),
+        None,
+    )
     assert density_criterion is not None
     assert density_criterion.threshold_change == approx(1.0e-5)
 
