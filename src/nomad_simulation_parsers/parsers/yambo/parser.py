@@ -7,8 +7,8 @@ import numpy as np
 from ase.data import chemical_symbols
 from netCDF4 import Dataset
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
     TextParser,

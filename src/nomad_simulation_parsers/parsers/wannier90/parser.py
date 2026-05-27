@@ -7,9 +7,9 @@ import numpy as np
 from nomad.config import config
 from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import TaskReference
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
-from nomad.parsing.file_parser.text_parser import DataTextParser
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
+from nomad_file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation

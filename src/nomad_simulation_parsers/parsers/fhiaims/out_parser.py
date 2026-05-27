@@ -3,7 +3,7 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
+from nomad_file_parser import Quantity, TextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 

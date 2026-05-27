@@ -1,7 +1,7 @@
 import re
 
 import numpy as np
-from nomad.parsing.file_parser import Quantity, TextParser
+from nomad_file_parser import Quantity, TextParser
 from nomad.units import ureg
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'

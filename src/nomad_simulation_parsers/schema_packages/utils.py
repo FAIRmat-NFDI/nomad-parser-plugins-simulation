@@ -2,7 +2,7 @@ from typing import Any
 
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import Quantity, Section, SubSection
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 
 
 def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:

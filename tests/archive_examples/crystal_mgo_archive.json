@@ -1,0 +1,12 @@
+{
+  "data": {
+    "m_def": "nomad_simulations.schema_packages.general.Simulation",
+    "program": {
+      "name": "Crystal"
+    }
+  },
+  "workflow2": {
+    "m_def": "nomad_simulations.schema_packages.workflow.single_point.SinglePoint",
+    "method": {}
+  }
+}

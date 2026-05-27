@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 from ase.symbols import symbols2numbers
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
     TextParser,

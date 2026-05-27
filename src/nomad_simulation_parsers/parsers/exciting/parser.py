@@ -5,8 +5,8 @@ from typing import Any
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
     XMLParser,

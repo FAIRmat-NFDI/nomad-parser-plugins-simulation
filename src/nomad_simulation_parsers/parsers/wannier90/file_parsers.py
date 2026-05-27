@@ -1,6 +1,6 @@
 import re
 
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 RE_N = r'[\n\r]'
 

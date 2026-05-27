@@ -4,7 +4,7 @@ import ase
 import numpy as np
 import pint
 from ase.io.ulm import Reader
-from nomad.parsing.file_parser import DataTextParser, FileParser, TarParser, XMLParser
+from nomad_file_parser import DataTextParser, FileParser, TarParser, XMLParser
 from nomad.units import ureg
 
 

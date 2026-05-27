@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
+from nomad_file_parser import Quantity, TextParser
 from nomad.units import ureg
 
 from nomad_simulation_parsers.parsers.utils.constants import (

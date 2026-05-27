@@ -5,7 +5,7 @@ import numpy as np
 import phonopy
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
+from nomad_file_parser import ArchiveWriter
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation

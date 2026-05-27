@@ -1,7 +1,7 @@
 import numpy as np
 from netCDF4 import Dataset  # pylint: disable=no-name-in-module
-from nomad.parsing.file_parser import FileParser
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser import FileParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 from nomad.units import ureg
 
 RE_FLOAT = r'[-+]*\d*\.\d+[Ee]*[-+]*\d*'

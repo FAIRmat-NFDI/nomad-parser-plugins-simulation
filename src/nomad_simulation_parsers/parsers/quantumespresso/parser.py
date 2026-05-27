@@ -12,8 +12,8 @@ from nomad.config import config
 from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     Path,
     TextParser,

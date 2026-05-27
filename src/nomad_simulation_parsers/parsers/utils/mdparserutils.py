@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 from ase.symbols import symbols2numbers
-from nomad.parsing.file_parser import ArchiveWriter
+from nomad_file_parser import ArchiveWriter
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages import workflow
 from nomad_simulations.schema_packages.atoms_state import (
