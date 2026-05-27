@@ -4,8 +4,8 @@ import ase
 import numpy as np
 import pint
 from ase.io.ulm import Reader
-from nomad_file_parser import DataTextParser, FileParser, TarParser, XMLParser
 from nomad.units import ureg
+from nomad_file_parser import DataTextParser, FileParser, TarParser, XMLParser
 
 
 class GPWTarParser(TarParser):

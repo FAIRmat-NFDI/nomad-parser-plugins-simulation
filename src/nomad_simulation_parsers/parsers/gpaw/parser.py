@@ -1,10 +1,10 @@
 from typing import Any
 
 from nomad.datamodel import EntryArchive
-from nomad_file_parser import ArchiveWriter
-from nomad_file_parser.mapping_parser import MappingParser, MetainfoParser
 from nomad.parsing.parser import MatchingParser
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MappingParser, MetainfoParser
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
 from nomad_simulations.schema_packages.workflow.single_point import (

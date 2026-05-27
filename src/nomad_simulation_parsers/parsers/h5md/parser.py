@@ -4,10 +4,10 @@ from typing import Any
 import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
-from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 

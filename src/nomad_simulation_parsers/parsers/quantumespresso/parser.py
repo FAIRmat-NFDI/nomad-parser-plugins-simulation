@@ -12,6 +12,8 @@ from nomad.config import config
 from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import (
     MetainfoParser,
@@ -19,8 +21,6 @@ from nomad_file_parser.mapping_parser import (
     TextParser,
     XMLParser,
 )
-from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,

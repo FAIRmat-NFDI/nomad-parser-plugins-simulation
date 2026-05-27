@@ -3,8 +3,8 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad_file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_SYMBOL = re.compile(r'([A-Z][a-z]?)')

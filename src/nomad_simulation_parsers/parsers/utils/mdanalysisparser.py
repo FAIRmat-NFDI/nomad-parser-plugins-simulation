@@ -42,9 +42,9 @@ except ImportError:
 if TYPE_CHECKING:
     from MDAnalysis import Universe as MDAUniverse
 
-from nomad_file_parser import FileParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import FileParser
 from nomad_simulations.schema_packages.utils.molecular_dynamics import (
     BeadGroup,
     shifted_correlation_average,
