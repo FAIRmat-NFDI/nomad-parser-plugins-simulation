@@ -166,6 +166,7 @@ def test_scf_convergence_criteria():
     )
     assert density_criterion is not None
     assert density_criterion.threshold_change == approx(1.0e-5)
+    assert density_criterion.threshold_change_unit == 'dimensionless'
 
     # Check eigenvalues convergence criterion (distinguished by name)
     eigenvalues_criterion = next(
