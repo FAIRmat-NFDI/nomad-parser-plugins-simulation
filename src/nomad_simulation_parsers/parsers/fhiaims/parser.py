@@ -331,6 +331,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         result = {
+            'name': 'total_energy_change',
             'threshold_change': conv_energy,
             'threshold_change_unit': 'eV',
         }
@@ -353,6 +354,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         result = {
+            'name': 'charge_density_change',
             'threshold_change': conv_density,
             'threshold_change_unit': 'dimensionless',
         }
@@ -375,6 +377,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         result = {
+            'name': 'sum_eigenvalues_change',
             'threshold_change': conv_eigenvalues,
             'threshold_change_unit': 'eV',
         }
@@ -606,7 +609,12 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
             # Add all criteria to numerical_settings
             for criterion in criteria:
-                dft.numerical_settings.append(SelfConsistency(**criterion))
+                # Extract name if present (must be set after instantiation due to __init__ override)
+                criterion_name = criterion.pop('name', None)
+                instance = SelfConsistency(**criterion)
+                if criterion_name:
+                    instance.name = criterion_name
+                dft.numerical_settings.append(instance)
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables

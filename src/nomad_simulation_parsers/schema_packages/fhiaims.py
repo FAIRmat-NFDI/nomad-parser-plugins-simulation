@@ -92,10 +92,6 @@ class DFT(model_method.DFT):
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
 
 
-# SelfConsistency instances are created manually in parser.py write_to_archive()
-# because multi-mapper doesn't support function-returns-list pattern
-
-
 # class DFT(model_method.DFT):
 #     model_method.DFT.xc_functionals.m_annotations.setdefault(
 #         MAPPING_ANNOTATION_KEY, {}
