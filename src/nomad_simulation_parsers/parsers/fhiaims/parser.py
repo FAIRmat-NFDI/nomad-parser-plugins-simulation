@@ -278,14 +278,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if conv_energy is None:
             return {}
 
-        # Extract magnitude and unit from pint Quantity if present
-        if hasattr(conv_energy, 'magnitude') and hasattr(conv_energy, 'units'):
-            value = conv_energy.magnitude
-            unit = format(conv_energy.units, '~P')  # Use short symbol format
-        else:
-            value = conv_energy
-            unit = 'eV'
-
         result = {
             'name': 'total_energy_change',
             'threshold_change': conv_energy,
@@ -330,16 +322,6 @@ class FHIAimsOutMappingParser(TextMappingParser):
         conv_eigenvalues = source.get('convergence_eigenvalues')
         if conv_eigenvalues is None:
             return {}
-
-        # Extract magnitude and unit from pint Quantity if present
-        if hasattr(conv_eigenvalues, 'magnitude') and hasattr(
-            conv_eigenvalues, 'units'
-        ):
-            value = conv_eigenvalues.magnitude
-            unit = format(conv_eigenvalues.units, '~P')  # Use short symbol format
-        else:
-            value = conv_eigenvalues
-            unit = 'eV'
 
         result = {
             'name': 'sum_eigenvalues_change',
