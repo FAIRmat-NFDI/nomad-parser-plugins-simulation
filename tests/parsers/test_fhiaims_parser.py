@@ -156,8 +156,8 @@ def test_scf_convergence_criteria():
         None,
     )
     assert energy_criterion is not None
-    assert energy_criterion.threshold_change == approx(1.0e-6)
-    assert energy_criterion.threshold_change_unit == 'eV'
+    assert energy_criterion.threshold_change.magnitude == approx(1.0e-6)
+    assert str(energy_criterion.threshold_change.units) == 'electron_volt'
 
     # Check density convergence criterion (distinguished by name)
     density_criterion = next(
@@ -166,7 +166,6 @@ def test_scf_convergence_criteria():
     )
     assert density_criterion is not None
     assert density_criterion.threshold_change == approx(1.0e-5)
-    assert density_criterion.threshold_change_unit == 'dimensionless'
 
     # Check eigenvalues convergence criterion (distinguished by name)
     eigenvalues_criterion = next(
@@ -174,5 +173,5 @@ def test_scf_convergence_criteria():
         None,
     )
     assert eigenvalues_criterion is not None
-    assert eigenvalues_criterion.threshold_change == approx(1.0e-3)
-    assert eigenvalues_criterion.threshold_change_unit == 'eV'
+    assert eigenvalues_criterion.threshold_change.magnitude == approx(1.0e-3)
+    assert str(eigenvalues_criterion.threshold_change.units) == 'electron_volt'

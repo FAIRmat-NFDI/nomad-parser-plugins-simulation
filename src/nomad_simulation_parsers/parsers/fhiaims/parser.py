@@ -330,18 +330,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if conv_energy is None:
             return {}
 
-        # Extract magnitude and unit from pint Quantity if present
-        if hasattr(conv_energy, 'magnitude') and hasattr(conv_energy, 'units'):
-            value = conv_energy.magnitude
-            unit = format(conv_energy.units, '~P')  # Use short symbol format
-        else:
-            value = conv_energy
-            unit = 'eV'
-
         result = {
             'name': 'total_energy_change',
-            'threshold_change': value,
-            'threshold_change_unit': unit,
+            'threshold_change': conv_energy,
         }
 
         max_iterations = source.get('max_scf_iterations')
@@ -384,20 +375,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if conv_eigenvalues is None:
             return {}
 
-        # Extract magnitude and unit from pint Quantity if present
-        if hasattr(conv_eigenvalues, 'magnitude') and hasattr(
-            conv_eigenvalues, 'units'
-        ):
-            value = conv_eigenvalues.magnitude
-            unit = format(conv_eigenvalues.units, '~P')  # Use short symbol format
-        else:
-            value = conv_eigenvalues
-            unit = 'eV'
-
         result = {
             'name': 'sum_eigenvalues_change',
-            'threshold_change': value,
-            'threshold_change_unit': unit,
+            'threshold_change': conv_eigenvalues,
         }
 
         max_iterations = source.get('max_scf_iterations')
