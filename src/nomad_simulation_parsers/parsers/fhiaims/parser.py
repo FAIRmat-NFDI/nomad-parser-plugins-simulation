@@ -330,10 +330,18 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if conv_energy is None:
             return {}
 
+        # Extract magnitude and unit from pint Quantity if present
+        if hasattr(conv_energy, 'magnitude') and hasattr(conv_energy, 'units'):
+            value = conv_energy.magnitude
+            unit = format(conv_energy.units, '~P')  # Use short symbol format
+        else:
+            value = conv_energy
+            unit = 'eV'
+
         result = {
             'name': 'total_energy_change',
-            'threshold_change': conv_energy,
-            'threshold_change_unit': 'eV',
+            'threshold_change': value,
+            'threshold_change_unit': unit,
         }
 
         max_iterations = source.get('max_scf_iterations')
@@ -376,10 +384,20 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if conv_eigenvalues is None:
             return {}
 
+        # Extract magnitude and unit from pint Quantity if present
+        if hasattr(conv_eigenvalues, 'magnitude') and hasattr(
+            conv_eigenvalues, 'units'
+        ):
+            value = conv_eigenvalues.magnitude
+            unit = format(conv_eigenvalues.units, '~P')  # Use short symbol format
+        else:
+            value = conv_eigenvalues
+            unit = 'eV'
+
         result = {
             'name': 'sum_eigenvalues_change',
-            'threshold_change': conv_eigenvalues,
-            'threshold_change_unit': 'eV',
+            'threshold_change': value,
+            'threshold_change_unit': unit,
         }
 
         max_iterations = source.get('max_scf_iterations')
@@ -639,9 +657,15 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 ]
             energy_threshold = out_parser.data.get('convergence_energy')
             if energy_threshold is not None:
+                # Handle both pint Quantity (with units) and plain float
+                if hasattr(energy_threshold, 'units'):
+                    threshold_value = energy_threshold
+                else:
+                    threshold_value = energy_threshold * ureg.eV
+
                 self.archive.workflow2.method.single_point_convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=energy_threshold * ureg.eV,
+                        threshold=threshold_value,
                         threshold_type='absolute',
                     )
                 ]
