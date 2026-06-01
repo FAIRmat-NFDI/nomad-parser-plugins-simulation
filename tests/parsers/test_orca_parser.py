@@ -80,7 +80,7 @@ def _assert_local_correlation(method, localization):
     assert method.local_correlation is not None
     assert method.local_correlation.type == 'DLPNO'
     assert len(method.local_correlation.spaces) == 1
-    assert method.local_correlation.spaces[0].kind == 'orbital'
+    assert method.local_correlation.spaces[0].space_kind == 'local_virtual_space'
     assert method.local_correlation.spaces[0].virtual_space_type == 'PNO'
     assert method.local_correlation.spaces[0].excitation_order == 2
     assert method.local_correlation.orbital_localization_ref is localization
@@ -89,7 +89,6 @@ def _assert_local_correlation(method, localization):
 def _assert_mp2_method(mp2, localization):
     assert mp2.type == 'MP'
     assert mp2.order == 2
-    assert mp2.determinant == 'restricted'
     _assert_local_correlation(mp2, localization)
 
     components = _basis_components_by_role(mp2)
@@ -111,7 +110,6 @@ def _assert_cc_method(cc, localization):
     assert list(cc.excitation_order) == [1, 2]
     assert cc.perturbative_correction == '(T)'
     assert list(cc.perturbative_correction_order) == [3]
-    assert cc.determinant == 'restricted'
     _assert_local_correlation(cc, localization)
 
     components = _basis_components_by_role(cc)
@@ -122,9 +120,9 @@ def _assert_cc_method(cc, localization):
     assert thresholds['TCutPairs'].value == pytest.approx(1.0e-6)
     assert thresholds['TCutPairs'].applies_to == 'pair_screening'
     assert thresholds['TCutPNO'].value == pytest.approx(1.0e-8)
-    assert thresholds['TCutPNO'].applies_to == 'orbital'
+    assert thresholds['TCutPNO'].applies_to == 'local_virtual_space'
     assert thresholds['TCutPNOSingles'].value == pytest.approx(3.0e-10)
-    assert thresholds['TCutPNOSingles'].applies_to == 'orbital'
+    assert thresholds['TCutPNOSingles'].applies_to == 'local_virtual_space'
     assert thresholds['TCutMP2Pairs'].value == pytest.approx(1.0e-7)
     assert thresholds['TCutMKN'].value == pytest.approx(1.0e-3)
     assert thresholds['TCutPAO'].value == pytest.approx(1.0e-3)
@@ -167,6 +165,7 @@ def test_dft_xc_canonicalization():
     dft.normalize(archive, LOGGER)
 
     assert dft.jacobs_ladder == 'meta-GGA'
+    assert dft.reference_form == 'UKS'
     assert dft.xc is not None
     assert dft.xc.functional_key == 'TPSS'
     assert dft.xc.global_exact_exchange == 0.1
@@ -185,7 +184,7 @@ def test_local_cc_parsing():
     assert system.total_spin == 0
 
     hf = _single_method(archive, HF)
-    assert hf.type == 'RHF'
+    assert hf.reference_form == 'RHF'
     _assert_main_basis(_basis_components_by_role(hf))
 
     localization = _single_method(archive, OrbitalLocalization)
@@ -212,6 +211,7 @@ def test_local_cc_parsing():
             'filename': 'CoPc_CASSCF_SS.out',
             'section_cls': MultireferenceSCF,
             'method_type': 'CASSCF',
+            'state_treatment': 'state_specific',
             'active_space': (7, 5),
             'multiplicities': [4],
             'roots': [1],
@@ -220,6 +220,7 @@ def test_local_cc_parsing():
             'filename': 'CoPc_CASSCF_SA.out',
             'section_cls': MultireferenceSCF,
             'method_type': 'CASSCF',
+            'state_treatment': 'state_averaged',
             'active_space': (7, 5),
             'multiplicities': [4, 2],
             'roots': [10, 40],
@@ -228,6 +229,7 @@ def test_local_cc_parsing():
             'filename': 'CoPc_CASCI_QD.out',
             'section_cls': MultireferenceCI,
             'method_type': 'CASCI',
+            'state_treatment': 'state_averaged',
             'active_space': (13, 8),
             'multiplicities': [4, 2],
             'roots': [40, 115],
@@ -239,6 +241,7 @@ def test_multireference_parsing(case):
     method = _single_method(archive, case['section_cls'])
 
     assert method.type == case['method_type']
+    assert method.state_treatment == case['state_treatment']
     assert method.active_space is not None
     assert method.active_space.n_active_electrons == case['active_space'][0]
     assert method.active_space.n_active_orbitals == case['active_space'][1]
@@ -255,6 +258,7 @@ def test_qd_nevpt2_method_parsing():
     assert method.name == 'QD-SC-NEVPT2'
     assert method.type == 'NEVPT'
     assert method.order == 2
+    assert method.state_treatment == 'state_averaged'
     assert method.active_space is not None
     assert method.active_space.n_active_electrons == 13
     assert method.active_space.n_active_orbitals == 8

@@ -78,6 +78,11 @@ add_mapping_annotation(
     OUT_KEY,
     '.xc',
 )
+add_mapping_annotation(
+    model_method.DFT.reference_form,
+    OUT_KEY,
+    '.reference_form',
+)
 
 add_mapping_annotation(
     model_method.XCFunctional.global_exact_exchange,
@@ -99,7 +104,7 @@ add_mapping_annotation(
 )
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
 add_mapping_annotation(
-    model_method.MultireferenceSCF.reference_type, OUT_KEY, '.reference_type'
+    model_method.MultireferenceSCF.state_treatment, OUT_KEY, '.state_treatment'
 )
 add_mapping_annotation(
     model_method.MultireferenceSCF.n_state_groups, OUT_KEY, '.n_state_groups'
@@ -143,7 +148,7 @@ add_mapping_annotation(
 )
 add_mapping_annotation(model_method.MultireferenceCI.type, OUT_KEY, '.type')
 add_mapping_annotation(
-    model_method.MultireferenceCI.reference_type, OUT_KEY, '.reference_type'
+    model_method.MultireferenceCI.state_treatment, OUT_KEY, '.state_treatment'
 )
 add_mapping_annotation(
     model_method.MultireferenceCI.n_state_groups, OUT_KEY, '.n_state_groups'
@@ -197,7 +202,6 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.CC.explicit_correlation, OUT_KEY, '.explicit_correlation'
 )
-add_mapping_annotation(model_method.CC.determinant, OUT_KEY, '.determinant')
 add_mapping_annotation(model_method.CC.local_correlation, OUT_KEY, '.local_correlation')
 add_mapping_annotation(
     model_method.CC.numerical_settings, OUT_KEY, '.numerical_settings'
@@ -206,9 +210,13 @@ add_mapping_annotation(
 add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.LocalCorrelation.spaces, OUT_KEY, '.spaces')
 
-add_mapping_annotation(model_method.LocalCorrelationSpace.kind, OUT_KEY, '.kind')
 add_mapping_annotation(
-    model_method.LocalCorrelationSpace.domain_kind, OUT_KEY, '.domain_kind'
+    model_method.LocalCorrelationSpace.space_kind, OUT_KEY, '.space_kind'
+)
+add_mapping_annotation(
+    model_method.LocalCorrelationSpace.occupied_tuple_kind,
+    OUT_KEY,
+    '.occupied_tuple_kind',
 )
 add_mapping_annotation(
     model_method.LocalCorrelationSpace.virtual_space_type,

@@ -156,7 +156,14 @@ class OutParser(MappingTextParser):
         if not xc:
             return {}
 
-        return {'xc': xc}
+        method_data = {'xc': xc}
+        reference_form = self._dft_reference_form_from_hf_type(
+            scf_settings.get('hf_type')
+        )
+        if reference_form:
+            method_data['reference_form'] = reference_form
+
+        return method_data
 
     def get_numerical_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_convergence = (
@@ -207,7 +214,7 @@ class OutParser(MappingTextParser):
                 for block in casscf.get('block') or []
             )
 
-        reference_type = (
+        state_treatment = (
             'state_averaged'
             if state_weights and len(state_weights) > 1
             else 'state_specific'
@@ -217,7 +224,7 @@ class OutParser(MappingTextParser):
         return {
             'type': 'CASCI' if is_casci else 'CASSCF',
             'active_space': active_space or None,
-            'reference_type': reference_type,
+            'state_treatment': state_treatment,
             'n_state_groups': n_state_groups,
             'state_multiplicities': state_multiplicities or None,
             'n_roots_per_multiplicity': n_roots_per_multiplicity or None,
@@ -348,19 +355,32 @@ class OutParser(MappingTextParser):
         return None
 
     @staticmethod
-    def _determinant_from_reference(reference_wavefunction: Any) -> str | None:
+    def _hf_reference_form_from_reference(reference_wavefunction: Any) -> str | None:
         reference = OutParser._scalar(reference_wavefunction)
         if not isinstance(reference, str):
             return None
 
         reference = reference.upper()
-        if reference == 'RHF':
-            return 'restricted'
-        if reference == 'UHF':
-            return 'unrestricted'
-        if reference == 'ROHF':
-            return 'restricted-open-shell'
+        if reference in {'RHF', 'UHF', 'ROHF'}:
+            return reference
         return None
+
+    @staticmethod
+    def _dft_reference_form_from_hf_type(hf_type: Any) -> str | None:
+        reference = OutParser._scalar(hf_type)
+        if not isinstance(reference, str):
+            return None
+
+        reference = reference.upper()
+        mapping = {
+            'RHF': 'RKS',
+            'UHF': 'UKS',
+            'ROHF': 'ROKS',
+            'RKS': 'RKS',
+            'UKS': 'UKS',
+            'ROKS': 'ROKS',
+        }
+        return mapping.get(reference)
 
     @staticmethod
     def _excitation_orders_from_cc_type(cc_type: str | None) -> list[int] | None:
@@ -456,30 +476,30 @@ class OutParser(MappingTextParser):
     ) -> tuple[tuple[str, str, str], ...]:
         mapping = [
             ('tCutPairs', 'TCutPairs', 'pair_screening'),
-            ('tCutPNO', 'TCutPNO', 'orbital'),
-            ('tCutPNOSingles', 'TCutPNOSingles', 'orbital'),
+            ('tCutPNO', 'TCutPNO', 'local_virtual_space'),
+            ('tCutPNOSingles', 'TCutPNOSingles', 'local_virtual_space'),
             ('tCutMP2Pairs', 'TCutMP2Pairs', 'pair_screening'),
-            ('tCutMKN', 'TCutMKN', 'domain'),
-            ('tCutPAO', 'TCutPAO', 'orbital'),
-            ('tCutEN', 'TCutEN', 'domain'),
-            ('tCutPAOExt', 'TCutPAOExt', 'orbital'),
+            ('tCutMKN', 'TCutMKN', 'occupied_domain'),
+            ('tCutPAO', 'TCutPAO', 'local_virtual_space'),
+            ('tCutEN', 'TCutEN', 'occupied_domain'),
+            ('tCutPAOExt', 'TCutPAOExt', 'local_virtual_space'),
             ('tCutPre', 'TCutPre', 'pair_screening'),
-            ('tCutOSV', 'TCutOSV', 'orbital'),
+            ('tCutOSV', 'TCutOSV', 'local_virtual_space'),
             ('tCutDOij', 'TCutDOij', 'pair_screening'),
-            ('tCutDO', 'TCutDO', 'domain'),
-            ('tCutC', 'TCutC', 'domain'),
-            ('tCutCPAO', 'TCutCPAO', 'domain'),
-            ('tCutCMO', 'TCutCMO', 'domain'),
-            ('paoOverlapThresh', 'PAOOverlapThresh', 'orbital'),
+            ('tCutDO', 'TCutDO', 'occupied_domain'),
+            ('tCutC', 'TCutC', 'occupied_domain'),
+            ('tCutCPAO', 'TCutCPAO', 'occupied_domain'),
+            ('tCutCMO', 'TCutCMO', 'occupied_domain'),
+            ('paoOverlapThresh', 'PAOOverlapThresh', 'local_virtual_space'),
         ]
         if include_triples:
             mapping.extend(
                 [
-                    ('tCutTNO', 'TCutTNO', 'orbital'),
-                    ('tCutDOStrong', 'TCutDOStrong', 'domain'),
-                    ('tCutMKNStrong', 'TCutMKNStrong', 'domain'),
-                    ('tCutMKNWeak', 'TCutMKNWeak', 'domain'),
-                    ('tCutDOWeak', 'TCutDOWeak', 'domain'),
+                    ('tCutTNO', 'TCutTNO', 'local_virtual_space'),
+                    ('tCutDOStrong', 'TCutDOStrong', 'occupied_domain'),
+                    ('tCutMKNStrong', 'TCutMKNStrong', 'occupied_domain'),
+                    ('tCutMKNWeak', 'TCutMKNWeak', 'occupied_domain'),
+                    ('tCutDOWeak', 'TCutDOWeak', 'occupied_domain'),
                 ]
             )
         return tuple(mapping)
@@ -552,9 +572,6 @@ class OutParser(MappingTextParser):
         method: dict[str, Any] = {
             'type': 'MP',
             'order': 2,
-            'determinant': self._determinant_from_reference(
-                cc_data.get('cc_reference_wavefunction')
-            ),
             'spin_component_scaling': self._normalize_spin_component_scaling(
                 ci_data.get('spin_component_scaling')
             ),
@@ -566,7 +583,7 @@ class OutParser(MappingTextParser):
                 'type': local_type,
                 'spaces': [
                     {
-                        'kind': 'orbital',
+                        'space_kind': 'local_virtual_space',
                         'virtual_space_type': virtual_space_type,
                         'excitation_order': 2,
                     }
@@ -603,9 +620,6 @@ class OutParser(MappingTextParser):
         method: dict[str, Any] = {
             'type': cc_type,
             'excitation_order': self._excitation_orders_from_cc_type(cc_type),
-            'determinant': self._determinant_from_reference(
-                cc_data.get('cc_reference_wavefunction')
-            ),
         }
 
         perturbative_triples = self._scalar(
@@ -629,7 +643,7 @@ class OutParser(MappingTextParser):
                 'type': local_type,
                 'spaces': [
                     {
-                        'kind': 'orbital',
+                        'space_kind': 'local_virtual_space',
                         'virtual_space_type': virtual_space_type,
                         'excitation_order': 2,
                     }
@@ -648,11 +662,13 @@ class OutParser(MappingTextParser):
         if not cc_data:
             return []
 
-        reference = self._scalar(cc_data.get('cc_reference_wavefunction'))
-        if reference not in {'RHF', 'UHF', 'ROHF'}:
+        reference_form = self._hf_reference_form_from_reference(
+            cc_data.get('cc_reference_wavefunction')
+        )
+        if reference_form is None:
             return []
 
-        return [{'type': reference}]
+        return [{'reference_form': reference_form}]
 
     @staticmethod
     def _build_orbital_localization_section(
@@ -662,7 +678,7 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _build_hf_section(method_data: dict[str, Any]) -> HF:
-        return HF(type=method_data.get('type'))
+        return HF(reference_form=method_data.get('reference_form'))
 
     @staticmethod
     def _build_dft_section(method_data: dict[str, Any]) -> DFT:
@@ -682,7 +698,7 @@ class OutParser(MappingTextParser):
     ) -> MultireferenceSCF:
         kwargs = {
             'type': method_data.get('type'),
-            'reference_type': method_data.get('reference_type'),
+            'state_treatment': method_data.get('state_treatment'),
             'n_state_groups': method_data.get('n_state_groups'),
             'state_multiplicities': method_data.get('state_multiplicities'),
             'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
@@ -699,7 +715,7 @@ class OutParser(MappingTextParser):
     ) -> MultireferenceCI:
         kwargs = {
             'type': method_data.get('type'),
-            'reference_type': method_data.get('reference_type'),
+            'state_treatment': method_data.get('state_treatment'),
             'n_state_groups': method_data.get('n_state_groups'),
             'state_multiplicities': method_data.get('state_multiplicities'),
             'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
@@ -718,7 +734,7 @@ class OutParser(MappingTextParser):
             'name': method_data.get('name'),
             'type': method_data.get('type'),
             'order': method_data.get('order'),
-            'reference_type': method_data.get('reference_type'),
+            'state_treatment': method_data.get('state_treatment'),
             'n_state_groups': method_data.get('n_state_groups'),
             'state_multiplicities': method_data.get('state_multiplicities'),
             'n_roots_per_multiplicity': method_data.get('n_roots_per_multiplicity'),
@@ -734,7 +750,6 @@ class OutParser(MappingTextParser):
         kwargs = {
             'type': method_data.get('type'),
             'order': method_data.get('order'),
-            'determinant': method_data.get('determinant'),
             'spin_component_scaling': method_data.get('spin_component_scaling'),
         }
 
@@ -797,7 +812,6 @@ class OutParser(MappingTextParser):
     def _build_cc_section(self, method_data: dict[str, Any]) -> CC:
         kwargs = {
             'type': method_data.get('type'),
-            'determinant': method_data.get('determinant'),
             'excitation_order': method_data.get('excitation_order'),
             'perturbative_correction': method_data.get('perturbative_correction'),
             'perturbative_correction_order': method_data.get(
