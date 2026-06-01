@@ -609,7 +609,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
             # Add all criteria to numerical_settings
             for criterion in criteria:
-                # Extract name if present (must be set after instantiation due to __init__ override)
+                # Extract name (must be set after instantiation due to __init__)
                 criterion_name = criterion.pop('name', None)
                 instance = SelfConsistency(**criterion)
                 if criterion_name:
