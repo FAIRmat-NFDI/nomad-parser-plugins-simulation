@@ -690,11 +690,21 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'orbital_energies',
-                rf'NO\s*OCC\s*E\(Eh\)\s*E\(eV\)\s*([\s\S]+?){re_n}{re_n}',
+                (
+                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
+                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
+                    rf'{re_float}\s*\n)+)'
+                ),
                 str_operation=lambda x: np.array(
-                    [v.split()[:4] for v in x.split('\n')], dtype=float
+                    [v.split()[:4] for v in x.splitlines() if v.strip()],
+                    dtype=float,
                 ),
                 repeats=True,
+            ),
+            Quantity(
+                'molecular_orbital_coefficients',
+                r'MOLECULAR ORBITALS\s*\-+([\s\S]+?)(?=\n\s*\*{10})',
+                convert=False,
             ),
             Quantity(
                 'mulliken',

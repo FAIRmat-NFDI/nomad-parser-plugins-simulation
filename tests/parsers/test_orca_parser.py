@@ -57,3 +57,19 @@ def test_model_system_and_molecular_orbitals():
     assert molecular_orbitals.mo_energies[0].to('electron_volt').magnitude == (
         pytest.approx(-559.0826)
     )
+
+
+def test_molecular_orbital_coefficients():
+    archive = _parse_orca('orca_orbitals.out')
+
+    molecular_orbitals = archive.data.outputs[0].electronic_eigenvalues[0]
+    assert molecular_orbitals.n_mo == 77
+    assert molecular_orbitals.n_ao == 77
+    assert molecular_orbitals.mo_coefficients.shape == (77, 77)
+    assert molecular_orbitals.mo_coefficients[0, 0] == pytest.approx(-0.000034)
+    assert molecular_orbitals.mo_coefficients[5, 9] == pytest.approx(0.995146)
+    assert molecular_orbitals.mo_coefficients[-1, -1] == pytest.approx(-0.006075)
+    assert molecular_orbitals.mo_occupations[28] == pytest.approx(0.0)
+    assert molecular_orbitals.mo_energies[0].to('electron_volt').magnitude == (
+        pytest.approx(-520.4853)
+    )

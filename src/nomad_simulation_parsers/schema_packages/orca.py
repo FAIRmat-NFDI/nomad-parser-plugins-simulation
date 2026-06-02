@@ -55,6 +55,11 @@ add_mapping_annotation(
     '.mo_energies',
 )
 add_mapping_annotation(
+    molecular_orbitals.MolecularOrbitals.mo_coefficients,
+    OUT_KEY,
+    '.mo_coefficients',
+)
+add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.mo_type,
     OUT_KEY,
     '.mo_type',
