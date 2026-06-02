@@ -44,7 +44,7 @@ def test_model_system_and_molecular_orbitals():
 
     assert len(archive.data.outputs) == 1
     output = archive.data.outputs[0]
-    assert output.model_system_ref is system
+    assert output.model_system_ref.m_proxy_value == '/data/model_system/0'
     assert len(output.electronic_eigenvalues) == 1
 
     molecular_orbitals = output.electronic_eigenvalues[0]
