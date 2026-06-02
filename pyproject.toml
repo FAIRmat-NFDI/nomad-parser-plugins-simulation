@@ -156,6 +156,7 @@ h5md_schema_package = "nomad_simulation_parsers.schema_packages:h5md_schema_pack
 lammps_parser = "nomad_simulation_parsers.parsers:lammps_parser"
 octopus_parser = "nomad_simulation_parsers.parsers:octopus_parser"
 octopus_schema_package = "nomad_simulation_parsers.schema_packages:octopus_schema_package"
+orca_parser = "nomad_simulation_parsers.parsers:orca_parser"
 phonopy_parser = "nomad_simulation_parsers.parsers:phonopy_parser"
 phonopy_schema_package = "nomad_simulation_parsers.schema_packages:phonopy_schema_package"
 quantumespresso_parser = "nomad_simulation_parsers.parsers:quantumespresso_parser"
