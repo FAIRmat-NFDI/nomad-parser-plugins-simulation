@@ -107,9 +107,10 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
 
     # Check NumericalSettings/KSpace exists
     assert dft.numerical_settings is not None
-    assert len(dft.numerical_settings) == 1
-    k_space = dft.numerical_settings[0]
-    assert k_space.m_def.name == 'KSpace'
+    # Filter for KSpace (may also contain SelfConsistency criteria)
+    k_spaces = [ns for ns in dft.numerical_settings if ns.m_def.name == 'KSpace']
+    assert len(k_spaces) == 1
+    k_space = k_spaces[0]
 
     # Check KSpace.k_mesh exists
     assert k_space.k_mesh is not None
@@ -124,3 +125,53 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     # Check k_offset values (default or explicit)
     assert k_mesh.offset is not None
     assert list(k_mesh.offset) == approx(expected_offset)
+
+
+def test_scf_convergence_criteria():
+    """Test extraction of SCF convergence criteria."""
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    # Check DFT section exists
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) == 1
+    dft = archive.data.model_method[0]
+    assert dft.m_def.name == 'DFT'
+
+    # Check NumericalSettings contains SelfConsistency sections
+    assert dft.numerical_settings is not None
+    # Should have at least: KSpace + 3 SelfConsistency (energy, density, eigenvalues)
+    assert len(dft.numerical_settings) >= 4
+
+    # Filter for SelfConsistency sections
+    scf_criteria = [
+        ns for ns in dft.numerical_settings if ns.m_def.name == 'SelfConsistency'
+    ]
+    assert len(scf_criteria) == 3
+
+    # Check energy convergence criterion (distinguished by name)
+    energy_criterion = next(
+        (sc for sc in scf_criteria if sc.name == 'total_energy_change'),
+        None,
+    )
+    assert energy_criterion is not None
+    assert energy_criterion.threshold_change.magnitude == approx(1.0e-6)
+    assert str(energy_criterion.threshold_change.units) == 'electron_volt'
+
+    # Check density convergence criterion (distinguished by name)
+    density_criterion = next(
+        (sc for sc in scf_criteria if sc.name == 'charge_density_change'),
+        None,
+    )
+    assert density_criterion is not None
+    assert density_criterion.threshold_change == approx(1.0e-5)
+
+    # Check eigenvalues convergence criterion (distinguished by name)
+    eigenvalues_criterion = next(
+        (sc for sc in scf_criteria if sc.name == 'sum_eigenvalues_change'),
+        None,
+    )
+    assert eigenvalues_criterion is not None
+    assert eigenvalues_criterion.threshold_change.magnitude == approx(1.0e-3)
+    assert str(eigenvalues_criterion.threshold_change.units) == 'electron_volt'
