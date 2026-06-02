@@ -12,7 +12,6 @@ from nomad_simulations.schema_packages.properties.molecular_orbitals import (
 )
 
 from nomad_simulation_parsers.schema_packages import orca
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .text_parser import OutReader
 
@@ -152,7 +151,6 @@ class OrcaParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] | None = None,
     ) -> None:
-        remove_mapping_annotations(Simulation.m_def)
         reload(orca)
 
         reader = OutParser()
@@ -167,4 +165,3 @@ class OrcaParser(MatchingParser):
         finally:
             metainfo_parser.close()
             reader.close()
-            remove_mapping_annotations(Simulation.m_def)
