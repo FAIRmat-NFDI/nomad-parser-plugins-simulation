@@ -175,3 +175,52 @@ def test_scf_convergence_criteria():
     assert eigenvalues_criterion is not None
     assert eigenvalues_criterion.threshold_change.magnitude == approx(1.0e-3)
     assert str(eigenvalues_criterion.threshold_change.units) == 'electron_volt'
+
+
+def test_total_energies():
+    """Test that total energies are extracted and mapped correctly."""
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    # Check outputs exist
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) == 5  # Geometry optimization has 5 steps
+
+    # Check each output has total_energies
+    for i, output in enumerate(outputs):
+        assert output.total_energies is not None, f'Output {i} has no total_energies'
+        assert len(output.total_energies) == 1, f'Output {i} should have exactly 1 total_energy'
+
+        total_energy = output.total_energies[0]
+
+        # Check that energy value exists and is a Quantity
+        assert total_energy.value is not None, f'Output {i} total_energy has no value'
+        assert hasattr(total_energy.value, 'magnitude'), f'Output {i} energy value is not a Quantity'
+
+        # Energy should be negative for this Si system
+        energy_ev = total_energy.value.to('eV').magnitude
+        assert energy_ev < 0, f'Output {i} energy should be negative, got {energy_ev}'
+
+        # Check energy is in reasonable range for Si (around -15696 eV for 2 atoms)
+        assert -16000 < energy_ev < -15600, f'Output {i} energy {energy_ev} eV out of expected range'
+
+        # Check that contributions/components exist
+        assert total_energy.contributions is not None, f'Output {i} has no energy contributions'
+        assert len(total_energy.contributions) > 0, f'Output {i} should have energy contributions'
+
+    # Explicitly check first step energy value (from test data analysis)
+    # First output (index 0) should have "Total energy uncorrected" from compact form
+    # which is -15696.1246183848 eV
+    first_energy = outputs[0].total_energies[0].value.to('eV').magnitude
+    assert first_energy == approx(-15696.1246183848, abs=0.01)
+
+    # Check that energy contributions have names and values
+    first_contributions = outputs[0].total_energies[0].contributions
+    assert any('eigenvalues' in contrib.name.lower() for contrib in first_contributions if contrib.name), \
+        'Should have eigenvalues contribution'
+
+    # All contributions should have a value
+    for contrib in first_contributions:
+        assert contrib.value is not None, f'Contribution {contrib.name} has no value'
