@@ -92,8 +92,13 @@ class Program(general.Program):
 
 
 class SelfConsistency(numerical_settings.SelfConsistency):
-    add_mapping_annotation(numerical_settings.SelfConsistency.threshold_change, TEXT_KEY, '.threshold_change')
-    pass
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        TEXT_KEY,
+        '.threshold_change',
+    )
+    add_mapping_annotation(numerical_settings.SelfConsistency.name, TEXT_KEY, '.name')
+
 
 class DFT(model_method.DFT):
     add_mapping_annotation(numerical_settings.SelfConsistency.m_def, TEXT_KEY, ('get_all_criteria', []), update_mode='append')
@@ -113,11 +118,20 @@ class XCFunctional(model_method.XCFunctional):
     )
 # Add SelfConsistency instances to DFT numerical_settings
 # Must be at module level for multi-mapper detection to work
-add_mapping_annotation(
-    numerical_settings.SelfConsistency.m_def,
-    TEXT_KEY,
-    ('get_scf_convergence_criteria', ['@']),
-)
+# add_mapping_annotation(
+#     numerical_settings.SelfConsistency.m_def,
+#     TEXT_KEY,
+#     ('get_scf_convergence_criteria', ['@']),
+# )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        TEXT_KEY,
+        ('get_all_criteria', []),
+        update_mode='append',
+    )
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def, TEXT_KEY, '.@', update_mode='append'
+    )
 
 
 # class DFT(model_method.DFT):
