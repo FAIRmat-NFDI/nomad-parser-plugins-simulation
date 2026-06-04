@@ -7,6 +7,7 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.force_field import (
+    ForceCalculations,
     ForceField,
     ParticleParameters,
     ParticleParametersContainer,
@@ -83,6 +84,12 @@ class LammpsArchiveWriter(MDParser):
         'quickmin': 'damped_dynamics',
         'fire': 'damped_dynamics',
         'spin': 'damped_dynamics',
+    }
+
+    _kspace_coulomb_prefix_map: dict[str, str] = {
+        'ewald': 'ewald',
+        'pppm': 'particle_mesh_ewald',
+        'msm': 'multilevel_summation',
     }
 
     def apply_unit(self, value: Any, unit: str) -> float:
@@ -254,11 +261,7 @@ class LammpsArchiveWriter(MDParser):
         masses_data = self._data_parser.get('Masses', None)
         if not masses_data or not isinstance(masses_data, list):
             return type_mass
-        raw = (
-            masses_data[0][1]
-            if isinstance(masses_data[0], tuple)
-            else masses_data
-        )
+        raw = masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
         if raw is None or len(raw) == 0:
             return type_mass
         for row in raw:
@@ -273,9 +276,7 @@ class LammpsArchiveWriter(MDParser):
         mass_cmds = self._log_parser.get('mass')
         if mass_cmds is None:
             return
-        if isinstance(mass_cmds, list) and mass_cmds and isinstance(
-            mass_cmds[0], str
-        ):
+        if isinstance(mass_cmds, list) and mass_cmds and isinstance(mass_cmds[0], str):
             mass_cmds = [mass_cmds]
         for cmd in mass_cmds:
             try:
@@ -313,9 +314,7 @@ class LammpsArchiveWriter(MDParser):
         set_cmds = self._log_parser.get('set')
         if set_cmds is None:
             return
-        if isinstance(set_cmds, list) and set_cmds and isinstance(
-            set_cmds[0], str
-        ):
+        if isinstance(set_cmds, list) and set_cmds and isinstance(set_cmds[0], str):
             set_cmds = [set_cmds]
         for cmd in set_cmds:
             style, target, mass_val = self._parse_set_mass_cmd(cmd)
@@ -357,11 +356,7 @@ class LammpsArchiveWriter(MDParser):
         pair_style_raw = self._log_parser.get('pair_style')
         if pair_style_raw is None:
             return
-        ps = (
-            pair_style_raw[0]
-            if isinstance(pair_style_raw, list)
-            else pair_style_raw
-        )
+        ps = pair_style_raw[0] if isinstance(pair_style_raw, list) else pair_style_raw
         if isinstance(ps, str) and ps.lower() in ('eam', 'bop'):
             self.logger.warning(
                 'EAM/BOP potential files may embed masses; '
@@ -390,9 +385,7 @@ class LammpsArchiveWriter(MDParser):
         self._masses_from_eam_bop()
         if not type_mass:
             return None
-        return np.array(
-            [[tid, m] for tid, m in sorted(type_mass.items())]
-        )
+        return np.array([[tid, m] for tid, m in sorted(type_mass.items())])
 
     def _extract_per_type_charges(self) -> dict[int, float]:
         """Return a {type_id: charge} map from the Atoms section.
@@ -412,9 +405,7 @@ class LammpsArchiveWriter(MDParser):
         atoms_data = self._data_parser.get('Atoms', None)
         if atoms_data is None or len(atoms_data) == 0:
             return per_type_charge
-        atoms_arr = (
-            atoms_data[0][1] if isinstance(atoms_data[0], tuple) else None
-        )
+        atoms_arr = atoms_data[0][1] if isinstance(atoms_data[0], tuple) else None
         if (
             atoms_arr is not None
             and atoms_arr.ndim == self._magic_two
@@ -446,9 +437,7 @@ class LammpsArchiveWriter(MDParser):
             return []
 
         mass_unit = self._log_parser.units.get('mass', ureg.amu)
-        charge_unit = self._log_parser.units.get(
-            'charge', ureg.elementary_charge
-        )
+        charge_unit = self._log_parser.units.get('charge', ureg.elementary_charge)
 
         # Use the label mapping already computed by TrajParser so that
         # particle_type agrees exactly with ps.label.  TrajParser keys
@@ -486,9 +475,7 @@ class LammpsArchiveWriter(MDParser):
                     'effective_mass': mass_val * mass_unit,
                 }
                 if type_id in per_type_charge:
-                    entry['partial_charge'] = (
-                        per_type_charge[type_id] * charge_unit
-                    )
+                    entry['partial_charge'] = per_type_charge[type_id] * charge_unit
                 seen[label] = entry
         return list(seen.values())
 
@@ -697,9 +684,7 @@ class LammpsArchiveWriter(MDParser):
         if ensemble is not None:
             method.thermodynamic_ensemble = ensemble
 
-        frequencies = self._extract_dump_frequencies(
-            self._log_parser.get('dump')
-        )
+        frequencies = self._extract_dump_frequencies(self._log_parser.get('dump'))
         if frequencies['coordinate'] is not None:
             method.coordinate_save_frequency = frequencies['coordinate']
         if frequencies['velocity'] is not None:
@@ -713,15 +698,119 @@ class LammpsArchiveWriter(MDParser):
 
         return method
 
+    def _extract_pair_cutoffs(self) -> tuple[float | None, float | None]:
+        """Return (vdw_cutoff, coulomb_cutoff) in raw distance units.
+
+        Takes the last trailing numeric token from pair_style args as the
+        outer cutoff. When the style name contains 'coul/long' or 'coul/msm',
+        that cutoff applies to both VDW and Coulomb real-space.
+        """
+        pair_raw = self._log_parser.get('pair_style')
+        if pair_raw is None:
+            return None, None
+        args = pair_raw[0] if isinstance(pair_raw, list) else pair_raw
+        if not isinstance(args, list):
+            args = [args] if args else []
+        style = args[0].lower() if args else ''
+        cutoffs = []
+        for tok in args[1:]:
+            try:
+                cutoffs.append(float(tok))
+            except (ValueError, TypeError):
+                break
+        if not cutoffs:
+            return None, None
+        vdw_cut = cutoffs[-1]
+        has_long_coul = 'coul/long' in style or 'coul/msm' in style
+        coul_cut = cutoffs[-1] if has_long_coul else None
+        if 'coul/cut' in style and len(cutoffs) >= self._magic_two:
+            coul_cut = cutoffs[-1]
+        return vdw_cut, coul_cut
+
+    def _extract_kspace_coulomb_type(self) -> str | None:
+        """Map kspace_style keyword to ForceCalculations.coulomb_type enum."""
+        kspace_raw = self._log_parser.get('kspace_style')
+        if kspace_raw is None:
+            return None
+        args = kspace_raw[0] if isinstance(kspace_raw, list) else kspace_raw
+        style = (args[0] if isinstance(args, list) else str(args)).lower()
+        prefix = style.split('/')[0]
+        return self._kspace_coulomb_prefix_map.get(prefix)
+
+    def _extract_neighbor_skin(self) -> float | None:
+        """Return the neighbor list skin distance in raw distance units.
+
+        The ``neighbor skin style`` command sets an extra distance added on
+        top of the pair force cutoff. LAMMPS stores all atom pairs within
+        ``pair_force_cutoff + skin`` in the neighbor list. The skin lets the
+        list go stale for several timesteps before a rebuild is needed.
+        The caller adds this value to the pair cutoff to obtain the full
+        ``neighbor_update_cutoff`` stored in the schema.
+        """
+        neighbor_raw = self._log_parser.get('neighbor')
+        if neighbor_raw is None:
+            return None
+        args = neighbor_raw[0] if isinstance(neighbor_raw, list) else neighbor_raw
+        tok = args[0] if isinstance(args, list) else args
+        try:
+            return float(tok)
+        except (ValueError, TypeError):
+            return None
+
+    def _extract_neigh_modify_frequency(self) -> int | None:
+        """Return the 'every N' value from neigh_modify."""
+        nm_raw = self._log_parser.get('neigh_modify')
+        if nm_raw is None:
+            return None
+        if isinstance(nm_raw, list) and nm_raw and isinstance(nm_raw[0], str):
+            nm_raw = [nm_raw]
+        cmd = nm_raw[-1] if isinstance(nm_raw, list) else nm_raw
+        if not isinstance(cmd, list):
+            return None
+        result = None
+        for i in range(len(cmd) - 1):
+            if cmd[i] == 'every':
+                try:
+                    result = int(cmd[i + 1])
+                except (ValueError, TypeError):
+                    pass
+                break
+        return result
+
+    def _build_force_calculations(self) -> ForceCalculations | None:
+        """Build ForceCalculations from pair_style, kspace_style, neighbor list."""
+        vdw_cut, coul_cut = self._extract_pair_cutoffs()
+        kspace_type = self._extract_kspace_coulomb_type()
+        skin = self._extract_neighbor_skin()
+        neigh_freq = self._extract_neigh_modify_frequency()
+        if all(v is None for v in (vdw_cut, coul_cut, kspace_type, skin, neigh_freq)):
+            return None
+        fc = ForceCalculations()
+        if vdw_cut is not None:
+            fc.vdw_cutoff = self.apply_unit(vdw_cut, 'distance')
+        if coul_cut is not None:
+            fc.coulomb_cutoff = self.apply_unit(coul_cut, 'distance')
+        if kspace_type is not None:
+            fc.coulomb_type = kspace_type
+        outer = vdw_cut if vdw_cut is not None else (coul_cut or 0.0)
+        if skin is not None:
+            fc.neighbor_update_cutoff = self.apply_unit(outer + skin, 'distance')
+        if neigh_freq is not None:
+            fc.neighbor_update_frequency = neigh_freq
+        return fc
+
     def _build_force_field(self) -> ForceField | None:
         """Build a ForceField with ParticleParametersContainer from data file.
 
         Returns None when no particle parameters are available.
         """
         pp_by_type = self._get_particle_parameters_by_type()
-        if not pp_by_type:
+        force_calcs = self._build_force_calculations()
+
+        if not pp_by_type and force_calcs is None:
             return None
 
+        force_field = ForceField()
         ppc = ParticleParametersContainer()
         for entry in pp_by_type:
             pp = ParticleParameters()
@@ -732,8 +821,10 @@ class LammpsArchiveWriter(MDParser):
                 pp.partial_charge = entry['partial_charge']
             ppc.particle_parameters.append(pp)
 
-        force_field = ForceField()
         force_field.numerical_settings.append(ppc)
+
+        if force_calcs is not None:
+            force_field.numerical_settings.append(force_calcs)
         return force_field
 
     def parse_method(self, simulation: Simulation) -> None:
@@ -749,10 +840,7 @@ class LammpsArchiveWriter(MDParser):
           neighbor) into ForceField.numerical_settings as ForceCalculations.
         - Populate ForceField.contributions from MDAnalysis interactions.
         """
-        if (
-            self.traj_parsers[0].mainfile is None
-            or self._data_parser.mainfile is None
-        ):
+        if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
 
         if self.traj_parsers.eval('n_frames') is None:
@@ -1150,9 +1238,9 @@ class LammpsArchiveWriter(MDParser):
             style = min_style[0]
             model.optimization_method = self._min_style_map.get(style, style)
 
-        minimize_cmd = self._log_parser.get(
-            'minimize'
-        ) or self._log_parser.get('minimize/kk')
+        minimize_cmd = self._log_parser.get('minimize') or self._log_parser.get(
+            'minimize/kk'
+        )
         if minimize_cmd is not None and len(minimize_cmd) > 0:
             args = minimize_cmd[0]
             if isinstance(args, list) and len(args) >= self._magic_three:
