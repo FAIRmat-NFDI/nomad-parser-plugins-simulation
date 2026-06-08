@@ -1,8 +1,11 @@
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
-from nomad.datamodel import EntryArchive
-from nomad.utils import get_logger
+from nomad import files, processing
+from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.datamodel.context import ServerContext
+from nomad.utils import create_uuid, get_logger
 from nomad_simulations.schema_packages.properties.molecular_orbitals import (
     MolecularOrbitals,
 )
@@ -18,6 +21,23 @@ def _parse_orca(filename: str) -> EntryArchive:
     archive = EntryArchive()
     parser.parse(str(DATA_DIR / filename), archive, LOGGER)
     return archive
+
+
+@pytest.fixture
+def archive_with_hdf5() -> Generator[EntryArchive, None, None]:
+    upload_id = f'test_upload_orca_h5_{create_uuid()}'
+    entry_id = 'test_entry_orca_h5'
+    upload_files = files.StagingUploadFiles(upload_id, create=True)
+    upload = processing.Upload(upload_id=upload_id)
+    archive = EntryArchive(
+        m_context=ServerContext(upload=upload),
+        metadata=EntryMetadata(upload_id=upload_id, entry_id=entry_id),
+    )
+    try:
+        OrcaParser().parse(str(DATA_DIR / 'orca_orbitals.out'), archive, LOGGER)
+        yield archive
+    finally:
+        upload_files.delete()
 
 
 def test_parse_file():
@@ -59,16 +79,15 @@ def test_model_system_and_molecular_orbitals():
     )
 
 
-def test_molecular_orbital_coefficients():
-    archive = _parse_orca('orca_orbitals.out')
-
-    molecular_orbitals = archive.data.outputs[0].electronic_eigenvalues[0]
+def test_molecular_orbital_coefficients(archive_with_hdf5):
+    molecular_orbitals = archive_with_hdf5.data.outputs[0].electronic_eigenvalues[0]
     assert molecular_orbitals.n_mo == 77
     assert molecular_orbitals.n_ao == 77
-    assert molecular_orbitals.mo_coefficients.shape == (77, 77)
-    assert molecular_orbitals.mo_coefficients[0, 0] == pytest.approx(-0.000034)
-    assert molecular_orbitals.mo_coefficients[5, 9] == pytest.approx(0.995146)
-    assert molecular_orbitals.mo_coefficients[-1, -1] == pytest.approx(-0.006075)
+    with molecular_orbitals.mo_coefficients as coefficients:
+        assert coefficients.shape == (77, 77)
+        assert coefficients[0, 0] == pytest.approx(-0.000034)
+        assert coefficients[5, 9] == pytest.approx(0.995146)
+        assert coefficients[-1, -1] == pytest.approx(-0.006075)
     assert molecular_orbitals.mo_occupations[28] == pytest.approx(0.0)
     assert molecular_orbitals.mo_energies[0].to('electron_volt').magnitude == (
         pytest.approx(-520.4853)

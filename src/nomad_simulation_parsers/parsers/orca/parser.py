@@ -269,13 +269,13 @@ class OrcaParser(MatchingParser):
 
         reader = OutParser()
         reader.filepath = mainfile
-        metainfo_parser = MetainfoParser(data_object=Simulation())
+        archive.data = Simulation()
+        metainfo_parser = MetainfoParser(data_object=archive.data)
         metainfo_parser.annotation_key = orca.OUT_KEY
         metainfo_parser.max_nested_level = 3
 
         try:
             reader.convert(metainfo_parser)
-            archive.data = metainfo_parser.data_object
         finally:
             metainfo_parser.close()
             reader.close()
