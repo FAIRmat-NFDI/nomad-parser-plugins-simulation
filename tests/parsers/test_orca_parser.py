@@ -1,6 +1,8 @@
 from collections.abc import Generator
+from contextlib import nullcontext
 from pathlib import Path
 
+import numpy as np
 import pytest
 from nomad import files
 from nomad.datamodel import EntryArchive, EntryMetadata
@@ -105,7 +107,13 @@ def test_molecular_orbital_coefficients(archive_with_hdf5):
     molecular_orbitals = archive_with_hdf5.data.outputs[0].electronic_eigenvalues[0]
     assert molecular_orbitals.n_mo == 77
     assert molecular_orbitals.n_ao == 77
-    with molecular_orbitals.mo_coefficients as coefficients:
+    coefficients = molecular_orbitals.mo_coefficients
+    coefficient_context = (
+        nullcontext(coefficients)
+        if isinstance(coefficients, np.ndarray)
+        else coefficients
+    )
+    with coefficient_context as coefficients:
         assert coefficients.shape == (77, 77)
         assert coefficients[0, 0] == pytest.approx(-0.000034)
         assert coefficients[5, 9] == pytest.approx(0.995146)
