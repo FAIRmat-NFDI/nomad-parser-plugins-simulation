@@ -15,6 +15,7 @@ from nomad_simulations.schema_packages.properties.molecular_orbitals import (
 )
 
 from nomad_simulation_parsers.parsers.orca.parser import OrcaParser, OutParser
+from nomad_simulation_parsers.parsers.orca.text_parser import OutReader
 
 LOGGER = get_logger(__name__)
 DATA_DIR = Path(__file__).resolve().parents[1] / 'data' / 'orca'
@@ -140,7 +141,7 @@ def test_coupled_cluster_method_data():
         {
             'input_file': '! DLPNO-CCSD(T)-F12',
             'single_point': {
-                'cc': {
+                'ci': {
                     'coupled_cluster_type': 'CCSD',
                     'perturbative_triple_excitations_on_off': 'ON',
                     'f12_correction_on_off': 'ON',
@@ -180,6 +181,19 @@ def test_coupled_cluster_method_data():
             ],
         }
     ]
+
+
+def test_mdci_block_is_parsed_once():
+    reader = OutReader()
+    single_point = next(
+        quantity for quantity in reader.quantities if quantity.name == 'single_point'
+    ).sub_parser
+    mdci = next(
+        quantity for quantity in single_point.quantities if quantity.name == 'ci'
+    )
+
+    assert 'cc' not in single_point.keys()
+    assert 'coupled_cluster_type' in mdci.sub_parser.keys()
 
 
 def test_multireference_and_localization_method_data():

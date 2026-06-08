@@ -182,6 +182,10 @@ class OutParser(MappingTextParser):
     def _as_dict(value: Any) -> dict[str, Any]:
         return value._results if hasattr(value, '_results') else value or {}
 
+    def _get_mdci_data(self, source: dict[str, Any]) -> dict[str, Any]:
+        single_point = self._as_dict(source.get('single_point'))
+        return self._as_dict(single_point.get('ci'))
+
     @staticmethod
     def _scalar(value: Any) -> Any:
         if isinstance(value, np.ndarray):
@@ -472,15 +476,14 @@ class OutParser(MappingTextParser):
 
     def get_perturbation_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         single_point = self._as_dict(source.get('single_point'))
-        ci_data = self._as_dict(single_point.get('ci'))
+        mdci_data = self._get_mdci_data(source)
         mp2_data = self._as_dict(single_point.get('mp2'))
-        if not ci_data and not mp2_data:
+        if not mdci_data and not mp2_data:
             return []
 
-        cc_data = self._as_dict(single_point.get('cc'))
-        local_type = self._infer_local_correlation_type(source, cc_data)
+        local_type = self._infer_local_correlation_type(source, mdci_data)
         method: dict[str, Any] = {'type': 'MP', 'order': 2}
-        scaling = self._scalar(ci_data.get('spin_component_scaling'))
+        scaling = self._scalar(mdci_data.get('spin_component_scaling'))
         if isinstance(scaling, str) and scaling.strip().upper() in {'SCS', 'SOS'}:
             method['spin_component_scaling'] = scaling.strip().upper()
         if local_type:
@@ -494,8 +497,7 @@ class OutParser(MappingTextParser):
                     }
                 ],
             }
-        thresholds = self._local_thresholds(cc_data, include_triples=False)
-        thresholds.extend(self._local_thresholds(ci_data, include_triples=False))
+        thresholds = self._local_thresholds(mdci_data, include_triples=False)
         if thresholds:
             method['numerical_settings'] = [{'screening_thresholds': thresholds}]
         return [method]
@@ -503,7 +505,7 @@ class OutParser(MappingTextParser):
     def get_coupled_cluster_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        cc_data = self._as_dict(self._as_dict(source.get('single_point')).get('cc'))
+        cc_data = self._get_mdci_data(source)
         cc_type = self._scalar(cc_data.get('coupled_cluster_type'))
         if not isinstance(cc_type, str) or not cc_type:
             return []
@@ -541,7 +543,7 @@ class OutParser(MappingTextParser):
         return [{key: value for key, value in method.items() if value is not None}]
 
     def get_hf_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        cc_data = self._as_dict(self._as_dict(source.get('single_point')).get('cc'))
+        cc_data = self._get_mdci_data(source)
         reference_form = self._hf_reference_form(
             cc_data.get('cc_reference_wavefunction')
         )

@@ -1021,6 +1021,12 @@ class OutReader(TextParser):
                 unit=ureg.hartree,
             ),
         ]
+        ci_quantity_names = {quantity.name for quantity in ci_quantities}
+        mdci_quantities = ci_quantities + [
+            quantity
+            for quantity in coupled_cluster_quantities
+            if quantity.name not in ci_quantity_names
+        ]
 
         mp2_quantities = [
             Quantity(
@@ -1121,7 +1127,7 @@ class OutReader(TextParser):
             Quantity(
                 'ci',
                 r'ORCA\-MATRIX DRIVEN CI([\s\S]+?E\(CCSD\(T\)\).*)',
-                sub_parser=TextParser(quantities=ci_quantities),
+                sub_parser=TextParser(quantities=mdci_quantities),
             ),
             # CASSCF / multireference block
             Quantity(
@@ -1221,14 +1227,6 @@ class OutReader(TextParser):
                 r'\n *ORCA ORBITAL LOCALIZATION\s*\-+([\s\S]+?)\-{10}',
                 repeats=True,
                 sub_parser=TextParser(quantities=localization_quantities),
-            ),
-            # FIX HERE
-            Quantity(
-                'cc',
-                r'ORCA\-MATRIX DRIVEN CI([\s\S]+?E\(CCSD\(T\)\).*)',
-                # optional regex: ECCSDT part is not a must to match
-                # r'ORCA\-MATRIX DRIVEN CI([\s\S]+?)(E\(CCSD\(T\)\).*)?',
-                sub_parser=TextParser(quantities=coupled_cluster_quantities),
             ),
         ]
 

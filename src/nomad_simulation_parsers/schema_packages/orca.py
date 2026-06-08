@@ -13,7 +13,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
+OUT_KEY = 'orca_out'
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
