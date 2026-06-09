@@ -557,8 +557,7 @@ class OutParser(MappingTextParser):
         scf_settings = self._as_dict(self_consistent.get('scf_settings'))
 
         raw_method = self._scalar(
-            relativistic.get('method')
-            or scf_settings.get('scalar_relativistic_method')
+            relativistic.get('method') or scf_settings.get('scalar_relativistic_method')
         )
         if not isinstance(raw_method, str):
             return {}

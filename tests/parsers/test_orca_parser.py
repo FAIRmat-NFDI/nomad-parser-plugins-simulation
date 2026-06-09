@@ -10,9 +10,12 @@ from nomad.datamodel.context import ServerContext
 from nomad.utils import create_uuid, get_logger
 from nomad_simulations.schema_packages.basis_set import BasisSetContainer
 from nomad_simulations.schema_packages.model_method import (
+    CC,
     DFT,
+    HF,
     MultireferenceCI,
     MultireferencePT,
+    OrbitalLocalization,
     PerturbationMethod,
     RelativityModel,
 )
@@ -20,8 +23,7 @@ from nomad_simulations.schema_packages.properties.molecular_orbitals import (
     MolecularOrbitals,
 )
 
-from nomad_simulation_parsers.parsers.orca.parser import OrcaParser, OutParser
-from nomad_simulation_parsers.parsers.orca.text_parser import OutReader
+from nomad_simulation_parsers.parsers.orca.parser import OrcaParser
 
 LOGGER = get_logger(__name__)
 DATA_DIR = Path(__file__).resolve().parents[1] / 'data' / 'orca'
@@ -57,6 +59,10 @@ def archive_with_hdf5() -> Generator[EntryArchive, None, None]:
 
 
 def test_parse_file():
+    _parse_orca('RI_MP2_water.out')
+
+
+def test_mp2_method_and_basis_sets():
     archive = _parse_orca('RI_MP2_water.out')
 
     assert archive.data.program.name == 'ORCA'
@@ -78,7 +84,7 @@ def test_parse_file():
     ] == ['def2-SVP', 'def2-SVP/C']
 
 
-def test_multireference_basis_sets():
+def test_multireference_methods_basis_sets_and_relativity():
     archive = _parse_orca('CoPc_CASCI_QD.out')
 
     casci = next(
@@ -91,6 +97,16 @@ def test_multireference_basis_sets():
         for method in archive.data.model_method
         if isinstance(method, MultireferencePT)
     )
+
+    assert casci.type == 'CASCI'
+    assert casci.active_space.n_active_electrons == 13
+    assert casci.active_space.n_active_orbitals == 8
+    assert list(casci.state_multiplicities) == [4, 2]
+    assert list(casci.n_roots_per_multiplicity) == [40, 115]
+
+    assert nevpt.type == 'NEVPT'
+    assert nevpt.order == 2
+    assert nevpt.name == 'QD-SC-NEVPT2'
 
     casci_basis = next(
         settings
@@ -112,11 +128,7 @@ def test_multireference_basis_sets():
         for component in nevpt_basis.basis_set_components
     ] == [('cc-pVTZ-DK', 'orbital'), ('cc-pVTZ/C', 'auxiliary_post_hf')]
 
-
-def test_relativistic_hamiltonian():
-    archive = _parse_orca('CoPc_CASCI_QD.out')
-
-    for method in archive.data.model_method:
+    for method in (casci, nevpt):
         relativity = next(
             contribution
             for contribution in method.contributions
@@ -191,99 +203,30 @@ def test_dft_method(archive_with_hdf5):
     assert dft.xc.global_exact_exchange == pytest.approx(0.2)
 
 
-def test_coupled_cluster_method_data():
-    methods = OutParser().get_coupled_cluster_methods(
-        {
-            'input_file': '! DLPNO-CCSD(T)-F12',
-            'single_point': {
-                'ci': {
-                    'coupled_cluster_type': 'CCSD',
-                    'perturbative_triple_excitations_on_off': 'ON',
-                    'f12_correction_on_off': 'ON',
-                    'tCutPNO': 1e-7,
-                }
-            },
-        }
+def test_coupled_cluster_methods():
+    archive = _parse_orca('dlpno-coupled-cluster.out')
+
+    hf = next(method for method in archive.data.model_method if isinstance(method, HF))
+    localization = next(
+        method
+        for method in archive.data.model_method
+        if isinstance(method, OrbitalLocalization)
     )
-
-    assert methods == [
-        {
-            'type': 'CCSD',
-            'excitation_order': [1, 2],
-            'perturbative_correction': '(T)',
-            'perturbative_correction_order': [3],
-            'explicit_correlation': 'F12',
-            'local_correlation': {
-                'type': 'DLPNO',
-                'spaces': [
-                    {
-                        'space_kind': 'local_virtual_space',
-                        'virtual_space_type': 'PNO',
-                        'excitation_order': 2,
-                    }
-                ],
-            },
-            'numerical_settings': [
-                {
-                    'screening_thresholds': [
-                        {
-                            'name': 'TCutPNO',
-                            'value': 1e-7,
-                            'applies_to': 'local_virtual_space',
-                        }
-                    ]
-                }
-            ],
-        }
-    ]
-
-
-def test_mdci_block_is_parsed_once():
-    reader = OutReader()
-    single_point = next(
-        quantity for quantity in reader.quantities if quantity.name == 'single_point'
-    ).sub_parser
-    mdci = next(
-        quantity for quantity in single_point.quantities if quantity.name == 'ci'
+    mp2 = next(
+        method
+        for method in archive.data.model_method
+        if isinstance(method, PerturbationMethod)
     )
+    cc = next(method for method in archive.data.model_method if isinstance(method, CC))
 
-    assert 'cc' not in single_point.keys()
-    assert 'coupled_cluster_type' in mdci.sub_parser.keys()
-
-
-def test_multireference_and_localization_method_data():
-    parser = OutParser()
-    source = {
-        'input_file': '%casscf maxiter 1 end',
-        'single_point': {
-            'casscf': {
-                'n_active_electrons': 6,
-                'n_active_orbitals': 5,
-                'block': [
-                    {
-                        'multiplicity': 1,
-                        'n_roots': 2,
-                        'root_weights': [0.5, 0.5],
-                    }
-                ],
-            },
-            'loc': [
-                {'type': 'Pipek-Mezey', 'orbital_range': [2, 8]},
-            ],
-        },
-    }
-
-    method = parser.get_multireference_ci_methods(source)[0]
-    assert method['type'] == 'CASCI'
-    assert method['active_space'] == {
-        'n_active_electrons': 6,
-        'n_active_orbitals': 5,
-        'orbital_space_type': 'CAS',
-    }
-    assert method['state_treatment'] == 'state_averaged'
-    assert method['state_multiplicities'] == [1]
-    assert method['n_roots_per_multiplicity'] == [2]
-    assert method['state_weights'] == [0.5, 0.5]
-    assert parser.get_orbital_localization_methods(source) == [
-        {'method': 'Pipek-Mezey', 'n_localized_orbitals': 7}
-    ]
+    assert hf.reference_form == 'RHF'
+    assert localization.method == 'Foster-Boys'
+    assert localization.n_localized_orbitals == 54
+    assert mp2.type == 'MP'
+    assert mp2.order == 2
+    assert mp2.local_correlation.type == 'DLPNO'
+    assert cc.type == 'CCSD'
+    assert list(cc.excitation_order) == [1, 2]
+    assert cc.perturbative_correction == '(T)'
+    assert list(cc.perturbative_correction_order) == [3]
+    assert cc.local_correlation.type == 'DLPNO'
