@@ -39,6 +39,40 @@ The plugin is still under development. If you would like to contribute, install 
 uv pip install -e '.[dev]' --index-url https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple
 ```
 
+### Initialize a parser and schema package from YAML
+
+Use the CLI below to scaffold a parser module and schema package, then register both
+in `src/nomad_simulation_parsers/parsers/__init__.py`,
+`src/nomad_simulation_parsers/schema_packages/__init__.py`, and
+`pyproject.toml` entry points:
+
+```sh
+nomad-sim-parser-init parser_metadata.yaml --root .
+```
+
+Supported flags:
+
+- `--dry-run`: show which files would be touched without writing them.
+- `--overwrite`: overwrite generated parser/schema files if they already exist.
+
+Example metadata file:
+
+```yaml
+code_key: my-code
+name: MyCode
+description: NOMAD parser for MyCode.
+code_homepage: https://example.org/mycode
+parser:
+  aliases:
+    - parsers/my-code
+  mainfile_name_re: '^.*\\.mycode$'
+  mainfile_contents_re: 'MyCode version'
+  mainfile_alternative: false
+schema_package:
+  # optional, defaults to <CodeKey>SchemaPackage
+  name: MyCodeSchemaPackage
+```
+
 
 ### Run the tests
 
