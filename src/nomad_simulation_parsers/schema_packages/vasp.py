@@ -143,21 +143,13 @@ class SelfConsistency(numerical_settings.SelfConsistency):
             'modeling.parameters.separator[?"@name"==\'electronic\'] '
             '| [0].i[?"@name"==\'EDIFF\'] | [0].__value'
         ),
+        unit='eV',
     )
     add_mapping_annotation(
         numerical_settings.SelfConsistency.threshold_change,
         OUTCAR_KEY,
         'parameters.EDIFF',
-    )
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.threshold_change_unit,
-        XML_KEY,
-        ('get_ediff_unit', []),
-    )
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.threshold_change_unit,
-        OUTCAR_KEY,
-        ('get_ediff_unit', []),
+        unit='eV',
     )
 
 
