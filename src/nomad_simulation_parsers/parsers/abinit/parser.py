@@ -692,7 +692,6 @@ class MainfileParser(TextParser):
                 gaps.append(gap_result)
 
         return gaps
-        return gaps
 
 
 class DosParser(TextParser):
