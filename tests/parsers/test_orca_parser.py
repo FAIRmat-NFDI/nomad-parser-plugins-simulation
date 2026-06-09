@@ -9,7 +9,13 @@ from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.datamodel.context import ServerContext
 from nomad.utils import create_uuid, get_logger
 from nomad_simulations.schema_packages.basis_set import BasisSetContainer
-from nomad_simulations.schema_packages.model_method import DFT, PerturbationMethod
+from nomad_simulations.schema_packages.model_method import (
+    DFT,
+    MultireferenceCI,
+    MultireferencePT,
+    PerturbationMethod,
+    RelativityModel,
+)
 from nomad_simulations.schema_packages.properties.molecular_orbitals import (
     MolecularOrbitals,
 )
@@ -70,6 +76,55 @@ def test_parse_file():
     assert [
         component.basis_set for component in basis_sets[0].basis_set_components
     ] == ['def2-SVP', 'def2-SVP/C']
+
+
+def test_multireference_basis_sets():
+    archive = _parse_orca('CoPc_CASCI_QD.out')
+
+    casci = next(
+        method
+        for method in archive.data.model_method
+        if isinstance(method, MultireferenceCI)
+    )
+    nevpt = next(
+        method
+        for method in archive.data.model_method
+        if isinstance(method, MultireferencePT)
+    )
+
+    casci_basis = next(
+        settings
+        for settings in casci.numerical_settings
+        if isinstance(settings, BasisSetContainer)
+    )
+    assert [
+        (component.basis_set, component.role)
+        for component in casci_basis.basis_set_components
+    ] == [('cc-pVTZ-DK', 'orbital'), ('SARC/J', 'auxiliary_scf')]
+
+    nevpt_basis = next(
+        settings
+        for settings in nevpt.numerical_settings
+        if isinstance(settings, BasisSetContainer)
+    )
+    assert [
+        (component.basis_set, component.role)
+        for component in nevpt_basis.basis_set_components
+    ] == [('cc-pVTZ-DK', 'orbital'), ('cc-pVTZ/C', 'auxiliary_post_hf')]
+
+
+def test_relativistic_hamiltonian():
+    archive = _parse_orca('CoPc_CASCI_QD.out')
+
+    for method in archive.data.model_method:
+        relativity = next(
+            contribution
+            for contribution in method.contributions
+            if isinstance(contribution, RelativityModel)
+        )
+        assert relativity.level == 'scalar'
+        assert relativity.approximation == 'DKH'
+        assert relativity.dkh_order == 2
 
 
 def test_model_system_and_molecular_orbitals():

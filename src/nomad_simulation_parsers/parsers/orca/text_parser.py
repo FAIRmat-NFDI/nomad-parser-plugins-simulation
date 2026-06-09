@@ -347,6 +347,19 @@ class OutReader(TextParser):
             ),
         ]
 
+        relativistic_hamiltonian_quantities = [
+            Quantity(
+                'method',
+                r'Relativistic Method\s*\.+\s*(\S+)',
+                convert=False,
+            ),
+            Quantity(
+                'dkh_order',
+                r'Order of DKH treatment\s*\.+\s*(\d+)',
+                dtype=int,
+            ),
+        ]
+
         # Grid related quantities
         grid_quantities = [
             Quantity(
@@ -544,8 +557,13 @@ class OutReader(TextParser):
                         ),
                         Quantity(
                             'scalar_relativistic_method',
-                            r'Scalar relativistic method\s*\.+\s*(\w+)',
+                            r'Scalar relativistic method\s*\.+\s*(\S+)',
                             convert=False,
+                        ),
+                        Quantity(
+                            'dkh_order',
+                            r'Order of DKH procedure\s*Order\s*\.+\s*(\d+)',
+                            dtype=int,
                         ),
                         Quantity(
                             'speed_of_light_used',
@@ -1310,6 +1328,11 @@ class OutReader(TextParser):
                 # r'----- Orbital basis set information -----([\s\S]+?)\={10}',
                 r'ORCA GTO INTEGRAL CALCULATION([\s\S]+?)ORCA SCF',
                 sub_parser=TextParser(quantities=basis_set_statistics_quantities),
+            ),
+            Quantity(
+                'relativistic_hamiltonian',
+                r'ORCA RELATIVISTIC HAMILTONIAN\s*\-+([\s\S]+?)\*{10}',
+                sub_parser=TextParser(quantities=relativistic_hamiltonian_quantities),
             ),
             Quantity(
                 'ecp_basis_set_name',

@@ -25,6 +25,7 @@ from nomad_simulations.schema_packages.model_method import (
     MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
+    RelativityModel,
 )
 from nomad_simulations.schema_packages.numerical_settings import (
     LocalCorrelationSettings,
@@ -549,6 +550,50 @@ class OutParser(MappingTextParser):
         )
         return [{'reference_form': reference_form}] if reference_form else []
 
+    def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
+        relativistic = self._as_dict(source.get('relativistic_hamiltonian'))
+        single_point = self._as_dict(source.get('single_point'))
+        self_consistent = self._as_dict(single_point.get('self_consistent'))
+        scf_settings = self._as_dict(self_consistent.get('scf_settings'))
+
+        raw_method = self._scalar(
+            relativistic.get('method')
+            or scf_settings.get('scalar_relativistic_method')
+        )
+        if not isinstance(raw_method, str):
+            return {}
+
+        normalized = raw_method.upper()
+        approximation = next(
+            (
+                approximation
+                for marker, approximation in (
+                    ('DOUGLAS-KROLL-HESS', 'DKH'),
+                    ('DKH', 'DKH'),
+                    ('ZORA', 'ZORA'),
+                    ('FORA', 'FORA'),
+                    ('IORA', 'IORA'),
+                    ('X2C', 'X2C'),
+                    ('BSS', 'BSS'),
+                    ('NESC', 'NESC'),
+                    ('PAULI', 'Pauli'),
+                    ('SOMF', 'SOMF'),
+                )
+                if marker in normalized
+            ),
+            None,
+        )
+        if approximation is None:
+            return {}
+
+        model = {'level': 'scalar', 'approximation': approximation}
+        dkh_order = self._scalar(
+            relativistic.get('dkh_order') or scf_settings.get('dkh_order')
+        )
+        if approximation == 'DKH' and dkh_order is not None:
+            model['dkh_order'] = int(dkh_order)
+        return model
+
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         names = self._as_dict(source.get('basis_set_name'))
         totals = self._as_dict(source.get('basis_set_total'))
@@ -764,6 +809,26 @@ class OutParser(MappingTextParser):
         ]
         simulation.model_method = additions + preserved + multireference
 
+    def enrich_relativity(self, simulation: Simulation) -> None:
+        data = self.get_relativity_model(self.text_parser.results or {})
+        if not data:
+            return
+
+        electronic_methods = (
+            DFT,
+            HF,
+            PerturbationMethod,
+            CC,
+            MultireferenceSCF,
+            MultireferenceCI,
+            MultireferencePT,
+        )
+        for method in simulation.model_method or []:
+            if isinstance(method, electronic_methods):
+                method.m_add_sub_section(
+                    type(method).contributions, RelativityModel(**data)
+                )
+
     def enrich_basis_sets(self, simulation: Simulation) -> None:
         components = self.get_basis_set_components(self.text_parser.results or {})
         if not components:
@@ -778,9 +843,9 @@ class OutParser(MappingTextParser):
             component['source_key']: component for component in components
         }
         for method in simulation.model_method or []:
-            if isinstance(method, (HF, DFT)):
+            if isinstance(method, (HF, DFT, MultireferenceSCF, MultireferenceCI)):
                 keys = ('main_basis_set', 'auxj_basis_set', 'auxjk_basis_set')
-            elif isinstance(method, (PerturbationMethod, CC)):
+            elif isinstance(method, (PerturbationMethod, CC, MultireferencePT)):
                 keys = ('main_basis_set', 'auxc_basis_set')
             else:
                 continue
@@ -853,6 +918,7 @@ class OrcaParser(MatchingParser):
         try:
             reader.convert(metainfo_parser)
             reader.enrich_methods(archive.data)
+            reader.enrich_relativity(archive.data)
             reader.enrich_basis_sets(archive.data)
             reader.build_workflow(archive, logger)
         finally:
