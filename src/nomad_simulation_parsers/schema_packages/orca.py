@@ -18,7 +18,6 @@ OUT_KEY = 'orca_out'
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
 add_mapping_annotation(general.Simulation.program, OUT_KEY, '.@')
-add_mapping_annotation(general.Program.name, OUT_KEY, ('get_program_name', ['.@']))
 add_mapping_annotation(general.Program.version, OUT_KEY, '.program_version')
 
 add_mapping_annotation(general.Simulation.model_system, OUT_KEY, ('get_atoms', ['.@']))
