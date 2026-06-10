@@ -171,3 +171,8 @@ yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_pa
 [tool.cruft]
 # Avoid updating workflow files, this leads to permissions issues
 skip = [".github/*"]
+
+[dependency-groups]
+dev = [
+    "syrupy>=5.3.2",
+]
