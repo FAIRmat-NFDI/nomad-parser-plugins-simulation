@@ -52,7 +52,7 @@ def archive_with_hdf5() -> Generator[EntryArchive, None, None]:
         metadata=EntryMetadata(upload_id=upload_id, entry_id=entry_id),
     )
     try:
-        OrcaParser().parse(str(DATA_DIR / 'orca_orbitals.out'), archive, LOGGER)
+        OrcaParser().parse(str(DATA_DIR / 'dft-print-MOs.out'), archive, LOGGER)
         yield archive
     finally:
         upload_files.delete()
