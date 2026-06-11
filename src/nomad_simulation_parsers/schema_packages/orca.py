@@ -1,12 +1,12 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import (
     atoms_state,
+    basis_set,
     general,
     model_method,
     model_system,
     numerical_settings,
     outputs,
-    basis_set
 )
 from nomad_simulations.schema_packages.properties import molecular_orbitals
 
@@ -124,12 +124,21 @@ add_mapping_annotation(
     '.active_space.orbital_space_type',
 )
 
-add_mapping_annotation(model_method.MultireferencePT.m_def, OUT_KEY, ('get_multireference_pt_methods', ['.@']), update_mode='append')
+add_mapping_annotation(
+    model_method.MultireferencePT.m_def,
+    OUT_KEY,
+    ('get_multireference_pt_methods', ['.@']),
+    update_mode='append',
+)
 add_mapping_annotation(model_method.MultireferencePT.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.MultireferencePT.name, OUT_KEY, '.name')
 add_mapping_annotation(model_method.ActiveSpace.m_def, OUT_KEY, '.active_space')
-add_mapping_annotation(model_method.ActiveSpace.n_active_electrons, OUT_KEY, '.n_active_electrons')
-add_mapping_annotation(model_method.ActiveSpace.n_active_orbitals, OUT_KEY, '.n_active_orbitals')
+add_mapping_annotation(
+    model_method.ActiveSpace.n_active_electrons, OUT_KEY, '.n_active_electrons'
+)
+add_mapping_annotation(
+    model_method.ActiveSpace.n_active_orbitals, OUT_KEY, '.n_active_orbitals'
+)
 
 add_mapping_annotation(
     model_method.MultireferenceCI.m_def,
@@ -217,7 +226,12 @@ add_mapping_annotation(
     '.excitation_order',
 )
 
-add_mapping_annotation(numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@', update_mode='append')
+add_mapping_annotation(
+    numerical_settings.LocalCorrelationSettings.m_def,
+    OUT_KEY,
+    '.@',
+    update_mode='append',
+)
 add_mapping_annotation(
     numerical_settings.LocalCorrelationSettings.screening_thresholds,
     OUT_KEY,
@@ -237,16 +251,29 @@ add_mapping_annotation(
 
 add_mapping_annotation(model_method.PerturbationMethod.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.PerturbationMethod.order, OUT_KEY, '.order')
-add_mapping_annotation(model_method.PerturbationMethod.m_def, OUT_KEY, ('get_perturbation_methods', ['.@']), update_mode='append')
+add_mapping_annotation(
+    model_method.PerturbationMethod.m_def,
+    OUT_KEY,
+    ('get_perturbation_methods', ['.@']),
+    update_mode='append',
+)
 
-add_mapping_annotation(model_method.LocalCorrelation.m_def, OUT_KEY, '.local_correlation')
+add_mapping_annotation(
+    model_method.LocalCorrelation.m_def, OUT_KEY, '.local_correlation'
+)
 add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
 
 add_mapping_annotation(basis_set.AtomCenteredBasisSet.basis_set, OUT_KEY, '.basis_set')
 add_mapping_annotation(basis_set.AtomCenteredBasisSet.role, OUT_KEY, '.role')
-add_mapping_annotation(basis_set.AtomCenteredBasisSet.m_def, OUT_KEY, ('get_basis_set_components', ['.@']))
-add_mapping_annotation(basis_set.BasisSetContainer.m_def, OUT_KEY, '.@', update_mode='append')
-add_mapping_annotation(basis_set.BasisSetContainer.native_tier, OUT_KEY, '.main_basis_set')
+add_mapping_annotation(
+    basis_set.AtomCenteredBasisSet.m_def, OUT_KEY, ('get_basis_set_components', ['.@'])
+)
+add_mapping_annotation(
+    basis_set.BasisSetContainer.m_def, OUT_KEY, '.@', update_mode='append'
+)
+add_mapping_annotation(
+    basis_set.BasisSetContainer.native_tier, OUT_KEY, '.main_basis_set'
+)
 
 
 add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
@@ -280,7 +307,9 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(model_method.RelativityModel.level, OUT_KEY, '.level')
-add_mapping_annotation(model_method.RelativityModel.approximation, OUT_KEY, '.approximation')
+add_mapping_annotation(
+    model_method.RelativityModel.approximation, OUT_KEY, '.approximation'
+)
 add_mapping_annotation(model_method.RelativityModel.dkh_order, OUT_KEY, '.dkh_order')
 add_mapping_annotation(
     model_method.ModelMethod.contributions,

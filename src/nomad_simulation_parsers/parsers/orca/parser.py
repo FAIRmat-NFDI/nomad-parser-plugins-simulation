@@ -5,27 +5,20 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
+from nomad.units import ureg
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
-from nomad_simulations.schema_packages.basis_set import (
-    AtomCenteredBasisSet,
-    BasisSetContainer,
-)
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import (
     CC,
-    DFT,
     HF,
     ActiveSpace,
     LocalCorrelation,
     LocalCorrelationSpace,
-    MultireferenceCI,
-    MultireferencePT,
-    MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
-    RelativityModel,
 )
 from nomad_simulations.schema_packages.numerical_settings import (
     LocalCorrelationSettings,

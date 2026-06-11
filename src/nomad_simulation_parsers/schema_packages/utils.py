@@ -57,7 +57,9 @@ def add_mapping_annotation(
         property.more['mapper_m_def'] = m_def.qualified_name()
         for inheriting_section in property.sub_section.all_inheriting_sections or []:
             if m_def.qualified_name() == inheriting_section.qualified_name():
-                add_mapping_annotation(inheriting_section, annotation_key, mapper, update, **kwargs)
+                add_mapping_annotation(
+                    inheriting_section, annotation_key, mapper, update, **kwargs
+                )
                 return
 
     if update:
