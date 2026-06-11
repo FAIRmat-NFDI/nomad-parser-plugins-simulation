@@ -397,7 +397,7 @@ class OutParser(MappingTextParser):
         method = self._get_multireference_method_data(source)
         if method.get('type') == 'CASSCF':
             self._method = 'MultireferenceSCF'
-            return  [method]
+            return [method]
         return []
 
     def get_multireference_ci_methods(
