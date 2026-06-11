@@ -49,9 +49,17 @@ def add_mapping_annotation(
     annotation_key: str,
     mapper: str | tuple[str, list[str] | tuple[str, list[str], dict[str, Any]]],
     update: bool = True,
+    m_def: Section | None = None,
     **kwargs,
 ) -> None:
     annotation = {annotation_key: Mapper(mapper=mapper, **kwargs)}
+    if m_def is not None and isinstance(property, SubSection):
+        property.more['mapper_m_def'] = m_def.qualified_name()
+        for inheriting_section in property.sub_section.all_inheriting_sections or []:
+            if m_def.qualified_name() == inheriting_section.qualified_name():
+                add_mapping_annotation(inheriting_section, annotation_key, mapper, update, **kwargs)
+                return
+
     if update:
         property.m_annotations.setdefault(MAPPING_ANNOTATION_KEY, {}).update(annotation)
     else:

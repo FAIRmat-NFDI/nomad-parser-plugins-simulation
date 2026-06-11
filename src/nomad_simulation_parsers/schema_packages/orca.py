@@ -6,6 +6,7 @@ from nomad_simulations.schema_packages import (
     model_system,
     numerical_settings,
     outputs,
+    basis_set
 )
 from nomad_simulations.schema_packages.properties import molecular_orbitals
 
@@ -14,6 +15,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 OUT_KEY = 'orca_out'
+RELATITIVITY_KEY = 'orca_relativity'
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
@@ -41,7 +43,8 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.DFT.m_def,
     OUT_KEY,
-    ('get_dft', ['.@']),
+    ('get_dft_methods', ['.@']),
+    update_mode='append',
 )
 
 add_mapping_annotation(
@@ -66,12 +69,21 @@ add_mapping_annotation(
     '.functional_key',
 )
 
+add_mapping_annotation(
+    model_method.HF.m_def,
+    OUT_KEY,
+    ('get_hf_methods', ['.@']),
+    update_mode='append',
+)
+add_mapping_annotation(model_method.HF.reference_form, OUT_KEY, '.reference_form')
+
 ############# Multireference (CAS) ###################
 
 add_mapping_annotation(
     model_method.MultireferenceSCF.m_def,
     OUT_KEY,
     ('get_multireference_scf_methods', ['.@']),
+    update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
 add_mapping_annotation(
@@ -112,10 +124,18 @@ add_mapping_annotation(
     '.active_space.orbital_space_type',
 )
 
+add_mapping_annotation(model_method.MultireferencePT.m_def, OUT_KEY, ('get_multireference_pt_methods', ['.@']), update_mode='append')
+add_mapping_annotation(model_method.MultireferencePT.type, OUT_KEY, '.type')
+add_mapping_annotation(model_method.MultireferencePT.name, OUT_KEY, '.name')
+add_mapping_annotation(model_method.ActiveSpace.m_def, OUT_KEY, '.active_space')
+add_mapping_annotation(model_method.ActiveSpace.n_active_electrons, OUT_KEY, '.n_active_electrons')
+add_mapping_annotation(model_method.ActiveSpace.n_active_orbitals, OUT_KEY, '.n_active_orbitals')
+
 add_mapping_annotation(
     model_method.MultireferenceCI.m_def,
     OUT_KEY,
     ('get_multireference_ci_methods', ['.@']),
+    update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceCI.type, OUT_KEY, '.type')
 add_mapping_annotation(
@@ -174,9 +194,6 @@ add_mapping_annotation(
     model_method.CC.explicit_correlation, OUT_KEY, '.explicit_correlation'
 )
 add_mapping_annotation(model_method.CC.local_correlation, OUT_KEY, '.local_correlation')
-add_mapping_annotation(
-    model_method.CC.numerical_settings, OUT_KEY, '.numerical_settings'
-)
 
 add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.LocalCorrelation.spaces, OUT_KEY, '.spaces')
@@ -200,7 +217,7 @@ add_mapping_annotation(
     '.excitation_order',
 )
 
-add_mapping_annotation(numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@')
+add_mapping_annotation(numerical_settings.LocalCorrelationSettings.m_def, OUT_KEY, '.@', update_mode='append')
 add_mapping_annotation(
     numerical_settings.LocalCorrelationSettings.screening_thresholds,
     OUT_KEY,
@@ -217,6 +234,19 @@ add_mapping_annotation(
     OUT_KEY,
     '.applies_to',
 )
+
+add_mapping_annotation(model_method.PerturbationMethod.type, OUT_KEY, '.type')
+add_mapping_annotation(model_method.PerturbationMethod.order, OUT_KEY, '.order')
+add_mapping_annotation(model_method.PerturbationMethod.m_def, OUT_KEY, ('get_perturbation_methods', ['.@']), update_mode='append')
+
+add_mapping_annotation(model_method.LocalCorrelation.m_def, OUT_KEY, '.local_correlation')
+add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
+
+add_mapping_annotation(basis_set.AtomCenteredBasisSet.basis_set, OUT_KEY, '.basis_set')
+add_mapping_annotation(basis_set.AtomCenteredBasisSet.role, OUT_KEY, '.role')
+add_mapping_annotation(basis_set.AtomCenteredBasisSet.m_def, OUT_KEY, ('get_basis_set_components', ['.@']))
+add_mapping_annotation(basis_set.BasisSetContainer.m_def, OUT_KEY, '.@', update_mode='append')
+add_mapping_annotation(basis_set.BasisSetContainer.native_tier, OUT_KEY, '.main_basis_set')
 
 
 add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
@@ -247,6 +277,17 @@ add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.mo_type,
     OUT_KEY,
     '.mo_type',
+)
+
+add_mapping_annotation(model_method.RelativityModel.level, OUT_KEY, '.level')
+add_mapping_annotation(model_method.RelativityModel.approximation, OUT_KEY, '.approximation')
+add_mapping_annotation(model_method.RelativityModel.dkh_order, OUT_KEY, '.dkh_order')
+add_mapping_annotation(
+    model_method.ModelMethod.contributions,
+    OUT_KEY,
+    ('get_relativity_models', ['@']),
+    cache=True,
+    m_def=model_method.RelativityModel.m_def,
 )
 
 try:
