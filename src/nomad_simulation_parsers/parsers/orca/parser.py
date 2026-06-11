@@ -8,9 +8,7 @@ from nomad.parsing import MatchingParser
 from nomad.units import ureg
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
-from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_method import (
     CC,
     HF,
