@@ -5,27 +5,18 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser
-from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
-from nomad_simulations.schema_packages.basis_set import (
-    AtomCenteredBasisSet,
-    BasisSetContainer,
-)
+from nomad_file_parser.mapping_parser import MetainfoParser
+from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import (
     CC,
-    DFT,
     HF,
     ActiveSpace,
     LocalCorrelation,
     LocalCorrelationSpace,
-    MultireferenceCI,
-    MultireferencePT,
-    MultireferenceSCF,
     OrbitalLocalization,
     PerturbationMethod,
-    RelativityModel,
 )
 from nomad_simulations.schema_packages.numerical_settings import (
     LocalCorrelationSettings,
@@ -187,6 +178,7 @@ class OutParser(MappingTextParser):
     def __init__(self) -> None:
         super().__init__(text_parser=OutReader())
         self.parse_only_required = False
+        self._method = None
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
@@ -337,6 +329,12 @@ class OutParser(MappingTextParser):
         single_point = self._parser_results(source.get('single_point'))
         return self._parser_results(single_point.get('casscf'))
 
+    def get_dft_methods(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        method = self.get_dft(src)
+        if method:
+            self._method = 'DFT'
+        return [method] if method else []
+
     def _build_active_space_data(self, casscf: dict[str, Any]) -> dict[str, Any]:
         return {
             'n_active_electrons': self._scalar(casscf.get('n_active_electrons')),
@@ -395,13 +393,19 @@ class OutParser(MappingTextParser):
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
         method = self._get_multireference_method_data(source)
-        return [method] if method and method['type'] == 'CASSCF' else []
+        if method.get('type') == 'CASSCF':
+            self._method = 'MultireferenceSCF'
+            return [method]
+        return []
 
     def get_multireference_ci_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
         method = self._get_multireference_method_data(source)
-        return [method] if method and method['type'] == 'CASCI' else []
+        if method.get('type') == 'CASCI':
+            self._method = 'MultireferenceCI'
+            return [method]
+        return []
 
     def get_multireference_pt_methods(
         self, source: dict[str, Any]
@@ -433,6 +437,7 @@ class OutParser(MappingTextParser):
             )
             if present
         )
+        self._method = 'MultireferencePT'
         return [{**method, 'type': 'NEVPT', 'order': 2, 'name': name}]
 
     @staticmethod
@@ -516,6 +521,8 @@ class OutParser(MappingTextParser):
                 if end >= start:
                     method_data['n_localized_orbitals'] = end - start + 1
             methods.append(method_data)
+        if methods:
+            self._method = 'OrbitalLocalization'
         return sorted(
             methods, key=lambda item: item.get('n_localized_orbitals', 0), reverse=True
         )[:1]
@@ -546,6 +553,7 @@ class OutParser(MappingTextParser):
         thresholds = self._local_thresholds(mdci_data, include_triples=False)
         if thresholds:
             method['numerical_settings'] = [{'screening_thresholds': thresholds}]
+        self._method = 'PerturbationMethod'
         return [method]
 
     def get_coupled_cluster_methods(
@@ -586,6 +594,7 @@ class OutParser(MappingTextParser):
         thresholds = self._local_thresholds(cc_data)
         if thresholds:
             method['numerical_settings'] = [{'screening_thresholds': thresholds}]
+        self._method = 'CC'
         return [{key: value for key, value in method.items() if value is not None}]
 
     def get_hf_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -593,6 +602,7 @@ class OutParser(MappingTextParser):
         reference_form = self._hf_reference_form(
             cc_data.get('cc_reference_wavefunction')
         )
+        self._method = 'HF'
         return [{'reference_form': reference_form}] if reference_form else []
 
     def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
@@ -634,9 +644,30 @@ class OutParser(MappingTextParser):
         )
         if approximation == 'DKH' and dkh_order is not None:
             model['dkh_order'] = int(dkh_order)
+        # TODO implement support in mapping parser
         return model
 
+    def get_relativity_models(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        method = self._method
+        electronic_methods = (
+            'DFT',
+            'HF',
+            'PerturbationMethod',
+            'CC',
+            'MultireferenceSCF',
+            'MultireferenceCI',
+            'MultireferencePT',
+        )
+        if method not in electronic_methods:
+            return []
+        model = self.get_relativity_model(source)
+        model.setdefault('basis_set', {})
+        return [model]
+
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        source = source.get('basis_set', self.data)
+        if not source:
+            return []
         names = self._parser_results(source.get('basis_set_name'))
         totals = self._parser_results(source.get('basis_set_total'))
         roles = {
@@ -645,10 +676,19 @@ class OutParser(MappingTextParser):
             'auxjk_basis_set': 'auxiliary_scf',
             'auxc_basis_set': 'auxiliary_post_hf',
         }
+        method = self._method
         components = []
         for key, role in roles.items():
             name = self._scalar(names.get(key))
             if not isinstance(name, str) or not name.strip():
+                continue
+            if method in ('HF', 'DFT', 'MultireferenceSCF', 'MultireferenceCI'):
+                if key not in ('main_basis_set', 'auxj_basis_set', 'auxjk_basis_set'):
+                    continue
+            elif method in ('PerturbationMethod', 'CC', 'MultireferencePT'):
+                if key not in ('main_basis_set', 'auxc_basis_set'):
+                    continue
+            else:
                 continue
             component = {
                 'source_key': key,
@@ -660,6 +700,7 @@ class OutParser(MappingTextParser):
             if total is not None:
                 component['n_total_basis_functions'] = int(total)
             components.append(component)
+
         return components
 
     def get_molecular_orbitals(self, src: dict[str, Any]) -> list[dict[str, Any]]:
@@ -776,141 +817,6 @@ class OutParser(MappingTextParser):
             ],
         )
 
-    def enrich_methods(self, simulation: Simulation) -> None:
-        source = self.text_parser.results or {}
-        existing = list(simulation.model_method or [])
-        additions = []
-
-        dft_data = self.get_dft(source)
-        if dft_data:
-            additions.append(DFT(**dft_data))
-
-        for data in self.get_hf_methods(source):
-            additions.append(HF(**data))
-
-        localization_data = self.get_orbital_localization_methods(source)
-        localization = (
-            OrbitalLocalization(**localization_data[0]) if localization_data else None
-        )
-        if localization:
-            additions.append(localization)
-
-        for data in self.get_perturbation_methods(source):
-            additions.append(self._build_perturbation(data))
-
-        for data in self.get_coupled_cluster_methods(source):
-            additions.append(self._build_cc(data))
-
-        multireference = []
-        for data in self.get_multireference_scf_methods(source):
-            multireference.append(
-                MultireferenceSCF(
-                    **{
-                        **data,
-                        'active_space': self._build_active_space(
-                            data.get('active_space')
-                        ),
-                    }
-                )
-            )
-        for data in self.get_multireference_ci_methods(source):
-            multireference.append(
-                MultireferenceCI(
-                    **{
-                        **data,
-                        'active_space': self._build_active_space(
-                            data.get('active_space')
-                        ),
-                    }
-                )
-            )
-        for data in self.get_multireference_pt_methods(source):
-            multireference.append(
-                MultireferencePT(
-                    **{
-                        **data,
-                        'active_space': self._build_active_space(
-                            data.get('active_space')
-                        ),
-                    }
-                )
-            )
-
-        replaced_types = (
-            DFT,
-            HF,
-            OrbitalLocalization,
-            PerturbationMethod,
-            CC,
-            MultireferenceSCF,
-            MultireferenceCI,
-            MultireferencePT,
-        )
-        preserved = [
-            method for method in existing if not isinstance(method, replaced_types)
-        ]
-        simulation.model_method = additions + preserved + multireference
-
-    def enrich_relativity(self, simulation: Simulation) -> None:
-        data = self.get_relativity_model(self.text_parser.results or {})
-        if not data:
-            return
-
-        electronic_methods = (
-            DFT,
-            HF,
-            PerturbationMethod,
-            CC,
-            MultireferenceSCF,
-            MultireferenceCI,
-            MultireferencePT,
-        )
-        for method in simulation.model_method or []:
-            if isinstance(method, electronic_methods):
-                method.m_add_sub_section(
-                    type(method).contributions, RelativityModel(**data)
-                )
-
-    def enrich_basis_sets(self, simulation: Simulation) -> None:
-        components = self.get_basis_set_components(self.text_parser.results or {})
-        if not components:
-            return
-
-        species_scope = (
-            list(simulation.model_system[0].particle_states)
-            if simulation.model_system and simulation.model_system[0].particle_states
-            else None
-        )
-        component_lookup = {
-            component['source_key']: component for component in components
-        }
-        for method in simulation.model_method or []:
-            if isinstance(method, (HF, DFT, MultireferenceSCF, MultireferenceCI)):
-                keys = ('main_basis_set', 'auxj_basis_set', 'auxjk_basis_set')
-            elif isinstance(method, (PerturbationMethod, CC, MultireferencePT)):
-                keys = ('main_basis_set', 'auxc_basis_set')
-            else:
-                continue
-
-            selected = [
-                component_lookup[key] for key in keys if key in component_lookup
-            ]
-            if not selected:
-                continue
-            basis_components = []
-            for component in selected:
-                data = {
-                    key: value
-                    for key, value in component.items()
-                    if key != 'source_key'
-                }
-                if species_scope:
-                    data['species_scope'] = species_scope
-                basis_components.append(AtomCenteredBasisSet(**data))
-            method.numerical_settings.append(
-                BasisSetContainer(basis_set_components=basis_components)
-            )
-
     def build_workflow(
         self, archive: 'EntryArchive', logger: 'BoundLogger'
     ) -> SerialWorkflow | None:
@@ -959,9 +865,6 @@ class OrcaParser(MatchingParser):
 
         try:
             reader.convert(metainfo_parser)
-            reader.enrich_methods(archive.data)
-            reader.enrich_relativity(archive.data)
-            reader.enrich_basis_sets(archive.data)
             reader.build_workflow(archive, logger)
         finally:
             metainfo_parser.close()
