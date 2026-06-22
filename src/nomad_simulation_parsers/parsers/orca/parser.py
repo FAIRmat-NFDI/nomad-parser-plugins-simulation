@@ -99,9 +99,11 @@ def str_to_mo_coefficients(value: str | list[str] | None) -> np.ndarray | None:
 def _token_list_to_mo_coefficients(tokens: list[str]) -> np.ndarray | None:
     coefficients_by_mo: dict[int, list[float]] = {}
     index = 0
-    # Each MO block has a variable number of columns and rows, so the next block
-    # can only be located after consuming the current one.
+
     while index < len(tokens):
+        # Keep this as a while loop: each MO block has a variable number of
+        # columns and rows, so the start of the next block is only known
+        # after the current block has been consumed.
         index = _find_next_mo_header(tokens, index)
         mo_indices, index = _read_mo_indices(tokens, index)
         if not mo_indices:
@@ -181,8 +183,6 @@ class OutParser(MappingTextParser):
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
-        # The base class sets findlazy=True; override here so all ORCA quantities
-        # are parsed eagerly before convert() traverses them in arbitrary order.
         text_parser.findlazy = False
         return text_parser
 
@@ -380,45 +380,48 @@ class OutParser(MappingTextParser):
         )
 
     def _get_multireference_method_data(
-        self, source: dict[str, Any]
+        self,
+        source: dict[str, Any],
+        method_type: str | None = None,
     ) -> dict[str, Any] | None:
         casscf = self._get_casscf_data(source)
         if not casscf:
             return None
 
-        return {
+        method = {
             'type': 'CASCI' if self._is_casci(source, casscf) else 'CASSCF',
             'active_space': self._build_active_space_data(casscf),
             **self._collect_state_data(casscf),
         }
 
+        if method_type is not None and method['type'] != method_type:
+            return None
+
+        return method
+
     def get_multireference_scf_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        method = self._get_multireference_method_data(source)
-        if not method:
+        method = self._get_multireference_method_data(source, 'CASSCF')
+        if method is None:
             return []
-        if method.get('type') == 'CASSCF':
-            self._method = 'MultireferenceSCF'
-            return [method]
-        return []
+        self._method = 'MultireferenceSCF'
+        return [method]
 
     def get_multireference_ci_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        method = self._get_multireference_method_data(source)
-        if not method:
+        method = self._get_multireference_method_data(source, 'CASCI')
+        if method is None:
             return []
-        if method.get('type') == 'CASCI':
-            self._method = 'MultireferenceCI'
-            return [method]
-        return []
+        self._method = 'MultireferenceCI'
+        return [method]
 
     def get_multireference_pt_methods(
         self, source: dict[str, Any]
     ) -> list[dict[str, Any]]:
         method = self._get_multireference_method_data(source)
-        if not method:
+        if method is None:
             return []
 
         casscf = self._get_casscf_data(source)
