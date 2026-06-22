@@ -19,6 +19,9 @@ from nomad_simulations.schema_packages.model_method import (
     PerturbationMethod,
     RelativityModel,
 )
+from nomad_simulations.schema_packages.numerical_settings import (
+    LocalCorrelationSettings,
+)
 from nomad_simulations.schema_packages.properties.molecular_orbitals import (
     MolecularOrbitals,
 )
@@ -82,6 +85,10 @@ def test_mp2_method_and_basis_sets():
     assert [
         component.basis_set for component in basis_sets[0].basis_set_components
     ] == ['def2-SVP', 'def2-SVP/C']
+    assert [
+        (component.type, component.n_total_basis_functions)
+        for component in basis_sets[0].basis_set_components
+    ] == [('GTO', 24), ('GTO', 76)]
 
 
 def test_multireference_methods_basis_sets_and_relativity():
@@ -101,6 +108,7 @@ def test_multireference_methods_basis_sets_and_relativity():
     assert casci.type == 'CASCI'
     assert casci.active_space.n_active_electrons == 13
     assert casci.active_space.n_active_orbitals == 8
+    assert casci.active_space.orbital_space_type == 'CAS'
     assert list(casci.state_multiplicities) == [4, 2]
     assert list(casci.n_roots_per_multiplicity) == [40, 115]
 
@@ -230,3 +238,21 @@ def test_coupled_cluster_methods():
     assert cc.perturbative_correction == '(T)'
     assert list(cc.perturbative_correction_order) == [3]
     assert cc.local_correlation.type == 'DLPNO'
+
+    mp2_local_settings = next(
+        settings
+        for settings in mp2.numerical_settings
+        if isinstance(settings, LocalCorrelationSettings)
+    )
+    assert len(mp2_local_settings.screening_thresholds) == 8
+    assert mp2_local_settings.screening_thresholds[0].name == 'TCutPairs'
+    assert mp2_local_settings.screening_thresholds[0].value == pytest.approx(1e-6)
+
+    cc_local_settings = next(
+        settings
+        for settings in cc.numerical_settings
+        if isinstance(settings, LocalCorrelationSettings)
+    )
+    assert len(cc_local_settings.screening_thresholds) == 13
+    assert cc_local_settings.screening_thresholds[-1].name == 'TCutDOWeak'
+    assert cc_local_settings.screening_thresholds[-1].value == pytest.approx(4e-3)

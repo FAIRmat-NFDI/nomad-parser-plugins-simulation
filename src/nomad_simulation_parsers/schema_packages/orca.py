@@ -15,7 +15,6 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 OUT_KEY = 'orca_out'
-RELATITIVITY_KEY = 'orca_relativity'
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
@@ -121,7 +120,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.ActiveSpace.orbital_space_type,
     OUT_KEY,
-    '.active_space.orbital_space_type',
+    '.orbital_space_type',
 )
 
 add_mapping_annotation(
@@ -227,10 +226,10 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(
-    numerical_settings.LocalCorrelationSettings.m_def,
+    model_method.ModelMethod.numerical_settings,
     OUT_KEY,
-    '.@',
-    update_mode='append',
+    '.numerical_settings',
+    m_def=numerical_settings.LocalCorrelationSettings.m_def,
 )
 add_mapping_annotation(
     numerical_settings.LocalCorrelationSettings.screening_thresholds,
@@ -264,7 +263,13 @@ add_mapping_annotation(
 add_mapping_annotation(model_method.LocalCorrelation.type, OUT_KEY, '.type')
 
 add_mapping_annotation(basis_set.AtomCenteredBasisSet.basis_set, OUT_KEY, '.basis_set')
+add_mapping_annotation(basis_set.AtomCenteredBasisSet.type, OUT_KEY, '.type')
 add_mapping_annotation(basis_set.AtomCenteredBasisSet.role, OUT_KEY, '.role')
+add_mapping_annotation(
+    basis_set.AtomCenteredBasisSet.n_total_basis_functions,
+    OUT_KEY,
+    '.n_total_basis_functions',
+)
 add_mapping_annotation(
     basis_set.AtomCenteredBasisSet.m_def, OUT_KEY, ('get_basis_set_components', ['.@'])
 )
