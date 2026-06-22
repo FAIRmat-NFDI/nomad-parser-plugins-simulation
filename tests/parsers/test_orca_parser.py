@@ -157,25 +157,25 @@ def test_model_system_and_molecular_orbitals():
     assert len(archive.data.outputs) == 1
     output = archive.data.outputs[0]
     assert output.model_system_ref.m_proxy_value == '/data/model_system/0'
-    assert len(output.electronic_eigenvalues) == 1
+    assert len(output.molecular_orbitals) == 1
 
-    molecular_orbitals = output.electronic_eigenvalues[0]
+    molecular_orbitals = output.molecular_orbitals[0]
     assert isinstance(molecular_orbitals, MolecularOrbitals)
     assert molecular_orbitals.n_mo == 24
     assert molecular_orbitals.n_ao == 24
-    assert molecular_orbitals.mo_type == 'canonical'
-    assert molecular_orbitals.mo_occupations[0] == pytest.approx(2.0)
-    assert molecular_orbitals.mo_occupations[-1] == pytest.approx(0.0)
-    assert molecular_orbitals.mo_energies[0].to('electron_volt').magnitude == (
+    assert molecular_orbitals.kind == 'canonical'
+    assert molecular_orbitals.occupations[0] == pytest.approx(2.0)
+    assert molecular_orbitals.occupations[-1] == pytest.approx(0.0)
+    assert molecular_orbitals.value[0].to('electron_volt').magnitude == (
         pytest.approx(-559.0826)
     )
 
 
 def test_molecular_orbital_coefficients(archive_with_hdf5):
-    molecular_orbitals = archive_with_hdf5.data.outputs[0].electronic_eigenvalues[0]
+    molecular_orbitals = archive_with_hdf5.data.outputs[0].molecular_orbitals[0]
     assert molecular_orbitals.n_mo == 77
     assert molecular_orbitals.n_ao == 77
-    coefficients = molecular_orbitals.mo_coefficients
+    coefficients = molecular_orbitals.coefficients
     coefficient_context = (
         nullcontext(coefficients)
         if isinstance(coefficients, np.ndarray)
@@ -186,8 +186,8 @@ def test_molecular_orbital_coefficients(archive_with_hdf5):
         assert coefficients[0, 0] == pytest.approx(-0.000034)
         assert coefficients[5, 9] == pytest.approx(0.995146)
         assert coefficients[-1, -1] == pytest.approx(-0.006075)
-    assert molecular_orbitals.mo_occupations[28] == pytest.approx(0.0)
-    assert molecular_orbitals.mo_energies[0].to('electron_volt').magnitude == (
+    assert molecular_orbitals.occupations[28] == pytest.approx(0.0)
+    assert molecular_orbitals.value[0].to('electron_volt').magnitude == (
         pytest.approx(-520.4853)
     )
 

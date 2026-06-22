@@ -281,29 +281,29 @@ add_mapping_annotation(outputs.Outputs.model_system_ref, OUT_KEY, '.model_system
 add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.m_def,
     OUT_KEY,
-    '.electronic_eigenvalues',
+    '.molecular_orbitals',
 )
 add_mapping_annotation(molecular_orbitals.MolecularOrbitals.n_mo, OUT_KEY, '.n_mo')
 add_mapping_annotation(molecular_orbitals.MolecularOrbitals.n_ao, OUT_KEY, '.n_ao')
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.mo_occupations,
+    molecular_orbitals.MolecularOrbitals.occupations,
     OUT_KEY,
-    '.mo_occupations',
+    '.occupations',
 )
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.mo_energies,
+    molecular_orbitals.MolecularOrbitals.value,
     OUT_KEY,
-    '.mo_energies',
+    '.value',
 )
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.mo_coefficients,
+    molecular_orbitals.MolecularOrbitals.coefficients,
     OUT_KEY,
-    '.mo_coefficients',
+    '.coefficients',
 )
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.mo_type,
+    molecular_orbitals.MolecularOrbitals.kind,
     OUT_KEY,
-    '.mo_type',
+    '.kind',
 )
 
 add_mapping_annotation(model_method.RelativityModel.level, OUT_KEY, '.level')

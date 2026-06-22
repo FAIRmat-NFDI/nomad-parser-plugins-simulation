@@ -735,18 +735,17 @@ class OutParser(MappingTextParser):
             else int(coefficients.shape[1])
             if coefficients is not None
             else int(table.shape[0]),
-            'mo_type': 'canonical',
+            'kind': 'canonical',
         }
         if table is not None:
             molecular_orbitals.update(
                 {
-                    'mo_occupations': table[:, ORBITAL_OCCUPATION_COLUMN],
-                    'mo_energies': table[:, ORBITAL_ENERGY_EV_COLUMN]
-                    * ureg.electron_volt,
+                    'occupations': table[:, ORBITAL_OCCUPATION_COLUMN],
+                    'value': table[:, ORBITAL_ENERGY_EV_COLUMN] * ureg.electron_volt,
                 }
             )
         if coefficients is not None:
-            molecular_orbitals['mo_coefficients'] = coefficients
+            molecular_orbitals['coefficients'] = coefficients
 
         return [molecular_orbitals]
 
@@ -758,7 +757,7 @@ class OutParser(MappingTextParser):
         return [
             {
                 'model_system_ref': '/data/model_system/0',
-                'electronic_eigenvalues': molecular_orbitals,
+                'molecular_orbitals': molecular_orbitals,
             }
         ]
 
