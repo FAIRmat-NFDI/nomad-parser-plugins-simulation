@@ -291,9 +291,9 @@ add_mapping_annotation(
     '.occupations',
 )
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.value,
+    molecular_orbitals.MolecularOrbitals.energies,
     OUT_KEY,
-    '.value',
+    '.energies',
 )
 add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.coefficients,

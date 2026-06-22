@@ -218,7 +218,9 @@ class OutParser(MappingTextParser):
         return [{'chemical_symbol': symbol} for symbol in symbols]
 
     def _get_charge_and_spin(self, source: dict[str, Any]) -> dict[str, int]:
-        scf_settings = self._navigate(source, 'single_point', 'self_consistent', 'scf_settings')
+        scf_settings = self._navigate(
+            source, 'single_point', 'self_consistent', 'scf_settings'
+        )
         result = {}
         total_charge = self._scalar(scf_settings.get('total_charge'))
         if total_charge is not None:
@@ -743,7 +745,7 @@ class OutParser(MappingTextParser):
             molecular_orbitals.update(
                 {
                     'occupations': table[:, ORBITAL_OCCUPATION_COLUMN],
-                    'value': table[:, ORBITAL_ENERGY_EV_COLUMN] * ureg.electron_volt,
+                    'energies': table[:, ORBITAL_ENERGY_EV_COLUMN] * ureg.electron_volt,
                 }
             )
         if coefficients is not None:
