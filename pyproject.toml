@@ -36,6 +36,7 @@ dependencies = [
     "nomad-simulations@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
     "nomad-nmr-schema@git+https://github.com/FAIRmat-NFDI/nomad-schema-plugin-nmr@v0.1.4",
     "nomad-file-parser@git+https://github.com/FAIRmat-NFDI/nomad-file-parser.git@develop",
+    "pyyaml>=6.0",
     "python-magic-bin; sys_platform == 'win32'",
     "phonopy>=2.35",
     "mdanalysis>=2.8.0,<3.0.0 ; python_full_version >= '3.10'",
@@ -47,6 +48,9 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
+
+[project.scripts]
+nomad-sim-parser-init = "nomad_simulation_parsers.cli:main"
 
 [project.optional-dependencies]
 md = [
