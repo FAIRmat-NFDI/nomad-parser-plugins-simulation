@@ -437,10 +437,10 @@ class OutcarParser(MappingTextParser):
         for nspin in range(ispin):
             eigs, occs = eigenvalues[nspin].T[1:3]
             entry = dict(
-                eigenvalues=eigs.T,
-                occupations=occs.T,
-                n_bands=n_bands,
-                npoints=n_kpts,
+                value=eigs.T,  # Changed from 'eigenvalues' to 'value'
+                occupation=occs.T,  # Changed from 'occupations' to 'occupation'
+                n_levels=n_bands,  # Changed from 'n_bands' to 'n_levels'
+                # Removed 'npoints' as it's not in the schema
             )
             if ispin == N_SPIN_CHANNELS:
                 entry['spin_channel'] = nspin
@@ -469,8 +469,8 @@ class OutcarParser(MappingTextParser):
         """Calculate band gaps from eigenvalues using common utility."""
         band_gaps = []
         for eig in self.get_eigenvalues(eigenvalues, parameters):
-            values = eig.get('eigenvalues')
-            occupations = eig.get('occupations')
+            values = eig.get('value')  # Changed from 'eigenvalues' to 'value'
+            occupations = eig.get('occupation')  # Changed from 'occupations' to 'occupation'
             spin_channel = eig.get('spin_channel')
 
             # Use common utility for band gap calculation

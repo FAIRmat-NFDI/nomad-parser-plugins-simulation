@@ -142,10 +142,10 @@ class VasprunParser(XMLParser):
             eigs = data[:, :, 0]
             occs = data[:, :, 1]
             entry = dict(
-                eigenvalues=eigs,
-                occupations=occs,
-                n_bands=eigs.shape[1],
-                npoints=eigs.shape[0],
+                value=eigs,  # Changed from 'eigenvalues' to 'value'
+                occupation=occs,  # Changed from 'occupations' to 'occupation'
+                n_levels=eigs.shape[1],  # Changed from 'n_bands' to 'n_levels'
+                # Removed 'npoints' as it's not in the schema
             )
             if is_spin_polarized:
                 entry['spin_channel'] = spin_channel
@@ -171,8 +171,8 @@ class VasprunParser(XMLParser):
         """Calculate band gaps from eigenvalues using common utility."""
         result = []
         for eigenvalues in self.get_eigenvalues(source):
-            eigs = eigenvalues.get('eigenvalues')
-            occs = eigenvalues.get('occupations')
+            eigs = eigenvalues.get('value')  # Changed from 'eigenvalues' to 'value'
+            occs = eigenvalues.get('occupation')  # Changed from 'occupations' to 'occupation'
             spin_channel = eigenvalues.get('spin_channel')
 
             # Use common utility for band gap calculation

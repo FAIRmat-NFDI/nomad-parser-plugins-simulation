@@ -269,21 +269,22 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.scf_steps, OUTCAR_KEY, ('get_scf_steps', ['.@'])
     )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        XML_KEY,
-        ('get_band_structures', ['.eigenvalues']),
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        XML2_KEY,
-        ('get_band_structures', ['.eigenvalues']),
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        OUTCAR_KEY,
-        ('get_band_structures', ['.eigenvalues', 'parameters']),
-    )
+    # Commented out to revert to electronic_eigenvalues mapping
+    # add_mapping_annotation(
+    #     outputs.Outputs.electronic_band_structures,
+    #     XML_KEY,
+    #     ('get_band_structures', ['.eigenvalues']),
+    # )
+    # add_mapping_annotation(
+    #     outputs.Outputs.electronic_band_structures,
+    #     XML2_KEY,
+    #     ('get_band_structures', ['.eigenvalues']),
+    # )
+    # add_mapping_annotation(
+    #     outputs.Outputs.electronic_band_structures,
+    #     OUTCAR_KEY,
+    #     ('get_band_structures', ['.eigenvalues', 'parameters']),
+    # )
     add_mapping_annotation(
         outputs.Outputs.electronic_band_gaps,
         XML_KEY,
