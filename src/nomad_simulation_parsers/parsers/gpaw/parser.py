@@ -81,17 +81,34 @@ class GPWParser(MappingParser):
             self.file_parser.parser.get_array('eigenvalues'), 'energyunit'
         )
         occupations = self.file_parser.parser.get_array('occupation')
-        kpoints = self.file_parser.parser.get_array('kpoints')
-        return [
-            dict(
-                value=eigenvalue,  # Changed from 'eigenvalues' to 'value'
-                occupation=occupations[n],  # Changed from 'occupations' to 'occupation'
-                n_levels=len(eigenvalue[0]) if eigenvalue.ndim > 1 else len(eigenvalue),  # Add n_levels
-                # Removed 'kpoints' as it's not in the schema
+
+        if eigenvalues is None or occupations is None:
+            return []
+
+        # eigenvalues and occupations should have shape [n_spin, n_kpoints, n_bands]
+        # or [n_kpoints, n_bands] for non-spin-polarized
+        if eigenvalues.ndim == 2:
+            # Non-spin-polarized: reshape to add spin dimension
+            eigenvalues = eigenvalues[np.newaxis, :, :]
+            occupations = occupations[np.newaxis, :, :]
+
+        n_spin = eigenvalues.shape[0]
+        n_bands = eigenvalues.shape[2] if eigenvalues.ndim > 2 else eigenvalues.shape[1]
+
+        data = []
+        for spin_idx in range(n_spin):
+            entry = dict(
+                value=eigenvalues[spin_idx],  # 2D: [n_kpoints, n_bands]
+                occupation=occupations[spin_idx],  # 2D: [n_kpoints, n_bands]
+                n_levels=n_bands,
                 highest_occupied=reference_energy,
             )
-            for n, eigenvalue in enumerate(eigenvalues)
-        ]
+            # Only add spin_channel if there are multiple spins
+            if n_spin == 2:
+                entry['spin_channel'] = spin_idx
+            data.append(entry)
+
+        return data
 
     def get_reference_energy(self):
         fermi_level = self.file_parser.parser.get_parameter('fermilevel')
@@ -133,8 +150,8 @@ class GPWParser(MappingParser):
         """Calculate band gaps from eigenvalues using common utility."""
         band_gaps = []
         for spin_channel, eigenvalue_data in enumerate(self.get_eigenvalues()):
-            energies = eigenvalue_data.get('eigenvalues')
-            occupations = eigenvalue_data.get('occupations')
+            energies = eigenvalue_data.get('value')  # Use schema field name
+            occupations = eigenvalue_data.get('occupation')  # Use schema field name
 
             # Use common utility for band gap calculation (handles units automatically)
             gap_result = calculate_band_gap_from_occupations(
