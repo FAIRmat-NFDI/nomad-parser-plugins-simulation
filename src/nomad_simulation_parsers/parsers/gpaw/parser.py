@@ -84,9 +84,10 @@ class GPWParser(MappingParser):
         kpoints = self.file_parser.parser.get_array('kpoints')
         return [
             dict(
-                eigenvalues=eigenvalue,
-                occupations=occupations[n],
-                kpoints=kpoints,
+                value=eigenvalue,  # Changed from 'eigenvalues' to 'value'
+                occupation=occupations[n],  # Changed from 'occupations' to 'occupation'
+                n_levels=len(eigenvalue[0]) if eigenvalue.ndim > 1 else len(eigenvalue),  # Add n_levels
+                # Removed 'kpoints' as it's not in the schema
                 highest_occupied=reference_energy,
             )
             for n, eigenvalue in enumerate(eigenvalues)
