@@ -171,8 +171,8 @@ class VasprunParser(XMLParser):
         """Calculate band gaps from eigenvalues using common utility."""
         result = []
         for eigenvalues in self.get_eigenvalues(source):
-            eigs = eigenvalues.get('value')  # Changed from 'eigenvalues' to 'value'
-            occs = eigenvalues.get('occupation')  # Changed from 'occupations' to 'occupation'
+            eigs = eigenvalues.get('value')  # 'eigenvalues' -> 'value'
+            occs = eigenvalues.get('occupation')  # 'occupations' -> 'occupation'
             spin_channel = eigenvalues.get('spin_channel')
 
             # Use common utility for band gap calculation

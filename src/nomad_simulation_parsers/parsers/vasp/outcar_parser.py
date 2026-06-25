@@ -469,8 +469,8 @@ class OutcarParser(MappingTextParser):
         """Calculate band gaps from eigenvalues using common utility."""
         band_gaps = []
         for eig in self.get_eigenvalues(eigenvalues, parameters):
-            values = eig.get('value')  # Changed from 'eigenvalues' to 'value'
-            occupations = eig.get('occupation')  # Changed from 'occupations' to 'occupation'
+            values = eig.get('value')  # 'eigenvalues' -> 'value'
+            occupations = eig.get('occupation')  # 'occupations' -> 'occupation'
             spin_channel = eig.get('spin_channel')
 
             # Use common utility for band gap calculation

@@ -4,23 +4,24 @@ Run at baseline (1c7acd6) and current (test-data-normalization) to verify
 migration only adds properties, doesn't modify existing ones.
 """
 
-import pytest
 from nomad.datamodel import EntryArchive
-from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
+
 from nomad_simulation_parsers.parsers.abinit.parser import AbinitParser
-from nomad_simulation_parsers.parsers.gpaw.parser import GPAWParser
-from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 from nomad_simulation_parsers.parsers.ams.parser import AMSParser
-from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 from nomad_simulation_parsers.parsers.crystal.parser import CrystalParser
+from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
+from nomad_simulation_parsers.parsers.gpaw.parser import GPAWParser
 from nomad_simulation_parsers.parsers.gromacs.parser import GromacsParser
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
+from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyParser
-from nomad_simulation_parsers.parsers.quantumespresso.parser import QuantumEspressoParser
+from nomad_simulation_parsers.parsers.quantumespresso.parser import (
+    QuantumEspressoParser,
+)
+from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 from nomad_simulation_parsers.parsers.wannier90.parser import Wannier90Parser
-from nomad_simulation_parsers.parsers.yambo.parser import YamboParser
 
 
 def serialize_archive_data(archive):
@@ -144,7 +145,11 @@ def test_h5md_snapshot(snapshot):
     """Snapshot of H5MD parsing output."""
     parser = H5MDParser()
     archive = EntryArchive()
-    parser.parse('tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5', archive, None)
+    parser.parse(
+        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        archive,
+        None,
+    )
     assert serialize_archive_data(archive) == snapshot
 
 

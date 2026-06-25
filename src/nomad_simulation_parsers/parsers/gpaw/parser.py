@@ -23,6 +23,10 @@ from .gpw_parser import GPWFileParser
 
 LOGGER = get_logger(__name__)
 
+# Constants for array dimensionality checks
+NDIM_NON_SPIN_POLARIZED = 2  # Shape: [n_kpoints, n_bands]
+N_SPIN_CHANNELS = 2  # Number of spin channels for spin-polarized calculations
+
 
 class GPWParser(MappingParser):
     file_parser = GPWFileParser()
@@ -87,13 +91,17 @@ class GPWParser(MappingParser):
 
         # eigenvalues and occupations should have shape [n_spin, n_kpoints, n_bands]
         # or [n_kpoints, n_bands] for non-spin-polarized
-        if eigenvalues.ndim == 2:
+        if eigenvalues.ndim == NDIM_NON_SPIN_POLARIZED:
             # Non-spin-polarized: reshape to add spin dimension
             eigenvalues = eigenvalues[np.newaxis, :, :]
             occupations = occupations[np.newaxis, :, :]
 
         n_spin = eigenvalues.shape[0]
-        n_bands = eigenvalues.shape[2] if eigenvalues.ndim > 2 else eigenvalues.shape[1]
+        n_bands = (
+            eigenvalues.shape[2]
+            if eigenvalues.ndim > NDIM_NON_SPIN_POLARIZED
+            else eigenvalues.shape[1]
+        )
 
         data = []
         for spin_idx in range(n_spin):
@@ -104,7 +112,7 @@ class GPWParser(MappingParser):
                 highest_occupied=reference_energy,
             )
             # Only add spin_channel if there are multiple spins
-            if n_spin == 2:
+            if n_spin == N_SPIN_CHANNELS:
                 entry['spin_channel'] = spin_idx
             data.append(entry)
 
