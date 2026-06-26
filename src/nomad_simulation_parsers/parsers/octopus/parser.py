@@ -294,13 +294,13 @@ class OctopusMainfileParser(TextParser):
             return self._initial_system
 
         self._initial_system = {}
+        atoms = None  # Initialize atoms to None for all paths
         symbols, coordinates = self.log_parser.get_coordinates()
         if len(coordinates) == 0:
             # get if from inp
             symbols, coordinates = self.inp_parser.get_coordinates()
         if len(coordinates) == 0:
             # try to read from file
-            atoms = None
             file_types = {
                 'PDBCoordinates': ['proteindatabank'],
                 'XYZCoordinates': ['extxyz', 'xyz'],
@@ -363,22 +363,50 @@ class OctopusMainfileParser(TextParser):
         self._initial_system['labels'] = symbols
         return self._initial_system
 
-    def get_systems(self, minimization: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        systems = [self.initial_system]
+    def get_systems(self, source: dict[str, Any] | list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+        # Always include initial system, even for static calculations
+        initial = self.initial_system
+        if not initial:
+            return []
+
+        systems = [initial]
+
+        # Extract minimization data from source (could be full dict or minimization list)
+        minimization = None
+        if isinstance(source, dict):
+            minimization = source.get('minimization')
+        elif isinstance(source, list):
+            minimization = source
+
+        # Add geometry optimization steps if present
         for mini in minimization or []:
             number = mini.get('numbr')
             if number is None:
                 continue
             path = os.path.join(self._maindir, f'geom/go.{number:04d}.xyz')
-            atoms = read(path, format='xyz')
-            systems.append(
-                dict(
-                    positions=atoms.get_positions() * ureg.angstrom,
-                    labels=atoms.get_chemical_symbols(),
-                    pbc=systems[0].get('pbc'),
+            try:
+                atoms = read(path, format='xyz')
+                systems.append(
+                    dict(
+                        positions=atoms.get_positions() * ureg.angstrom,
+                        labels=atoms.get_chemical_symbols(),
+                        pbc=systems[0].get('pbc'),
+                    )
                 )
-            )
+            except Exception as e:
+                self.logger.warning(
+                    'Could not read geometry optimization step',
+                    data=dict(path=path, error=str(e)),
+                )
         return systems
+
+    def get_initial_system_for_mapping(self, source: Any = None) -> dict[str, Any] | None:
+        """Always return the initial system, regardless of source data.
+
+        This ensures model_system is populated even for static calculations
+        without minimization data.
+        """
+        return self.initial_system
 
     def get_outputs(self, sources: list[dict[str]]) -> list[dict[str, Any]]:
         outputs = []
@@ -490,6 +518,13 @@ class OctopusArchiveWriter(ArchiveWriter):
 
         self.archive_parser.data_object = self.archive.data
         self.archive_parser.annotation_key = octopus.OUT_KEY
+
+        # Ensure initial_system data is available for mapping
+        # even if no minimization or time-dependent data exists
+        # Access the underlying text parser's data dict
+        if not self.mainfile_parser.text_parser.data:
+            self.mainfile_parser.text_parser.data = {}
+        self.mainfile_parser.text_parser.data['_initial_system'] = self.mainfile_parser.initial_system
 
         self.mainfile_parser.convert(self.archive_parser)
 
