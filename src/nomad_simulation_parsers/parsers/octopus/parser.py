@@ -363,7 +363,9 @@ class OctopusMainfileParser(TextParser):
         self._initial_system['labels'] = symbols
         return self._initial_system
 
-    def get_systems(self, source: dict[str, Any] | list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    def get_systems(
+        self, source: dict[str, Any] | list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         # Always include initial system, even for static calculations
         initial = self.initial_system
         if not initial:
@@ -371,7 +373,7 @@ class OctopusMainfileParser(TextParser):
 
         systems = [initial]
 
-        # Extract minimization data from source (could be full dict or minimization list)
+        # Extract minimization data from source (dict or list)
         minimization = None
         if isinstance(source, dict):
             minimization = source.get('minimization')
@@ -400,7 +402,9 @@ class OctopusMainfileParser(TextParser):
                 )
         return systems
 
-    def get_initial_system_for_mapping(self, source: Any = None) -> dict[str, Any] | None:
+    def get_initial_system_for_mapping(
+        self, source: Any = None
+    ) -> dict[str, Any] | None:
         """Always return the initial system, regardless of source data.
 
         This ensures model_system is populated even for static calculations
@@ -524,7 +528,9 @@ class OctopusArchiveWriter(ArchiveWriter):
         # Access the underlying text parser's data dict
         if not self.mainfile_parser.text_parser.data:
             self.mainfile_parser.text_parser.data = {}
-        self.mainfile_parser.text_parser.data['_initial_system'] = self.mainfile_parser.initial_system
+        self.mainfile_parser.text_parser.data[
+            '_initial_system'
+        ] = self.mainfile_parser.initial_system
 
         self.mainfile_parser.convert(self.archive_parser)
 
