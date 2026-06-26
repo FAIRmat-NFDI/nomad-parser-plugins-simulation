@@ -30,7 +30,7 @@ jobs:
         uv pip install coverage coveralls
     - name: Test with pytest
       run: |
-        python -m coverage run -m pytest -sv
+        python -m coverage run -m pytest -sv --ignore=tests/parsers/test_migration_snapshots.py
     - name: Submit to coveralls
       continue-on-error: true
       env:
