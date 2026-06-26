@@ -36,12 +36,13 @@ def test_vasprun_system_and_electronic_outputs():
     assert sec_system.particle_states[0].chemical_symbol == 'Ac'
 
     sec_output = archive.data.outputs[0]
-    assert len(sec_output.electronic_band_structures) > 0
+    assert len(sec_output.electronic_eigenvalues) > 0
     assert len(sec_output.electronic_band_gaps) > 0
     assert len(sec_output.electronic_dos) > 0
 
-    sec_band_structure = sec_output.electronic_band_structures[0]
-    assert sec_band_structure.value is not None
+    sec_eigenvalues = sec_output.electronic_eigenvalues[0]
+    assert sec_eigenvalues.value is not None
+    assert sec_eigenvalues.occupation is not None
 
     sec_band_gap = sec_output.electronic_band_gaps[0]
     assert sec_band_gap.value is not None
@@ -70,10 +71,11 @@ def test_outcar_electronic_outputs_from_doscar_and_eigenvalues():
     assert len(outputs) > 0
     output = outputs[0]
 
-    assert output.electronic_band_structures is not None
-    assert len(output.electronic_band_structures) > 0
-    band_structure = output.electronic_band_structures[0]
-    assert band_structure.value is not None
+    assert output.electronic_eigenvalues is not None
+    assert len(output.electronic_eigenvalues) > 0
+    eigenvalues = output.electronic_eigenvalues[0]
+    assert eigenvalues.value is not None
+    assert eigenvalues.occupation is not None
 
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
@@ -157,7 +159,7 @@ def test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing():
         archive = _parse(str(Path(tmpdir) / 'vasprun.xml'))
         output = archive.data.outputs[0]
 
-        assert output.electronic_band_structures is not None
-        assert len(output.electronic_band_structures) > 0
+        assert output.electronic_eigenvalues is not None
+        assert len(output.electronic_eigenvalues) > 0
         assert output.electronic_dos is not None
         assert len(output.electronic_dos) > 0
