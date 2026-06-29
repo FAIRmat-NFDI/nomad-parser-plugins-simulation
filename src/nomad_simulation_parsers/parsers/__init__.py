@@ -93,18 +93,6 @@ fhiaims_parser = EntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
-lammps_parser = EntryPoint(
-    name='parsers/lammps',
-    aliases=['parsers/lammps'],
-    description='NOMAD parser for LAMMPS.',
-    python_package='nomad_simulation_parsers',
-    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
-    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
-    code_name='LAMMPS',
-    code_homepage='https://lammps.sandia.gov/',
-    code_category='Atomistic code',
-)
-
 gpaw_parser = EntryPoint(
     name='parsers/gpaw',
     aliases=['parsers/gpaw'],
@@ -155,6 +143,32 @@ h5md_parser = EntryPoint(
     #     # 'status': 'production',
     #     # 'tableOfFiles': '',
     # },
+)
+
+lammps_parser = EntryPoint(
+    name='parsers/lammps',
+    aliases=['parsers/lammps'],
+    description='NOMAD parser for LAMMPS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
+    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
+    code_name='LAMMPS',
+    code_homepage='https://lammps.sandia.gov/',
+    code_category='Atomistic code',
+)
+
+
+lobster_parser = EntryPoint(
+    name='parsers/lobster',
+    aliases=['parsers/lobster'],
+    description='NOMAD parser for LOBSTER.',
+    python_package='nomad_simulation_parsers',
+    parser_class_name='nomad_simulation_parsers.parsers.lobster.parser.LobsterParser',
+    code_name='Lobster',
+    code_homepage='http://schmeling.ac.rwth-aachen.de/cohp/',
+    mainfile_contents_re=r'^LOBSTER\s*v[\d\.]+.*',
+    mainfile_name_re='.*lobsterout.*',
+    supported_compressions=['gz', 'bz2', 'xz'],
 )
 
 octopus_parser = EntryPoint(
