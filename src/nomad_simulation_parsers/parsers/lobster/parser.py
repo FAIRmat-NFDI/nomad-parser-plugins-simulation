@@ -1,5 +1,5 @@
+import datetime
 import os
-from datetime import datetime
 from typing import Any
 
 import ase
@@ -41,7 +41,11 @@ class LobsterMainfileParser(TextParser):
         return LOGGER
 
     def to_unix_time(self, datetime_str: str):
-        return datetime.strptime(datetime_str, '%Y-%m-%d at %H:%M:%S').timestamp()
+        return (
+            datetime.datetime.strptime(datetime_str, '%Y-%m-%d at %H:%M:%S')
+            .replace(tzinfo=datetime.timezone.utc)
+            .timestamp()
+        )
 
     def to_basis_set(self, basis_used: str):
         # checks necessary as LOBSTER 5.1.1 writes basis names now in lower case

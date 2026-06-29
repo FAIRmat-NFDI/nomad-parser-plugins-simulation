@@ -29,7 +29,7 @@ def test_Fe(parser):  # noqa: PLR0915
 
     data = archive.data
     assert data.program.version == '4.0.0'
-    assert data.wall_start.magnitude == 1619680785.0
+    assert data.wall_start.magnitude == 1619687985.0
 
     assert len(data.model_system) == 1
     model_system = data.model_system[0]
@@ -227,8 +227,7 @@ def test_NaCl(parser):  # noqa: PLR0915
     data = archive.data
     assert data.program.name == 'LOBSTER'
     assert data.program.version == '3.2.0'
-    assert data.wall_start.magnitude == 1619705848.0
-
+    assert data.wall_start.magnitude == 1619713048.0
     method = data.model_method
     assert len(method) == 1
     assert method[0].x_lobster_code == 'VASP'
