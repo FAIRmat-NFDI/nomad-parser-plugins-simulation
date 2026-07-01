@@ -73,7 +73,7 @@ class Outputs(outputs.Outputs):
     # TODO add description
     sp_type = Quantity(type=str)
 
-    add_mapping_annotation(sp_type, OUT_KEY, 'sp_type')
+    add_mapping_annotation(sp_type, SPECTRA_KEY, 'sp_type')  # EM: changed sp_type to SPECTRA_KEY,   Jul 1st, 2026
 
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
