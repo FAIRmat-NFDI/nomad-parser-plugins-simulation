@@ -4,8 +4,8 @@ if TYPE_CHECKING:
     pass
 
 from nomad.datamodel import ArchiveSection
-from nomad.metainfo import SchemaPackage, Quantity, SubSection
 from nomad.datamodel.hdf5 import HDF5Dataset
+from nomad.metainfo import Quantity, SchemaPackage, SubSection
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -33,12 +33,12 @@ add_mapping_annotation(general.Simulation.m_def, CHGCAR_KEY, '@')
 
 class ChargeDensity(ArchiveSection):
     value_h5_dataset = Quantity(type=HDF5Dataset)
-    add_mapping_annotation(value_h5_dataset, CHGCAR_KEY, '.values')
+    add_mapping_annotation(value_h5_dataset, CHGCAR_KEY, '.@')
 
 
-class Outputs(outputs.Outputs):
+class VASPOutputs(outputs.Outputs):
     charge_density = SubSection(sub_section=ChargeDensity.m_def, repeats=True)
-    add_mapping_annotation(charge_density, CHGCAR_KEY, '.@')
+    add_mapping_annotation(charge_density, CHGCAR_KEY, '.values')
 
 
 class Simulation(general.Simulation):
@@ -56,7 +56,8 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
-    add_mapping_annotation(Outputs, CHGCAR_KEY, '.@')
+    # TODO: make update_mode merge@last when mapping parser is updated
+    add_mapping_annotation(VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='append')
 
 
 class Program(general.Program):

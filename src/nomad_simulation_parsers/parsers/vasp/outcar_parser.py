@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-import os
 import re
 
 import numpy as np
@@ -35,7 +34,7 @@ RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 
 
-def get_key_values(val_in):
+def get_key_values(val_in: str) -> dict[str, Any]:
     val = [v for v in val_in.split('\n') if '=' in v]
     data = {}
     pattern = re.compile(r'([A-Z_]+)\s*=\s*(\.?[a-zA-Z]*[\d\-\.\+\sE]*\.?)')
@@ -607,3 +606,4 @@ class OutcarArchiveWriter(ArchiveWriter):
         # close file handles
         archive_data_parser.close()
         source_parser.close()
+        chgcar_parser.close()

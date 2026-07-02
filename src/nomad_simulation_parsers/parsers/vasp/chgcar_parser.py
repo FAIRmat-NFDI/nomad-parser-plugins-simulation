@@ -2,6 +2,7 @@ import os
 import re
 
 import numpy as np
+from nomad.parsing.file_parser.file_parser import FileParser
 from nomad.parsing.file_parser.mapping_parser import MappingParser
 from nomad.utils import get_logger
 
@@ -10,15 +11,13 @@ from nomad_simulation_parsers.parsers.utils.general import search_files
 LOGGER = get_logger(__name__)
 
 
-class CHGCARParser(MappingParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+class CHGCARFileParser(FileParser):
+    def parse(self, key=None):
+        if self._results is None:
+            self._results = {}
 
-    def to_dict(self, **kwargs):
-        dct = dict(values=[])
-        with open(self.filepath) as f:
+        values = []
+        with self.open_mainfile_obj() as f:
             grid = None
             n_points = 0
             charge_density = []
@@ -38,35 +37,37 @@ class CHGCARParser(MappingParser):
                 elif len(charge_density) < n_points:
                     charge_density.extend([float(v) for v in line.strip().split()])
                 if charge_density and len(charge_density) == n_points:
-                    dct['values'].append(
+                    values.append(
                         np.reshape(np.array(charge_density, np.float64), grid)
                     )
                     grid = []
                     n_points = 0
                     charge_density = []
-        return dct
+        self._results['values'] = values
 
-    def load_file(self) -> dict:
+
+class CHGCARParser(MappingParser):
+    # TODO temporary fix for structlog unable to propagate logger
+    @property
+    def logger(self):
+        return LOGGER
+
+    def to_dict(self, **kwargs) -> dict:
+        if self.data_object:
+            self.data_object.parse()
+            return self.data_object._results
         return {}
+
+    def load_file(self) -> FileParser | None:
+        chgcar_files = search_files('*CHGCAR*', os.path.dirname(self.filepath))
+        if not chgcar_files:
+            return None
+
+        if len(chgcar_files) > 1:
+            self.logger.warning('Found more than one CHGCAR file, parsing only first.')
+        chgcar_parser = CHGCARFileParser()
+        chgcar_parser.mainfile = chgcar_files[0]
+        return chgcar_parser
 
     def from_dict(self, dct: dict):
         pass
-
-
-def parse_chgcar(chgcar_file: str, archive_parser: MappingParser) -> None:
-    if not archive_parser.data_object.m_root().m_context:
-        return
-
-    chgcar_files = search_files(
-        os.path.basename(chgcar_file), os.path.dirname(chgcar_file)
-    )
-    if not chgcar_files:
-        return
-
-    chgcar_parser = CHGCARParser()
-    if len(chgcar_files) > 1:
-        chgcar_parser.logger.warning(
-            'Found more than one CHGCAR file, parsing only first.'
-        )
-    chgcar_parser.filepath = chgcar_files[0]
-    chgcar_parser.convert(archive_parser)
