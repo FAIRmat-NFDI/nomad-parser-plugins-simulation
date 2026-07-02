@@ -86,16 +86,18 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                     ).astype(float)
         return results
 
+    _configuration_methods = {
+        'self_consistent': 'single_point',
+        'bandstructure': 'single_point',
+        'bfgs_geometry_optimization': 'geometry_optimization',
+        'molecular_dynamics': 'molecular_dynamics',
+        'langevin_dynamics': 'langevin_dynamics',
+        'damped_dynamics': 'geometry_optimization',
+        'vcs_wentzcovitch_damped_minimization': 'geometry_optimization',
+    }
+
     def get_configurations(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        methods = {
-            'self_consistent': 'single_point',
-            'bandstructure': 'single_point',
-            'bfgs_geometry_optimization': 'geometry_optimization',
-            'molecular_dynamics': 'molecular_dynamics',
-            'langevin_dynamics': 'langevin_dynamics',
-            'damped_dynamics': 'geometry_optimization',
-            'vcs_wentzcovitch_damped_minimization': 'geometry_optimization',
-        }
+        methods = self._configuration_methods
 
         configurations = []
         header = source.get('header', {}) if isinstance(source, dict) else {}
@@ -138,6 +140,33 @@ class PWSCFMainfileTextParser(MainfileTextParser):
 
             configurations.append(sec)
         return configurations
+
+    def get_configuration_forces(self, source: dict[str, Any]) -> list[list[Any]]:
+        """Per-configuration force series, index-aligned with get_configurations.
+
+        Multi-step runs (geometry optimization, molecular dynamics) carry one
+        force array per SCF step; single-point configurations yield an empty
+        series since their forces are covered by the step-resolved outputs.
+        """
+        forces = []
+        for key in self._configuration_methods:
+            config = source.get(key)
+            if config is None:
+                continue
+            sc_config = config.get('self_consistent', config)
+            if isinstance(sc_config, list):
+                if not sc_config:
+                    continue
+                forces.append(
+                    [
+                        step.get('forces')
+                        for step in sc_config
+                        if hasattr(step, 'get') and step.get('forces') is not None
+                    ]
+                )
+            else:
+                forces.append([])
+        return forces
 
     def _resolve_scf_source(self, source: Any) -> Any:
         if isinstance(source, list):
@@ -490,6 +519,22 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
                     for dos in output.electronic_dos:
                         if dos.energies_origin is None:
                             dos.energies_origin = reference_energy
+
+        # TODO(mapping-migration): remove this parser-side forces fallback once
+        # per-step force payloads can be expressed via mapping annotations.
+        # `Outputs.total_forces` maps '.@', which lost the step-resolved forces
+        # when `get_configurations` started returning only the final SCF step.
+        if hasattr(self.mainfile_parser, 'get_configuration_forces'):
+            configuration_forces = self.mainfile_parser.get_configuration_forces(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if output.total_forces or i >= len(configuration_forces):
+                    continue
+                output.total_forces = [
+                    simulation_outputs.TotalForce(value=value)
+                    for value in configuration_forces[i]
+                ]
 
         dos_files = search_files(
             pattern='*.dos', basedir=os.path.dirname(self.mainfile)
