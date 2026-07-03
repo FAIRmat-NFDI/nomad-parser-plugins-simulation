@@ -1,0 +1,30 @@
+name: migration-snapshot-tests
+# Manually triggered regression check: compares parser output snapshots
+# against the tracked .ambr files (see tests/parsers/test_migration_snapshots.py).
+on: [workflow_dispatch]
+
+permissions:
+  contents: read
+
+env:
+  UV_SYSTEM_PYTHON: true
+
+jobs:
+  snapshot-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        uv pip install -e '.[dev,md]'
+    - name: Run migration snapshot tests
+      run: |
+        python -m pytest -sv tests/parsers/test_migration_snapshots.py
