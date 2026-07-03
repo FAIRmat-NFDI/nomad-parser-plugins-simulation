@@ -28,11 +28,13 @@ from nomad_simulations.schema_packages.workflow.single_point import SinglePointM
 
 from nomad_simulation_parsers.schema_packages import vasp
 
+from .chgcar_parser import CHGCARParser
+
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
 
 
-def get_key_values(val_in):
+def get_key_values(val_in: str) -> dict[str, Any]:
     val = [v for v in val_in.split('\n') if '=' in v]
     data = {}
     pattern = re.compile(r'([A-Z_]+)\s*=\s*(\.?[a-zA-Z]*[\d\-\.\+\sE]*\.?)')
@@ -574,6 +576,10 @@ class OutcarArchiveWriter(ArchiveWriter):
         # set up archive parser
         archive_data_parser = VASPMetainfoParser()
         archive_data = Simulation()
+
+        # assign simulation section to archive data
+        self.archive.data = archive_data
+
         archive_data_parser.data_object = archive_data
         archive_data_parser.annotation_key = vasp.OUTCAR_KEY
 
@@ -581,10 +587,6 @@ class OutcarArchiveWriter(ArchiveWriter):
         source_parser = OutcarParser()
         source_parser.text_parser = OutcarTextParser()
         source_parser.filepath = self.mainfile
-
-        # TODO remove this for debug only
-        self.archive_data_parser = archive_data_parser
-        self.source_parser = source_parser
 
         # convert
         source_parser.convert(archive_data_parser)
@@ -595,6 +597,13 @@ class OutcarArchiveWriter(ArchiveWriter):
             source_parser.data.get('parameters', {})
         )
 
+        # parser CHGCAR
+        archive_data_parser.annotation_key = vasp.CHGCAR_KEY
+        chgcar_parser = CHGCARParser()
+        chgcar_parser.filepath = self.mainfile
+        chgcar_parser.convert(archive_data_parser)
+
         # close file handles
         archive_data_parser.close()
         source_parser.close()
+        chgcar_parser.close()
