@@ -1,11 +1,32 @@
 import numpy as np
-from nomad.datamodel import EntryArchive
+import pytest
+from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.datamodel.context import ServerContext
+from nomad.files import StagingUploadFiles
+from nomad.processing import Upload
 from nomad.utils import get_logger
 from pytest import approx
 
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
+
+
+@pytest.fixture(scope='function')
+def test_upload_files():
+    return StagingUploadFiles(upload_id='test_upload', create=True)
+
+
+@pytest.fixture(scope='function')
+def test_upload(test_upload_files):
+    upload = Upload(upload_id='test_upload')
+    # test_upload_files.add_rawfiles('external.h5')
+    return upload
+
+
+@pytest.fixture(scope='function')
+def test_context(test_upload):
+    return ServerContext(upload=test_upload)
 
 
 def _parse(mainfile: str) -> EntryArchive:
@@ -81,3 +102,20 @@ def test_xml_geometry_optimization_convergence_and_scf_steps():
         assert len(scf_steps.energies_total) == n_scf
         assert len(scf_steps.delta_energies_total) == n_scf - 1
         assert len(scf_steps.durations) == n_scf
+
+
+def test_chgcar(test_context, test_upload):
+    archive = EntryArchive(
+        m_context=test_context,
+        metadata=EntryMetadata(upload_id=test_upload.upload_id, entry_id='test_entry'),
+    )
+    parser = VASPParser()
+    parser.parse('tests/data/vasp/with_chgcar/OUTCAR', archive, LOGGER)
+    assert len(archive.data.outputs) == 14
+    outputs = archive.data.outputs[-1]
+    assert len(outputs.charge_density) == 1
+    assert outputs.charge_density[0].value_h5_dataset is not None
+    with outputs.charge_density[0].value_h5_dataset as dataset:
+        dataset_array = dataset[:]
+        assert np.shape(dataset_array) == (10, 10, 10)
+        assert dataset_array[9][9][9] == approx(0.18013097030e-05)
