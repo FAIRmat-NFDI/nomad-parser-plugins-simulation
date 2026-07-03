@@ -1,7 +1,8 @@
 from typing import Any
 
 import numpy as np
-from nomad_file_parser import Quantity, TextParser
+from nomad.parsing.file_parser import Quantity, TextParser
+from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.utils.constants import (
     CHEMICAL_SYMBOLS,
