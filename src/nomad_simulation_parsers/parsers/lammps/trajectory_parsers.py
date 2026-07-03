@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 from nomad.parsing.file_parser import Quantity, TextParser
+from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.utils.constants import (
     CHEMICAL_SYMBOLS,
@@ -319,7 +320,7 @@ class TrajParsers:
         self, parsers: list[TrajParser | XYZTrajParser | MDAnalysisParser]
     ) -> None:
         self._parsers = parsers
-        self.logger = parsers[0].logger if parsers else None
+        self.logger = parsers[0].logger if parsers else get_logger(__name__)
         for parser in parsers:
             parser.parse()
 

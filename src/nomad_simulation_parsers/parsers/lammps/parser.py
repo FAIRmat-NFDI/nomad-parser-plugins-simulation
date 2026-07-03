@@ -7,8 +7,12 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad_simulations.schema_packages.force_field import (
+    AnglePotential,
+    BondPotential,
+    DihedralPotential,
     ForceCalculations,
     ForceField,
+    ImproperDihedralPotential,
     ParticleParameters,
     ParticleParametersContainer,
 )
@@ -799,15 +803,64 @@ class LammpsArchiveWriter(MDParser):
             fc.neighbor_update_frequency = neigh_freq
         return fc
 
-    def _build_force_field(self) -> ForceField | None:
-        """Build a ForceField with ParticleParametersContainer from data file.
+    def _get_style_functional_form(self, style_key: str) -> str | None:
+        """Return the functional form string from a LAMMPS style command.
 
-        Returns None when no particle parameters are available.
+        Single-keyword styles return the keyword directly (e.g. 'harmonic').
+        Multi-keyword styles (hybrid ...) are joined with '/' so the full
+        specification is preserved (e.g. 'hybrid/harmonic/cosine').
+        """
+        raw = self._log_parser.get(style_key)
+        if raw is None:
+            return None
+        val = raw[-1] if isinstance(raw, list) else raw
+        if isinstance(val, list):
+            return '/'.join(val)
+        return str(val)
+
+    def _build_force_field_contributions(self) -> list:
+        """Build Potential instances from data file topology sections.
+
+        Reads Bonds, Angles, Dihedrals, and Impropers sections and maps each
+        to a typed Potential subclass with particle_indices (0-based) and
+        functional_form from the corresponding style command in the log.
+        """
+        _sections: list[tuple] = [
+            ('Bonds', BondPotential, 'bond_style', 2, 4),
+            ('Angles', AnglePotential, 'angle_style', 2, 5),
+            ('Dihedrals', DihedralPotential, 'dihedral_style', 2, 6),
+            ('Impropers', ImproperDihedralPotential, 'improper_style', 2, 6),
+        ]
+        contributions = []
+        for section, cls, style_key, col_start, col_end in _sections:
+            data = self._data_parser.get(section, None)
+            if data is None or len(data) == 0:
+                continue
+            array = data[0][1] if isinstance(data[0], tuple) else None
+            if (
+                array is None
+                or array.ndim != self._magic_two
+                or array.shape[1] < col_end
+            ):
+                continue
+            pot = cls()
+            functional_form = self._get_style_functional_form(style_key)
+            if functional_form is not None:
+                pot.functional_form = functional_form
+            pot.particle_indices = array[:, col_start:col_end].astype(np.int32) - 1
+            contributions.append(pot)
+        return contributions
+
+    def _build_force_field(self) -> ForceField | None:
+        """Build a ForceField with topology contributions and particle parameters.
+
+        Returns None when no data is available from any source.
         """
         pp_by_type = self._get_particle_parameters_by_type()
         force_calcs = self._build_force_calculations()
+        contributions = self._build_force_field_contributions()
 
-        if not pp_by_type and force_calcs is None:
+        if not pp_by_type and force_calcs is None and not contributions:
             return None
 
         force_field = ForceField()
@@ -825,6 +878,10 @@ class LammpsArchiveWriter(MDParser):
 
         if force_calcs is not None:
             force_field.numerical_settings.append(force_calcs)
+
+        for pot in contributions:
+            force_field.contributions.append(pot)
+
         return force_field
 
     def parse_method(self, simulation: Simulation) -> None:
@@ -838,7 +895,6 @@ class LammpsArchiveWriter(MDParser):
         TODO: Still to migrate from legacy parser
         - Parse force calculation parameters (pair_style, kspace_style,
           neighbor) into ForceField.numerical_settings as ForceCalculations.
-        - Populate ForceField.contributions from MDAnalysis interactions.
         """
         if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
@@ -954,7 +1010,11 @@ class LammpsArchiveWriter(MDParser):
         return system
 
     def _create_molecule(
-        self, molecule: int, i_molecule: int, particle_arrays: dict
+        self,
+        molecule: int,
+        i_molecule: int,
+        particle_arrays: dict,
+        moltype_name: str = '',
     ) -> ModelSystem:
         """Create a single molecule with its residues."""
 
@@ -1020,7 +1080,7 @@ class LammpsArchiveWriter(MDParser):
         particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
 
         mol_system = self._create_system_node(
-            name=molecule,
+            name=moltype_name if moltype_name else molecule,
             branch_label='molecule',
             particle_indices=particle_indices,
         )
@@ -1102,7 +1162,9 @@ class LammpsArchiveWriter(MDParser):
             for i_molecule, molecule in enumerate(
                 np.unique(molecules[molecule_group.particle_indices])
             ):
-                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+                mol = self._create_molecule(
+                    molecule, i_molecule, particle_arrays, moltype_name=str(moltype)
+                )
                 molecule_group.sub_systems.append(mol)
 
             return molecule_group
@@ -1449,7 +1511,13 @@ class LammpsArchiveWriter(MDParser):
 
         # Set up and parse trajectory files
         parsers = self._parse_trajectory_files()
-        if not self.traj_parsers or self.traj_parsers[0] is None:
+        if not parsers:
+            self.logger.warning(
+                'No trajectory parsers could be created. '
+                'Check that trajectory/dump files are present alongside the log file.'
+            )
+            return
+        if self.traj_parsers[0] is None:
             return
 
         # Parse system, method, parameters, thermodynamic data, etc.

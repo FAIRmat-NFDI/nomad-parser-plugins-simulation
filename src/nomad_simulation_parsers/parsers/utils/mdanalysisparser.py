@@ -213,11 +213,12 @@ class MDAnalysisParser(FileParser):
                 self.universe.atoms.fragments[i_frag].ix
             ]
             flag_fragtype_exists = False
+            sorted_i = np.sort(types_i_frag)
             for j_frag in range(len(frag_unique_atomtypes) - 1, -1, -1):
                 types_j_frag = frag_unique_atomtypes[j_frag]
                 if len(types_i_frag) != len(types_j_frag):
                     continue
-                elif np.all(types_i_frag == types_j_frag):
+                elif np.all(sorted_i == np.sort(types_j_frag)):
                     atoms_fragtypes[self.universe.atoms.fragments[i_frag].ix] = j_frag
                     flag_fragtype_exists = True
             if not flag_fragtype_exists:
