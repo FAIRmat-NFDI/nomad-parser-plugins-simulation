@@ -85,7 +85,10 @@ line-length = 88
 indent-width = 4
 
 [tool.uv]
-index-url = "https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple"
+# The MPCDF GitLab registry (gitlab.mpcdf.mpg.de projects/2187) must not be the
+# sole index: it requires credentials that CI runners lack. Public PyPI carries
+# all dependencies; set UV_INDEX_URL manually when a nomad-lab pre-release from
+# the registry is needed.
 build-constraint-dependencies = ["wheel<0.46"]
 
 [tool.ruff.lint]
