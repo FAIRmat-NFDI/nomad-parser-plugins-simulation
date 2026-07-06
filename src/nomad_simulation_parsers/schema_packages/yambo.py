@@ -67,13 +67,21 @@ class AbsorptionSpectra(outputs.AbsorptionSpectrum):
     add_mapping_annotation(
         outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
     )
+# EM, 6 Jul, 2026:    
+    add_mapping_annotation(
+        outputs.AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
+    )
+    add_mapping_annotation(
+        outputs.AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
+    )
+# end EM
 
 
 class Outputs(outputs.Outputs):
     # TODO add description
-    sp_type = Quantity(type=str)
+#    sp_type = Quantity(type=str)   # EM: commented,  6 Jul, 2026
 
-    add_mapping_annotation(sp_type, SPECTRA_KEY, 'sp_type')  # EM: changed sp_type to SPECTRA_KEY,   Jul 1st, 2026
+#    add_mapping_annotation(sp_type, SPECTRA_KEY, 'sp_type')  # EM: changed sp_type to SPECTRA_KEY, Jul 1st, 2026; commented whole line:  6 Jul, 2026
 
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
