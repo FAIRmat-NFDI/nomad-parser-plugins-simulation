@@ -27,7 +27,6 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import (
-    OCCUPATION_THRESHOLD,
     calculate_band_gap_from_occupations,
     link_outputs_to_model_systems,
     search_files,
@@ -61,41 +60,26 @@ class MainfileParser(TextParser):
     def get_periodic_boundary_conditions(
         self, source: dict[str, Any] | Any
     ) -> list[bool] | None:
+        non_periodic = [False, False, False]
         lattice_vectors = (
             source.get('lattice_vectors') if isinstance(source, dict) else source
         )
         if lattice_vectors is None:
-            return [False, False, False]
-        try:
-            vectors = lattice_vectors.magnitude
-        except AttributeError:
-            vectors = lattice_vectors
+            return non_periodic
+        if hasattr(lattice_vectors, 'magnitude'):
+            lattice_vectors = lattice_vectors.magnitude
 
-        try:
-            vectors = np.asarray(vectors)
-        except Exception:
-            return [False, False, False]
-
+        vectors = np.asarray(lattice_vectors)
         if vectors.size == 0:
-            return [False, False, False]
+            return non_periodic
 
         if vectors.ndim == 1:
             # Accept flattened lattice payloads.
-            n_vectors = min(max(vectors.shape[0] // 3, 0), 3)
+            n_vectors = min(vectors.shape[0] // 3, 3)
         else:
             n_vectors = min(vectors.shape[0], 3)
 
-        if n_vectors == 0:
-            return [False, False, False]
-
-        try:
-            n_vectors = int(n_vectors)
-        except TypeError:
-            n_vectors = 0
-        pbc = [True, True, True]
-        for idx in range(n_vectors, 3):
-            pbc[idx] = False
-        return pbc
+        return [idx < n_vectors for idx in range(3)]
 
     def get_contributions(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         return [
@@ -178,9 +162,7 @@ class MainfileParser(TextParser):
                 continue
 
             # Use common utility for band gap calculation
-            gap = calculate_band_gap_from_occupations(
-                energies, occupations, occupation_threshold=OCCUPATION_THRESHOLD
-            )
+            gap = calculate_band_gap_from_occupations(energies, occupations)
             if gap is not None:
                 # Override spin channel from utility with AMS channel index
                 gap['spin_channel'] = spin_channel
