@@ -386,54 +386,36 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     #     )
     # )
 
-    # TODO This only works for non-spin pol
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, XML_KEY, '.n_levels')
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupations'
+        outputs.ElectronicEigenvalues.n_levels, XML2_KEY, '.n_levels'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupations'
+        outputs.ElectronicEigenvalues.value, XML_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.eigenvalues'
+        outputs.ElectronicEigenvalues.value, XML2_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
-    )
-
-
-class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_levels, XML_KEY, '.n_levels'
+        outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.n_levels, XML2_KEY, '.n_levels'
+        outputs.ElectronicEigenvalues.occupation, XML_KEY, '.occupation'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, XML_KEY, '.value', unit='eV'
+        outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupation'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, XML2_KEY, '.value', unit='eV'
+        outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupation'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.value, OUTCAR_KEY, '.value', unit='eV'
+        outputs.ElectronicEigenvalues.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.occupation, XML_KEY, '.occupation'
+        outputs.ElectronicEigenvalues.spin_channel, XML2_KEY, '.spin_channel'
     )
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.occupation, XML2_KEY, '.occupation'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.occupation, OUTCAR_KEY, '.occupation'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.spin_channel, XML_KEY, '.spin_channel'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.spin_channel, XML2_KEY, '.spin_channel'
-    )
-    add_mapping_annotation(
-        outputs.ElectronicBandStructure.spin_channel, OUTCAR_KEY, '.spin_channel'
+        outputs.ElectronicEigenvalues.spin_channel, OUTCAR_KEY, '.spin_channel'
     )
 
 

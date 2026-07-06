@@ -33,8 +33,14 @@ class TestCalculateBandGapFromOccupations:
         assert result['value'] == pytest.approx(6.0)  # Gap from -3.0 to 3.0
         assert 'spin_channel' not in result
 
-    def test_zero_gap_metal(self):
-        """Test that metals (overlapping bands) give zero gap."""
+    def test_partial_occupation_threshold_gap(self):
+        """Partial occupations are split at the threshold, yielding a finite gap.
+
+        The threshold-based algorithm classifies states as occupied or
+        unoccupied at 0.5, so a metal with fractional occupations reports the
+        energy distance between the states straddling the threshold rather
+        than a zero gap.
+        """
         eigenvalues = np.array([-5.0, -4.0, -3.0, -2.0, -1.0])
         occupations = np.array([1.0, 1.0, 0.8, 0.2, 0.0])
 

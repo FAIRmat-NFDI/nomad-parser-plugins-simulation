@@ -446,22 +446,6 @@ class OutcarParser(MappingTextParser):
             data.append(entry)
         return data
 
-    def get_band_structures(
-        self, eigenvalues: np.ndarray, parameters: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        band_structures = []
-        for eig in self.get_eigenvalues(eigenvalues, parameters):
-            entry = dict(
-                value=eig.get('eigenvalues'),
-                occupation=eig.get('occupations'),
-                n_levels=eig.get('n_bands'),
-            )
-            spin_channel = eig.get('spin_channel')
-            if spin_channel is not None:
-                entry['spin_channel'] = spin_channel
-            band_structures.append(entry)
-        return band_structures
-
     def get_band_gaps(
         self, eigenvalues: np.ndarray, parameters: dict[str, Any]
     ) -> list[dict[str, Any]]:
@@ -483,7 +467,7 @@ class OutcarParser(MappingTextParser):
 
     def get_total_dos(self) -> list[dict[str, Any]]:  # noqa: PLR0911
         maindir = os.path.dirname(self.filepath)
-        outcar_suffix = os.path.basename(self.filepath).strip('OUTCAR')
+        outcar_suffix = os.path.basename(self.filepath).removeprefix('OUTCAR')
         doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
         doscar_path = (
             doscar_candidate

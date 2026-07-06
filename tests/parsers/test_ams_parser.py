@@ -175,3 +175,50 @@ def test_root_test_data_ams_zip_outputs_and_system_links():
     assert dos.value is not None
     assert dos.energies is not None
     assert dos.energies.points is not None
+
+
+@pytest.mark.parametrize(
+    'energies_channels, occupations_channels, expected',
+    [
+        pytest.param(
+            [[-5.0, -3.0, 1.0, 2.0]],
+            [[[1.0, 1.0, 0.0, 0.0]]],
+            [dict(value=4.0, spin_channel=0)],
+            id='single-spin-semiconductor',
+        ),
+        pytest.param(
+            [[-5.0, -3.0, 1.0, 2.0], [-4.0, -2.0, 0.5, 3.0]],
+            [[[1.0, 1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0, 0.0]]],
+            [dict(value=4.0, spin_channel=0), dict(value=2.5, spin_channel=1)],
+            id='two-spin-channels',
+        ),
+        pytest.param(
+            [[-5.0, -3.0, 1.0]],
+            [[[1.0, 1.0]]],
+            [],
+            id='shape-mismatch-skipped',
+        ),
+        pytest.param(
+            [[-5.0, -3.0, 1.0]],
+            [[]],
+            [],
+            id='empty-occupations-skipped',
+        ),
+    ],
+)
+def test_band_gaps_from_tuple_payload(
+    energies_channels, occupations_channels, expected
+):
+    """Band gaps from the tuple/list fallback payload of band-energy ranges.
+
+    Regression test: this path previously called the band-gap utility with an
+    unknown keyword and indexed its dict return as a list, raising at runtime.
+    """
+    parser = MainfileParser()
+
+    gaps = parser.get_band_gaps((energies_channels, None, occupations_channels))
+
+    assert len(gaps) == len(expected)
+    for gap, ref in zip(gaps, expected):
+        assert gap['value'] == pytest.approx(ref['value'])
+        assert gap['spin_channel'] == ref['spin_channel']

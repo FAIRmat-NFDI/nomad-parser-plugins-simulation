@@ -8,6 +8,10 @@ from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx
 
+from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
+    OutcarParser,
+    OutcarTextParser,
+)
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
@@ -163,3 +167,47 @@ def test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing():
         assert len(output.electronic_eigenvalues) > 0
         assert output.electronic_dos is not None
         assert len(output.electronic_dos) > 0
+
+
+@pytest.mark.parametrize(
+    'outcar_name, doscar_name',
+    [
+        pytest.param('OUTCAR', 'DOSCAR', id='plain'),
+        pytest.param('OUTCAR.relax', 'DOSCAR.relax', id='lowercase-suffix'),
+        pytest.param('OUTCAR.TR', 'DOSCAR.TR', id='uppercase-suffix'),
+    ],
+)
+def test_outcar_doscar_suffix_resolution(tmp_path, outcar_name, doscar_name):
+    """`get_total_dos` reads the DOSCAR matching the OUTCAR suffix.
+
+    Regression test: the suffix was derived with `str.strip('OUTCAR')`, which
+    removes any of those characters from both ends and mangled uppercase
+    suffixes, silently falling back to a different DOSCAR file.
+    """
+    doscar_lines = [
+        'header0',
+        'header1',
+        'header2',
+        'header3',
+        'header4',
+        '0.0 0.0 3 0.5 0.0',
+        '-1.0 1.0',
+        '0.0 2.0',
+        '1.0 3.0',
+    ]
+    (tmp_path / doscar_name).write_text('\n'.join(doscar_lines))
+    # Decoy with different values: resolving the wrong file becomes visible.
+    decoy_lines = doscar_lines[:6] + ['-1.0 9.0', '0.0 9.0', '1.0 9.0']
+    if doscar_name != 'DOSCAR':
+        (tmp_path / 'DOSCAR').write_text('\n'.join(decoy_lines))
+    (tmp_path / outcar_name).write_text('dummy\n')
+
+    parser = OutcarParser()
+    parser.text_parser = OutcarTextParser()
+    parser.filepath = str(tmp_path / outcar_name)
+
+    dos = parser.get_total_dos()
+
+    assert len(dos) == 1
+    assert dos[0]['energy_fermi'] == approx(0.5)
+    assert list(dos[0]['value']) == approx([1.0, 2.0, 3.0])

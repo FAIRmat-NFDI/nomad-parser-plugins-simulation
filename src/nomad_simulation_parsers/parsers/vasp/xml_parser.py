@@ -151,21 +151,6 @@ class VasprunParser(XMLParser):
             eigenvalues.append(entry)
         return eigenvalues
 
-    def get_band_structures(
-        self, source: dict[str, Any] | None
-    ) -> list[dict[str, Any]]:
-        result = []
-        for eigenvalues in self.get_eigenvalues(source):
-            entry = dict(
-                value=eigenvalues.get('eigenvalues'),
-                occupation=eigenvalues.get('occupations'),
-                n_levels=eigenvalues.get('n_bands'),
-            )
-            if eigenvalues.get('spin_channel') is not None:
-                entry['spin_channel'] = eigenvalues['spin_channel']
-            result.append(entry)
-        return result
-
     def get_band_gaps(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
         """Calculate band gaps from eigenvalues using common utility."""
         result = []

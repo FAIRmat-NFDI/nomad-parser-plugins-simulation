@@ -178,13 +178,13 @@ class MainfileParser(TextParser):
                 continue
 
             # Use common utility for band gap calculation
-            gaps = calculate_band_gap_from_occupations(
-                energies, occupations, threshold=OCCUPATION_THRESHOLD
+            gap = calculate_band_gap_from_occupations(
+                energies, occupations, occupation_threshold=OCCUPATION_THRESHOLD
             )
-            if gaps:
+            if gap is not None:
                 # Override spin channel from utility with AMS channel index
-                gaps[0]['spin_channel'] = spin_channel
-                band_gaps.extend(gaps)
+                gap['spin_channel'] = spin_channel
+                band_gaps.append(gap)
         return band_gaps
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
