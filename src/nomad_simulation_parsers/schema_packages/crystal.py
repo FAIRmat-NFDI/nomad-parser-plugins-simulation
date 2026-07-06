@@ -33,7 +33,7 @@ class Representation(model_system.Representation):
     add_mapping_annotation(
         model_system.Representation.periodic_boundary_conditions,
         OUT_KEY,
-        '.periodic_boundary_conditions',
+        ('get_periodic_boundary_conditions', ['.lattice_vectors']),
     )
 
 

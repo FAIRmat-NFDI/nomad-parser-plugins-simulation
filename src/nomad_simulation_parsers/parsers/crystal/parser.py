@@ -28,6 +28,8 @@ from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
 
+RE_LABEL = re.compile(r'([a-z][a-z]?).*')
+
 
 class CrystalOutputParser(TextParser):
     libxc_map = {
@@ -112,7 +114,7 @@ class CrystalOutputParser(TextParser):
                 numbers = labels_positions[:, 1]
 
         def normalize_label(label: str) -> str:
-            norm = re.match(r'([a-z][a-z]?).*', label.lower())
+            norm = RE_LABEL.match(label.lower())
             # unknown specie
             # TODO not possible to define ghost atom
             unknown = None
@@ -252,15 +254,16 @@ class CrystalOutputParser(TextParser):
             ]
         return workflow
 
-    def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        def get_pbc(system_source: dict[str, Any]) -> list[bool] | None:
-            lattice_vectors = self.get_lattice_vectors(system_source)
-            if lattice_vectors is None:
-                return None
-            dimensionality = int(self.data.get('dimensionality', 3) or 3)
-            dimensionality = max(0, min(3, dimensionality))
-            return [axis < dimensionality for axis in range(3)]
+    def get_periodic_boundary_conditions(
+        self, lattice_vectors: Any = None
+    ) -> list[bool] | None:
+        if lattice_vectors is None:
+            return None
+        dimensionality = int(self.data.get('dimensionality', 3) or 3)
+        dimensionality = max(0, min(3, dimensionality))
+        return [axis < dimensionality for axis in range(3)]
 
+    def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         initial = source.get('system_edited', source)
         systems = [
             # initial system
@@ -268,7 +271,6 @@ class CrystalOutputParser(TextParser):
                 positions=self.get_positions(initial),
                 atoms=self.get_atoms(initial),
                 lattice_vectors=self.get_lattice_vectors(initial),
-                periodic_boundary_conditions=get_pbc(initial),
             )
         ]
         # skip first step same as initial
@@ -278,7 +280,6 @@ class CrystalOutputParser(TextParser):
                     positions=self.get_positions(step),
                     atoms=self.get_atoms(step),
                     lattice_vectors=self.get_lattice_vectors(step),
-                    periodic_boundary_conditions=get_pbc(step),
                 )
             )
         return systems
@@ -314,11 +315,8 @@ class CrystalF25Parser(TextParser):
         ]
 
     def get_band_structures(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        if not source:
-            return []
-
         band_structures = []
-        for segment in source:
+        for segment in source or []:
             first_row = segment.get('first_row')
             energies = segment.get('energies')
             if first_row is None or energies is None:

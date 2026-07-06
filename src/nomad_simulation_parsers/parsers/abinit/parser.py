@@ -36,7 +36,6 @@ from nomad_simulation_parsers.schema_packages import abinit
 from .file_parser import AbinitOutParser
 
 LOGGER = get_logger(__name__)
-N_SPIN_CHANNELS = 2
 
 
 ABINIT_NATIVE_IXC = {
@@ -573,6 +572,7 @@ class MainfileParser(TextParser):
     def get_bandstructures(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
+        n_spin_channels = 2
         nsppol = self.get_input_var('nsppol', 2, 1, scalar=True)
         eigs = np.reshape(
             eigenvalues,
@@ -589,7 +589,7 @@ class MainfileParser(TextParser):
 
         nband = int(eigs.T[1].T[0][0])
         eigs = eigs.T[6 : 6 + nband].T
-        is_spin_polarized = nsppol == N_SPIN_CHANNELS
+        is_spin_polarized = nsppol == n_spin_channels
         bandstructures = []
         for n, eig in enumerate(eigs):
             entry = dict(energies=eig, k_points=kpts)

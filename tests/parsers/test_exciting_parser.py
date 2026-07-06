@@ -7,7 +7,10 @@ import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
-from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
+from nomad_simulation_parsers.parsers.exciting.parser import (
+    EigvalParser,
+    ExcitingParser,
+)
 
 LOGGER = get_logger(__name__)
 
@@ -259,3 +262,43 @@ def test_root_test_data_exciting_zip_populates_reference_energy_fields(parser):
     assert dos.energies is not None
     assert dos.energies.points is not None
     assert dos.energies_origin is not None
+
+
+@pytest.mark.parametrize(
+    'eigs_occs, expected',
+    [
+        pytest.param(
+            [
+                {'eigenvalues': [[-5.0, -3.0, 2.0]], 'occupancies': [[1.0, 1.0, 0.0]]},
+                {'eigenvalues': [[-4.5, -3.5, 1.0]], 'occupancies': [[1.0, 1.0, 0.0]]},
+            ],
+            [dict(value=4.0)],
+            id='gap-accumulated-across-kpoints',
+        ),
+        pytest.param(
+            [
+                {
+                    'eigenvalues': [[-5.0, -3.0, 2.0], [-4.0, -2.0, 3.0]],
+                    'occupancies': [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]],
+                },
+            ],
+            [dict(value=5.0, spin_channel=0), dict(value=5.0, spin_channel=1)],
+            id='two-spin-channels',
+        ),
+        pytest.param(
+            [{'eigenvalues': [[-5.0, -3.0]], 'occupancies': [[1.0, 1.0]]}],
+            [],
+            id='no-unoccupied-states',
+        ),
+        pytest.param([], [], id='empty-source'),
+    ],
+)
+def test_eigval_band_gaps(eigs_occs, expected):
+    """Band gaps from EIGVAL payloads via the shared band-gap utility."""
+    parser = EigvalParser.__new__(EigvalParser)
+    gaps = parser.get_band_gaps({'eigenvalues_occupancies': eigs_occs})
+
+    assert len(gaps) == len(expected)
+    for gap, ref in zip(gaps, expected):
+        assert gap['value'] == pytest.approx(ref['value'])
+        assert gap.get('spin_channel') == ref.get('spin_channel')

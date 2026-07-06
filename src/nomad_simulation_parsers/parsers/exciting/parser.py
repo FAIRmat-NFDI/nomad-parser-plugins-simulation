@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -33,7 +32,7 @@ from structlog.stdlib import (
 )
 
 from nomad_simulation_parsers.parsers.utils.general import (
-    OCCUPATION_THRESHOLD,
+    calculate_band_gap_from_occupations,
     search_files,
 )
 from nomad_simulation_parsers.schema_packages import exciting
@@ -316,38 +315,36 @@ class BandstructureXMLParser(XMLParser):
 
     n_spin = 1
 
-    @staticmethod
-    def _as_list(value: Any) -> list[Any]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        return [value]
-
-    @staticmethod
-    def _parse_coord(coord: Any) -> np.ndarray | None:
-        if coord is None:
-            return None
-        if isinstance(coord, str):
-            coord = coord.split()
-        try:
-            parsed = np.array(coord, dtype=float)
-        except Exception:
-            return None
-        if parsed.shape != (3,):
-            return None
-        return parsed
-
     def get_k_path(self, source: dict[str, Any]) -> dict[str, Any]:
+        def as_list(value: Any) -> list[Any]:
+            if value is None:
+                return []
+            if isinstance(value, list):
+                return value
+            return [value]
+
+        def parse_coord(coord: Any) -> np.ndarray | None:
+            if coord is None:
+                return None
+            if isinstance(coord, str):
+                coord = coord.split()
+            try:
+                parsed = np.array(coord, dtype=float)
+            except Exception:
+                return None
+            if parsed.shape != (3,):
+                return None
+            return parsed
+
         bandstructure = source.get('bandstructure', {})
 
         # Prefer explicit point coordinates from the first band.
         points: list[np.ndarray] = []
-        bands = self._as_list(bandstructure.get('band'))
+        bands = as_list(bandstructure.get('band'))
         if bands:
-            band_points = self._as_list(bands[0].get('point'))
+            band_points = as_list(bands[0].get('point'))
             for point in band_points:
-                coord = self._parse_coord(point.get('@coord'))
+                coord = parse_coord(point.get('@coord'))
                 if coord is not None:
                     points.append(coord)
 
@@ -359,9 +356,9 @@ class BandstructureXMLParser(XMLParser):
         # Capture high-symmetry labels and vertices when available.
         high_symmetry_names: list[str] = []
         high_symmetry_values: list[np.ndarray] = []
-        for vertex in self._as_list(bandstructure.get('vertex')):
+        for vertex in as_list(bandstructure.get('vertex')):
             label = vertex.get('@label')
-            coord = self._parse_coord(vertex.get('@coord'))
+            coord = parse_coord(vertex.get('@coord'))
             if label is None or coord is None:
                 continue
             high_symmetry_names.append(label)
@@ -444,44 +441,37 @@ class EigvalParser(TextParser):
         if n_spin == 0:
             return []
 
-        valence_max = np.full(n_spin, -np.inf)
-        conduction_min = np.full(n_spin, np.inf)
-
-        for kpoint in eigs_occs:
-            eigs = np.asarray(kpoint.get('eigenvalues'))
-            occs = np.asarray(kpoint.get('occupancies'))
-            if eigs.size == 0 or occs.size == 0:
-                continue
-
-            for spin in range(min(n_spin, eigs.shape[0], occs.shape[0])):
-                spin_eigs = eigs[spin]
-                spin_occs = occs[spin]
-                occupied = spin_eigs[spin_occs >= OCCUPATION_THRESHOLD]
-                unoccupied = spin_eigs[spin_occs < OCCUPATION_THRESHOLD]
-                if occupied.size > 0:
-                    valence_max[spin] = max(valence_max[spin], np.max(occupied))
-                if unoccupied.size > 0:
-                    conduction_min[spin] = min(conduction_min[spin], np.min(unoccupied))
-
         band_gaps = []
         for spin in range(n_spin):
-            if not np.isfinite(valence_max[spin]) or not np.isfinite(
-                conduction_min[spin]
-            ):
+            # Concatenate over k-points so the gap is computed globally.
+            eigenvalues = []
+            occupations = []
+            for kpoint in eigs_occs:
+                eigs = np.asarray(kpoint.get('eigenvalues'))
+                occs = np.asarray(kpoint.get('occupancies'))
+                if eigs.size == 0 or occs.size == 0:
+                    continue
+                if spin >= eigs.shape[0] or spin >= occs.shape[0]:
+                    continue
+                eigenvalues.append(eigs[spin])
+                occupations.append(occs[spin])
+            if not eigenvalues:
                 continue
-            gap = max(0.0, float(conduction_min[spin] - valence_max[spin]))
-            entry = {'value': gap}
+
+            gap = calculate_band_gap_from_occupations(
+                np.concatenate(eigenvalues), np.concatenate(occupations)
+            )
+            if gap is None:
+                continue
             if n_spin > 1:
-                entry['spin_channel'] = spin
-            band_gaps.append(entry)
+                gap['spin_channel'] = spin
+            band_gaps.append(gap)
 
         return band_gaps
 
 
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
-        reload(exciting)
-
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
 
