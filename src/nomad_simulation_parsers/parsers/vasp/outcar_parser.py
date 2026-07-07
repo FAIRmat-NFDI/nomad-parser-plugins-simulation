@@ -32,13 +32,10 @@ from nomad_simulation_parsers.parsers.utils.general import (
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
+from .common import get_xc_functionals
+
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
-N_SPIN_CHANNELS = 2
-MIN_DOSCAR_LINES = 7
-MIN_DOS_HEADER_COLUMNS = 4
-SPIN_POLARIZED_DOS_COLUMNS = 5
-MIN_DOS_COLUMNS = 2
 
 
 def get_key_values(val_in):
@@ -344,49 +341,6 @@ class OutcarTextParser(TextParser):
 
 
 class OutcarParser(MappingTextParser):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.xc_functional_mapping = {
-            '--': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'HL': ['LDA_C_HL'],
-            'WI': ['LDA_C_WIGNER'],
-            'PZ': ['LDA_C_PZ'],
-            '91': ['GGA_X_PW91', 'GGA_C_PW91'],
-            'PE': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'RE': ['GGA_X_PBE_R'],
-            'VW': ['LDA_C_VWN'],
-            'RP': ['GGA_X_RPBE', 'GGA_C_PBE'],
-            'PS': ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
-            'AM': ['GGA_X_AM05', 'GGA_C_AM05'],
-            'B3': ['HYB_GGA_XC_B3LYP3'],
-            'B5': ['HYB_GGA_XC_B3LYP5'],
-            'BF': ['GGA_X_BEEFVDW', 'GGA_XC_BEEFVDW'],
-            'CO': [],  # TODO check if this is ever used
-            'OR': ['GGA_X_OPTPBE_VDW'],
-            'BO': ['GGA_X_OPTB88_VDW'],
-            'MK': ['GGA_X_OPTB86B_VDW'],
-            'ML': ['VDW_XC_DF2'],
-            'CX': ['VDW_XC_DF_CX'],
-            'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
-            'RTPSS': ['MGGA_X_RTPSS'],
-            'M06L': ['MGGA_C_M06_L'],
-            'MS0': ['MGGA_X_MS0'],
-            'MS1': ['MGGA_X_MS1'],
-            'MS2': ['MGGA_X_MS2'],
-            'SCAN': ['MGGA_X_SCAN'],
-            'RSCAN': ['MGGA_X_RSCAN', 'MGGA_C_RSCAN'],
-            'R2SCAN': ['MGGA_X_R2SCAN', 'MGGA_C_R2SCAN'],
-            'SCANL': ['MGGA_X_SCANL', 'MGGA_C_SCANL'],
-            'RSCANL': [],  # not in LibXC, nor any paper, just deorbitalized SCANL
-            'R2SCANL': ['MGGA_X_R2SCANL', 'MGGA_C_R2SCANL'],
-            'OFR2': [],
-            'MBJ': ['MGGA_X_BJ06'],
-            'LBMJ': [],  # TODO ask Miguel Marquez
-            'HLE17': ['MGGA_XC_HLE17'],  # TODO check if this is ever used
-            'RA': ['LDA_C_PW_RPA'],  # TODO check if this is ever used
-        }
-
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -429,6 +383,7 @@ class OutcarParser(MappingTextParser):
     def get_eigenvalues(
         self, eigenvalues: np.ndarray, parameters: dict[str, Any]
     ) -> list[dict[str, Any]]:
+        n_spin_channels = 2
         ispin = parameters.get('ISPIN', 1)
         n_kpts = len(eigenvalues) // ispin
         n_bands = len(eigenvalues[0]) // 3
@@ -441,7 +396,7 @@ class OutcarParser(MappingTextParser):
                 occupation=occs.T,
                 n_levels=n_bands,
             )
-            if ispin == N_SPIN_CHANNELS:
+            if ispin == n_spin_channels:
                 entry['spin_channel'] = nspin
             data.append(entry)
         return data
@@ -466,6 +421,10 @@ class OutcarParser(MappingTextParser):
         return band_gaps
 
     def get_total_dos(self) -> list[dict[str, Any]]:  # noqa: PLR0911
+        min_doscar_lines = 7
+        min_dos_header_columns = 4
+        spin_polarized_dos_columns = 5
+        min_dos_columns = 2
         maindir = os.path.dirname(self.filepath)
         outcar_suffix = os.path.basename(self.filepath).removeprefix('OUTCAR')
         doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
@@ -483,11 +442,11 @@ class OutcarParser(MappingTextParser):
         except Exception:
             return []
 
-        if len(lines) < MIN_DOSCAR_LINES:
+        if len(lines) < min_doscar_lines:
             return []
 
         header = lines[5].split()
-        if len(header) < MIN_DOS_HEADER_COLUMNS:
+        if len(header) < min_dos_header_columns:
             return []
 
         try:
@@ -512,7 +471,7 @@ class OutcarParser(MappingTextParser):
         n_cols = dos_data.shape[1]
         energies = dos_data[:, 0]
 
-        if n_cols >= SPIN_POLARIZED_DOS_COLUMNS:
+        if n_cols >= spin_polarized_dos_columns:
             return [
                 dict(
                     energies=energies,
@@ -528,7 +487,7 @@ class OutcarParser(MappingTextParser):
                 ),
             ]
 
-        if n_cols >= MIN_DOS_COLUMNS:
+        if n_cols >= min_dos_columns:
             return [
                 dict(
                     energies=energies,
@@ -540,49 +499,7 @@ class OutcarParser(MappingTextParser):
         return []
 
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
-        xc_functionals = []
-        if parameters.get('LHFCALC', False):
-            hfscreen_06, hfscreen_03 = 0.2, 0.3
-            aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
-            xc_functional = {}
-            gga = parameters.get('GGA', 'PE')
-            aexx = parameters.get('AEXX', 0.0)
-            aggax = parameters.get('AGGAX', 1.0)
-            aggac = parameters.get('AGGAC', 1.0)
-            aldac = parameters.get('ALDAC', 1.0)
-            hfscreen = parameters.get('HFSCREEN', 0.0)
-
-            if hfscreen == hfscreen_06:
-                xc_functional['name'] = 'HYB_GGA_XC_HSE06'
-            elif hfscreen == hfscreen_03:
-                xc_functional['name'] = 'HYB_GGA_XC_HSE03'
-            elif (
-                gga == 'B3'
-                and aexx == aexx_b3
-                and aggax == aggax_b3
-                and aggac == aggac_b3
-                and aldac == aldac_b3
-            ):
-                xc_functional['name'] = 'HYB_GGA_XC_B3LYP3'
-            elif aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
-                xc_functional['name'] = 'HF_X'
-            elif gga == 'PE':
-                xc_functional['name'] = 'HYB_GGA_XC_PBEH'
-            else:
-                xc_functional['name'] = f'HYB_GGA_XC_{gga}'
-            xc_functionals.append(xc_functional)
-        else:
-            metagga = parameters.get('METAGGA')
-            if metagga:
-                functionals = self.xc_functional_mapping.get(metagga, [metagga])
-            else:
-                # VASP defaults to PBE-like GGA if GGA is not explicitly set.
-                functionals = self.xc_functional_mapping.get(
-                    parameters.get('GGA', 'PE'), []
-                )
-            for functional in functionals:
-                xc_functionals.append({'name': functional})
-        return xc_functionals
+        return get_xc_functionals(parameters)
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
@@ -619,9 +536,7 @@ class OutcarParser(MappingTextParser):
             scf_steps['durations'] = durations
         return scf_steps
 
-    def get_atoms(self) -> list[dict[str, str]]:
-        ions = self.data.get('ions_per_type')
-        species = self.data.get('species')
+    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
         if ions is None or species is None:
             return []
         if hasattr(ions, 'tolist'):
@@ -632,7 +547,11 @@ class OutcarParser(MappingTextParser):
             return []
         atoms = []
         for n_ions, species_info in zip(ions, species):
-            if isinstance(species_info, (list, tuple)) and len(species_info) > 1:
+            if (
+                not isinstance(species_info, str)
+                and hasattr(species_info, '__len__')
+                and len(species_info) > 1
+            ):
                 symbol = species_info[1]
             else:
                 symbol = species_info
@@ -642,9 +561,6 @@ class OutcarParser(MappingTextParser):
 
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
-
-    def get_ediff_unit(self) -> str:
-        return 'electron_volt'
 
 
 class OutcarArchiveWriter(ArchiveWriter):

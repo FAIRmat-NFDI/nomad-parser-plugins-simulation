@@ -20,6 +20,16 @@ DEFAULT_LOGGER = get_logger(__name__)
 OCCUPATION_THRESHOLD = 0.5  # Threshold for occupied vs unoccupied states
 
 
+def as_list(value: Any) -> list[Any]:
+    """Wrap scalar payloads in a list; XML-derived sources are scalar for
+    single occurrences and lists for repeated ones."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
 def link_outputs_to_model_systems(simulation) -> None:
     """Ensure output sections have stable step indices and model_system references.
 

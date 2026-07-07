@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -5,6 +6,7 @@ import numpy as np
 if TYPE_CHECKING:
     pass
 
+from nomad.datamodel import EntryArchive
 from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad.units import ureg
@@ -25,15 +27,17 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
 from nomad_simulation_parsers.parsers.utils.general import (
+    as_list,
     calculate_band_gap_from_occupations,
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
+from .common import get_xc_functionals
+from .outcar_parser import OutcarArchiveWriter
+
 LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
 EIGENVALUE_COMPONENTS = 2
-EIGENVALUE_ARRAY_NDIM = 3
-DOS_ARRAY_NDIM = 2
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -52,13 +56,6 @@ class VasprunParser(XMLParser):
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
-    def _as_list(self, value: Any) -> list[Any]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        return [value]
-
     def _extract_spin_sets(
         self, source: dict[str, Any] | None
     ) -> list[list[dict[str, Any]]]:
@@ -67,7 +64,7 @@ class VasprunParser(XMLParser):
         node = source.get('array', source)
         if isinstance(node, dict):
             node = node.get('set')
-        top_level = self._as_list(node)
+        top_level = as_list(node)
         if not top_level:
             return []
 
@@ -78,7 +75,7 @@ class VasprunParser(XMLParser):
             and top_level[0].get('r') is None
             and top_level[0].get('set') is not None
         ):
-            top_level = self._as_list(top_level[0].get('set'))
+            top_level = as_list(top_level[0].get('set'))
             if not top_level:
                 return []
 
@@ -93,7 +90,7 @@ class VasprunParser(XMLParser):
         for item in top_level:
             if not isinstance(item, dict):
                 continue
-            kpoint_sets = self._as_list(item.get('set'))
+            kpoint_sets = as_list(item.get('set'))
             if kpoint_sets and all(
                 isinstance(kpt, dict) and kpt.get('r') is not None
                 for kpt in kpoint_sets
@@ -123,6 +120,7 @@ class VasprunParser(XMLParser):
         if not spin_sets:
             return []
 
+        eigenvalue_array_ndim = 3  # (n_kpoints, n_bands, components)
         eigenvalues = []
         is_spin_polarized = len(spin_sets) == N_SPIN_CHANNELS
         for spin_channel, kpoint_sets in enumerate(spin_sets):
@@ -134,7 +132,7 @@ class VasprunParser(XMLParser):
             except Exception:
                 continue
             if (
-                data.ndim != EIGENVALUE_ARRAY_NDIM
+                data.ndim != eigenvalue_array_ndim
                 or data.shape[2] < EIGENVALUE_COMPONENTS
             ):
                 continue
@@ -168,29 +166,29 @@ class VasprunParser(XMLParser):
 
         return result
 
-    def _get_fermi_energy(self, source: dict[str, Any] | None) -> float | None:
-        if not isinstance(source, dict):
-            return None
-        fermi = source.get('i')
-        if isinstance(fermi, dict):
-            value = fermi.get(self.value_key)
-            try:
-                return float(value) if value is not None else None
-            except Exception:
-                return None
-        for item in self._as_list(fermi):
-            if not isinstance(item, dict):
-                continue
-            if item.get(f'{self.attribute_prefix}name') != 'efermi':
-                continue
-            value = item.get(self.value_key)
-            try:
-                return float(value) if value is not None else None
-            except Exception:
-                return None
-        return None
-
     def get_total_dos(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:  # noqa: PLR0912
+        def get_fermi_energy(source: dict[str, Any] | None) -> float | None:
+            if not isinstance(source, dict):
+                return None
+            fermi = source.get('i')
+            if isinstance(fermi, dict):
+                value = fermi.get(self.value_key)
+                try:
+                    return float(value) if value is not None else None
+                except Exception:
+                    return None
+            for item in as_list(fermi):
+                if not isinstance(item, dict):
+                    continue
+                if item.get(f'{self.attribute_prefix}name') != 'efermi':
+                    continue
+                value = item.get(self.value_key)
+                try:
+                    return float(value) if value is not None else None
+                except Exception:
+                    return None
+            return None
+
         source = self._resolve_electronic_source(source, 'dos')
         if not isinstance(source, dict):
             return []
@@ -201,17 +199,18 @@ class VasprunParser(XMLParser):
         if not isinstance(total, dict):
             return []
 
+        dos_array_ndim = 2  # (n_points, columns)
         node = total.get('array', total)
         if isinstance(node, dict):
             node = node.get('set')
-        spin_entries = self._as_list(node)
+        spin_entries = as_list(node)
         while (
             len(spin_entries) == 1
             and isinstance(spin_entries[0], dict)
             and spin_entries[0].get('r') is None
             and spin_entries[0].get('set') is not None
         ):
-            spin_entries = self._as_list(spin_entries[0].get('set'))
+            spin_entries = as_list(spin_entries[0].get('set'))
             if not spin_entries:
                 return []
         if not all(
@@ -220,7 +219,7 @@ class VasprunParser(XMLParser):
         ):
             return []
 
-        efermi = self._get_fermi_energy(dos)
+        efermi = get_fermi_energy(dos)
         is_spin_polarized = len(spin_entries) == N_SPIN_CHANNELS
         dos_sections = []
         for spin_channel, dos_entry in enumerate(spin_entries):
@@ -231,7 +230,7 @@ class VasprunParser(XMLParser):
                 data = np.asarray(rows, dtype=float)
             except Exception:
                 continue
-            if data.ndim != DOS_ARRAY_NDIM or data.shape[1] < EIGENVALUE_COMPONENTS:
+            if data.ndim != dos_array_ndim or data.shape[1] < EIGENVALUE_COMPONENTS:
                 continue
             # VASP may print spin-down DOS with negative sign for plotting.
             # The schema expects non-negative DOS intensities.
@@ -393,12 +392,8 @@ class VasprunParser(XMLParser):
             workflow.method.single_point_convergence_targets = sp_convergence
         return workflow
 
-    def get_atoms(self) -> list[dict[str, str]]:
-        modeling = self.data.get('modeling', {})
-        atominfo = modeling.get('atominfo', {})
-        arrays = atominfo.get('array', [])
-        if isinstance(arrays, dict):
-            arrays = [arrays]
+    def get_atoms(self, arrays: Any = None) -> list[dict[str, str]]:
+        arrays = as_list(arrays)
         atoms_array = next(
             (
                 array
@@ -424,19 +419,14 @@ class VasprunParser(XMLParser):
             atoms.append({'label': str(symbol).strip()})
         return atoms
 
-    def get_positions(self, structure: dict[str, Any]) -> np.ndarray | None:
-        positions = Path(path='.varray.v').get_data(structure)
-        lattice_vectors = self.get_lattice_vectors(structure)
+    def get_positions(
+        self, positions: Any = None, lattice_vectors: Any = None
+    ) -> np.ndarray | None:
         if positions is None:
             return None
         if lattice_vectors is None:
             return positions
         return np.dot(np.asarray(positions), np.asarray(lattice_vectors))
-
-    def get_lattice_vectors(self, structure: dict[str, Any]) -> np.ndarray | None:
-        return Path(path='.crystal.varray[?"@name"==\'basis\'] | [0].v').get_data(
-            structure
-        )
 
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
@@ -453,19 +443,65 @@ class VasprunParser(XMLParser):
                 params[key] = value
         if not params:
             return []
-        # Reuse VASP OUTCAR XC mapping table to keep XML/OUTCAR behavior aligned.
-        outcar_module = __import__(
-            'nomad_simulation_parsers.parsers.vasp.outcar_parser',
-            fromlist=['OutcarParser'],
-        )
-        return outcar_module.OutcarParser().get_xc_functionals(params)
-
-    def get_ediff_unit(self) -> str:
-        # VASP EDIFF is an energy threshold in eV.
-        return 'electron_volt'
+        return get_xc_functionals(params)
 
 
 class XMLArchiveWriter(ArchiveWriter):
+    def _has_electronic_outputs(self) -> bool:
+        outputs = getattr(getattr(self.archive, 'data', None), 'outputs', None) or []
+        for output in outputs:
+            if getattr(output, 'electronic_band_structures', None):
+                return True
+            if getattr(output, 'electronic_dos', None):
+                return True
+            if getattr(output, 'electronic_band_gaps', None):
+                return True
+        return False
+
+    # TODO(mapping-migration): replace this XML->OUTCAR backfill with a
+    # mapping-driven source merge when XML fixtures with missing electronic
+    # payloads are supported in mappings; see the tracking issue. Disabling
+    # the backfill regresses tests/parsers/test_vasp_parser.py::
+    # test_vasprun_backfills_electronic_outputs_from_outcar_when_xml_missing.
+    def _backfill_from_outcar(self) -> None:
+        if self._has_electronic_outputs():
+            return
+
+        outcar_path = os.path.join(os.path.dirname(self.mainfile), 'OUTCAR')
+        if not os.path.isfile(outcar_path):
+            return
+
+        outcar_archive = EntryArchive()
+        OutcarArchiveWriter().write(
+            outcar_path, outcar_archive, self.logger, self.child_archives
+        )
+
+        outcar_outputs = (
+            getattr(getattr(outcar_archive, 'data', None), 'outputs', None) or []
+        )
+        if not outcar_outputs:
+            return
+
+        outcar_output = outcar_outputs[0]
+        target_outputs = (
+            getattr(getattr(self.archive, 'data', None), 'outputs', None) or []
+        )
+        if not target_outputs:
+            self.archive.data.outputs = [outcar_output]
+            return
+
+        target_output = target_outputs[0]
+        for quantity_name in (
+            'electronic_band_structures',
+            'electronic_band_gaps',
+            'electronic_dos',
+        ):
+            if getattr(target_output, quantity_name, None):
+                continue
+            value = getattr(outcar_output, quantity_name, None)
+            if value:
+                setattr(target_output, quantity_name, value)
+
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser()
         data_parser.data_object = Simulation()
@@ -480,6 +516,8 @@ class XMLArchiveWriter(ArchiveWriter):
 
         self.archive.data = data_parser.data_object
         self.archive.workflow2 = xml_parser.build_workflow()
+
+        self._backfill_from_outcar()
 
         # close file objects
         data_parser.close()

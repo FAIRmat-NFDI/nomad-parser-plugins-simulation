@@ -186,11 +186,26 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotation(model_system.AtomsState.m_def, XML_KEY, ('get_atoms', []))
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        XML_KEY,
+        ('get_atoms', ['modeling.atominfo.array']),
+    )
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        OUTCAR_KEY,
+        ('get_atoms', ['ions_per_type', 'species']),
+    )
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
-        ('get_positions', ['.structure']),
+        (
+            'get_positions',
+            [
+                '.structure.varray.v',
+                '.structure.crystal.varray[?"@name"==\'basis\'] | [0].v',
+            ],
+        ),
         unit='angstrom',
     )
     add_mapping_annotation(
