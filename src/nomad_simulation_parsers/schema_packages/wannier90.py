@@ -250,7 +250,7 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_band_structures,
         BAND_KEY,
-        ('get_band_structure', ['.data', '.k_path']),
+        ('get_band_structure', ['.data']),
     )
     add_mapping_annotation(
         outputs.Outputs.hopping_matrices,

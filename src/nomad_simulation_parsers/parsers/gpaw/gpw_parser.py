@@ -230,6 +230,17 @@ class GPW2FileParser(FileParser):
     def get_parameter(self, key: str) -> Any:
         return self.info.get(key, self.info['parameter'].get(key))
 
+    def _get_band_paths(self) -> list[dict] | None:
+        """Normalize ULM band-path payloads to a list of plain dicts."""
+        paths = getattr(getattr(self.ulm, 'wave_functions', None), 'band_paths', None)
+        if paths is None:
+            return None
+        if hasattr(paths, 'asdict'):
+            paths = paths.asdict()
+        if hasattr(paths, 'get'):
+            paths = paths.get('band_paths', [paths])
+        return [path.asdict() if hasattr(path, 'asdict') else path for path in paths]
+
     def get_array(self, key: str) -> np.ndarray:
         if self.ulm is None:
             return
@@ -250,9 +261,7 @@ class GPW2FileParser(FileParser):
             'density': lambda: self.ulm.density.density,
             'potential_effective': lambda: self.ulm.hamiltonian.potential,
             # Not all GPAW files provide band path data (e.g., nowfs snapshots).
-            'band_paths': lambda: getattr(
-                getattr(self.ulm, 'wave_functions', None), 'band_paths', None
-            ),
+            'band_paths': self._get_band_paths,
         }
         try:
             if key in values:

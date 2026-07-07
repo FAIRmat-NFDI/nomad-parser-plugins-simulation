@@ -77,6 +77,9 @@ class WHrTextParser(TextParser):
 
 
 class WDosTextParser(TextParser):
+    # aux data set by the archive writer; kept out of the parsed `data` payload
+    _energies_origin = None
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -85,12 +88,16 @@ class WDosTextParser(TextParser):
     def get_dos(self, source: np.ndarray) -> dict[str, Any]:
         data = np.transpose(source)
         result = dict(energies=data[0], value=data[1])
-        if self.data.get('energies_origin') is not None:
-            result['energies_origin'] = self.data.get('energies_origin')
+        if self._energies_origin is not None:
+            result['energies_origin'] = self._energies_origin
         return result
 
 
 class WBandTextParser(TextParser):
+    # aux data set by the archive writer; kept out of the parsed `data` payload
+    _k_path = None
+    _highest_occupied = None
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -99,19 +106,13 @@ class WBandTextParser(TextParser):
     def get_data(self, data: np.ndarray) -> np.ndarray:
         return np.transpose(data)[1:].transpose()
 
-    def get_band_structure(
-        self, data: np.ndarray, k_path: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def get_band_structure(self, data: np.ndarray) -> dict[str, Any]:
         transposed = np.transpose(data)
         band_values = transposed[1:].transpose()
 
-        resolved_k_path = {}
-        if isinstance(k_path, dict):
-            resolved_k_path.update(k_path)
-
-        result = dict(value=band_values, k_path=resolved_k_path)
-        if self.data.get('highest_occupied') is not None:
-            result['highest_occupied'] = self.data.get('highest_occupied')
+        result = dict(value=band_values, k_path=self._k_path or {})
+        if self._highest_occupied is not None:
+            result['highest_occupied'] = self._highest_occupied
 
         return result
 
@@ -416,7 +417,11 @@ class WannierArchiveWriter(ArchiveWriter):
             )
 
             workflow_archive = self.child_archives[dft_file]
-            if getattr(dft_archive, 'workflow2', None) and self.archive.workflow2:
+            if (
+                dft_archive is not None
+                and dft_archive.workflow2
+                and self.archive.workflow2
+            ):
                 workflow_archive.workflow2 = DFTTBDMFTWorkflow(
                     tasks=[
                         TaskReference(task=dft_archive.workflow2),
@@ -446,35 +451,10 @@ class WannierArchiveWriter(ArchiveWriter):
         win_parser.convert(self.data_parser)
 
         reference_energy = win_parser.data.get('energy_fermi')
-        if reference_energy is None:
-            reference_energy = self.get_reference_energy_from_win_file(win_files[0])
         if reference_energy is not None:
             self.reference_energy = float(reference_energy) * ureg.eV
 
         win_parser.close()
-
-    def get_reference_energy(self):
-        return getattr(self, 'reference_energy', None)
-
-    def get_reference_energy_from_win_file(self, win_file: str):
-        try:
-            with open(win_file) as handle:
-                content = handle.read()
-        except Exception:
-            return None
-
-        match = re.search(
-            r'^\s*fermi_energy\s*=\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)',
-            content,
-            flags=re.MULTILINE,
-        )
-        if not match:
-            return None
-
-        try:
-            return float(match.group(1))
-        except ValueError:
-            return None
 
     def parse_hr(self) -> None:
         """
@@ -508,9 +488,7 @@ class WannierArchiveWriter(ArchiveWriter):
         for dos_file in dos_files:
             wdos_parser.filepath = dos_file
             wdos_parser.data_object.parse('data')
-            reference_energy = self.get_reference_energy()
-            if reference_energy is not None:
-                wdos_parser.data['energies_origin'] = reference_energy
+            wdos_parser._energies_origin = self.reference_energy
             self.data_parser.annotation_key = wannier90.DOS_KEY
             self.data_parser.data_object = self.archive.data
             wdos_parser.convert(self.data_parser)
@@ -531,10 +509,8 @@ class WannierArchiveWriter(ArchiveWriter):
         for band_file in band_files:
             wband_parser.filepath = band_file
             wband_parser.data_object.parse('data')
-            wband_parser.data['k_path'] = k_path
-            reference_energy = self.get_reference_energy()
-            if reference_energy is not None:
-                wband_parser.data['highest_occupied'] = reference_energy
+            wband_parser._k_path = k_path
+            wband_parser._highest_occupied = self.reference_energy
             self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
             wband_parser.convert(self.data_parser)

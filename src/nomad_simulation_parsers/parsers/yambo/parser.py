@@ -189,9 +189,7 @@ class YamboMainfileParser(TextParser):
         outputs = []
         data = {}
 
-        def get_reference_energy(source: dict[str, Any]):
-            if not hasattr(source, 'get'):
-                return None
+        def get_reference_energy(source: dict[str, Any]) -> Any | None:
             required_levels = 2
             valence_conduction = source.get('valence_conduction')
             if (
@@ -288,21 +286,18 @@ class YamboMainfileParser(TextParser):
 
         return outputs
 
-    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        if not hasattr(source, 'get'):
-            return []
-
+    def get_band_gaps(
+        self,
+        valence_conduction: Any = None,
+        valence: Any = None,
+        conduction: Any = None,
+    ) -> list[dict[str, Any]]:
         required_levels = 2
-        valence_conduction = source.get('valence_conduction')
-        has_valence_conduction = (
+        if (
             valence_conduction is not None
             and len(valence_conduction) >= required_levels
-        )
-        if has_valence_conduction:
+        ):
             valence, conduction = valence_conduction[0], valence_conduction[1]
-        else:
-            valence = source.get('valence')
-            conduction = source.get('conduction')
 
         if valence is None or conduction is None:
             return []

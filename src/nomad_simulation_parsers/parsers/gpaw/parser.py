@@ -23,10 +23,6 @@ from .gpw_parser import GPWFileParser
 
 LOGGER = get_logger(__name__)
 
-# Constants for array dimensionality checks
-NDIM_NON_SPIN_POLARIZED = 2  # Shape: [n_kpoints, n_bands]
-N_SPIN_CHANNELS = 2  # Number of spin channels for spin-polarized calculations
-
 
 class GPWParser(MappingParser):
     file_parser = GPWFileParser()
@@ -57,8 +53,8 @@ class GPWParser(MappingParser):
             'kinetic_electronic',
             'correction_entropy',
         ]:
-            value = self.file_parser.apply_unit(
-                self.file_parser.parser.get_parameter(f'energy_{key}'), 'energyunit'
+            value = self.data_object.apply_unit(
+                self.data_object.parser.get_parameter(f'energy_{key}'), 'energyunit'
             )
             if value is None:
                 continue
@@ -72,26 +68,29 @@ class GPWParser(MappingParser):
 
     def get_forces(self) -> dict[str, Any]:
         forces = {}
-        energyunit = self.file_parser.apply_unit(1, 'energyunit').units
-        lengthunit = self.file_parser.apply_unit(1, 'lengthunit').units
-        value = self.file_parser.parser.get_array('atom_forces_free')
+        energyunit = self.data_object.apply_unit(1, 'energyunit').units
+        lengthunit = self.data_object.apply_unit(1, 'lengthunit').units
+        value = self.data_object.parser.get_array('atom_forces_free')
         if value is not None:
             forces['value'] = value * energyunit / lengthunit
         return forces
 
     def get_eigenvalues(self) -> list[dict[str, Any]]:
         reference_energy = self.get_reference_energy()
-        eigenvalues = self.file_parser.apply_unit(
-            self.file_parser.parser.get_array('eigenvalues'), 'energyunit'
+        eigenvalues = self.data_object.apply_unit(
+            self.data_object.parser.get_array('eigenvalues'), 'energyunit'
         )
-        occupations = self.file_parser.parser.get_array('occupation')
+        occupations = self.data_object.parser.get_array('occupation')
 
         if eigenvalues is None or occupations is None:
             return []
 
+        ndim_non_spin_polarized = 2  # shape: (n_kpoints, n_bands)
+        n_spin_channels = 2
+
         # eigenvalues and occupations should have shape [n_spin, n_kpoints, n_bands]
         # or [n_kpoints, n_bands] for non-spin-polarized
-        if eigenvalues.ndim == NDIM_NON_SPIN_POLARIZED:
+        if eigenvalues.ndim == ndim_non_spin_polarized:
             # Non-spin-polarized: reshape to add spin dimension
             eigenvalues = eigenvalues[np.newaxis, :, :]
             occupations = occupations[np.newaxis, :, :]
@@ -99,7 +98,7 @@ class GPWParser(MappingParser):
         n_spin = eigenvalues.shape[0]
         n_bands = (
             eigenvalues.shape[2]
-            if eigenvalues.ndim > NDIM_NON_SPIN_POLARIZED
+            if eigenvalues.ndim > ndim_non_spin_polarized
             else eigenvalues.shape[1]
         )
 
@@ -112,14 +111,14 @@ class GPWParser(MappingParser):
                 highest_occupied=reference_energy,
             )
             # Only add spin_channel if there are multiple spins
-            if n_spin == N_SPIN_CHANNELS:
+            if n_spin == n_spin_channels:
                 entry['spin_channel'] = spin_idx
             data.append(entry)
 
         return data
 
     def get_reference_energy(self):
-        fermi_level = self.file_parser.parser.get_parameter('fermilevel')
+        fermi_level = self.data_object.parser.get_parameter('fermilevel')
         if fermi_level is None:
             return None
 
@@ -127,28 +126,20 @@ class GPWParser(MappingParser):
         if fermi_values.size == 0:
             return None
 
-        return self.file_parser.apply_unit(float(fermi_values[0]), 'energyunit')
+        return self.data_object.apply_unit(float(fermi_values[0]), 'energyunit')
 
     def get_band_structures(self) -> list[dict[str, Any]]:
         reference_energy = self.get_reference_energy()
-        band_paths = self.file_parser.parser.get_array('band_paths')
-        if callable(band_paths):
-            band_paths = band_paths()
-        if band_paths is None:
-            return []
-        if hasattr(band_paths, 'get'):
-            band_paths = band_paths.get('band_paths', [band_paths])
+        band_paths = self.data_object.parser.get_array('band_paths')
 
         band_structures = []
-        for band_path in band_paths:
-            if not hasattr(band_path, 'get'):
-                continue
+        for band_path in band_paths or []:
             eigenvalues = band_path.get('eigenvalues')
             if eigenvalues is None:
                 continue
             band_structures.append(
                 dict(
-                    value=self.file_parser.apply_unit(eigenvalues, 'energyunit'),
+                    value=self.data_object.apply_unit(eigenvalues, 'energyunit'),
                     highest_occupied=reference_energy,
                 )
             )
@@ -172,11 +163,11 @@ class GPWParser(MappingParser):
 
     def get_scf_steps(self) -> dict[str, Any]:
         code_specific_quantities = {}
-        converged = self.file_parser.parser.get_parameter('converged')
+        converged = self.data_object.parser.get_parameter('converged')
         if converged is not None:
             code_specific_quantities['converged'] = bool(converged)
 
-        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        energy_error = self.data_object.parser.get_parameter('energyerror')
         if energy_error is not None:
             code_specific_quantities['energyerror'] = float(energy_error)
 
@@ -187,11 +178,11 @@ class GPWParser(MappingParser):
     def build_workflow(self):
         workflow = SinglePoint()
         workflow.method = SinglePointMethod()
-        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        energy_error = self.data_object.parser.get_parameter('energyerror')
         if energy_error is not None:
             workflow.method.convergence_targets = [
                 EnergyConvergenceTarget(
-                    threshold=self.file_parser.apply_unit(energy_error, 'energyunit'),
+                    threshold=self.data_object.apply_unit(energy_error, 'energyunit'),
                     threshold_type='absolute',
                 )
             ]

@@ -99,7 +99,12 @@ class Outputs(outputs.Outputs):
         '.eigenvalues',
     )
     add_mapping_annotation(
-        outputs.Outputs.electronic_band_gaps, OUT_KEY, ('get_band_gaps', ['.@'])
+        outputs.Outputs.electronic_band_gaps,
+        OUT_KEY,
+        (
+            'get_band_gaps',
+            ['.valence_conduction', '.valence', '.conduction'],
+        ),
     )
 
 

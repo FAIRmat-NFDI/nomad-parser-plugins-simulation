@@ -312,11 +312,12 @@ class OctopusMainfileParser(TextParser):
                 if filename is None:
                     continue
                 filenames.append(filename)
+                filepath = os.path.join(self._maindir, filename)
+                if not os.path.isfile(filepath):
+                    continue
                 for fformat in fformats:
                     try:
-                        atoms = read(
-                            os.path.join(self._maindir, filename), format=fformat
-                        )
+                        atoms = read(filepath, format=fformat)
                     except Exception:
                         continue
                     if atoms is not None:
@@ -389,6 +390,9 @@ class OctopusMainfileParser(TextParser):
             if number is None:
                 continue
             path = os.path.join(self._maindir, f'geom/go.{number:04d}.xyz')
+            if not os.path.isfile(path):
+                unreadable_paths.append(path)
+                continue
             try:
                 atoms = read(path, format='xyz')
             except Exception:
