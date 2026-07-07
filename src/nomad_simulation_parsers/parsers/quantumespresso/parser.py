@@ -301,10 +301,7 @@ class MainfileXMLParser(XMLParser):
     def get_forces(self, source: np.ndarray):
         return np.reshape(source, (np.size(source) // 3, 3))
 
-    def get_periodic_boundary_conditions(
-        self, source: dict[str, Any]
-    ) -> list[bool] | None:
-        cell = Path(path='atomic_structure.cell').get_data(source)
+    def get_periodic_boundary_conditions(self, cell: Any = None) -> list[bool] | None:
         if cell is None:
             return None
         return [True, True, True]

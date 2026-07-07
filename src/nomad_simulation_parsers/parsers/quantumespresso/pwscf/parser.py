@@ -226,7 +226,7 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             }
         return scf_steps
 
-    def get_reference_energy(self, source: dict[str, Any]):
+    def get_reference_energy(self, source: dict[str, Any]) -> Any | None:
         section = self._resolve_scf_source(source)
         if section is None or not hasattr(section, 'get'):
             return None
@@ -260,12 +260,18 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             )
         return band_structures
 
+    # DOS payload cache: `get_dos` runs once per configuration, but the .dos
+    # sidecar files only need to be read once per mainfile.
+    _dos_cache_key: str | None = None
+    _cached_dos_payload: dict[str, Any] | None = None
+
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        if not hasattr(self, '_cached_dos_payload'):
+        mainfile = getattr(self, 'filepath', None)
+        if not isinstance(mainfile, str) or not mainfile:
+            return []
+        if self._dos_cache_key != mainfile:
+            self._dos_cache_key = mainfile
             self._cached_dos_payload = None
-            mainfile = getattr(self, 'filepath', None)
-            if not isinstance(mainfile, str) or not mainfile:
-                return []
             dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(mainfile))
             for dos_file in dos_files:
                 try:

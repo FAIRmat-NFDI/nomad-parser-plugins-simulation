@@ -159,11 +159,6 @@ class Simulation(general.Simulation):
         general.Simulation.program, OUT_KEY, ('get_header', ['.header'])
     )
     add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.@')
-    # Map model_system: _initial_system is always present (added in write_to_archive)
-    # get_systems also handles minimization steps if present
-    add_mapping_annotation(
-        general.Simulation.model_system, OUT_KEY, '._initial_system'
-    )
     add_mapping_annotation(
         general.Simulation.model_system, OUT_KEY, ('get_systems', ['.minimization'])
     )

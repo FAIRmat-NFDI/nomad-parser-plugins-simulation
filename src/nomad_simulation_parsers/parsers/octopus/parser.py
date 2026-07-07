@@ -306,10 +306,12 @@ class OctopusMainfileParser(TextParser):
                 'XYZCoordinates': ['extxyz', 'xyz'],
                 'XSFCoordinates': ['xsf'],
             }
+            filenames = []
             for ftype, fformats in file_types.items():
                 filename = self.info.get(ftype)
                 if filename is None:
                     continue
+                filenames.append(filename)
                 for fformat in fformats:
                     try:
                         atoms = read(
@@ -319,14 +321,14 @@ class OctopusMainfileParser(TextParser):
                         continue
                     if atoms is not None:
                         break
-                if atoms is None:
-                    self.logger.error(
-                        'Error reading coordinates file', data=dict(filename=filename)
-                    )
                 if atoms is not None:
                     symbols = atoms.get_chemical_symbols()
                     coordinates = atoms.get_positions()
                     break
+            if atoms is None and filenames:
+                self.logger.error(
+                    'Error reading coordinates files', data=dict(filenames=filenames)
+                )
 
         if len(coordinates) == 0:
             self.logger.error('Error parsing atom positions and labels.')
@@ -381,6 +383,7 @@ class OctopusMainfileParser(TextParser):
             minimization = source
 
         # Add geometry optimization steps if present
+        unreadable_paths = []
         for mini in minimization or []:
             number = mini.get('numbr')
             if number is None:
@@ -388,29 +391,22 @@ class OctopusMainfileParser(TextParser):
             path = os.path.join(self._maindir, f'geom/go.{number:04d}.xyz')
             try:
                 atoms = read(path, format='xyz')
-                systems.append(
-                    dict(
-                        positions=atoms.get_positions() * ureg.angstrom,
-                        labels=atoms.get_chemical_symbols(),
-                        pbc=systems[0].get('pbc'),
-                    )
+            except Exception:
+                unreadable_paths.append(path)
+                continue
+            systems.append(
+                dict(
+                    positions=atoms.get_positions() * ureg.angstrom,
+                    labels=atoms.get_chemical_symbols(),
+                    pbc=systems[0].get('pbc'),
                 )
-            except Exception as e:
-                self.logger.warning(
-                    'Could not read geometry optimization step',
-                    data=dict(path=path, error=str(e)),
-                )
+            )
+        if unreadable_paths:
+            self.logger.warning(
+                'Could not read geometry optimization steps',
+                data=dict(paths=unreadable_paths),
+            )
         return systems
-
-    def get_initial_system_for_mapping(
-        self, source: Any = None
-    ) -> dict[str, Any] | None:
-        """Always return the initial system, regardless of source data.
-
-        This ensures model_system is populated even for static calculations
-        without minimization data.
-        """
-        return self.initial_system
 
     def get_outputs(self, sources: list[dict[str]]) -> list[dict[str, Any]]:
         outputs = []
@@ -445,22 +441,14 @@ class OctopusEigenvalueParser(TextParser):
     def logger(self):
         return LOGGER
 
-    def get_reference_energy(self, source: Any = None):
-        eigen_section = source if isinstance(source, dict) else None
-        if eigen_section is None:
-            eigen_section = (
-                self.data.get('eigenvalues') if hasattr(self, 'data') else None
-            )
-
-        if isinstance(eigen_section, dict):
-            fermi = eigen_section.get('fermi_energy')
-            if fermi is not None:
-                return fermi.to(self.unit)
-
-        return None
-
     def get_eigenvalues(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
-        reference_energy = self.get_reference_energy(source)
+        eigen_section = self.data.get('eigenvalues') if hasattr(self, 'data') else None
+        fermi = (
+            eigen_section.get('fermi_energy')
+            if isinstance(eigen_section, dict)
+            else None
+        )
+        reference_energy = fermi.to(self.unit) if fermi is not None else None
         kpts, eigs, occs = list(zip(*[e for e in source if e is not None]))
         eigs = np.transpose(eigs, axes=(2, 0, 1))
         occs = np.transpose(occs, axes=(2, 0, 1))
@@ -522,15 +510,6 @@ class OctopusArchiveWriter(ArchiveWriter):
 
         self.archive_parser.data_object = self.archive.data
         self.archive_parser.annotation_key = octopus.OUT_KEY
-
-        # Ensure initial_system data is available for mapping
-        # even if no minimization or time-dependent data exists
-        # Access the underlying text parser's data dict
-        if not self.mainfile_parser.text_parser.data:
-            self.mainfile_parser.text_parser.data = {}
-        self.mainfile_parser.text_parser.data[
-            '_initial_system'
-        ] = self.mainfile_parser.initial_system
 
         self.mainfile_parser.convert(self.archive_parser)
 

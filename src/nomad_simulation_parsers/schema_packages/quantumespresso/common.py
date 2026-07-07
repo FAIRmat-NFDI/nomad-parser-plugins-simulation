@@ -73,7 +73,7 @@ class Representation(model_system.Representation):
     add_mapping_annotation(
         model_system.Representation.periodic_boundary_conditions,
         XML_KEY,
-        ('get_periodic_boundary_conditions', ['.@']),
+        ('get_periodic_boundary_conditions', ['.atomic_structure.cell']),
     )
 
 

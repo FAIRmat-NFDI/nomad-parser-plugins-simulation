@@ -28,10 +28,9 @@ from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
 
-RE_LABEL = re.compile(r'([a-z][a-z]?).*')
-
 
 class CrystalOutputParser(TextParser):
+    re_label = re.compile(r'([a-z][a-z]?).*')
     libxc_map = {
         'PBEXC': ['GGA_C_PBE', 'GGA_X_PBE'],
         'PBE0': ['HYB_GGA_XC_PBEH'],
@@ -114,7 +113,7 @@ class CrystalOutputParser(TextParser):
                 numbers = labels_positions[:, 1]
 
         def normalize_label(label: str) -> str:
-            norm = RE_LABEL.match(label.lower())
+            norm = self.re_label.match(label.lower())
             # unknown specie
             # TODO not possible to define ghost atom
             unknown = None
