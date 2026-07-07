@@ -39,7 +39,11 @@ def test_vasprun_system_and_electronic_outputs():
     assert len(sec_system.particle_states) == len(sec_system.positions)
     assert sec_system.particle_states[0].chemical_symbol == 'Ac'
 
-    sec_output = archive.data.outputs[0]
+    # electronic payloads sit on the output whose calculation carries them
+    # (the final SCF of the relaxation), not on every output
+    sec_output = next(
+        output for output in archive.data.outputs if output.electronic_eigenvalues
+    )
     assert len(sec_output.electronic_eigenvalues) > 0
     assert len(sec_output.electronic_band_gaps) > 0
     assert len(sec_output.electronic_dos) > 0

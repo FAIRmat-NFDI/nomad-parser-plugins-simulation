@@ -110,7 +110,9 @@ class WBandTextParser(TextParser):
         transposed = np.transpose(data)
         band_values = transposed[1:].transpose()
 
-        result = dict(value=band_values, k_path=self._k_path or {})
+        result = dict(value=band_values)
+        if self._k_path:
+            result['k_path'] = self._k_path
         if self._highest_occupied is not None:
             result['highest_occupied'] = self._highest_occupied
 

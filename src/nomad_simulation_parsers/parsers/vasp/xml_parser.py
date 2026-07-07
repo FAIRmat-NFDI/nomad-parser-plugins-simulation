@@ -98,24 +98,7 @@ class VasprunParser(XMLParser):
                 spin_sets.append(kpoint_sets)
         return spin_sets
 
-    def _resolve_electronic_source(
-        self, source: dict[str, Any] | None, key: str
-    ) -> dict[str, Any] | None:
-        if isinstance(source, dict) and source.get(key) is not None:
-            return source
-        calculations = self.data.get('modeling', {}).get('calculation', [])
-        if not isinstance(calculations, list):
-            return None
-        for calculation in reversed(calculations):
-            if isinstance(calculation, dict) and calculation.get(key) is not None:
-                return calculation
-        return None
-
     def get_eigenvalues(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
-        source = self._resolve_electronic_source(source, 'eigenvalues')
-        if source is None:
-            return []
-        source = source.get('eigenvalues')
         spin_sets = self._extract_spin_sets(source)
         if not spin_sets:
             return []
@@ -189,10 +172,7 @@ class VasprunParser(XMLParser):
                     return None
             return None
 
-        source = self._resolve_electronic_source(source, 'dos')
-        if not isinstance(source, dict):
-            return []
-        dos = source.get('dos')
+        dos = source
         if not isinstance(dos, dict):
             return []
         total = dos.get('total')

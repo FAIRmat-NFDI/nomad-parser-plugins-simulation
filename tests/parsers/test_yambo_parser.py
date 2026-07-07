@@ -18,8 +18,12 @@ def test_get_outputs_sets_highest_occupied_from_valence_conduction():
     outputs = parser.get_outputs(energies_occupations, [], {})
 
     assert outputs
-    assert outputs[0].get('highest_occupied') is not None
-    assert outputs[0]['highest_occupied'].to('eV').magnitude == approx(1.2)
+    # the reference lives on each eigenvalue entry, where the
+    # band-structure mapping reads it
+    for entry in outputs[0]['eigenvalues']:
+        assert entry.get('highest_occupied') is not None
+    reference = outputs[0]['eigenvalues'][0]['highest_occupied']
+    assert reference.to('eV').magnitude == approx(1.2)
 
 
 def test_get_outputs_emits_eigenvalues_payload():

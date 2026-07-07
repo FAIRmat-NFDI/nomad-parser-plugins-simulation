@@ -231,7 +231,10 @@ class YamboMainfileParser(TextParser):
 
         reference_energy = get_reference_energy(data)
         if reference_energy is not None:
-            data['highest_occupied'] = reference_energy
+            # band-structure sections are sourced from the eigenvalue entries,
+            # so the reference must live on each entry
+            for entry in data.get('eigenvalues', []):
+                entry['highest_occupied'] = reference_energy
 
         if data:
             outputs.append(data)
