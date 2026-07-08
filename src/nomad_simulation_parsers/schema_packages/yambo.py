@@ -118,10 +118,11 @@ class Simulation(general.Simulation):
             ],
         ),
     )
-
+    add_mapping_annotation(Outputs.m_def, SPECTRA_KEY, '.@')
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, NETCDF_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, SPECTRA_KEY, '@')
 
 
 try:
