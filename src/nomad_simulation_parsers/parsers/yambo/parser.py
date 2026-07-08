@@ -353,7 +353,7 @@ class YamboArchiveWriter(ArchiveWriter):
         for spectra_file in spectra_files:
             spectra_parser.filepath = spectra_file
 
-            sp_type = mainfile_parser.data.get('sp_type')
+            sp_type = spectra_parser.get('sp_type')  # EM: spectra_parser.get,  Jul 8, 2026 
             if sp_type is None:
                 continue
 
