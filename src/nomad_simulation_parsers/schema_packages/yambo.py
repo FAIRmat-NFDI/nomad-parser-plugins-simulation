@@ -1,4 +1,4 @@
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -11,6 +11,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 OUT_KEY = 'yambo_out'
 NETCDF_KEY = 'yambo_netcdf'
+SPECTRA_KEY = 'yambo_spectra'
 
 m_package = SchemaPackage()
 
@@ -59,7 +60,21 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.energies')
 
 
+class AbsorptionSpectra(outputs.AbsorptionSpectrum):
+    add_mapping_annotation(
+        outputs.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
+    )
+    add_mapping_annotation(
+        outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
+    )
+
+
 class Outputs(outputs.Outputs):
+    # TODO add description
+    sp_type = Quantity(type=str)
+
+    add_mapping_annotation(sp_type, OUT_KEY, 'sp_type')
+
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         NETCDF_KEY,
@@ -68,6 +83,10 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, OUT_KEY, '.eigenvalues'
+    )
+    # TODO is this the correct def to use for spectra data
+    add_mapping_annotation(
+        outputs.AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])
     )
 
 
@@ -80,7 +99,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.model_method, NETCDF_KEY, '.@')
     add_mapping_annotation(general.Simulation.outputs, NETCDF_KEY, '.@')
     add_mapping_annotation(
-        general.Simulation.outputs,
+        Outputs.m_def,
         OUT_KEY,
         (
             'get_outputs',
