@@ -1,6 +1,9 @@
 name: migration-snapshot-tests
-# Manually triggered regression check: compares parser output snapshots
-# against the tracked .ambr files (see tests/parsers/test_migration_snapshots.py).
+# Manually triggered additivity regression check. Snapshots are NOT tracked in
+# the repository: this job generates both the pre-migration baseline and the
+# current output, then verifies the current archive is a structural superset of
+# the baseline (no data loss). The baseline is cached across runs since it only
+# depends on the pinned pre-migration commit.
 on: [workflow_dispatch]
 
 permissions:
@@ -8,23 +11,71 @@ permissions:
 
 env:
   UV_SYSTEM_PYTHON: true
+  # Pre-migration commit used as the additivity baseline.
+  BASELINE_REF: 1c7acd60fc18827618a30f46f42eeec5664d97a1
 
 jobs:
   snapshot-tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # need history so the baseline commit can be worktree'd
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
         python-version: 3.11
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
     - name: Install dependencies
       run: |
         pip install --upgrade pip
         uv pip install -e '.[dev,md]'
-    - name: Run migration snapshot tests
+
+    - name: Restore cached baseline snapshot
+      id: baseline-cache
+      uses: actions/cache@v4
+      with:
+        path: baseline_snapshots.ambr
+        # Bump the suffix to force a rebuild if the generation logic changes.
+        key: migration-snapshot-baseline-${{ env.BASELINE_REF }}-py311-v1
+
+    - name: Generate current snapshot
       run: |
-        python -m pytest -sv tests/parsers/test_migration_snapshots.py
+        python -m pytest --snapshot-update -q -p no:cacheprovider \
+          tests/parsers/test_migration_snapshots.py
+        cp tests/parsers/__snapshots__/test_migration_snapshots.ambr current_snapshots.ambr
+
+    - name: Generate baseline snapshot (cache miss)
+      if: steps.baseline-cache.outputs.cache-hit != 'true'
+      run: |
+        git worktree add ../baseline "$BASELINE_REF"
+        cp tests/parsers/test_migration_snapshots.py ../baseline/tests/parsers/
+        mkdir -p ../baseline/tests/parsers/__snapshots__
+        # Reinstall the plugin from the baseline commit so its (old) code AND its
+        # matching entry points are used, while keeping the already-resolved deps
+        # (the pinned nomad-lab with deterministic section ordering). A PYTHONPATH
+        # override alone breaks here: the current install's entry points reference
+        # parsers that do not exist at the baseline commit.
+        uv pip install -e ../baseline --no-deps
+        ( cd ../baseline && python -m pytest --snapshot-update -q -p no:cacheprovider \
+            tests/parsers/test_migration_snapshots.py )
+        cp ../baseline/tests/parsers/__snapshots__/test_migration_snapshots.ambr \
+           baseline_snapshots.ambr
+
+    - name: Verify additivity (no data loss vs baseline)
+      run: |
+        set -o pipefail
+        python tests/parsers/compare_snapshots.py \
+          baseline_snapshots.ambr current_snapshots.ambr | tee comparison_report.txt
+
+    - name: Upload snapshots and diff for inspection
+      if: always()  # also publish on failure so the diff can be reviewed
+      uses: actions/upload-artifact@v4
+      with:
+        name: migration-snapshots
+        path: |
+          baseline_snapshots.ambr
+          current_snapshots.ambr
+          comparison_report.txt
+        retention-days: 30

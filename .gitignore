@@ -133,3 +133,7 @@ dmypy.json
 # MDAnalysis temporary/cache artifacts under tests data
 tests/data/**/*.lock
 tests/data/**/*.npz
+
+# Syrupy migration snapshots are generated in CI, never tracked
+tests/parsers/__snapshots__/
+*.ambr
