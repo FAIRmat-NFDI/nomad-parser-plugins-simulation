@@ -644,23 +644,11 @@ class OutcarArchiveWriter(ArchiveWriter):
             source_parser.data.get('parameters', {})
         )
 
-        # CHGCAR charge density is populated here rather than via a mapping
-        # annotation: the declarative `update_mode='append'` on `VASPOutputs`
-        # does not reliably create the section across mapping-parser versions,
-        # silently dropping charge density on released nomad-lab. This
-        # writer-side fallback is version-stable.
-        # TODO: revert to a declarative mapping once the mapping parser gains a
-        # deterministic append/merge mode (see nomad-FAIR issue).
+        # parser CHGCAR
+        archive_data_parser.annotation_key = vasp.CHGCAR_KEY
         chgcar_parser = CHGCARParser()
         chgcar_parser.filepath = self.mainfile
-        if (chgcar_file := chgcar_parser.load_file()) is not None:
-            chgcar_parser.data_object = chgcar_file
-            output = vasp.VASPOutputs()
-            self.archive.data.outputs.append(output)
-            for values in chgcar_parser.to_dict().get('values', []):
-                charge_density = vasp.ChargeDensity()
-                output.charge_density.append(charge_density)
-                charge_density.value_h5_dataset = values
+        chgcar_parser.convert(archive_data_parser)
 
         # close file handles
         archive_data_parser.close()
