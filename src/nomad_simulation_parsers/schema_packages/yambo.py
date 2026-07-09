@@ -94,7 +94,7 @@ class Outputs(outputs.Outputs):
     )
     # TODO is this the correct def to use for spectra data
     add_mapping_annotation(
-        outputs.AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])
+        AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])  # EM: outputs.AbsorptionSpectrum  -->  AbsorptionSpectrum
     )
 
 
