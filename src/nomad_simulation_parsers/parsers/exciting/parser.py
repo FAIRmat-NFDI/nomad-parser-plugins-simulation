@@ -578,6 +578,11 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # - Modify mapper to detect and handle object instances
             # - Change parser methods to return dicts that mapper can transform
             # - Keep manual population (current approach - clearer and more explicit)
+            #
+            # This assignment must stay AFTER info_parser.convert() above: the
+            # mapping round-trip re-instantiates each subsection as its declared
+            # base type (WorkflowConvergenceTarget), which would downcast the
+            # polymorphic Force/EnergyConvergenceTarget instances.
             source_data = info_parser.data
             if source_data:
                 convergence_targets = info_parser.get_geometry_convergence(source_data)

@@ -728,6 +728,7 @@ class AbinitArchiveWriter(ArchiveWriter):
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
+        convergence = None
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
@@ -742,20 +743,26 @@ class AbinitArchiveWriter(ArchiveWriter):
                 workflow.method.optimization_type = 'cell_shape'
 
             convergence = self.mainfile_parser.get_geometry_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             workflow = MolecularDynamics()
         else:
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
             convergence = self.mainfile_parser.get_single_point_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         self.archive.workflow2 = workflow
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
+        # Assign convergence targets only after convert(): the mapping round-trip
+        # re-instantiates each subsection as its declared base type via
+        # section.sub_section.section_cls() (see nomad_file_parser
+        # file_parser.parse_section), which would downcast the polymorphic
+        # EnergyConvergenceTarget/ForceConvergenceTarget to WorkflowConvergenceTarget.
+        # Populating them afterward preserves the concrete subclasses, matching
+        # exciting.parse_workflow. See add_mapping_annotation in
+        # schema_packages/utils.py for the general caveat.
+        if convergence:
+            self.archive.workflow2.method.convergence_targets = convergence
 
     def write_to_archive(self):
         self.archive.data = Simulation(program=Program(name=self.code_name))

@@ -123,21 +123,22 @@ def test_geometry_optimization_workflow_convergence_section():
     assert targets is not None
     assert len(targets) == 2
 
-    # nomad_file_parser serializes the polymorphic convergence targets as the
-    # base WorkflowConvergenceTarget (the EnergyConvergenceTarget /
-    # ForceConvergenceTarget subclasses add no quantities of their own), so
-    # identify them by threshold_type rather than by section name.
-    targets_by_type = {target.threshold_type: target for target in targets}
-    assert set(targets_by_type.keys()) == {'absolute', 'maximum'}
+    targets_by_name = {target.m_def.name: target for target in targets}
+    assert set(targets_by_name.keys()) == {
+        'EnergyConvergenceTarget',
+        'ForceConvergenceTarget',
+    }
 
-    energy_target = targets_by_type['absolute']
-    force_target = targets_by_type['maximum']
+    energy_target = targets_by_name['EnergyConvergenceTarget']
+    force_target = targets_by_name['ForceConvergenceTarget']
+    assert energy_target.threshold_type == 'absolute'
     energy_threshold = (
         energy_target.threshold.to('hartree').magnitude
         if hasattr(energy_target.threshold, 'to')
         else energy_target.threshold
     )
     assert energy_threshold == approx(0.0)
+    assert force_target.threshold_type == 'maximum'
     force_threshold = (
         force_target.threshold.to('newton').magnitude
         if hasattr(force_target.threshold, 'to')
