@@ -174,6 +174,9 @@ def report_test(name: str, baseline: Any, current: Any, diff: LeafDiff) -> None:
 
 
 def main() -> int:
+    if len(sys.argv) != 3:
+        print(f'usage: {sys.argv[0]} <target.ambr> <source.ambr>', file=sys.stderr)
+        return 2
     baseline = parse_ambr(sys.argv[1])
     current = parse_ambr(sys.argv[2])
 

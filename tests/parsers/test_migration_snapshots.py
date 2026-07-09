@@ -5,6 +5,7 @@ migration only adds properties, doesn't modify existing ones.
 """
 
 from nomad.datamodel import EntryArchive
+from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.abinit.parser import AbinitParser
 from nomad_simulation_parsers.parsers.ams.parser import AMSParser
@@ -23,6 +24,8 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 from nomad_simulation_parsers.parsers.wannier90.parser import Wannier90Parser
 
+LOGGER = get_logger(__name__)
+
 
 def serialize_archive_data(archive):
     """Convert archive.data to dict for snapshot comparison."""
@@ -38,7 +41,7 @@ def test_vasp_vasprun_snapshot(snapshot):
     """Snapshot of VASP vasprun.xml parsing output."""
     parser = VASPParser()
     archive = EntryArchive()
-    parser.parse('tests/data/vasp/AgAc_relax/vasprun.xml.relax', archive, None)
+    parser.parse('tests/data/vasp/AgAc_relax/vasprun.xml.relax', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -46,7 +49,7 @@ def test_vasp_outcar_snapshot(snapshot):
     """Snapshot of VASP OUTCAR parsing output."""
     parser = VASPParser()
     archive = EntryArchive()
-    parser.parse('tests/data/vasp/AgAc_relax/OUTCAR', archive, None)
+    parser.parse('tests/data/vasp/AgAc_relax/OUTCAR', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -57,7 +60,7 @@ def test_abinit_snapshot(snapshot):
     """Snapshot of ABINIT parsing output."""
     parser = AbinitParser()
     archive = EntryArchive()
-    parser.parse('tests/data/abinit/Fe/abinit.out', archive, None)
+    parser.parse('tests/data/abinit/Fe/abinit.out', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -68,7 +71,7 @@ def test_gpaw_snapshot(snapshot):
     """Snapshot of GPAW parsing output."""
     parser = GPAWParser()
     archive = EntryArchive()
-    parser.parse('tests/data/gpaw/Fe2.gpw', archive, None)
+    parser.parse('tests/data/gpaw/Fe2.gpw', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -79,7 +82,7 @@ def test_octopus_snapshot(snapshot):
     """Snapshot of Octopus parsing output."""
     parser = OctopusParser()
     archive = EntryArchive()
-    parser.parse('tests/data/octopus/Fe_spinpol/inp', archive, None)
+    parser.parse('tests/data/octopus/Fe_spinpol/inp', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -90,7 +93,7 @@ def test_ams_snapshot(snapshot):
     """Snapshot of AMS parsing output."""
     parser = AMSParser()
     archive = EntryArchive()
-    parser.parse('tests/data/ams/scf/ams.log', archive, None)
+    parser.parse('tests/data/ams/scf/ams.log', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -101,7 +104,7 @@ def test_exciting_snapshot(snapshot):
     """Snapshot of Exciting parsing output."""
     parser = ExcitingParser()
     archive = EntryArchive()
-    parser.parse('tests/data/exciting/C_minimal/INFO.OUT', archive, None)
+    parser.parse('tests/data/exciting/C_minimal/INFO.OUT', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -112,7 +115,7 @@ def test_crystal_snapshot(snapshot):
     """Snapshot of Crystal parsing output."""
     parser = CrystalParser()
     archive = EntryArchive()
-    parser.parse('tests/data/crystal/single_point/dft/output.out', archive, None)
+    parser.parse('tests/data/crystal/single_point/dft/output.out', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -123,7 +126,7 @@ def test_fhiaims_snapshot(snapshot):
     """Snapshot of FHI-aims parsing output."""
     parser = FHIAimsParser()
     archive = EntryArchive()
-    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, None)
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -134,7 +137,7 @@ def test_gromacs_snapshot(snapshot):
     """Snapshot of GROMACS parsing output."""
     parser = GromacsParser()
     archive = EntryArchive()
-    parser.parse('tests/data/gromacs/fe_test/md.log', archive, None)
+    parser.parse('tests/data/gromacs/fe_test/md.log', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -148,7 +151,7 @@ def test_h5md_snapshot(snapshot):
     parser.parse(
         'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
         archive,
-        None,
+        LOGGER,
     )
     assert serialize_archive_data(archive) == snapshot
 
@@ -160,7 +163,7 @@ def test_lammps_snapshot(snapshot):
     """Snapshot of LAMMPS parsing output."""
     parser = LammpsParser()
     archive = EntryArchive()
-    parser.parse('tests/data/lammps/1_xyz_files/log.lammps', archive, None)
+    parser.parse('tests/data/lammps/1_xyz_files/log.lammps', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -171,7 +174,7 @@ def test_phonopy_snapshot(snapshot):
     """Snapshot of Phonopy parsing output."""
     parser = PhonopyParser()
     archive = EntryArchive()
-    parser.parse('tests/data/phonopy/vasp/phonopy.yaml', archive, None)
+    parser.parse('tests/data/phonopy/vasp/phonopy.yaml', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -182,7 +185,7 @@ def test_quantumespresso_snapshot(snapshot):
     """Snapshot of Quantum Espresso parsing output."""
     parser = QuantumEspressoParser()
     archive = EntryArchive()
-    parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, None)
+    parser.parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
 
 
@@ -193,5 +196,5 @@ def test_wannier90_snapshot(snapshot):
     """Snapshot of Wannier90 parsing output."""
     parser = Wannier90Parser()
     archive = EntryArchive()
-    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, None)
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
     assert serialize_archive_data(archive) == snapshot
