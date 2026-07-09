@@ -1,9 +1,12 @@
+import os
 from typing import Any
 
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import outputs as simulation_outputs
+from nomad_simulations.schema_packages import variables as simulation_variables
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -21,12 +24,15 @@ from nomad_simulations.schema_packages.workflow.single_point import SinglePointM
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoArchiveWriter,
 )
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages.quantumespresso import pwscf
 
 from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFFileParser
 
 LOGGER = get_logger(__name__)
+MIN_DOS_COLUMNS = 2
+DOS_ARRAY_NDIM = 2
 
 
 class PWSCFMainfileTextParser(MainfileTextParser):
@@ -40,43 +46,127 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         return [
             dict(name=key, value=source[f'forces_{key}'])
             for key in keys
-            if source.get(f'forces_{key}' is not None)
+            if source.get(f'forces_{key}') is not None
         ]
 
     def get_eigenvalues(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        eigenvalues = source.get('band_energies')
+        section = self._resolve_scf_source(source)
+        if section is None or not hasattr(section, 'get'):
+            return []
+
+        eigenvalues = section.get('band_energies')
         if eigenvalues is None:
             return []
         n_spin = self.get_n_spin_channels()
         n_eigs = len(eigenvalues[0])
         n_bands = np.size(eigenvalues) // int(n_spin * n_eigs)
         eigenvalues = np.reshape(eigenvalues, (n_spin, n_bands, n_eigs)) * ureg.eV
-        results = [dict(eigenvalues=eig) for n, eig in enumerate(eigenvalues)]
-        occupations = source.get('occupation_numbers')
+        results = [
+            dict(eigenvalues=eig, n_levels=eig.shape[-1])
+            for n, eig in enumerate(eigenvalues)
+        ]
+        occupations = section.get('occupation_numbers')
         if occupations is not None:
             occupations = np.reshape(occupations, (n_spin, n_bands, n_eigs))
             for n, occ in enumerate(occupations):
                 results[n]['occupations'] = occ
+        else:
+            fermi_energy = section.get('fermi_energy')
+            if fermi_energy is not None:
+                fermi_array = np.asarray(fermi_energy, dtype=float).reshape(-1)
+                if fermi_array.size == 1:
+                    fermi_values = [fermi_array[0]] * n_spin
+                else:
+                    fermi_values = [
+                        fermi_array[min(i, fermi_array.size - 1)] for i in range(n_spin)
+                    ]
+                for n, eig in enumerate(eigenvalues):
+                    results[n]['occupations'] = (
+                        eig.magnitude <= fermi_values[n]
+                    ).astype(float)
         return results
 
+    _configuration_methods = {
+        'self_consistent': 'single_point',
+        'bandstructure': 'single_point',
+        'bfgs_geometry_optimization': 'geometry_optimization',
+        'molecular_dynamics': 'molecular_dynamics',
+        'langevin_dynamics': 'langevin_dynamics',
+        'damped_dynamics': 'geometry_optimization',
+        'vcs_wentzcovitch_damped_minimization': 'geometry_optimization',
+    }
+
     def get_configurations(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        methods = {
-            'self_consistent': 'single_point',
-            'bandstructure': 'single_point',
-            'bfgs_geometry_optimization': 'geometry_optimization',
-            'molecular_dynamics': 'molecular_dynamics',
-            'langevin_dynamics': 'langevin_dynamics',
-            'damped_dynamics': 'geometry_optimization',
-            'vcs_wentzcovitch_damped_minimization': 'geometry_optimization',
-        }
+        methods = self._configuration_methods
 
         configurations = []
+        header = source.get('header', {}) if isinstance(source, dict) else {}
         for key in methods:
             config = source.get(key)
             if config is None:
                 continue
-            configurations.append(config.get('self_consistent', config))
+            sc_config = config.get('self_consistent', config)
+            if isinstance(sc_config, list):
+                if not sc_config:
+                    continue
+                sec = sc_config[-1]
+            else:
+                sec = sc_config
+
+            if isinstance(sec, dict):
+                if (
+                    sec.get('simulation_cell') is None
+                    and header.get('simulation_cell') is not None
+                ):
+                    sec = sec.copy()
+                    sec['simulation_cell'] = header.get('simulation_cell')
+                if (
+                    sec.get('labels_positions') is None
+                    and header.get('labels_positions') is not None
+                ):
+                    if sec is sc_config:
+                        sec = sec.copy()
+                    sec['labels_positions'] = header.get('labels_positions')
+
+            payload_target = (
+                sec if isinstance(sec, dict) else getattr(sec, 'data', None)
+            )
+            if isinstance(payload_target, dict):
+                payload_target['electronic_eigenvalues'] = self.get_eigenvalues(sec)
+                payload_target['electronic_band_structures'] = self.get_band_structures(
+                    sec
+                )
+                payload_target['electronic_dos'] = self.get_dos(sec)
+
+            configurations.append(sec)
         return configurations
+
+    def get_configuration_forces(self, source: dict[str, Any]) -> list[list[Any]]:
+        """Per-configuration force series, index-aligned with get_configurations.
+
+        Multi-step runs (geometry optimization, molecular dynamics) carry one
+        force array per SCF step; single-point configurations yield an empty
+        series since their forces are covered by the step-resolved outputs.
+        """
+        forces = []
+        for key in self._configuration_methods:
+            config = source.get(key)
+            if config is None:
+                continue
+            sc_config = config.get('self_consistent', config)
+            if isinstance(sc_config, list):
+                if not sc_config:
+                    continue
+                forces.append(
+                    [
+                        step.get('forces')
+                        for step in sc_config
+                        if hasattr(step, 'get') and step.get('forces') is not None
+                    ]
+                )
+            else:
+                forces.append([])
+        return forces
 
     def _resolve_scf_source(self, source: Any) -> Any:
         if isinstance(source, list):
@@ -135,6 +225,80 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                 'ddv_scf': ddv_scf,
             }
         return scf_steps
+
+    def get_reference_energy(self, source: dict[str, Any]) -> Any | None:
+        section = self._resolve_scf_source(source)
+        if section is None or not hasattr(section, 'get'):
+            return None
+
+        homo_lumo = section.get('homo_lumo')
+        if homo_lumo is not None:
+            homo_vals = np.asarray(homo_lumo, dtype=float).reshape(-1)
+            if homo_vals.size > 0:
+                return homo_vals[0] * ureg.eV
+
+        fermi = section.get('fermi_energy')
+        if fermi is not None:
+            fermi_vals = np.asarray(fermi, dtype=float).reshape(-1)
+            if fermi_vals.size > 0:
+                return fermi_vals[-1] * ureg.eV
+
+        return None
+
+    def get_band_structures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        reference_energy = self.get_reference_energy(source)
+        band_structures = []
+        for eigenvalues in self.get_eigenvalues(source):
+            band_structures.append(
+                dict(
+                    value=eigenvalues.get('eigenvalues'),
+                    occupation=eigenvalues.get('occupations'),
+                    n_levels=eigenvalues.get('n_levels'),
+                    spin_channel=eigenvalues.get('spin_channel'),
+                    highest_occupied=reference_energy,
+                )
+            )
+        return band_structures
+
+    # DOS payload cache: `get_dos` runs once per configuration, but the .dos
+    # sidecar files only need to be read once per mainfile.
+    _dos_cache_key: str | None = None
+    _cached_dos_payload: dict[str, Any] | None = None
+
+    def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        mainfile = getattr(self, 'filepath', None)
+        if not isinstance(mainfile, str) or not mainfile:
+            return []
+        if self._dos_cache_key != mainfile:
+            self._dos_cache_key = mainfile
+            self._cached_dos_payload = None
+            dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(mainfile))
+            for dos_file in dos_files:
+                try:
+                    data = np.loadtxt(dos_file, comments='#')
+                except Exception:
+                    continue
+                if data is None:
+                    continue
+                if data.ndim == 1 and data.size >= MIN_DOS_COLUMNS:
+                    data = data.reshape(1, -1)
+                if data.ndim == DOS_ARRAY_NDIM and data.shape[1] >= MIN_DOS_COLUMNS:
+                    energies = data[:, 0] * ureg.eV
+                    values = np.abs(data[:, 1]) / ureg.eV
+                    self._cached_dos_payload = dict(
+                        value=values,
+                        energies=dict(points=energies),
+                    )
+                    break
+
+        if self._cached_dos_payload is None:
+            return []
+
+        result = dict(self._cached_dos_payload)
+        reference_energy = self.get_reference_energy(source)
+        if reference_energy is not None:
+            result['energies_origin'] = reference_energy
+        return [result]
 
     def build_workflow(self):
         if self.data.get('bfgs_geometry_optimization') is not None:
@@ -280,6 +444,151 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
 
-    def parse_program(self, archive: EntryArchive, index: int) -> None:
+    def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)
         archive.workflow2 = self.mainfile_parser.build_workflow()
+
+        if not archive.data or not archive.data.outputs:
+            return
+
+        # TODO(mapping-migration): remove this parser-side electronic fallback once
+        # PWSCF fixtures are fully covered by mapping-driven population only.
+        # Mapping attempts tried in this iteration:
+        # 1) Outputs mappings via
+        #    ('get_eigenvalues'|'get_band_structures'|'get_dos', ['.@'])
+        # 2) Precomputing payload keys in get_configurations + direct
+        #    '.electronic_*' mappings
+        # Both attempts left electronic sections empty on current fixtures
+        # (tests/parsers/test_quantumespresso_parser.py), so we keep this as a
+        # temporary compatibility fallback.
+        if hasattr(self.mainfile_parser, 'get_eigenvalues'):
+            configurations = self.mainfile_parser.get_configurations(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if i >= len(configurations):
+                    break
+                if output.electronic_eigenvalues:
+                    continue
+
+                try:
+                    eigenvalues = self.mainfile_parser.get_eigenvalues(
+                        configurations[i]
+                    )
+                except Exception:
+                    continue
+                if not eigenvalues:
+                    continue
+
+                output.electronic_eigenvalues = [
+                    simulation_outputs.ElectronicEigenvalues(
+                        value=entry.get('eigenvalues'),
+                        occupation=entry.get('occupations'),
+                        n_levels=entry.get('n_levels'),
+                        spin_channel=entry.get('spin_channel'),
+                    )
+                    for entry in eigenvalues
+                ]
+
+            for i, output in enumerate(archive.data.outputs):
+                if output.electronic_band_structures:
+                    continue
+
+                if not output.electronic_eigenvalues:
+                    continue
+
+                config = configurations[i] if i < len(configurations) else None
+                reference_energy = (
+                    self.mainfile_parser.get_reference_energy(config)
+                    if config is not None
+                    else None
+                )
+
+                band_structures = []
+                for eigenvalues in output.electronic_eigenvalues:
+                    band_structure = simulation_outputs.ElectronicBandStructure(
+                        value=eigenvalues.value,
+                        occupation=eigenvalues.occupation,
+                        n_levels=eigenvalues.n_levels,
+                        spin_channel=eigenvalues.spin_channel,
+                    )
+
+                    if reference_energy is not None:
+                        band_structure.highest_occupied = reference_energy
+
+                    band_structures.append(band_structure)
+
+                if band_structures:
+                    output.electronic_band_structures = band_structures
+
+                if output.electronic_dos and reference_energy is not None:
+                    for dos in output.electronic_dos:
+                        if dos.energies_origin is None:
+                            dos.energies_origin = reference_energy
+
+        # TODO(mapping-migration): remove this parser-side forces fallback once
+        # per-step force payloads can be expressed via mapping annotations.
+        # `Outputs.total_forces` maps '.@', which lost the step-resolved forces
+        # when `get_configurations` started returning only the final SCF step.
+        if hasattr(self.mainfile_parser, 'get_configuration_forces'):
+            configuration_forces = self.mainfile_parser.get_configuration_forces(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if output.total_forces or i >= len(configuration_forces):
+                    continue
+                output.total_forces = [
+                    simulation_outputs.TotalForce(value=value)
+                    for value in configuration_forces[i]
+                ]
+
+        dos_files = search_files(
+            pattern='*.dos', basedir=os.path.dirname(self.mainfile)
+        )
+        if not dos_files:
+            return
+
+        dos_data = None
+        for dos_file in dos_files:
+            try:
+                data = np.loadtxt(dos_file, comments='#')
+            except Exception:
+                continue
+            if data is None:
+                continue
+            if data.ndim == 1 and data.size >= MIN_DOS_COLUMNS:
+                data = data.reshape(1, -1)
+            if data.ndim == DOS_ARRAY_NDIM and data.shape[1] >= MIN_DOS_COLUMNS:
+                dos_data = data
+                break
+
+        if dos_data is None:
+            return
+
+        energies = dos_data[:, 0] * ureg.eV
+        values = np.abs(dos_data[:, 1]) / ureg.eV
+        for output in archive.data.outputs:
+            if output.electronic_dos:
+                continue
+            output.electronic_dos = [
+                simulation_outputs.ElectronicDensityOfStates(
+                    value=values,
+                    energies=simulation_variables.Energy2(points=energies),
+                )
+            ]
+
+        if hasattr(self.mainfile_parser, 'get_configurations'):
+            configurations = self.mainfile_parser.get_configurations(
+                self.mainfile_parser.data
+            )
+            for i, output in enumerate(archive.data.outputs):
+                if i >= len(configurations) or not output.electronic_dos:
+                    continue
+                reference_energy = self.mainfile_parser.get_reference_energy(
+                    configurations[i]
+                )
+                if reference_energy is None:
+                    continue
+                for dos in output.electronic_dos:
+                    if dos.energies_origin is None:
+                        dos.energies_origin = reference_energy

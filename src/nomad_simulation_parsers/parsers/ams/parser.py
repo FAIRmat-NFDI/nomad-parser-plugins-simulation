@@ -26,13 +26,18 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+    link_outputs_to_model_systems,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages import ams
 
 from .file_parser import OutParser
 from .file_parser import RKFParser as RKFTextParser
 
 LOGGER = get_logger(__name__)
+MIN_TUPLE_FIELDS = 3
 
 
 class MainfileParser(TextParser):
@@ -52,6 +57,30 @@ class MainfileParser(TextParser):
                 )
         return xc_functionals
 
+    def get_periodic_boundary_conditions(
+        self, source: dict[str, Any] | Any
+    ) -> list[bool] | None:
+        non_periodic = [False, False, False]
+        lattice_vectors = (
+            source.get('lattice_vectors') if isinstance(source, dict) else source
+        )
+        if lattice_vectors is None:
+            return non_periodic
+        if hasattr(lattice_vectors, 'magnitude'):
+            lattice_vectors = lattice_vectors.magnitude
+
+        vectors = np.asarray(lattice_vectors)
+        if vectors.size == 0:
+            return non_periodic
+
+        if vectors.ndim == 1:
+            # Accept flattened lattice payloads.
+            n_vectors = min(vectors.shape[0] // 3, 3)
+        else:
+            n_vectors = min(vectors.shape[0], 3)
+
+        return [idx < n_vectors for idx in range(3)]
+
     def get_contributions(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         return [
             dict(name=key, value=val) for key, val in source.items() if val is not None
@@ -60,10 +89,18 @@ class MainfileParser(TextParser):
     def get_eigenvalues(
         self, source: dict[str, Any] | list[np.ndarray]
     ) -> list[dict[str, np.ndarray]]:
-        energies = source.get('energies', []) if isinstance(source, dict) else []
-        occupations = (
-            source.get('occupations', []) if isinstance(source, dict) else source[2]
-        )
+        if source is None:
+            return []
+
+        if isinstance(source, dict):
+            energies = source.get('energies', [])
+            occupations = source.get('occupations', [])
+        else:
+            if not isinstance(source, tuple | list) or len(source) < MIN_TUPLE_FIELDS:
+                return []
+            energies = []
+            occupations = source[2]
+
         nspin = max(len(energies), len(occupations))
         eigenvalues = [dict() for _ in range(nspin)]
         for n, energy in enumerate(energies):
@@ -71,6 +108,86 @@ class MainfileParser(TextParser):
         for n, occupations in enumerate(occupations):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
+
+    def get_band_gaps(self, source: Any) -> list[dict[str, Any]]:  # noqa: PLR0912
+        if source is None:
+            return []
+
+        if hasattr(source, 'get'):
+            value = source.get('value')
+            if value is None:
+                homo = source.get('energy_highest_occupied')
+                lumo = source.get('energy_lowest_unoccupied')
+                if homo is not None and lumo is not None:
+                    value = lumo - homo
+            if value is None:
+                return []
+
+            if hasattr(value, 'magnitude'):
+                if value.magnitude < 0:
+                    value = 0 * value.units
+            else:
+                value = max(0.0, value)
+
+            band_gap = {'value': value}
+            spin_channel = source.get('spin_channel')
+            if spin_channel is not None:
+                band_gap['spin_channel'] = spin_channel
+            return [band_gap]
+
+        # Fallback for parsed tuple/list payload used by AMS band-energy ranges.
+        # Expected form: (energies, ..., occupations) with spin channels separated.
+        if not isinstance(source, tuple | list) or len(source) < MIN_TUPLE_FIELDS:
+            return []
+
+        energies_channels = source[0] if isinstance(source[0], list) else []
+        occupations_channels = source[2] if isinstance(source[2], list) else []
+        if not energies_channels or not occupations_channels:
+            return []
+
+        band_gaps = []
+        for spin_channel, energies_entry in enumerate(energies_channels):
+            if spin_channel >= len(occupations_channels):
+                continue
+            occupation_data = occupations_channels[spin_channel]
+            if not isinstance(occupation_data, list) or not occupation_data:
+                continue
+            occupations = np.asarray(occupation_data[0], dtype=float)
+            energies = np.asarray(energies_entry, dtype=float)
+            if (
+                energies.size == 0
+                or occupations.size == 0
+                or energies.shape != occupations.shape
+            ):
+                continue
+
+            # Use common utility for band gap calculation
+            gap = calculate_band_gap_from_occupations(energies, occupations)
+            if gap is not None:
+                # Override spin channel from utility with AMS channel index
+                gap['spin_channel'] = spin_channel
+                band_gaps.append(gap)
+        return band_gaps
+
+    def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if source is None:
+            return []
+
+        if not isinstance(source, dict):
+            return []
+
+        dos = source.get('dos')
+        if dos is None:
+            return []
+
+        dos_dimensions = 2
+        minimum_dos_columns = 2
+        dos = np.asarray(dos)
+        if dos.ndim != dos_dimensions or dos.shape[1] < minimum_dos_columns:
+            return []
+
+        energies = dos[:, 0]
+        return [dict(energies=energies, value=values) for values in dos[:, 1:].T]
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         self_consistency = source.get('self_consistency', {})
@@ -83,7 +200,10 @@ class MainfileParser(TextParser):
 
         scf_options = source.get('scf_options')
         code_specific_quantities = {}
-        if hasattr(scf_options, 'get'):
+        if scf_options is not None:
+            if not isinstance(scf_options, dict):
+                return scf_steps
+
             n_scf_steps_max = scf_options.get('x_ams_ncyclx')
             convrg = scf_options.get('x_ams_convrg')
             if n_scf_steps_max is not None:
@@ -98,9 +218,11 @@ class MainfileParser(TextParser):
 
     def _get_scf_energy_threshold(self, source: dict[str, Any]):
         scf_options = source.get('scf_options')
-        if not hasattr(scf_options, 'get'):
+        if scf_options is None:
             return None
-        convrg = scf_options.get('x_ams_convrg')
+        convrg = (
+            scf_options.get('x_ams_convrg') if hasattr(scf_options, 'get') else None
+        )
         if convrg is None:
             return None
         return float(convrg) * ureg.hartree
@@ -191,6 +313,8 @@ class AMSArchiveWriter(ArchiveWriter):
             self.parser.data_object.parse()
 
         self.parser.convert(self.metainfo_parser)
+        link_outputs_to_model_systems(self.archive.data)
+
         self.archive.workflow2 = self.parser.build_workflow(self.parser.data)
 
 

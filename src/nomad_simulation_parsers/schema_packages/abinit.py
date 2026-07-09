@@ -4,6 +4,7 @@ from nomad_simulations.schema_packages import (
     model_method,
     model_system,
     outputs,
+    variables,
     workflow,
 )
 
@@ -45,6 +46,11 @@ class Representation(model_system.Representation):
         OUT_KEY,
         'dataset[0].x_abinit_vprim',
         unit='bohr',
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['dataset[0].x_abinit_vprim']),
     )
 
 
@@ -95,11 +101,35 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
     )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1 / hartree'
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(
+        variables.Energy2.points, DOS_KEY, '.energies', unit='hartree'
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(
         outputs.ElectronicBandStructure.value, OUT_KEY, '.energies', unit='hartree'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, OUT_KEY, '.occupations'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, OUT_KEY, '.value', unit='hartree'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
     )
 
 
@@ -114,6 +144,11 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_band_structures,
         OUT_KEY,
         ('get_bandstructures', ['.eigenvalues', '.occupation_numbers']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        OUT_KEY,
+        ('get_band_gaps', ['.eigenvalues', '.occupation_numbers']),
     )
 
 
@@ -144,6 +179,7 @@ class Simulation(general.Simulation):
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '.@')
+add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 try:

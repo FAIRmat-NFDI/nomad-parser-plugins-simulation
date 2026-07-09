@@ -6,6 +6,7 @@ from nomad_simulations.schema_packages import (
     model_method,
     model_system,
     outputs,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -25,6 +26,11 @@ class AtomsState(model_system.AtomsState):
 
 class Representation(model_system.Representation):
     add_mapping_annotation(model_system.Representation.lattice_vectors, OUT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -57,13 +63,15 @@ class ModelSystem(model_system.ModelSystem):
 #     )
 
 
-# class TotalEnergy(outputs.TotalEnergy):
-#     outputs.TotalEnergy.value.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.value || .energy_total')))
-#     outputs.TotalEnergy.contributions.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper=('get_contributions', ['.energies']))))
+class TotalEnergy(outputs.TotalEnergy):
+    add_mapping_annotation(
+        outputs.TotalEnergy.value, OUT_KEY, '.value || .energy_total'
+    )
+    add_mapping_annotation(
+        outputs.TotalEnergy.contributions,
+        OUT_KEY,
+        ('get_contributions', ['.energies']),
+    )
 
 
 class TotalForce(outputs.TotalForce):
@@ -80,9 +88,9 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     )
 
     # class Outputs(outputs.Outputs):
-    #     outputs.Outputs.total_energies.m_annotations.setdefault(
-    #         MAPPING_ANNOTATION_KEY, {}
-    #     ).update(dict(out=Mapper(mapper='.@')))
+    outputs.Outputs.total_energies.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.@')))
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper='.@')))
@@ -98,6 +106,41 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     outputs.Outputs.scf_steps.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
+    outputs.Outputs.electronic_band_gaps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=(
+                    'get_band_gaps',
+                    ['.band_gap || .band_gap_info || .band_energy_ranges'],
+                )
+            )
+        )
+    )
+    outputs.Outputs.electronic_dos.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_dos', ['.total_dos']))))
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, OUT_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
+class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
+    )
+    add_mapping_annotation(variables.Energy2.m_def, OUT_KEY, '.@')
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(
+        variables.Energy2.points, OUT_KEY, '.energies', unit='hartree'
+    )
 
 
 class Simulation(general.Simulation):
