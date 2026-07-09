@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Structural additivity check between two syrupy ``.ambr`` snapshot files.
 
-The migration invariant guarded here is that parser output must never *lose*
-archive data. Compared against the pre-migration baseline, the current output
-may gain properties and may change how a value is represented, but every piece
-of data that existed before must still be present.
+The invariant guarded here is that parser output must never *lose* archive data.
+Compared against the target (baseline) ref, the source (current) ref may gain
+properties and may change how a value is represented, but every piece of data
+that existed in the target must still be present.
 
 The check works in four stages, mirrored by the sections below:
 
@@ -185,9 +185,11 @@ def main() -> int:
 
     print()
     if total_removed:
-        print(f'FAIL: {total_removed} leaves removed relative to baseline (data loss).')
+        print(
+            f'FAIL: {total_removed} leaves removed relative to the target (data loss).'
+        )
         return 1
-    print('PASS: no archive data removed relative to baseline.')
+    print('PASS: no archive data removed relative to the target.')
     return 0
 
 
