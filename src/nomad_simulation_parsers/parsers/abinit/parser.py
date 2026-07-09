@@ -622,19 +622,11 @@ class MainfileParser(TextParser):
 
         return [
             EnergyConvergenceTarget(
-<<<<<<< HEAD
                 threshold=tolmxde * ureg.hartree,
                 threshold_type='absolute',
             ),
             ForceConvergenceTarget(
                 threshold=tolmxf * ureg.hartree / ureg.bohr,
-=======
-                threshold=tolmxde,
-                threshold_type='relative',
-            ),
-            ForceConvergenceTarget(
-                threshold=tolmxf,
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
                 threshold_type='maximum',
             ),
         ]
@@ -678,7 +670,6 @@ class MainfileParser(TextParser):
             scf_steps['code_specific_quantities'] = extra_columns
         return scf_steps
 
-<<<<<<< HEAD
     def get_band_gaps(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
@@ -702,8 +693,6 @@ class MainfileParser(TextParser):
 
         return gaps
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
 
 class DosParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -743,7 +732,6 @@ class AbinitArchiveWriter(ArchiveWriter):
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
-<<<<<<< HEAD
 
             # Set optimization type based on optcell parameter
             optcell = self.mainfile_parser.get_input_var('optcell', 1, [0])[0]
@@ -755,22 +743,12 @@ class AbinitArchiveWriter(ArchiveWriter):
                 workflow.method.optimization_type = 'cell_shape'
 
             convergence = self.mainfile_parser.get_geometry_convergence()
-=======
-            convergence = self.mainfile_parser.get_geometry_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             workflow = MolecularDynamics()
         else:
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
             convergence = self.mainfile_parser.get_single_point_convergence()
-<<<<<<< HEAD
-=======
-            if convergence:
-                workflow.method.convergence_targets = convergence
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         self.archive.workflow2 = workflow
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2

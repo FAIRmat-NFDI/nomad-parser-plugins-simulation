@@ -190,11 +190,11 @@ class GPWParser(MappingParser):
 
     def get_scf_steps(self) -> dict[str, Any]:
         code_specific_quantities = {}
-        converged = self.file_parser.parser.get_parameter('converged')
+        converged = self.data_object.parser.get_parameter('converged')
         if converged is not None:
             code_specific_quantities['converged'] = bool(converged)
 
-        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        energy_error = self.data_object.parser.get_parameter('energyerror')
         if energy_error is not None:
             code_specific_quantities['energyerror'] = float(energy_error)
 
@@ -205,11 +205,11 @@ class GPWParser(MappingParser):
     def build_workflow(self):
         workflow = SinglePoint()
         workflow.method = SinglePointMethod()
-        energy_error = self.file_parser.parser.get_parameter('energyerror')
+        energy_error = self.data_object.parser.get_parameter('energyerror')
         if energy_error is not None:
             workflow.method.convergence_targets = [
                 EnergyConvergenceTarget(
-                    threshold=self.file_parser.apply_unit(energy_error, 'energyunit'),
+                    threshold=self.data_object.apply_unit(energy_error, 'energyunit'),
                     threshold_type='absolute',
                 )
             ]

@@ -119,6 +119,16 @@ class SCFSteps(outputs.SCFSteps):
         XML_KEY,
         ('get_scf_steps', ['.@']),
     )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        OUT_KEY,
+        '.electronic_band_structures',
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        OUT_KEY,
+        '.electronic_dos',
+    )
 
 
 class SCFSteps(outputs.SCFSteps):

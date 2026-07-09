@@ -157,6 +157,26 @@ add_mapping_annotations(
     ),
 )
 
+
+add_mapping_annotations(
+    (outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'),
+)
+add_mapping_annotation(
+    outputs.ElectronicBandGap.value,
+    EIGVAL_KEY,
+    '.value',
+    unit='eV',
+)
+
+add_mapping_annotation(
+    variables.Energy2.points,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@e"']),
+    unit='hartree',
+)
+
+add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
+
 ###### TODO read unit from axis
 add_mapping_annotation(
     outputs.ElectronicDensityOfStates.value,

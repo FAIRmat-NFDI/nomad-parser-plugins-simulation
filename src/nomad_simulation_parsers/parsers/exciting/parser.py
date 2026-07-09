@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -277,7 +276,6 @@ class InfoParser(TextParser):
                 out[name] = values
         return out
 
-<<<<<<< HEAD
     def get_fermi_energy(self, source: dict[str, Any]) -> Any:
         """Resolve Fermi energy from INFO payload (legacy-equivalent source)."""
         if source is None:
@@ -298,8 +296,6 @@ class InfoParser(TextParser):
                 return fermi
         return None
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
 
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -475,13 +471,7 @@ class EigvalParser(TextParser):
 
 
 class ExcitingArchiveWriter(ArchiveWriter):
-<<<<<<< HEAD
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
-=======
-    def write_to_archive(self) -> None:  # noqa: PLR0915
-        reload(exciting)
-
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
 
@@ -550,7 +540,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         self.archive.data = data_parser.data_object
 
-<<<<<<< HEAD
         # Apply legacy-equivalent Fermi reference shift to electronic spectra.
         fermi_energy = info_parser.get_fermi_energy(info_parser.data)
         if fermi_energy is not None:
@@ -567,8 +556,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
                     if dos.energies_origin is None:
                         dos.energies_origin = fermi_energy
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         # workflow section
         # populate geometry optimization if present
         if info_parser.text_parser.has_geometry_optimization():
@@ -591,12 +578,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # - Modify mapper to detect and handle object instances
             # - Change parser methods to return dicts that mapper can transform
             # - Keep manual population (current approach - clearer and more explicit)
-<<<<<<< HEAD
             #
             # Keep this after info_parser.convert(); see the
             # `add_mapping_annotation` docstring for why the ordering matters.
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
             source_data = info_parser.data
             if source_data:
                 convergence_targets = info_parser.get_geometry_convergence(source_data)

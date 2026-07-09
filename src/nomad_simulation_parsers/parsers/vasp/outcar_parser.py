@@ -501,6 +501,7 @@ class OutcarParser(MappingTextParser):
 
     def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
         return get_xc_functionals(parameters)
+<<<<<<< HEAD
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
@@ -562,6 +563,8 @@ class OutcarParser(MappingTextParser):
 
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
+=======
+>>>>>>> fd709ef (Migration of fundamental system and electronic properties for normalization to results (#170))
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
@@ -597,6 +600,32 @@ class OutcarParser(MappingTextParser):
         if len(durations) == len(energies_total):
             scf_steps['durations'] = durations
         return scf_steps
+
+    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
+        if ions is None or species is None:
+            return []
+        if hasattr(ions, 'tolist'):
+            ions = ions.tolist()
+        if hasattr(species, 'tolist'):
+            species = species.tolist()
+        if len(ions) != len(species):
+            return []
+        atoms = []
+        for n_ions, species_info in zip(ions, species):
+            if (
+                not isinstance(species_info, str)
+                and hasattr(species_info, '__len__')
+                and len(species_info) > 1
+            ):
+                symbol = species_info[1]
+            else:
+                symbol = species_info
+            symbol = str(symbol).strip()
+            atoms.extend({'label': symbol} for _ in range(int(n_ions)))
+        return atoms
+
+    def get_periodic_boundary_conditions(self) -> list[bool]:
+        return [True, True, True]
 
 
 class OutcarArchiveWriter(ArchiveWriter):

@@ -109,7 +109,6 @@ class MainfileParser(TextParser):
             eigenvalues[n]['occupations'] = occupations
         return [eig for eig in eigenvalues if eig]
 
-<<<<<<< HEAD
     def get_band_gaps(self, source: Any) -> list[dict[str, Any]]:  # noqa: PLR0912
         if source is None:
             return []
@@ -190,8 +189,6 @@ class MainfileParser(TextParser):
         energies = dos[:, 0]
         return [dict(energies=energies, value=values) for values in dos[:, 1:].T]
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         self_consistency = source.get('self_consistency', {})
         energy_change = self_consistency.get('energy_change')
@@ -203,14 +200,10 @@ class MainfileParser(TextParser):
 
         scf_options = source.get('scf_options')
         code_specific_quantities = {}
-<<<<<<< HEAD
         if scf_options is not None:
             if not isinstance(scf_options, dict):
                 return scf_steps
 
-=======
-        if hasattr(scf_options, 'get'):
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
             n_scf_steps_max = scf_options.get('x_ams_ncyclx')
             convrg = scf_options.get('x_ams_convrg')
             if n_scf_steps_max is not None:
@@ -225,17 +218,11 @@ class MainfileParser(TextParser):
 
     def _get_scf_energy_threshold(self, source: dict[str, Any]):
         scf_options = source.get('scf_options')
-<<<<<<< HEAD
         if scf_options is None:
             return None
         convrg = (
             scf_options.get('x_ams_convrg') if hasattr(scf_options, 'get') else None
         )
-=======
-        if not hasattr(scf_options, 'get'):
-            return None
-        convrg = scf_options.get('x_ams_convrg')
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         if convrg is None:
             return None
         return float(convrg) * ureg.hartree
@@ -326,11 +313,8 @@ class AMSArchiveWriter(ArchiveWriter):
             self.parser.data_object.parse()
 
         self.parser.convert(self.metainfo_parser)
-<<<<<<< HEAD
         link_outputs_to_model_systems(self.archive.data)
 
-=======
->>>>>>> 2bebd7c (Schema update convergence targets (#150))
         self.archive.workflow2 = self.parser.build_workflow(self.parser.data)
 
 
