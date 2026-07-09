@@ -61,7 +61,7 @@ generate () {  # <sha> <out.ambr> <worktree-name>
 
 TARGET_SHA="$(resolve "$TARGET_REF")"
 SOURCE_SHA="$(resolve "$SOURCE_REF")"
-echo "source ${SOURCE_REF} (${SOURCE_SHA})  ->  target ${TARGET_REF} (${TARGET_SHA})"
+echo "comparing source ${SOURCE_REF} (${SOURCE_SHA}) against target ${TARGET_REF} (${TARGET_SHA})"
 
 generate "$TARGET_SHA" "$TARGET_AMBR" target
 generate "$SOURCE_SHA" "$SOURCE_AMBR" source

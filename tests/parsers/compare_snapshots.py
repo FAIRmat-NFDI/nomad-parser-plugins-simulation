@@ -106,6 +106,10 @@ def flatten(
     elif isinstance(obj, list):
         for index, value in enumerate(obj):
             flatten(value, f'{path}[{index}]', out)
+    elif obj is None and path == '':
+        # A wholly-empty archive (archive.data is None) has no leaves, so a
+        # None-vs-populated pair reads as purely additive, not a removal.
+        pass
     else:
         out[path] = obj
     return out
