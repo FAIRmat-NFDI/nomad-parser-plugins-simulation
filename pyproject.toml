@@ -90,6 +90,10 @@ line-length = 88
 indent-width = 4
 
 [tool.uv]
+# The MPCDF GitLab registry carries the nomad-lab pre-releases that include the
+# mapping-parser fixes (e.g. deterministic inheriting-section resolution needed
+# for the CHGCAR `update_mode='append'`). Public PyPI only has stable nomad-lab
+# (<=1.4.2), which lacks them, so it must be the primary index here.
 index-url = "https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple"
 build-constraint-dependencies = ["wheel<0.46"]
 

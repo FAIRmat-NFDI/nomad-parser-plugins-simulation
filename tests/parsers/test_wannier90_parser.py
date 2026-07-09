@@ -1,3 +1,7 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
@@ -10,10 +14,134 @@ from nomad_simulation_parsers.parsers.wannier90.parser import (
 LOGGER = get_logger(__name__)
 
 
+@pytest.fixture
+def parsed_archive():
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+    return archive
+
+
 def test_parse_file():
     parser = Wannier90Parser()
     archive = EntryArchive()
     parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+
+
+def test_electronic_outputs_mapping():
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+    if output.electronic_dos:
+        sec_dos = output.electronic_dos[0]
+        assert sec_dos.value is not None
+        assert sec_dos.energies is not None
+        assert sec_dos.energies.points is not None
+        assert sec_dos.energies_origin is not None
+
+    if output.electronic_band_structures:
+        sec_band_structure = next(
+            (
+                sec
+                for sec in output.electronic_band_structures
+                if getattr(sec, 'value', None) is not None
+            ),
+            output.electronic_band_structures[0],
+        )
+        assert sec_band_structure.value is not None
+        assert sec_band_structure.highest_occupied is not None
+
+    # Legacy parity: no explicit electronic_band_gaps section for Wannier90.
+    assert output.electronic_band_gaps is None or len(output.electronic_band_gaps) == 0
+
+
+def test_system_fundamental_quantities_mapping(parsed_archive):
+    """System gate for core model_system quantities used by normalizer."""
+    simulation = parsed_archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+
+    if representative.particle_states:
+        assert all(
+            getattr(state, 'chemical_symbol', None) is not None
+            for state in representative.particle_states
+        )
+
+
+def test_outputs_contract_for_normalizer(parsed_archive):
+    """Outputs gate for normalizer-required mapped payloads."""
+    outputs = parsed_archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+
+    # Wannier90 outputs should provide at least one normalizer-relevant payload.
+    assert (
+        output.hopping_matrices
+        or output.crystal_field_splittings
+        or output.electronic_dos
+        or output.electronic_band_structures
+    )
+
+    if output.electronic_dos:
+        dos = output.electronic_dos[0]
+        assert dos.value is not None
+        assert dos.energies is not None
+        assert dos.energies.points is not None
+        assert dos.energies_origin is not None
+
+    if output.electronic_band_structures:
+        band_structure = next(
+            (
+                sec
+                for sec in output.electronic_band_structures
+                if getattr(sec, 'value', None) is not None
+            ),
+            output.electronic_band_structures[0],
+        )
+        assert band_structure.value is not None
+        assert band_structure.highest_occupied is not None
+        if band_structure.k_path is not None:
+            assert getattr(band_structure.k_path, 'points', None) is not None
+
+
+def test_root_test_data_wannier90_zip_maps_band_structure():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / '1band-wannier90.zip'
+    if not zip_path.is_file():
+        pytest.skip(
+            '1band-wannier90.zip fixture not available in repository root test_data.'
+        )
+
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+        parser.parse(str(Path(tmpdir) / '1band.wout'), archive, LOGGER)
+
+    output = archive.data.outputs[0]
+    assert output.electronic_band_structures is not None
+    assert len(output.electronic_band_structures) > 0
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+    if band_structure.k_path is not None:
+        assert getattr(band_structure.k_path, 'points', None) is not None
 
 
 class TestWannierQuantumNumberMapping:

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
+import os
 import re
 
 import numpy as np
@@ -26,9 +27,13 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 )
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import vasp
 
 from .chgcar_parser import CHGCARParser
+from .common import get_xc_functionals
 
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
@@ -337,49 +342,6 @@ class OutcarTextParser(TextParser):
 
 
 class OutcarParser(MappingTextParser):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.xc_functional_mapping = {
-            '--': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'HL': ['LDA_C_HL'],
-            'WI': ['LDA_C_WIGNER'],
-            'PZ': ['LDA_C_PZ'],
-            '91': ['GGA_X_PW91', 'GGA_C_PW91'],
-            'PE': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
-            'RE': ['GGA_X_PBE_R'],
-            'VW': ['LDA_C_VWN'],
-            'RP': ['GGA_X_RPBE', 'GGA_C_PBE'],
-            'PS': ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
-            'AM': ['GGA_X_AM05', 'GGA_C_AM05'],
-            'B3': ['HYB_GGA_XC_B3LYP3'],
-            'B5': ['HYB_GGA_XC_B3LYP5'],
-            'BF': ['GGA_X_BEEFVDW', 'GGA_XC_BEEFVDW'],
-            'CO': [],  # TODO check if this is ever used
-            'OR': ['GGA_X_OPTPBE_VDW'],
-            'BO': ['GGA_X_OPTB88_VDW'],
-            'MK': ['GGA_X_OPTB86B_VDW'],
-            'ML': ['VDW_XC_DF2'],
-            'CX': ['VDW_XC_DF_CX'],
-            'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
-            'RTPSS': ['MGGA_X_RTPSS'],
-            'M06L': ['MGGA_C_M06_L'],
-            'MS0': ['MGGA_X_MS0'],
-            'MS1': ['MGGA_X_MS1'],
-            'MS2': ['MGGA_X_MS2'],
-            'SCAN': ['MGGA_X_SCAN'],
-            'RSCAN': ['MGGA_X_RSCAN', 'MGGA_C_RSCAN'],
-            'R2SCAN': ['MGGA_X_R2SCAN', 'MGGA_C_R2SCAN'],
-            'SCANL': ['MGGA_X_SCANL', 'MGGA_C_SCANL'],
-            'RSCANL': [],  # not in LibXC, nor any paper, just deorbitalized SCANL
-            'R2SCANL': ['MGGA_X_R2SCANL', 'MGGA_C_R2SCANL'],
-            'OFR2': [],
-            'MBJ': ['MGGA_X_BJ06'],
-            'LBMJ': [],  # TODO ask Miguel Marquez
-            'HLE17': ['MGGA_XC_HLE17'],  # TODO check if this is ever used
-            'RA': ['LDA_C_PW_RPA'],  # TODO check if this is ever used
-        }
-
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -422,6 +384,7 @@ class OutcarParser(MappingTextParser):
     def get_eigenvalues(
         self, eigenvalues: np.ndarray, parameters: dict[str, Any]
     ) -> list[dict[str, Any]]:
+        n_spin_channels = 2
         ispin = parameters.get('ISPIN', 1)
         n_kpts = len(eigenvalues) // ispin
         n_bands = len(eigenvalues[0]) // 3
@@ -429,57 +392,115 @@ class OutcarParser(MappingTextParser):
         data = []
         for nspin in range(ispin):
             eigs, occs = eigenvalues[nspin].T[1:3]
-            data.append(
-                dict(
-                    eigenvalues=eigs.T,
-                    occupations=occs.T,
-                    n_bands=n_bands,
-                    npoints=n_kpts,
-                )
+            entry = dict(
+                value=eigs.T,
+                occupation=occs.T,
+                n_levels=n_bands,
             )
+            if ispin == n_spin_channels:
+                entry['spin_channel'] = nspin
+            data.append(entry)
         return data
 
-    def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
-        xc_functionals = []
-        if parameters.get('LHFCALC', False):
-            hfscreen_06, hfscreen_03 = 0.2, 0.3
-            aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
-            xc_functional = {}
-            gga = parameters.get('GGA', 'PE')
-            aexx = parameters.get('AEXX', 0.0)
-            aggax = parameters.get('AGGAX', 1.0)
-            aggac = parameters.get('AGGAC', 1.0)
-            aldac = parameters.get('ALDAC', 1.0)
-            hfscreen = parameters.get('HFSCREEN', 0.0)
+    def get_band_gaps(
+        self, eigenvalues: np.ndarray, parameters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues using common utility."""
+        band_gaps = []
+        for eig in self.get_eigenvalues(eigenvalues, parameters):
+            values = eig.get('value')
+            occupations = eig.get('occupation')
+            spin_channel = eig.get('spin_channel')
 
-            if hfscreen == hfscreen_06:
-                xc_functional['name'] = 'HYB_GGA_XC_HSE06'
-            elif hfscreen == hfscreen_03:
-                xc_functional['name'] = 'HYB_GGA_XC_HSE03'
-            elif (
-                gga == 'B3'
-                and aexx == aexx_b3
-                and aggax == aggax_b3
-                and aggac == aggac_b3
-                and aldac == aldac_b3
-            ):
-                xc_functional['name'] = 'HYB_GGA_XC_B3LYP3'
-            elif aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
-                xc_functional['name'] = 'HF_X'
-            elif gga == 'PE':
-                xc_functional['name'] = 'HYB_GGA_XC_PBEH'
-            else:
-                xc_functional['name'] = f'HYB_GGA_XC_{gga}'
-            xc_functionals.append(xc_functional)
-        else:
-            metagga = parameters.get('METAGGA')
-            if metagga:
-                functionals = self.xc_functional_mapping.get(metagga, [metagga])
-            else:
-                functionals = self.xc_functional_mapping.get(parameters.get('GGA'), [])
-            for functional in functionals:
-                xc_functionals.append({'name': functional})
-        return xc_functionals
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                values, occupations, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                band_gaps.append(gap_result)
+
+        return band_gaps
+
+    def get_total_dos(self) -> list[dict[str, Any]]:  # noqa: PLR0911
+        min_doscar_lines = 7
+        min_dos_header_columns = 4
+        spin_polarized_dos_columns = 5
+        min_dos_columns = 2
+        maindir = os.path.dirname(self.filepath)
+        outcar_suffix = os.path.basename(self.filepath).removeprefix('OUTCAR')
+        doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
+        doscar_path = (
+            doscar_candidate
+            if os.path.isfile(doscar_candidate)
+            else os.path.join(maindir, 'DOSCAR')
+        )
+        if not os.path.isfile(doscar_path):
+            return []
+
+        try:
+            with open(doscar_path) as f:
+                lines = f.readlines()
+        except Exception:
+            return []
+
+        if len(lines) < min_doscar_lines:
+            return []
+
+        header = lines[5].split()
+        if len(header) < min_dos_header_columns:
+            return []
+
+        try:
+            n_points = int(float(header[2]))
+            e_fermi = float(header[3])
+        except Exception:
+            return []
+
+        dos_rows = []
+        for line in lines[6 : 6 + n_points]:
+            vals = line.split()
+            if not vals:
+                continue
+            try:
+                dos_rows.append([float(v) for v in vals])
+            except Exception:
+                continue
+        if not dos_rows:
+            return []
+
+        dos_data = np.asarray(dos_rows, dtype=float)
+        n_cols = dos_data.shape[1]
+        energies = dos_data[:, 0]
+
+        if n_cols >= spin_polarized_dos_columns:
+            return [
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 1]),
+                    spin_channel=0,
+                    energy_fermi=e_fermi,
+                ),
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 2]),
+                    spin_channel=1,
+                    energy_fermi=e_fermi,
+                ),
+            ]
+
+        if n_cols >= min_dos_columns:
+            return [
+                dict(
+                    energies=energies,
+                    value=np.abs(dos_data[:, 1]),
+                    energy_fermi=e_fermi,
+                )
+            ]
+
+        return []
+
+    def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
+        return get_xc_functionals(parameters)
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
@@ -515,6 +536,32 @@ class OutcarParser(MappingTextParser):
         if len(durations) == len(energies_total):
             scf_steps['durations'] = durations
         return scf_steps
+
+    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
+        if ions is None or species is None:
+            return []
+        if hasattr(ions, 'tolist'):
+            ions = ions.tolist()
+        if hasattr(species, 'tolist'):
+            species = species.tolist()
+        if len(ions) != len(species):
+            return []
+        atoms = []
+        for n_ions, species_info in zip(ions, species):
+            if (
+                not isinstance(species_info, str)
+                and hasattr(species_info, '__len__')
+                and len(species_info) > 1
+            ):
+                symbol = species_info[1]
+            else:
+                symbol = species_info
+            symbol = str(symbol).strip()
+            atoms.extend({'label': symbol} for _ in range(int(n_ions)))
+        return atoms
+
+    def get_periodic_boundary_conditions(self) -> list[bool]:
+        return [True, True, True]
 
 
 class OutcarArchiveWriter(ArchiveWriter):

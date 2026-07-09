@@ -14,6 +14,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    variables,
     workflow,
 )
 
@@ -68,6 +69,8 @@ class Simulation(general.Simulation):
                     'energy_components',
                     'forces',
                     'eigenvalues',
+                    'humo',
+                    'lumo',
                     'self_consistency',
                 ]
             ),
@@ -125,6 +128,11 @@ class Representation(model_system.Representation):
     add_mapping_annotation(
         model_system.Representation.lattice_vectors, TEXT_KEY, '.lattice_vectors'
     )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        TEXT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class AtomsState(model_system.AtomsState):
@@ -132,9 +140,9 @@ class AtomsState(model_system.AtomsState):
 
 
 class Outputs(outputs.Outputs):
-    # outputs.Outputs.total_energies.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(text=Mapper(mapper=('get_energies', ['.@']))))
+    add_mapping_annotation(
+        outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
+    )
     outputs.Outputs.total_forces.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
@@ -156,6 +164,11 @@ class Outputs(outputs.Outputs):
         ('get_eigenvalues', ['.eigenvalues', 'array_size_parameters']),
     )
     add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        TEXT_KEY,
+        ('get_band_structures', ['.eigenvalues', 'array_size_parameters']),
+    )
+    add_mapping_annotation(
         outputs.Outputs.electronic_dos,
         TEXT_DOS_KEY,
         (
@@ -166,6 +179,11 @@ class Outputs(outputs.Outputs):
                 '.species_projected_dos_files',
             ],
         ),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        TEXT_KEY,
+        ('get_band_gaps', ['.@']),
     )
     add_mapping_annotation(
         outputs.Outputs.scf_steps,
@@ -215,6 +233,16 @@ class ElectronicEigenvalues(properties.ElectronicEigenvalues):
     ).update(dict(text=Mapper(mapper='.occupations')))
 
 
+class ElectronicBandStructure(properties.ElectronicBandStructure):
+    add_mapping_annotation(properties.ElectronicBandStructure.value, TEXT_KEY, '.value')
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.occupation, TEXT_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        properties.ElectronicBandStructure.spin_channel, TEXT_KEY, '.spin_channel'
+    )
+
+
 class DOSProfile(properties.spectral_profile.DOSProfile):
     ### dos quantities
     add_mapping_annotation(
@@ -233,6 +261,20 @@ class ElectronicDensityOfStates(properties.spectral_profile.ElectronicDensityOfS
         properties.spectral_profile.ElectronicDensityOfStates.projected_dos,
         TEXT_DOS_KEY,
         '.projected_dos',
+    )
+    add_mapping_annotation(variables.Energy2.m_def, TEXT_DOS_KEY, '.@')
+
+
+class ElectronicBandGap(properties.ElectronicBandGap):
+    add_mapping_annotation(properties.ElectronicBandGap.value, TEXT_KEY, '.value')
+    add_mapping_annotation(
+        properties.ElectronicBandGap.spin_channel, TEXT_KEY, '.spin_channel'
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(
+        variables.Energy2.points, TEXT_DOS_KEY, '.energies', unit='eV'
     )
 
 
