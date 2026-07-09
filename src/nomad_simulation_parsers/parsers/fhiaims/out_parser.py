@@ -774,6 +774,26 @@ class FHIAimsOutFileParser(TextParser):
                 'convergence_energy',
                 rf'Convergence accuracy of total energy: *({RE_FLOAT})',
                 dtype=float,
+                unit='eV',
+            ),
+            Quantity(
+                'convergence_density',
+                (
+                    rf'Convergence accuracy of self-consistent '
+                    rf'charge density: *({RE_FLOAT})'
+                ),
+                dtype=float,
+            ),
+            Quantity(
+                'convergence_eigenvalues',
+                rf'Convergence accuracy of sum of eigenvalues: *({RE_FLOAT})',
+                dtype=float,
+                unit='eV',
+            ),
+            Quantity(
+                'max_scf_iterations',
+                r'Maximum number of self-consistency iterations:\s*(\d+)',
+                dtype=int,
             ),
             Quantity(
                 'convergence_forces',
