@@ -28,6 +28,9 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
@@ -545,6 +548,13 @@ class MainfileParser(TextParser):
             return []
         return [dict(label=chemical_symbols[int(znucl[n_at - 1])]) for n_at in typat]
 
+    def get_periodic_boundary_conditions(
+        self, lattice_vectors: Any = None
+    ) -> list[bool] | None:
+        if lattice_vectors is None:
+            return None
+        return [vec is not None for vec in lattice_vectors]
+
     def get_xc_functionals(self) -> list[dict[str, Any]]:
         ixc = self.get_input_var('ixc', 1, 1, scalar=True)
         if ixc >= 0:
@@ -562,6 +572,7 @@ class MainfileParser(TextParser):
     def get_bandstructures(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
+        n_spin_channels = 2
         nsppol = self.get_input_var('nsppol', 2, 1, scalar=True)
         eigs = np.reshape(
             eigenvalues,
@@ -578,7 +589,13 @@ class MainfileParser(TextParser):
 
         nband = int(eigs.T[1].T[0][0])
         eigs = eigs.T[6 : 6 + nband].T
-        bandstructures = [dict(energies=eig, k_points=kpts) for eig in eigs]
+        is_spin_polarized = nsppol == n_spin_channels
+        bandstructures = []
+        for n, eig in enumerate(eigs):
+            entry = dict(energies=eig, k_points=kpts)
+            if is_spin_polarized:
+                entry['spin_channel'] = n
+            bandstructures.append(entry)
 
         if occupations is not None:
             occs = np.reshape(
@@ -605,11 +622,11 @@ class MainfileParser(TextParser):
 
         return [
             EnergyConvergenceTarget(
-                threshold=tolmxde,
-                threshold_type='relative',
+                threshold=tolmxde * ureg.hartree,
+                threshold_type='absolute',
             ),
             ForceConvergenceTarget(
-                threshold=tolmxf,
+                threshold=tolmxf * ureg.hartree / ureg.bohr,
                 threshold_type='maximum',
             ),
         ]
@@ -653,6 +670,29 @@ class MainfileParser(TextParser):
             scf_steps['code_specific_quantities'] = extra_columns
         return scf_steps
 
+    def get_band_gaps(
+        self, eigenvalues: np.ndarray, occupations: np.ndarray
+    ) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues and occupations using common utility."""
+        if eigenvalues is None or occupations is None:
+            return []
+
+        bandstructures = self.get_bandstructures(eigenvalues, occupations)
+        gaps = []
+        for bandstructure in bandstructures:
+            eigs = bandstructure.get('energies')
+            occs = bandstructure.get('occupations')
+            spin_channel = bandstructure.get('spin_channel')
+
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                eigs, occs, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                gaps.append(gap_result)
+
+        return gaps
+
 
 class DosParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -671,7 +711,7 @@ class DosParser(TextParser):
             source, (nsp, len(source) // nsp, np.size(source) // len(source))
         ):
             dos_sp_t = dos_sp.T
-            dos.append(dict(value=dos_sp_t[1]))
+            dos.append(dict(energies=dos_sp_t[0], value=dos_sp_t[1]))
         return dos
 
 
@@ -691,6 +731,16 @@ class AbinitArchiveWriter(ArchiveWriter):
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
+
+            # Set optimization type based on optcell parameter
+            optcell = self.mainfile_parser.get_input_var('optcell', 1, [0])[0]
+            if optcell == 0:
+                workflow.method.optimization_type = 'atomic'
+            elif optcell == 1:
+                workflow.method.optimization_type = 'cell_volume'
+            else:
+                workflow.method.optimization_type = 'cell_shape'
+
             convergence = self.mainfile_parser.get_geometry_convergence()
             if convergence:
                 workflow.method.convergence_targets = convergence

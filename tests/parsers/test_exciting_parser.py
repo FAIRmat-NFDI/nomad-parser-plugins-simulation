@@ -1,3 +1,5 @@
+import tempfile
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -5,7 +7,10 @@ import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
-from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
+from nomad_simulation_parsers.parsers.exciting.parser import (
+    EigvalParser,
+    ExcitingParser,
+)
 
 LOGGER = get_logger(__name__)
 
@@ -143,3 +148,157 @@ def test_scf_quantities_relevant_for_convergence_targets(parsed_archive):
         assert len(value) == quantity_expectation['len']
         expected_last_value, expected_last_unit = quantity_expectation['last']
         _assert_quantity_close(value[-1], expected_last_value, expected_last_unit)
+
+
+def test_electronic_outputs_mapping(parsed_archive):
+    case, archive = parsed_archive
+    if case != 'C_minimal':
+        pytest.skip('electronic output assertions use C_minimal fixture')
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+
+    if output.electronic_dos:
+        sec_dos = output.electronic_dos[0]
+        assert sec_dos.value is not None
+        assert sec_dos.energies is not None
+        assert sec_dos.energies.points is not None
+
+    if output.electronic_band_structures:
+        sec_band_structure = output.electronic_band_structures[0]
+        assert sec_band_structure.value is not None
+
+    if output.electronic_band_gaps:
+        sec_gap = output.electronic_band_gaps[0]
+        assert sec_gap.value is not None
+
+
+def test_system_fundamental_quantities_mapping(parsed_archive):
+    """System gate for core model_system quantities used by normalizer."""
+    _, archive = parsed_archive
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative = next(
+        (s for s in simulation.model_system if getattr(s, 'is_representative', False)),
+        simulation.model_system[0],
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+
+    if representative.particle_states:
+        assert all(
+            getattr(state, 'chemical_symbol', None) is not None
+            for state in representative.particle_states
+        )
+
+
+def test_outputs_contract_for_normalizer(parsed_archive):
+    """Outputs gate for normalizer-required mapped payloads."""
+    _, archive = parsed_archive
+
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    output = outputs[0]
+
+    # Non-electronic core output used by normalizer pipeline.
+    assert output.total_energies or output.scf_steps is not None
+
+    # Electronic outputs: when present, require payload completeness expected by
+    # results normalizer compatibility mapping.
+    if output.electronic_dos:
+        dos = output.electronic_dos[0]
+        assert dos.value is not None
+        assert dos.energies is not None
+        assert dos.energies.points is not None
+
+    if output.electronic_band_structures:
+        bs = output.electronic_band_structures[0]
+        assert bs.value is not None
+        assert bs.k_path is not None
+        assert getattr(bs.k_path, 'points', None) is not None
+
+
+def test_root_test_data_exciting_zip_populates_reference_energy_fields(parser):
+    """Parser scope: exciting zip should expose reference-energy fields on outputs."""
+    root_dir = Path(__file__).resolve().parents[3]
+    zip_path = root_dir / 'test_data' / 'Si_gw-exciting.zip'
+    if not zip_path.is_file():
+        pytest.skip(
+            'Si_gw-exciting.zip fixture not available in repository root test_data.'
+        )
+
+    archive = EntryArchive()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+        extracted = Path(tmpdir)
+        mainfiles = sorted(extracted.rglob('GW_INFO.OUT')) + sorted(
+            extracted.rglob('INFO.OUT')
+        )
+        assert mainfiles
+        parser.parse(str(mainfiles[0]), archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs
+    output = outputs[0]
+
+    # Legacy-equivalent migration behavior: parser should provide a reference
+    # energy for BS and DOS normalization paths.
+    assert output.electronic_band_structures
+    bs = output.electronic_band_structures[0]
+    assert bs.highest_occupied is not None
+
+    assert output.electronic_dos
+    dos = output.electronic_dos[0]
+    assert dos.energies is not None
+    assert dos.energies.points is not None
+    assert dos.energies_origin is not None
+
+
+@pytest.mark.parametrize(
+    'eigs_occs, expected',
+    [
+        pytest.param(
+            [
+                {'eigenvalues': [[-5.0, -3.0, 2.0]], 'occupancies': [[1.0, 1.0, 0.0]]},
+                {'eigenvalues': [[-4.5, -3.5, 1.0]], 'occupancies': [[1.0, 1.0, 0.0]]},
+            ],
+            [dict(value=4.0)],
+            id='gap-accumulated-across-kpoints',
+        ),
+        pytest.param(
+            [
+                {
+                    'eigenvalues': [[-5.0, -3.0, 2.0], [-4.0, -2.0, 3.0]],
+                    'occupancies': [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]],
+                },
+            ],
+            [dict(value=5.0, spin_channel=0), dict(value=5.0, spin_channel=1)],
+            id='two-spin-channels',
+        ),
+        pytest.param(
+            [{'eigenvalues': [[-5.0, -3.0]], 'occupancies': [[1.0, 1.0]]}],
+            [],
+            id='no-unoccupied-states',
+        ),
+        pytest.param([], [], id='empty-source'),
+    ],
+)
+def test_eigval_band_gaps(eigs_occs, expected):
+    """Band gaps from EIGVAL payloads via the shared band-gap utility."""
+    parser = EigvalParser.__new__(EigvalParser)
+    gaps = parser.get_band_gaps({'eigenvalues_occupancies': eigs_occs})
+
+    assert len(gaps) == len(expected)
+    for gap, ref in zip(gaps, expected):
+        assert gap['value'] == pytest.approx(ref['value'])
+        assert gap.get('spin_channel') == ref.get('spin_channel')

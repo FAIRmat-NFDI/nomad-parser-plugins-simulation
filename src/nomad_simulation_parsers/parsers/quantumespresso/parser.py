@@ -21,6 +21,7 @@ from nomad.parsing.file_parser.mapping_parser import (
 )
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages import outputs as simulation_outputs
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
@@ -29,11 +30,15 @@ from nomad_simulations.schema_packages.workflow import (
 )
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    link_outputs_to_model_systems,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
 from .common import libxc_shortcut, xc_functional_map
 from .file_parser import QuantumEspressoFileParser
+from .pwscf.file_parser import PWSCFFileParser
 
 LOGGER = get_logger(__name__)
 PROGRAM_NAME_RE = re.compile(
@@ -246,6 +251,14 @@ class MainfileTextParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    def get_periodic_boundary_conditions(
+        self, source: dict[str, Any]
+    ) -> list[bool] | None:
+        cell = self.get_value(source, 'simulation_cell', '')
+        if cell is None:
+            return None
+        return [True, True, True]
+
     @property
     def program_name(self) -> str:
         return self.data_object.get('header', {}).get('program_name_version', [''])[0]
@@ -287,6 +300,11 @@ class MainfileXMLParser(XMLParser):
 
     def get_forces(self, source: np.ndarray):
         return np.reshape(source, (np.size(source) // 3, 3))
+
+    def get_periodic_boundary_conditions(self, cell: Any = None) -> list[bool] | None:
+        if cell is None:
+            return None
+        return [True, True, True]
 
     def get_energy_contributions(self, source: dict[str, Any]):
         return [
@@ -570,7 +588,7 @@ class QuantumEspressoParser(MatchingParser):
 
         return is_mainfile
 
-    def parse(
+    def parse(  # noqa: PLR0912
         self,
         mainfile: str,
         archive: EntryArchive,
@@ -580,3 +598,74 @@ class QuantumEspressoParser(MatchingParser):
         self.level = len(child_archives)
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # TODO(mapping-migration): remove this parser-level PWSCF fallback once
+        # electronic outputs are reliably populated through mappings only.
+        if (
+            archive.data
+            and archive.data.outputs
+            and mainfile.lower().endswith(('.out', '.log'))
+            and any(
+                output.electronic_eigenvalues is None
+                or len(output.electronic_eigenvalues) == 0
+                for output in archive.data.outputs
+            )
+        ):
+            try:
+                from .pwscf.parser import PWSCFMainfileTextParser  # noqa: PLC0415
+
+                pwscf_parser = PWSCFMainfileTextParser(
+                    text_parser=PWSCFFileParser(), filepath=mainfile
+                )
+                configurations = pwscf_parser.get_configurations(pwscf_parser.data)
+                for i, output in enumerate(archive.data.outputs):
+                    if i >= len(configurations):
+                        break
+                    if output.electronic_eigenvalues:
+                        continue
+                    eigenvalues = pwscf_parser.get_eigenvalues(configurations[i])
+                    if not eigenvalues:
+                        continue
+                    output.electronic_eigenvalues = [
+                        simulation_outputs.ElectronicEigenvalues(
+                            value=entry.get('eigenvalues'),
+                            occupation=entry.get('occupations'),
+                            n_levels=entry.get('n_levels'),
+                            spin_channel=entry.get('spin_channel'),
+                        )
+                        for entry in eigenvalues
+                    ]
+
+                for i, output in enumerate(archive.data.outputs):
+                    if output.electronic_band_structures:
+                        continue
+                    if not output.electronic_eigenvalues:
+                        continue
+
+                    config = configurations[i] if i < len(configurations) else None
+                    reference_energy = (
+                        pwscf_parser.get_reference_energy(config)
+                        if config is not None
+                        else None
+                    )
+
+                    output.electronic_band_structures = [
+                        simulation_outputs.ElectronicBandStructure(
+                            value=eigenvalues.value,
+                            occupation=eigenvalues.occupation,
+                            n_levels=eigenvalues.n_levels,
+                            spin_channel=eigenvalues.spin_channel,
+                            highest_occupied=reference_energy,
+                        )
+                        for eigenvalues in output.electronic_eigenvalues
+                    ]
+
+                    if output.electronic_dos and reference_energy is not None:
+                        for dos in output.electronic_dos:
+                            if dos.energies_origin is None:
+                                dos.energies_origin = reference_energy
+            except Exception:
+                pass
+
+        if archive.data and archive.data.outputs:
+            link_outputs_to_model_systems(archive.data)

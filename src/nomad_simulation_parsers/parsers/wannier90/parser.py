@@ -11,6 +11,7 @@ from nomad.parsing.file_parser import ArchiveWriter
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
@@ -76,6 +77,9 @@ class WHrTextParser(TextParser):
 
 
 class WDosTextParser(TextParser):
+    # aux data set by the archive writer; kept out of the parsed `data` payload
+    _energies_origin = None
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -83,10 +87,17 @@ class WDosTextParser(TextParser):
 
     def get_dos(self, source: np.ndarray) -> dict[str, Any]:
         data = np.transpose(source)
-        return dict(energies=data[0], value=data[1])
+        result = dict(energies=data[0], value=data[1])
+        if self._energies_origin is not None:
+            result['energies_origin'] = self._energies_origin
+        return result
 
 
 class WBandTextParser(TextParser):
+    # aux data set by the archive writer; kept out of the parsed `data` payload
+    _k_path = None
+    _highest_occupied = None
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -94,6 +105,18 @@ class WBandTextParser(TextParser):
 
     def get_data(self, data: np.ndarray) -> np.ndarray:
         return np.transpose(data)[1:].transpose()
+
+    def get_band_structure(self, data: np.ndarray) -> dict[str, Any]:
+        transposed = np.transpose(data)
+        band_values = transposed[1:].transpose()
+
+        result = dict(value=band_values)
+        if self._k_path:
+            result['k_path'] = self._k_path
+        if self._highest_occupied is not None:
+            result['highest_occupied'] = self._highest_occupied
+
+        return result
 
 
 class WOutTextParser(TextParser):
@@ -396,12 +419,17 @@ class WannierArchiveWriter(ArchiveWriter):
             )
 
             workflow_archive = self.child_archives[dft_file]
-            workflow_archive.workflow2 = DFTTBDMFTWorkflow(
-                tasks=[
-                    TaskReference(task=dft_archive.workflow2),
-                    TaskReference(task=self.archive.workflow2),
-                ]
-            )
+            if (
+                dft_archive is not None
+                and dft_archive.workflow2
+                and self.archive.workflow2
+            ):
+                workflow_archive.workflow2 = DFTTBDMFTWorkflow(
+                    tasks=[
+                        TaskReference(task=dft_archive.workflow2),
+                        TaskReference(task=self.archive.workflow2),
+                    ]
+                )
 
     def parse_input(self) -> None:
         """
@@ -423,6 +451,11 @@ class WannierArchiveWriter(ArchiveWriter):
         self.data_parser.annotation_key = wannier90.WIN_KEY
         self.data_parser.data_object = self.archive.data
         win_parser.convert(self.data_parser)
+
+        reference_energy = win_parser.data.get('energy_fermi')
+        if reference_energy is not None:
+            self.reference_energy = float(reference_energy) * ureg.eV
+
         win_parser.close()
 
     def parse_hr(self) -> None:
@@ -457,6 +490,7 @@ class WannierArchiveWriter(ArchiveWriter):
         for dos_file in dos_files:
             wdos_parser.filepath = dos_file
             wdos_parser.data_object.parse('data')
+            wdos_parser._energies_origin = self.reference_energy
             self.data_parser.annotation_key = wannier90.DOS_KEY
             self.data_parser.data_object = self.archive.data
             wdos_parser.convert(self.data_parser)
@@ -467,6 +501,9 @@ class WannierArchiveWriter(ArchiveWriter):
         Parse band files.
         """
         wband_parser = WBandTextParser(text_parser=DataTextParser())
+        k_path = self.wout_parser.get_k_line_path(
+            self.wout_parser.data.get('k_line_path')
+        )
         # parse band files
         band_files = search_files(
             pattern='*band.dat', basedir=self.basedir, re_pattern=self.basename
@@ -474,6 +511,8 @@ class WannierArchiveWriter(ArchiveWriter):
         for band_file in band_files:
             wband_parser.filepath = band_file
             wband_parser.data_object.parse('data')
+            wband_parser._k_path = k_path
+            wband_parser._highest_occupied = self.reference_energy
             self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
             wband_parser.convert(self.data_parser)
@@ -492,6 +531,7 @@ class WannierArchiveWriter(ArchiveWriter):
         self.data_parser.annotation_key = wannier90.WOUT_KEY
         self.data_parser.data_object = data
         self.archive.data = data
+        self.reference_energy = None
 
         self.wout_parser.convert(self.data_parser)
 

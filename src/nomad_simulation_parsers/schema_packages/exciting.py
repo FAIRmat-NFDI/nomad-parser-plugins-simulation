@@ -7,6 +7,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    variables,
     workflow,
 )
 
@@ -106,6 +107,11 @@ add_mapping_annotations(
     (model_system.ModelSystem.positions, INFO_KEY, '.positions'),
     (model_system.AtomsState.m_def, INFO_KEY, '.atoms'),
     (model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'),
+    (
+        model_system.Representation.periodic_boundary_conditions,
+        INFO_KEY,
+        '.periodic_boundary_conditions',
+    ),
 )
 
 # atoms state
@@ -122,6 +128,7 @@ add_mapping_annotations(
     (outputs.Outputs.total_energies, INFO_KEY, ('get_energies', ['.@'])),
     (outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])),
     (outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])),
+    (outputs.Outputs.electronic_band_gaps, EIGVAL_KEY, ('get_band_gaps', ['.@'])),
     (
         outputs.Outputs.electronic_band_structures,
         BANDSTRUCTURE_XML_KEY,
@@ -142,12 +149,33 @@ add_mapping_annotations(
 add_mapping_annotations(
     (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
     (outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'),
+    (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),
     (
         outputs.ElectronicDensityOfStates.projected_dos,
         DOS_XML_KEY,
         'dos.partialdos.diagram',
     ),
 )
+
+
+add_mapping_annotations(
+    (outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'),
+)
+add_mapping_annotation(
+    outputs.ElectronicBandGap.value,
+    EIGVAL_KEY,
+    '.value',
+    unit='eV',
+)
+
+add_mapping_annotation(
+    variables.Energy2.points,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@e"']),
+    unit='hartree',
+)
+
+add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
 ###### TODO read unit from axis
 add_mapping_annotation(

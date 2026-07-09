@@ -1,5 +1,4 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -32,7 +31,10 @@ from structlog.stdlib import (
     BoundLogger,
 )
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages import exciting
 
 from .eigval_parser import EigvalFileParser
@@ -137,11 +139,19 @@ class InfoParser(TextParser):
         if optimization:
             configurations.extend(optimization.get('optimization_step', []))
             configurations.append(optimization)
-        return [
+        mapped_configurations = [
             self.get_atoms(config['atomic_positions'])
             for config in configurations
             if config.get('atomic_positions')
         ]
+        if mapped_configurations:
+            return mapped_configurations
+
+        # Fallback for minimal outputs where no explicit atomic_positions blocks
+        # are present in groundstate/hybrid sections.
+        if self.data.get('initialization'):
+            return [self.get_atoms({})]
+        return []
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
@@ -167,6 +177,9 @@ class InfoParser(TextParser):
             positions=np.array(positions, dtype=float),
             atoms=atoms,
             lattice_vectors=lattice_vectors,
+            periodic_boundary_conditions=[True, True, True]
+            if lattice_vectors is not None
+            else None,
         )
 
     def get_geometry_convergence(
@@ -263,6 +276,26 @@ class InfoParser(TextParser):
                 out[name] = values
         return out
 
+    def get_fermi_energy(self, source: dict[str, Any]) -> Any:
+        """Resolve Fermi energy from INFO payload (legacy-equivalent source)."""
+        if source is None:
+            return None
+        groundstate = source.get('groundstate') or {}
+
+        # Prefer finalized value when available.
+        final = groundstate.get('final') or {}
+        fermi = final.get('x_exciting_fermi_energy')
+        if fermi is not None:
+            return fermi
+
+        # Fallback to last SCF iteration.
+        scf_iterations = groundstate.get('scf_iteration') or []
+        if scf_iterations:
+            fermi = scf_iterations[-1].get('x_exciting_fermi_energy')
+            if fermi is not None:
+                return fermi
+        return None
+
 
 class InputXMLParser(XMLParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -282,6 +315,61 @@ class BandstructureXMLParser(XMLParser):
 
     n_spin = 1
 
+    def get_k_path(self, source: dict[str, Any]) -> dict[str, Any]:
+        def as_list(value: Any) -> list[Any]:
+            if value is None:
+                return []
+            if isinstance(value, list):
+                return value
+            return [value]
+
+        def parse_coord(coord: Any) -> np.ndarray | None:
+            if coord is None:
+                return None
+            if isinstance(coord, str):
+                coord = coord.split()
+            try:
+                parsed = np.array(coord, dtype=float)
+            except Exception:
+                return None
+            if parsed.shape != (3,):
+                return None
+            return parsed
+
+        bandstructure = source.get('bandstructure', {})
+
+        # Prefer explicit point coordinates from the first band.
+        points: list[np.ndarray] = []
+        bands = as_list(bandstructure.get('band'))
+        if bands:
+            band_points = as_list(bands[0].get('point'))
+            for point in band_points:
+                coord = parse_coord(point.get('@coord'))
+                if coord is not None:
+                    points.append(coord)
+
+        k_path: dict[str, Any] = {}
+        if points:
+            k_path['n_line_points'] = len(points)
+            k_path['points'] = np.array(points, dtype=float)
+
+        # Capture high-symmetry labels and vertices when available.
+        high_symmetry_names: list[str] = []
+        high_symmetry_values: list[np.ndarray] = []
+        for vertex in as_list(bandstructure.get('vertex')):
+            label = vertex.get('@label')
+            coord = parse_coord(vertex.get('@coord'))
+            if label is None or coord is None:
+                continue
+            high_symmetry_names.append(label)
+            high_symmetry_values.append(coord)
+
+        if high_symmetry_names and high_symmetry_values:
+            k_path['high_symmetry_path_names'] = high_symmetry_names
+            k_path['high_symmetry_path_values'] = np.array(high_symmetry_values)
+
+        return k_path
+
     def get_bandstructures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         # TODO determine format for spin pol case
         energies = [
@@ -291,8 +379,14 @@ class BandstructureXMLParser(XMLParser):
         n_band = len(source['bandstructure']['band']) // n_spin
         n_kpoints = len(source['bandstructure']['band'][0]['point'])
         energies = np.array(energies, dtype=float).reshape((n_spin, n_band, n_kpoints))
+        k_path = self.get_k_path(source)
         return [
-            dict(energies=e.T * ureg.hartree, n_states=n_band, n_kpoints=n_kpoints)
+            dict(
+                energies=e.T * ureg.hartree,
+                n_states=n_band,
+                n_kpoints=n_kpoints,
+                k_path=k_path,
+            )
             for e in energies
         ]
 
@@ -337,11 +431,47 @@ class EigvalParser(TextParser):
             for spin in range(len(eigs[0]))
         ]
 
+    def get_band_gaps(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        """Calculate band gaps across all k-points for each spin channel."""
+        eigs_occs = source.get('eigenvalues_occupancies') or []
+        if not eigs_occs:
+            return []
+
+        n_spin = len(eigs_occs[0].get('eigenvalues', []))
+        if n_spin == 0:
+            return []
+
+        band_gaps = []
+        for spin in range(n_spin):
+            # Concatenate over k-points so the gap is computed globally.
+            eigenvalues = []
+            occupations = []
+            for kpoint in eigs_occs:
+                eigs = np.asarray(kpoint.get('eigenvalues'))
+                occs = np.asarray(kpoint.get('occupancies'))
+                if eigs.size == 0 or occs.size == 0:
+                    continue
+                if spin >= eigs.shape[0] or spin >= occs.shape[0]:
+                    continue
+                eigenvalues.append(eigs[spin])
+                occupations.append(occs[spin])
+            if not eigenvalues:
+                continue
+
+            gap = calculate_band_gap_from_occupations(
+                np.concatenate(eigenvalues), np.concatenate(occupations)
+            )
+            if gap is None:
+                continue
+            if n_spin > 1:
+                gap['spin_channel'] = spin
+            band_gaps.append(gap)
+
+        return band_gaps
+
 
 class ExcitingArchiveWriter(ArchiveWriter):
-    def write_to_archive(self) -> None:  # noqa: PLR0915
-        reload(exciting)
-
+    def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
 
@@ -353,6 +483,17 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
+
+        # Legacy exciting behavior uses INFO.OUT as the canonical source for
+        # reference energy metadata. If the selected mainfile is GW_INFO.OUT
+        # and parsing yields no payload, fallback to sibling INFO.OUT.
+        if not info_parser.data:
+            info_out = os.path.join(maindir, 'INFO.OUT')
+            if os.path.isfile(info_out) and os.path.abspath(
+                info_out
+            ) != os.path.abspath(self.mainfile):
+                info_parser.filepath = info_out
+                info_parser.convert(data_parser)
 
         # read xc functionals from input.xml
         input_xml_files = (
@@ -398,6 +539,22 @@ class ExcitingArchiveWriter(ArchiveWriter):
             dos_parser.close()
 
         self.archive.data = data_parser.data_object
+
+        # Apply legacy-equivalent Fermi reference shift to electronic spectra.
+        fermi_energy = info_parser.get_fermi_energy(info_parser.data)
+        if fermi_energy is not None:
+            for output in self.archive.data.outputs or []:
+                for band_structure in output.electronic_band_structures or []:
+                    if band_structure.value is not None:
+                        band_structure.value = band_structure.value + fermi_energy
+                    if band_structure.highest_occupied is None:
+                        band_structure.highest_occupied = fermi_energy
+
+                for dos in output.electronic_dos or []:
+                    if dos.energies is not None and dos.energies.points is not None:
+                        dos.energies.points = dos.energies.points + fermi_energy
+                    if dos.energies_origin is None:
+                        dos.energies_origin = fermi_energy
 
         # workflow section
         # populate geometry optimization if present

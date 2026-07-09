@@ -1,3 +1,8 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
+import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx
@@ -155,6 +160,8 @@ def test_pwscf_workflow_and_scf_steps():
     assert len(outputs[1].scf_steps.energies_total) == 14
     assert len(outputs[0].scf_steps.delta_energies_total) == 12
     assert len(outputs[1].scf_steps.delta_energies_total) == 14
+    assert outputs[0].electronic_eigenvalues is not None
+    assert outputs[0].electronic_eigenvalues[0].occupation is not None
 
 
 def test_pwscf_xml_workflow_and_scf_steps():
@@ -191,3 +198,68 @@ def test_pwscf_xml_workflow_and_scf_steps():
         assert output.scf_steps is not None
         assert len(output.scf_steps.energies_total) == 5
         assert len(output.scf_steps.delta_energies_total) == 5
+
+
+def test_root_test_data_pwscf_dos_zip_populates_system_and_dos():
+    root_dir = Path(__file__).resolve().parents[4]
+    zip_path = root_dir / 'test_data' / 'DOS-quantumespresso.zip'
+    if not zip_path.is_file():
+        pytest.skip(
+            'DOS-quantumespresso.zip fixture not available '
+            'in repository root test_data.'
+        )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(tmpdir)
+
+        archive = _parse(str(Path(tmpdir) / 'W.out'))
+
+    simulation = archive.data
+    assert simulation is not None
+    assert simulation.model_system is not None
+    assert len(simulation.model_system) > 0
+
+    representative_candidates = [
+        s for s in simulation.model_system if s.is_representative
+    ]
+    representative = (
+        representative_candidates[0]
+        if representative_candidates
+        else simulation.model_system[0]
+    )
+    assert representative.positions is not None
+    assert representative.lattice_vectors is not None
+    assert representative.periodic_boundary_conditions is not None
+    assert len(representative.periodic_boundary_conditions) == 3
+
+    outputs = simulation.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+    for output in outputs:
+        assert output.model_system_ref is not None
+
+    output = outputs[0]
+    assert output.electronic_dos is not None
+    assert len(output.electronic_dos) > 0
+    dos = output.electronic_dos[0]
+    assert dos.value is not None
+    assert dos.energies is not None
+    assert dos.energies.points is not None
+
+    assert dos.energies_origin is not None
+
+
+def test_pwscf_text_populates_band_structure_and_reference_energy():
+    archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
+    outputs = archive.data.outputs
+    assert outputs is not None
+    assert len(outputs) > 0
+
+    output = outputs[0]
+    assert output.electronic_band_structures is not None
+    assert len(output.electronic_band_structures) > 0
+
+    band_structure = output.electronic_band_structures[0]
+    assert band_structure.value is not None
+    assert band_structure.highest_occupied is not None
