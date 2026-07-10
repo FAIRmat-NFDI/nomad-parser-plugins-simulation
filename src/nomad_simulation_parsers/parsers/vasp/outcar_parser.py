@@ -7,11 +7,11 @@ import os
 import re
 
 import numpy as np
-from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
-from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter, Quantity, TextParser
+from nomad_file_parser.mapping_parser import MetainfoParser, Path
+from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,

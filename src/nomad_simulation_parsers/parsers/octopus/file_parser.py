@@ -4,8 +4,8 @@ from typing import Any
 import numpy as np
 import pint
 from ase import units as ase_units
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 RE_FLOAT = r'[\d\.\-\+Ee]+'
 

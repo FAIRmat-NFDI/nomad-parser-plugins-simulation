@@ -7,15 +7,15 @@ import numpy as np
 from ase.data import chemical_symbols
 from netCDF4 import Dataset
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
     TextParser,
 )
-from nomad.parsing.parser import MatchingParser
-from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import BoundLogger
 
