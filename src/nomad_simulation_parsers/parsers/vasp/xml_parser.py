@@ -7,11 +7,6 @@ if TYPE_CHECKING:
     pass
 
 from nomad.datamodel import EntryArchive
-<<<<<<< HEAD
-=======
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path, XMLParser
->>>>>>> fd709ef (Migration of fundamental system and electronic properties for normalization to results (#170))
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
@@ -22,6 +17,7 @@ from nomad_simulations.schema_packages.workflow import (
     MolecularDynamics,
     SinglePoint,
 )
+
 from nomad_simulations.schema_packages.workflow.general import (
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
