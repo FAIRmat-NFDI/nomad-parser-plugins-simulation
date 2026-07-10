@@ -70,9 +70,7 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupation'
     )
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_levels, GPW_KEY, '.n_levels'
-    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, GPW_KEY, '.n_levels')
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.highest_occupied,
         GPW_KEY,

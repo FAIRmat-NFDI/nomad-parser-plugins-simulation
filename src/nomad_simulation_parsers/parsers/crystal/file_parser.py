@@ -1,8 +1,8 @@
 from typing import Any
 
 import numpy as np
-from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 
 def capture(regex: str) -> str:

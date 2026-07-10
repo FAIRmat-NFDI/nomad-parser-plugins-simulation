@@ -4,14 +4,14 @@ from typing import Any
 import numpy as np
 from ase.symbols import symbols2numbers
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
     TextParser,
 )
-from nomad.parsing.parser import MatchingParser
-from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_simulations.schema_packages.force_field import (
     ParticleParametersContainer,
 )

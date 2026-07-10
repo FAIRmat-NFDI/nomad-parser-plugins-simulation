@@ -26,7 +26,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
 
 
 def _render_file_parser_template(parser_class_name: str) -> str:
-    return f"""from nomad.parsing.file_parser import Quantity, TextParser
+    return f"""from nomad_file_parser import Quantity, TextParser
 
 
 class {parser_class_name}OutParser(TextParser):
@@ -47,8 +47,8 @@ def _render_parser_template(
     if use_mapping_parser:
         return f"""from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
@@ -96,7 +96,7 @@ class {parser_class_name}(MatchingParser):
 
     return f"""from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
+from nomad_file_parser import ArchiveWriter
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 

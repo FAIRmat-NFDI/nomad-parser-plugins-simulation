@@ -6,11 +6,11 @@ from typing import Any
 import numpy as np
 from ase.data import chemical_symbols
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter, DataTextParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter, DataTextParser
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -728,6 +728,7 @@ class AbinitArchiveWriter(ArchiveWriter):
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
+        convergence = None
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
@@ -742,20 +743,21 @@ class AbinitArchiveWriter(ArchiveWriter):
                 workflow.method.optimization_type = 'cell_shape'
 
             convergence = self.mainfile_parser.get_geometry_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             workflow = MolecularDynamics()
         else:
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
             convergence = self.mainfile_parser.get_single_point_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         self.archive.workflow2 = workflow
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
+        # Assign convergence targets only after convert() to preserve the
+        # polymorphic EnergyConvergenceTarget/ForceConvergenceTarget subclasses;
+        # see the `add_mapping_annotation` docstring for why the ordering matters.
+        if convergence:
+            self.archive.workflow2.method.convergence_targets = convergence
 
     def write_to_archive(self):
         self.archive.data = Simulation(program=Program(name=self.code_name))
