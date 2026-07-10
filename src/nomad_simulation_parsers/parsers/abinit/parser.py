@@ -753,14 +753,9 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
-        # Assign convergence targets only after convert(): the mapping round-trip
-        # re-instantiates each subsection as its declared base type via
-        # section.sub_section.section_cls() (see nomad_file_parser
-        # file_parser.parse_section), which would downcast the polymorphic
-        # EnergyConvergenceTarget/ForceConvergenceTarget to WorkflowConvergenceTarget.
-        # Populating them afterward preserves the concrete subclasses, matching
-        # exciting.parse_workflow. See add_mapping_annotation in
-        # schema_packages/utils.py for the general caveat.
+        # Assign convergence targets only after convert() to preserve the
+        # polymorphic EnergyConvergenceTarget/ForceConvergenceTarget subclasses;
+        # see the `add_mapping_annotation` docstring for why the ordering matters.
         if convergence:
             self.archive.workflow2.method.convergence_targets = convergence
 

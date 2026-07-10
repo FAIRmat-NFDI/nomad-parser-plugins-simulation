@@ -579,10 +579,8 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # - Change parser methods to return dicts that mapper can transform
             # - Keep manual population (current approach - clearer and more explicit)
             #
-            # This assignment must stay AFTER info_parser.convert() above: the
-            # mapping round-trip re-instantiates each subsection as its declared
-            # base type (WorkflowConvergenceTarget), which would downcast the
-            # polymorphic Force/EnergyConvergenceTarget instances.
+            # Keep this after info_parser.convert(); see the
+            # `add_mapping_annotation` docstring for why the ordering matters.
             source_data = info_parser.data
             if source_data:
                 convergence_targets = info_parser.get_geometry_convergence(source_data)
