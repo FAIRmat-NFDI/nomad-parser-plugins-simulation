@@ -447,7 +447,14 @@ class LammpsArchiveWriter(MDParser):
         # particle_type agrees exactly with ps.label.  TrajParser keys
         # are np.float64 values; probe with both the raw array value and
         # a plain float to handle both representations.
-        chem_sym = self.traj_parsers.eval('chemical_symbols')
+        # chemical_symbols is only defined on TrajParser, not MDAnalysisParser;
+        # access it directly to avoid a spurious "not found in parsers" warning.
+        chem_sym = None
+        for _p in self.traj_parsers._parsers:
+            if isinstance(_p, TrajParser):
+                chem_sym = _p.chemical_symbols
+                if chem_sym is not None:
+                    break
 
         type_to_label: dict[int, str] = {}
         for row in masses_array:
@@ -960,6 +967,10 @@ class LammpsArchiveWriter(MDParser):
             lattice_vectors = _get_quantity_with_units(
                 traj_n, 'lattice_vectors', 'distance'
             )
+            if lattice_vectors is None or np.allclose(
+                lattice_vectors.magnitude, 0, atol=1e-10
+            ):
+                lattice_vectors = self._data_parser.get_lattice_vectors()
             velocities = _get_quantity_with_units(traj_n, 'velocities', 'velocity')
             # The 'dimension' command "must be used" to specify 2D simulations (https://docs.lammps.org/Howto_2d.html).
             # LAMMPS default is 3D.
@@ -1182,7 +1193,6 @@ class LammpsArchiveWriter(MDParser):
 
     def parse_system(self, simulation):
         """Parse system information from trajectory and create model systems."""
-        # Validate and prepare trajectory data
         if not self._validate_trajectory_data():
             return
 
@@ -1338,6 +1348,8 @@ class LammpsArchiveWriter(MDParser):
         self.archive.workflow2 = sec_workflow
 
     def parse_workflow(self, simulation: Simulation) -> None:
+        if not simulation.outputs:
+            return
         min_stats = self._log_parser.get('minimization_stats')
         if min_stats is not None:
             self._parse_geometry_optimization_workflow()
@@ -1401,8 +1413,26 @@ class LammpsArchiveWriter(MDParser):
             traj_file: str, file_type: str, data_file: str
         ) -> MDAnalysisParser:
             """Create MDAnalysis parser for specified trajectory file formats."""
+            _atom_style_columns = {
+                'atomic': 'id type x y z',
+                'charge': 'id type q x y z',
+                'full': 'id mol-id type q x y z',
+                'bond': 'id mol-id type x y z',
+                'molecular': 'id mol-id type x y z',
+                'angle': 'id mol-id type x y z',
+                'sphere': 'id type diameter density x y z',
+                'dipole': 'id type q x y z mux muy muz',
+            }
+            atom_style_raw = self._log_parser.get('atom_style')
+            atom_style_key = (
+                atom_style_raw[0]
+                if isinstance(atom_style_raw, list)
+                else atom_style_raw
+            )
+            atom_style_cols = _atom_style_columns.get(atom_style_key)
+            kwargs = {'atom_style': atom_style_cols} if atom_style_cols else {}
             traj_parser = MDAnalysisParser(
-                topology_format='DATA', format=file_type.upper()
+                topology_format='DATA', format=file_type.upper(), **kwargs
             )
             traj_parser.mainfile = data_file
             traj_parser.auxilliary_files = [traj_file]
@@ -1457,14 +1487,23 @@ class LammpsArchiveWriter(MDParser):
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:
-            return _create_formatted_parser(traj_file, data_file, file_type)
+            return _create_formatted_parser(traj_file, file_type, data_file)
 
         # TODO: 'atom' keyword is a LB edit, test
         elif file_type == 'custom' or file_type == 'atom' and data_file:
             return _create_custom_parser(traj_file, index, data_file, file_type)
 
+        elif file_type == 'cfg':
+            self.logger.warning(
+                'AtomEye CFG dump format is not currently supported; '
+                'system section will be empty.'
+            )
+            traj_parser = TrajParser()
+            traj_parser.mainfile = traj_file
+            return traj_parser
+
         else:
-            self.logger.warning('File type of %s not recognized.', traj_file)
+            self.logger.warning('File type not recognized.', file_type=traj_file)
             traj_parser = TrajParser()
             traj_parser.mainfile = traj_file
             # TODO: provide support for other file types
@@ -1522,6 +1561,21 @@ class LammpsArchiveWriter(MDParser):
 
         # Parse system, method, parameters, thermodynamic data, etc.
         self._parse_content_sections()
+
+        if not self.archive.data.model_system:
+            expected = []
+            if self._data_parser.mainfile:
+                expected.append(os.path.basename(self._data_parser.mainfile))
+            for p in self.traj_parsers._parsers:
+                mf = getattr(p, 'mainfile', None)
+                if mf:
+                    expected.append(os.path.basename(mf))
+            self.logger.warning(
+                'No system representation could be created. '
+                'Upload the referenced structural files to enable '
+                'materials recognition.',
+                expected_files=expected,
+            )
 
         # Close all parser instances
         self._mdanalysistraj_parser.close()

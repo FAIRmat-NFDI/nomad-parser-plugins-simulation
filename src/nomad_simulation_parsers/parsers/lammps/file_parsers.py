@@ -288,6 +288,37 @@ class DataParser(TextParser):
                 for section in self._sections
             ]
         )
+        self._quantities.append(
+            Quantity(
+                'box_bounds',
+                (
+                    rf'({RE_FLOAT})\s+({RE_FLOAT})\s+xlo\s+xhi\s+'
+                    rf'({RE_FLOAT})\s+({RE_FLOAT})\s+ylo\s+yhi\s+'
+                    rf'({RE_FLOAT})\s+({RE_FLOAT})\s+zlo\s+zhi'
+                ),
+                dtype=float,
+            )
+        )
+        self._quantities.append(
+            Quantity(
+                'tilt_factors',
+                rf'({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})\s+xy\s+xz\s+yz',
+                dtype=float,
+            )
+        )
+
+    def get_lattice_vectors(self) -> np.ndarray | None:
+        box = self.get('box_bounds')
+        if box is None:
+            return None
+        xlo, xhi, ylo, yhi, zlo, zhi = box
+        lx, ly, lz = xhi - xlo, yhi - ylo, zhi - zlo
+        xy, xz, yz = 0.0, 0.0, 0.0
+        tilt = self.get('tilt_factors')
+        if tilt is not None:
+            xy, xz, yz = tilt
+        matrix = np.array([[lx, 0.0, 0.0], [xy, ly, 0.0], [xz, yz, lz]])
+        return matrix * ureg.angstrom
 
     def get_interactions(self) -> list[list]:
         styles_coeffs = []
