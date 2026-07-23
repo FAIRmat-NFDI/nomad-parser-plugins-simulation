@@ -305,17 +305,17 @@ class YamboSpectraParser(MappingParser):  # EM
 
         #end HB
 
-    # EM, Jul 22nd, 2026:    
-    def get_nenergies(self) -> int:
-       with open(self.filepath) as f:
-           for line in f:
-		   line = line.strip()
-               
-           if line.startswith('#') and 'BEnSteps' in line or 'ETStpsXd' in line:	
-		       n_energies = [item[3] for item in line.split() if len(line.split())>=4]
-			
-       return n_energies 
-    # end EM
+# EM, Jul 22nd, 2026:    
+#    def get_nenergies(self) -> int:
+#       with open(self.filepath) as f:
+#          for line in f:
+#		   line = line.strip()
+#               
+#           if line.startswith('#') and 'BEnSteps' in line or 'ETStpsXd' in line:	
+#		       n_energies = [item[3] for item in line.split() if len(line.split())>=4]
+#			
+#       return n_energies 
+# end EM
 
 
 
@@ -369,7 +369,12 @@ class YamboArchiveWriter(ArchiveWriter):
             sp_type = spectra_parser.get('sp_type')  # EM: spectra_parser.get,  Jul 8, 2026 
             if sp_type is None:
                 continue
-
+		# EM, Jul 23rd, 2026
+			n_energies = spectra_parser.get('n_energies') 
+			if n_energies is None:
+                continue
+		# end EM
+			
             spectra_parser.convert(absorption_spectra_parser)
 
             spectra_obj = absorption_spectra_parser.data_object
