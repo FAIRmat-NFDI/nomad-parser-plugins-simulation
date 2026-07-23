@@ -11,10 +11,17 @@ class SpectraParser(DataTextParser):  # EM: moved sp_type here (from MainfilePar
     def init_quantities(self) -> None:
         self._quantities = [        
             Quantity(
-                        'sp_type',
-                        r'(EELS|Polarizability|Absorption)',
-                        repeats=False,
+                'sp_type',
+                r'(EELS|Polarizability|Absorption)',
+                repeats=False,
             ),
+            # EM, Jul 23rd, 2026
+            Quantity(
+                'n_energies',
+                r'BEnSteps=|ETStpsXd=|\s+(\d+)',
+                dtype=np.int32,
+            ),
+            # end EM
         ]    
 #    pass
 
