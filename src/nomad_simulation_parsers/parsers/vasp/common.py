@@ -84,11 +84,13 @@ def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
 def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
     """Map VASP XC input tags to a canonical functional name.
 
-    Precedence follows VASP: an explicit hybrid/Hartree-Fock setup wins, then
-    `METAGGA`, then `GGA` (defaulting to PBE when unset). The schema expands the
-    returned name into LibXC components during normalization. The per-source
-    `get_functional_key` transformer methods assemble `parameters` and delegate
-    here.
+    vasprun.xml (and the OUTCAR) carry no XC/DFT/method section and VASP emits no
+    functional name, so the canonical name is reconstructed here from the input
+    tags. Precedence follows VASP's own resolution: an explicit
+    hybrid/Hartree-Fock setup wins, then `METAGGA`, then `GGA` (defaulting to PBE
+    when unset). The schema expands the returned name into LibXC components
+    during normalization. The per-source `get_functional_key` transformer methods
+    assemble `parameters` and delegate here.
     """
     if parameters.get('LHFCALC'):
         return _hybrid_functional_key(parameters)

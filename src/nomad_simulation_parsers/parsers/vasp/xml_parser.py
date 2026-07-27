@@ -417,9 +417,14 @@ class VasprunParser(XMLParser):
         attribute (`logical` -> bool, `int`/`float` -> number), mirroring the
         OUTCAR parameter typing.
 
-        The XC-relevant tags (`GGA`, `METAGGA`, `LHFCALC`, `AEXX`, ...) live in
-        different, sometimes nested, `<separator>` blocks, so one traversal that
-        gathers them all avoids re-walking the tree per key. First match wins.
+        We read `modeling.parameters` (VASP's reprinted, default-resolved INCAR)
+        rather than `<incar>` (only the explicitly-set tags): a run using the
+        POTCAR-default functional omits `GGA` from `<incar>`, so only the
+        parameter set carries the effective value. The XC-relevant tags
+        (`GGA`, `METAGGA`, `LHFCALC`, `AEXX`, ...) live in different, sometimes
+        nested, `<separator>` blocks, so one traversal gathers them all instead
+        of re-walking the tree per key. Unfound tags are left absent from the
+        result (the consumer treats absence as unset), so the dict is sparse.
         """
         wanted = set(names)
         found: dict[str, Any] = {}
@@ -450,6 +455,9 @@ class VasprunParser(XMLParser):
                 if not isinstance(item, dict):
                     continue
                 name = item.get(f'{self.attribute_prefix}name')
+                # First match wins: a tag is normally unique in `<parameters>`,
+                # and pre-order makes the shallowest/earliest occurrence
+                # authoritative; the guard also avoids re-typing a found value.
                 if name in wanted and name not in found:
                     found[name] = typed(item)
             for sub in as_list(node.get('separator')):
