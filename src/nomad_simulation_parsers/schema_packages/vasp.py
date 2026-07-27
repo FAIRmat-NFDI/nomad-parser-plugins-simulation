@@ -76,46 +76,10 @@ class Program(general.Program):
     )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
-#             ),
-#             outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
-#         )
-#     )
-#     model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper=(
-#                     'mix_alpha',
-#                     [
-#                         '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-#                         '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-#                     ],
-#                 )
-#             )
-#         )
-#     )  # TODO convert vasp bool
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 # TODO add LDA & mGGA, convert_xc
-#                 mapper='.i[?"@name"==\'GGA\'] | [0].__value'
-#             ),
-#             outcar=MapperAnnotation(mapper='.name'),
-#         )
-#     )
+# TODO: map hybrid exact-exchange mixing into `XCFunctional.global_exact_exchange`
+# (formerly `DFT.exact_exchange_mixing_factor`). VASP exposes it via HFALPHA /
+# LHFCALC, and `VasprunParser.mix_alpha` is the intended transformer. Deferred:
+# needs a hybrid test fixture (AgAc_relax is PBE).
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
         model_method.XCFunctional.components,
@@ -132,6 +96,30 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
     )
+    # LibXC taxonomy carried by `get_xc_functionals`; `family` feeds the
+    # `DFT.jacobs_ladder` derivation.
+    add_mapping_annotation(model_method.XCComponent.family, XML_KEY, '.family')
+    add_mapping_annotation(model_method.XCComponent.family, OUTCAR_KEY, '.family')
+    add_mapping_annotation(model_method.XCComponent.kind, XML_KEY, '.kind')
+    add_mapping_annotation(model_method.XCComponent.kind, OUTCAR_KEY, '.kind')
+
+
+class DFT(model_method.DFT):
+    # Bind the `xc` subsection to the source node holding the XC input parameters,
+    # so the child `XCFunctional.components` mapper (which invokes the
+    # source-specific `get_xc_functionals` transformer via `.@`) has a node to
+    # read. Without this binding the subsection is never sourced and `xc` stays
+    # empty, leaving `jacobs_ladder` unavailable.
+    #
+    # vasprun.xml: the `electronic exchange-correlation` separator, nested under
+    # the `electronic` separator that `DFT.m_def` binds to.
+    add_mapping_annotation(
+        model_method.DFT.xc,
+        XML_KEY,
+        '.separator[?"@name"==\'electronic exchange-correlation\'] | [0]',
+    )
+    # OUTCAR: the flat `parameters` dict that `DFT.m_def` binds to.
+    add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
 class ModelMethod(model_method.ModelMethod):

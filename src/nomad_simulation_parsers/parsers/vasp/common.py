@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from nomad_simulations.schema_packages.utils.libxc.build import spec_from_label
+
 XC_FUNCTIONAL_MAPPING = {
     '--': ['GGA_X_PBE', 'GGA_C_PBE'],
     'HL': ['LDA_C_HL'],
@@ -44,45 +46,56 @@ XC_FUNCTIONAL_MAPPING = {
 }
 
 
-def get_xc_functionals(parameters: dict[str, Any]) -> list[dict[str, Any]]:
-    xc_functionals = []
-    if parameters.get('LHFCALC', False):
-        hfscreen_06, hfscreen_03 = 0.2, 0.3
-        aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
-        xc_functional = {}
-        gga = parameters.get('GGA', 'PE')
-        aexx = parameters.get('AEXX', 0.0)
-        aggax = parameters.get('AGGAX', 1.0)
-        aggac = parameters.get('AGGAC', 1.0)
-        aldac = parameters.get('ALDAC', 1.0)
-        hfscreen = parameters.get('HFSCREEN', 0.0)
+def _xc_component(name: str) -> dict[str, Any]:
+    """Build one XC component dict, enriched with LibXC taxonomy from the shared
+    registry. `family` is what `DFT.normalize` uses to derive `jacobs_ladder`;
+    without it the ladder stays 'unavailable' even when components are present.
+    """
+    component: dict[str, Any] = {'name': name}
+    spec = spec_from_label(name)
+    if spec:
+        component['family'] = spec['family']
+        component['kind'] = spec['kind']
+    return component
 
-        if hfscreen == hfscreen_06:
-            xc_functional['name'] = 'HYB_GGA_XC_HSE06'
-        elif hfscreen == hfscreen_03:
-            xc_functional['name'] = 'HYB_GGA_XC_HSE03'
-        elif (
-            gga == 'B3'
-            and aexx == aexx_b3
-            and aggax == aggax_b3
-            and aggac == aggac_b3
-            and aldac == aldac_b3
-        ):
-            xc_functional['name'] = 'HYB_GGA_XC_B3LYP3'
-        elif aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
-            xc_functional['name'] = 'HF_X'
-        elif gga == 'PE':
-            xc_functional['name'] = 'HYB_GGA_XC_PBEH'
-        else:
-            xc_functional['name'] = f'HYB_GGA_XC_{gga}'
-        xc_functionals.append(xc_functional)
+
+def _hybrid_functional_name(parameters: dict[str, Any]) -> str:
+    hfscreen_06, hfscreen_03 = 0.2, 0.3
+    aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
+    gga = parameters.get('GGA', 'PE')
+    aexx = parameters.get('AEXX', 0.0)
+    aggax = parameters.get('AGGAX', 1.0)
+    aggac = parameters.get('AGGAC', 1.0)
+    aldac = parameters.get('ALDAC', 1.0)
+    hfscreen = parameters.get('HFSCREEN', 0.0)
+
+    if hfscreen == hfscreen_06:
+        return 'HYB_GGA_XC_HSE06'
+    if hfscreen == hfscreen_03:
+        return 'HYB_GGA_XC_HSE03'
+    if (
+        gga == 'B3'
+        and aexx == aexx_b3
+        and aggax == aggax_b3
+        and aggac == aggac_b3
+        and aldac == aldac_b3
+    ):
+        return 'HYB_GGA_XC_B3LYP3'
+    if aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
+        return 'HF_X'
+    if gga == 'PE':
+        return 'HYB_GGA_XC_PBEH'
+    return f'HYB_GGA_XC_{gga}'
+
+
+def get_xc_functionals(parameters: dict[str, Any]) -> list[dict[str, Any]]:
+    if parameters.get('LHFCALC', False):
+        return [_xc_component(_hybrid_functional_name(parameters))]
+
+    metagga = parameters.get('METAGGA')
+    if metagga:
+        functionals = XC_FUNCTIONAL_MAPPING.get(metagga, [metagga])
     else:
-        metagga = parameters.get('METAGGA')
-        if metagga:
-            functionals = XC_FUNCTIONAL_MAPPING.get(metagga, [metagga])
-        else:
-            # VASP defaults to PBE-like GGA if GGA is not explicitly set.
-            functionals = XC_FUNCTIONAL_MAPPING.get(parameters.get('GGA', 'PE'), [])
-        for functional in functionals:
-            xc_functionals.append({'name': functional})
-    return xc_functionals
+        # VASP defaults to PBE-like GGA if GGA is not explicitly set.
+        functionals = XC_FUNCTIONAL_MAPPING.get(parameters.get('GGA', 'PE'), [])
+    return [_xc_component(functional) for functional in functionals]

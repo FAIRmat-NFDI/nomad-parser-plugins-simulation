@@ -91,6 +91,34 @@ def test_outcar():
     assert sec_system.periodic_boundary_conditions == [True, True, True]
 
 
+@pytest.mark.parametrize(
+    'mainfile',
+    [
+        pytest.param('tests/data/vasp/AgAc_relax/vasprun.xml.relax', id='vasprun'),
+        pytest.param('tests/data/vasp/AgAc_relax/OUTCAR', id='outcar'),
+    ],
+)
+def test_xc_functional_and_jacobs_ladder(mainfile):
+    """The XC functional maps into `DFT.xc` from both the vasprun.xml and OUTCAR
+    sources, carrying LibXC taxonomy, and `DFT.normalize` derives `jacobs_ladder`
+    from the component families. AgAc_relax uses PBE (GGA).
+    """
+    archive = _parse(mainfile)
+    dft = archive.data.model_method[0]
+
+    assert dft.xc is not None
+    assert [c.canonical_label for c in dft.xc.components] == [
+        'GGA_X_PBE',
+        'GGA_C_PBE',
+    ]
+    assert [str(c.family) for c in dft.xc.components] == ['GGA', 'GGA']
+    assert [str(c.kind) for c in dft.xc.components] == ['exchange', 'correlation']
+
+    # jacobs_ladder is derived from the component families during normalization
+    dft.normalize(archive, LOGGER)
+    assert dft.jacobs_ladder == 'GGA'
+
+
 def test_outcar_electronic_outputs_from_doscar_and_eigenvalues():
     archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
 
