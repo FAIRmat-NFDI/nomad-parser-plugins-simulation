@@ -32,7 +32,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
-from .common import get_xc_functionals
+from .common import get_functional_key as _functional_key_from_params
 from .outcar_parser import OutcarArchiveWriter
 
 LOGGER = get_logger(__name__)
@@ -411,19 +411,67 @@ class VasprunParser(XMLParser):
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
 
-    def get_xc_functionals(self, source: dict[str, Any] | None) -> list[dict[str, str]]:
-        if source is None:
-            return []
-        raw_params = source.get('i') if isinstance(source, dict) else None
-        params = {}
-        for item in raw_params or []:
-            key = item.get(f'{self.attribute_prefix}name')
+    def _find_parameter(self, name: str) -> Any:
+        """Recursively search the vasprun `<parameters>` tree for an `<i name=...>`,
+        returning its value typed by the element's `type` attribute (`logical` ->
+        bool, `int`/`float` -> number), mirroring the OUTCAR parameter typing.
+
+        The XC-relevant tags (`GGA`, `METAGGA`, `LHFCALC`, `AEXX`, ...) live in
+        different, sometimes nested, `<separator>` blocks, so a flat lookup of a
+        single bound node is not enough.
+        """
+
+        def typed(item: dict[str, Any]) -> Any:
             value = item.get(self.value_key)
-            if key is not None:
-                params[key] = value
-        if not params:
-            return []
-        return get_xc_functionals(params)
+            if not isinstance(value, str):
+                return value
+            text = value.strip()
+            match item.get(f'{self.attribute_prefix}type'):
+                case 'logical':
+                    return text.strip('.').upper() in ('T', 'TRUE')
+                case 'string':
+                    return text
+                case 'int':
+                    return int(text) if text.lstrip('-').isdigit() else None
+                case _:
+                    # untyped numeric `<i>` default to float in vasprun
+                    try:
+                        return float(text)
+                    except ValueError:
+                        return text
+
+        def search(node: Any) -> Any:
+            if not isinstance(node, dict):
+                return None
+            for item in as_list(node.get('i')):
+                if (
+                    isinstance(item, dict)
+                    and item.get(f'{self.attribute_prefix}name') == name
+                ):
+                    return typed(item)
+            for sub in as_list(node.get('separator')):
+                found = search(sub)
+                if found is not None:
+                    return found
+            return None
+
+        parameters = self.data.get('modeling', {}).get('parameters', {})
+        return search(parameters)
+
+    def get_functional_key(self, source: Any = None) -> str | None:
+        params = {
+            key: self._find_parameter(key)
+            for key in (
+                'GGA',
+                'METAGGA',
+                'LHFCALC',
+                'AEXX',
+                'AGGAC',
+                'ALDAC',
+                'HFSCREEN',
+            )
+        }
+        return _functional_key_from_params(params)
 
 
 class XMLArchiveWriter(ArchiveWriter):

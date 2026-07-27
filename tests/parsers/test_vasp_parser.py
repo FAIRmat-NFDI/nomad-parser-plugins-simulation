@@ -99,23 +99,24 @@ def test_outcar():
     ],
 )
 def test_xc_functional_and_jacobs_ladder(mainfile):
-    """The XC functional maps into `DFT.xc` from both the vasprun.xml and OUTCAR
-    sources, carrying LibXC taxonomy, and `DFT.normalize` derives `jacobs_ladder`
-    from the component families. AgAc_relax uses PBE (GGA).
+    """The parser sets the canonical `functional_key` from both the vasprun.xml
+    and OUTCAR sources; `XCFunctional.normalize` expands it into complete LibXC
+    components, and `DFT.normalize` derives `jacobs_ladder`. AgAc_relax uses PBE.
     """
     archive = _parse(mainfile)
     dft = archive.data.model_method[0]
 
     assert dft.xc is not None
-    assert [c.canonical_label for c in dft.xc.components] == [
-        'GGA_X_PBE',
-        'GGA_C_PBE',
-    ]
-    assert [str(c.family) for c in dft.xc.components] == ['GGA', 'GGA']
-    assert [str(c.kind) for c in dft.xc.components] == ['exchange', 'correlation']
+    assert dft.xc.functional_key == 'PBE'
 
-    # jacobs_ladder is derived from the component families during normalization
+    # schema normalization expands the functional_key into LibXC components
     dft.normalize(archive, LOGGER)
+    assert {c.canonical_label for c in dft.xc.components} == {
+        'XC_GGA_X_PBE',
+        'XC_GGA_C_PBE',
+    }
+    assert {str(c.family) for c in dft.xc.components} == {'GGA'}
+    assert {str(c.kind) for c in dft.xc.components} == {'exchange', 'correlation'}
     assert dft.jacobs_ladder == 'GGA'
 
 

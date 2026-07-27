@@ -2,100 +2,88 @@
 
 from typing import Any
 
-from nomad_simulations.schema_packages.utils.libxc.build import spec_from_label
-
-XC_FUNCTIONAL_MAPPING = {
-    '--': ['GGA_X_PBE', 'GGA_C_PBE'],
-    'HL': ['LDA_C_HL'],
-    'WI': ['LDA_C_WIGNER'],
-    'PZ': ['LDA_C_PZ'],
-    '91': ['GGA_X_PW91', 'GGA_C_PW91'],
-    'PE': ['GGA_X_PBE', 'GGA_C_PBE'],
-    'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
-    'RE': ['GGA_X_PBE_R'],
-    'VW': ['LDA_C_VWN'],
-    'RP': ['GGA_X_RPBE', 'GGA_C_PBE'],
-    'PS': ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
-    'AM': ['GGA_X_AM05', 'GGA_C_AM05'],
-    'B3': ['HYB_GGA_XC_B3LYP3'],
-    'B5': ['HYB_GGA_XC_B3LYP5'],
-    'BF': ['GGA_X_BEEFVDW', 'GGA_XC_BEEFVDW'],
-    'CO': [],  # TODO check if this is ever used
-    'OR': ['GGA_X_OPTPBE_VDW'],
-    'BO': ['GGA_X_OPTB88_VDW'],
-    'MK': ['GGA_X_OPTB86B_VDW'],
-    'ML': ['VDW_XC_DF2'],
-    'CX': ['VDW_XC_DF_CX'],
-    'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
-    'RTPSS': ['MGGA_X_RTPSS'],
-    'M06L': ['MGGA_C_M06_L'],
-    'MS0': ['MGGA_X_MS0'],
-    'MS1': ['MGGA_X_MS1'],
-    'MS2': ['MGGA_X_MS2'],
-    'SCAN': ['MGGA_X_SCAN'],
-    'RSCAN': ['MGGA_X_RSCAN', 'MGGA_C_RSCAN'],
-    'R2SCAN': ['MGGA_X_R2SCAN', 'MGGA_C_R2SCAN'],
-    'SCANL': ['MGGA_X_SCANL', 'MGGA_C_SCANL'],
-    'RSCANL': [],  # not in LibXC, nor any paper, just deorbitalized SCANL
-    'R2SCANL': ['MGGA_X_R2SCANL', 'MGGA_C_R2SCANL'],
-    'OFR2': [],
-    'MBJ': ['MGGA_X_BJ06'],
-    'LBMJ': [],  # TODO ask Miguel Marquez
-    'HLE17': ['MGGA_XC_HLE17'],  # TODO check if this is ever used
-    'RA': ['LDA_C_PW_RPA'],  # TODO check if this is ever used
+VASP_TAG_TO_FUNCTIONAL = {
+    # GGA tag
+    '--': 'PBE',
+    'PE': 'PBE',
+    'PBE': 'PBE',
+    'PS': 'PBEsol',
+    'RP': 'RPBE',
+    'RE': 'revPBE',
+    '91': 'PW91',
+    'AM': 'AM05',
+    'HL': 'HL',
+    'WI': 'Wigner',
+    'PZ': 'PZ81',
+    'VW': 'VWN',
+    'B3': 'B3LYP',
+    'B5': 'B3LYP',
+    'OR': 'optPBE-vdW',
+    'BO': 'optB88-vdW',
+    'MK': 'optB86b-vdW',
+    'BF': 'BEEF-vdW',
+    # METAGGA tag
+    'TPSS': 'TPSS',
+    'RTPSS': 'revTPSS',
+    'M06L': 'M06-L',
+    'MS0': 'MS0',
+    'MS1': 'MS1',
+    'MS2': 'MS2',
+    'SCAN': 'SCAN',
+    'RSCAN': 'RSCAN',
+    'R2SCAN': 'R2SCAN',
+    'SCANL': 'SCAN-L',
+    'R2SCANL': 'R2SCAN-L',
+    'MBJ': 'MBJ',
 }
 
-
-def _xc_component(name: str) -> dict[str, Any]:
-    """Build one XC component dict, enriched with LibXC taxonomy from the shared
-    registry. `family` is what `DFT.normalize` uses to derive `jacobs_ladder`;
-    without it the ladder stays 'unavailable' even when components are present.
-    """
-    component: dict[str, Any] = {'name': name}
-    spec = spec_from_label(name)
-    if spec:
-        component['family'] = spec['family']
-        component['kind'] = spec['kind']
-    return component
+_HFSCREEN_HSE06, _HFSCREEN_HSE03 = 0.2, 0.3
 
 
-def _hybrid_functional_name(parameters: dict[str, Any]) -> str:
-    hfscreen_06, hfscreen_03 = 0.2, 0.3
-    aexx_b3, aggax_b3, aggac_b3, aldac_b3 = 0.2, 0.72, 0.81, 0.19
-    gga = parameters.get('GGA', 'PE')
-    aexx = parameters.get('AEXX', 0.0)
-    aggax = parameters.get('AGGAX', 1.0)
-    aggac = parameters.get('AGGAC', 1.0)
-    aldac = parameters.get('ALDAC', 1.0)
-    hfscreen = parameters.get('HFSCREEN', 0.0)
+def _clean_tag(value: Any) -> str | None:
+    """A VASP XC tag is only meaningful as a string; both sources report an unset
+    tag as a non-string (OUTCAR: bool `False`, vasprun: typed `--` string)."""
+    if not isinstance(value, str):
+        return None
+    tag = value.strip().strip('"').strip()
+    return tag or None
 
-    if hfscreen == hfscreen_06:
-        return 'HYB_GGA_XC_HSE06'
-    if hfscreen == hfscreen_03:
-        return 'HYB_GGA_XC_HSE03'
-    if (
-        gga == 'B3'
-        and aexx == aexx_b3
-        and aggax == aggax_b3
-        and aggac == aggac_b3
-        and aldac == aldac_b3
-    ):
-        return 'HYB_GGA_XC_B3LYP3'
+
+def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
+    """Canonical functional name for a VASP hybrid run (LHFCALC set). Both source
+    parsers type their parameters, so values arrive as bool/float already."""
+    gga = _clean_tag(parameters.get('GGA'))
+    aexx = parameters.get('AEXX') or 0.0
+    aggac = parameters.get('AGGAC')
+    aldac = parameters.get('ALDAC')
+    hfscreen = parameters.get('HFSCREEN') or 0.0
+
+    if hfscreen == _HFSCREEN_HSE06:
+        return 'HSE06'
+    if hfscreen == _HFSCREEN_HSE03:
+        return 'HSE03'
+    if gga == 'B3':
+        return 'B3LYP'
     if aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
-        return 'HF_X'
+        return None  # pure Hartree-Fock exchange, not a DFT functional
     if gga == 'PE':
-        return 'HYB_GGA_XC_PBEH'
-    return f'HYB_GGA_XC_{gga}'
+        return 'PBE0'
+    return None
 
 
-def get_xc_functionals(parameters: dict[str, Any]) -> list[dict[str, Any]]:
-    if parameters.get('LHFCALC', False):
-        return [_xc_component(_hybrid_functional_name(parameters))]
+def get_functional_key(parameters: dict[str, Any]) -> str | None:
+    """Map VASP XC input tags to a canonical functional name.
 
-    metagga = parameters.get('METAGGA')
-    if metagga:
-        functionals = XC_FUNCTIONAL_MAPPING.get(metagga, [metagga])
-    else:
-        # VASP defaults to PBE-like GGA if GGA is not explicitly set.
-        functionals = XC_FUNCTIONAL_MAPPING.get(parameters.get('GGA', 'PE'), [])
-    return [_xc_component(functional) for functional in functionals]
+    Precedence follows VASP: an explicit hybrid/Hartree-Fock setup wins, then
+    `METAGGA`, then `GGA` (defaulting to PBE when unset). The schema expands the
+    returned name into LibXC components during normalization.
+    """
+    if parameters.get('LHFCALC'):
+        return _hybrid_functional_key(parameters)
+
+    metagga = _clean_tag(parameters.get('METAGGA'))
+    if metagga and metagga not in ('--', 'NONE'):
+        return VASP_TAG_TO_FUNCTIONAL.get(metagga)
+
+    gga = _clean_tag(parameters.get('GGA')) or 'PE'
+    return VASP_TAG_TO_FUNCTIONAL.get(gga)

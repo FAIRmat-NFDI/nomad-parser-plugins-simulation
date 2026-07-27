@@ -81,44 +81,34 @@ class Program(general.Program):
 # LHFCALC, and `VasprunParser.mix_alpha` is the intended transformer. Deferred:
 # needs a hybrid test fixture (AgAc_relax is PBE).
 class XCFunctional(model_method.XCFunctional):
+    # Set only the canonical functional name; `XCFunctional.normalize` expands it
+    # into complete LibXC `components` (exchange + correlation, with family/kind)
+    # from the shared alias/registry tables, and `DFT.normalize` derives
+    # `jacobs_ladder`. The parser therefore does not build components itself. The
+    # `get_functional_key` transformer gathers the VASP XC tags itself (flat
+    # OUTCAR parameters, or by walking the vasprun `<parameters>` tree).
     add_mapping_annotation(
-        model_method.XCFunctional.components,
+        model_method.XCFunctional.functional_key,
         XML_KEY,
-        ('get_xc_functionals', ['.@']),
+        ('get_functional_key', ['.@']),
     )
     add_mapping_annotation(
-        model_method.XCFunctional.components, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+        model_method.XCFunctional.functional_key,
+        OUTCAR_KEY,
+        ('get_functional_key', ['.@']),
     )
-
-
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, XML_KEY, '.name')
-    add_mapping_annotation(
-        model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
-    )
-    # LibXC taxonomy carried by `get_xc_functionals`; `family` feeds the
-    # `DFT.jacobs_ladder` derivation.
-    add_mapping_annotation(model_method.XCComponent.family, XML_KEY, '.family')
-    add_mapping_annotation(model_method.XCComponent.family, OUTCAR_KEY, '.family')
-    add_mapping_annotation(model_method.XCComponent.kind, XML_KEY, '.kind')
-    add_mapping_annotation(model_method.XCComponent.kind, OUTCAR_KEY, '.kind')
 
 
 class DFT(model_method.DFT):
-    # Bind the `xc` subsection to the source node holding the XC input parameters,
-    # so the child `XCFunctional.components` mapper (which invokes the
-    # source-specific `get_xc_functionals` transformer via `.@`) has a node to
-    # read. Without this binding the subsection is never sourced and `xc` stays
-    # empty, leaving `jacobs_ladder` unavailable.
-    #
-    # vasprun.xml: the `electronic exchange-correlation` separator, nested under
-    # the `electronic` separator that `DFT.m_def` binds to.
+    # Bind the `xc` subsection to its source node so the child `functional_key`
+    # mapper runs. vasprun.xml: the `electronic exchange-correlation` separator
+    # nested under the `electronic` separator that `DFT.m_def` binds to. OUTCAR:
+    # the flat `parameters` dict that `DFT.m_def` binds to.
     add_mapping_annotation(
         model_method.DFT.xc,
         XML_KEY,
         '.separator[?"@name"==\'electronic exchange-correlation\'] | [0]',
     )
-    # OUTCAR: the flat `parameters` dict that `DFT.m_def` binds to.
     add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
