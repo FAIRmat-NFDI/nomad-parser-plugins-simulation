@@ -2,6 +2,10 @@
 
 from typing import Any
 
+from nomad.utils import get_logger
+
+LOGGER = get_logger(__name__)
+
 VASP_TAG_TO_FUNCTIONAL = {
     # GGA tag (`--` = POTCAR default is handled by the `PE` fallback)
     'PE': 'PBE',
@@ -95,6 +99,20 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
     if parameters.get('LHFCALC'):
         return _hybrid_functional_key(parameters)
     if metagga := _clean_tag(parameters.get('METAGGA')):
-        return VASP_TAG_TO_FUNCTIONAL.get(metagga)
+        return _mapped_functional(metagga, 'METAGGA')
     gga = _clean_tag(parameters.get('GGA')) or 'PE'
-    return VASP_TAG_TO_FUNCTIONAL.get(gga)
+    return _mapped_functional(gga, 'GGA')
+
+
+def _mapped_functional(tag: str, source: str) -> str | None:
+    """Resolve a VASP tag to a canonical name, logging a present-but-unmapped tag.
+
+    Returns `None` for an unrecognized tag rather than the raw tag: `functional_key`
+    must be a canonical name the schema can expand, and VASP's short tags are not.
+    """
+    name = VASP_TAG_TO_FUNCTIONAL.get(tag)
+    if name is None:
+        LOGGER.debug(
+            'unmapped VASP %s tag %s; leaving functional_key unset', source, tag
+        )
+    return name

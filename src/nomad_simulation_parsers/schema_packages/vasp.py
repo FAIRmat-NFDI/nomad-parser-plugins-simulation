@@ -100,15 +100,13 @@ class XCFunctional(model_method.XCFunctional):
 
 
 class DFT(model_method.DFT):
-    # Bind the `xc` subsection to its source node so the child `functional_key`
-    # mapper runs. vasprun.xml: the `electronic exchange-correlation` separator
-    # nested under the `electronic` separator that `DFT.m_def` binds to. OUTCAR:
-    # the flat `parameters` dict that `DFT.m_def` binds to.
-    add_mapping_annotation(
-        model_method.DFT.xc,
-        XML_KEY,
-        '.separator[?"@name"==\'electronic exchange-correlation\'] | [0]',
-    )
+    # The binding only needs to materialize the `xc` subsection so the child
+    # `functional_key` mapper runs -- `get_functional_key` ignores the bound node
+    # and gathers the XC tags itself (walking the full vasprun `<parameters>`
+    # tree, or the flat OUTCAR parameters). So bind to the current node (`.@`,
+    # always present) for both sources rather than a specific nested separator
+    # that some vasprun variants omit.
+    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
     add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
