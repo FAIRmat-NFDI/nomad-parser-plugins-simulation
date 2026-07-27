@@ -11,6 +11,7 @@ from nomad.processing import Upload
 from nomad.utils import get_logger
 from pytest import approx
 
+from nomad_simulation_parsers.parsers.vasp.common import functional_key_from_params
 from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
     OutcarParser,
     OutcarTextParser,
@@ -89,6 +90,31 @@ def test_outcar():
     assert sec_system.positions is not None
     assert sec_system.lattice_vectors is not None
     assert sec_system.periodic_boundary_conditions == [True, True, True]
+
+
+@pytest.mark.parametrize(
+    'parameters, expected',
+    [
+        pytest.param({'GGA': 'PE'}, 'PBE', id='gga-pe'),
+        pytest.param({'GGA': '--'}, 'PBE', id='gga-default'),
+        pytest.param({'METAGGA': 'SCAN'}, 'SCAN', id='metagga-scan'),
+        pytest.param({'LHFCALC': True, 'HFSCREEN': 0.2}, 'HSE06', id='hse06'),
+        pytest.param({'LHFCALC': True, 'HFSCREEN': 0.3}, 'HSE03', id='hse03'),
+        pytest.param({'LHFCALC': True, 'AEXX': 0.25}, 'PBE0', id='pbe0-gga-unset'),
+        pytest.param({'LHFCALC': True, 'GGA': 'PBE'}, 'PBE0', id='pbe0-gga-pbe'),
+        pytest.param({'LHFCALC': True, 'GGA': 'B5'}, 'B3LYP', id='b3lyp-b5'),
+        pytest.param({'LHFCALC': True, 'GGA': 'B3'}, 'B3LYP', id='b3lyp-b3'),
+        pytest.param(
+            {'LHFCALC': True, 'AEXX': 1.0, 'ALDAC': 0.0, 'AGGAC': 0.0},
+            None,
+            id='pure-hf',
+        ),
+    ],
+)
+def test_functional_key_from_params(parameters, expected):
+    """Tag-to-canonical-name mapping, including hybrids where GGA may be unset or
+    `PBE` (PBE0) or `B5` (B3LYP)."""
+    assert functional_key_from_params(parameters) == expected
 
 
 @pytest.mark.parametrize(

@@ -71,21 +71,24 @@ def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
         return 'HSE06'
     if hfscreen == _HFSCREEN_HSE03:
         return 'HSE03'
-    if gga == 'B3':
+    if gga in ('B3', 'B5'):
         return 'B3LYP'
     if aexx == 1.0 and aldac == 0.0 and aggac == 0.0:
         return None  # pure Hartree-Fock exchange, not a DFT functional
-    if gga == 'PE':
+    # Default hybrid is PBE0: GGA either unset (POTCAR default PBE) or PBE-family.
+    if gga in (None, 'PE', 'PBE'):
         return 'PBE0'
     return None
 
 
-def get_functional_key(parameters: dict[str, Any]) -> str | None:
+def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
     """Map VASP XC input tags to a canonical functional name.
 
     Precedence follows VASP: an explicit hybrid/Hartree-Fock setup wins, then
     `METAGGA`, then `GGA` (defaulting to PBE when unset). The schema expands the
-    returned name into LibXC components during normalization.
+    returned name into LibXC components during normalization. The per-source
+    `get_functional_key` transformer methods assemble `parameters` and delegate
+    here.
     """
     if parameters.get('LHFCALC'):
         return _hybrid_functional_key(parameters)

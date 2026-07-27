@@ -32,7 +32,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
-from .common import get_functional_key as _functional_key_from_params
+from .common import functional_key_from_params
 from .outcar_parser import OutcarArchiveWriter
 
 LOGGER = get_logger(__name__)
@@ -411,15 +411,18 @@ class VasprunParser(XMLParser):
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
 
-    def _find_parameter(self, name: str) -> Any:
-        """Recursively search the vasprun `<parameters>` tree for an `<i name=...>`,
-        returning its value typed by the element's `type` attribute (`logical` ->
-        bool, `int`/`float` -> number), mirroring the OUTCAR parameter typing.
+    def _find_parameters(self, names: tuple[str, ...]) -> dict[str, Any]:
+        """Collect the requested `<i name=...>` values from the vasprun
+        `<parameters>` tree in a single pre-order walk, typing each by its `type`
+        attribute (`logical` -> bool, `int`/`float` -> number), mirroring the
+        OUTCAR parameter typing.
 
         The XC-relevant tags (`GGA`, `METAGGA`, `LHFCALC`, `AEXX`, ...) live in
-        different, sometimes nested, `<separator>` blocks, so a flat lookup of a
-        single bound node is not enough.
+        different, sometimes nested, `<separator>` blocks, so one traversal that
+        gathers them all avoids re-walking the tree per key. First match wins.
         """
+        wanted = set(names)
+        found: dict[str, Any] = {}
 
         def typed(item: dict[str, Any]) -> Any:
             value = item.get(self.value_key)
@@ -440,38 +443,28 @@ class VasprunParser(XMLParser):
                     except ValueError:
                         return text
 
-        def search(node: Any) -> Any:
-            if not isinstance(node, dict):
-                return None
+        def search(node: Any) -> None:
+            if not isinstance(node, dict) or len(found) == len(wanted):
+                return
             for item in as_list(node.get('i')):
-                if (
-                    isinstance(item, dict)
-                    and item.get(f'{self.attribute_prefix}name') == name
-                ):
-                    return typed(item)
+                if not isinstance(item, dict):
+                    continue
+                name = item.get(f'{self.attribute_prefix}name')
+                if name in wanted and name not in found:
+                    found[name] = typed(item)
             for sub in as_list(node.get('separator')):
-                found = search(sub)
-                if found is not None:
-                    return found
-            return None
+                if len(found) == len(wanted):
+                    break
+                search(sub)
 
-        parameters = self.data.get('modeling', {}).get('parameters', {})
-        return search(parameters)
+        search(self.data.get('modeling', {}).get('parameters', {}))
+        return found
 
     def get_functional_key(self, source: Any = None) -> str | None:
-        params = {
-            key: self._find_parameter(key)
-            for key in (
-                'GGA',
-                'METAGGA',
-                'LHFCALC',
-                'AEXX',
-                'AGGAC',
-                'ALDAC',
-                'HFSCREEN',
-            )
-        }
-        return _functional_key_from_params(params)
+        params = self._find_parameters(
+            ('GGA', 'METAGGA', 'LHFCALC', 'AEXX', 'AGGAC', 'ALDAC', 'HFSCREEN')
+        )
+        return functional_key_from_params(params)
 
 
 class XMLArchiveWriter(ArchiveWriter):

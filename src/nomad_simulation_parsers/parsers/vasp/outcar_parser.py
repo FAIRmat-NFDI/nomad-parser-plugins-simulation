@@ -33,7 +33,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import vasp
 
 from .chgcar_parser import CHGCARParser
-from .common import get_functional_key as _functional_key_from_params
+from .common import functional_key_from_params
 
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
@@ -500,7 +500,7 @@ class OutcarParser(MappingTextParser):
         return []
 
     def get_functional_key(self, parameters: dict[str, Any]) -> str | None:
-        return _functional_key_from_params(parameters)
+        return functional_key_from_params(parameters)
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
