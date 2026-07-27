@@ -3,8 +3,7 @@
 from typing import Any
 
 VASP_TAG_TO_FUNCTIONAL = {
-    # GGA tag
-    '--': 'PBE',
+    # GGA tag (`--` = POTCAR default is handled by the `PE` fallback)
     'PE': 'PBE',
     'PBE': 'PBE',
     'PS': 'PBEsol',
@@ -41,12 +40,22 @@ _HFSCREEN_HSE06, _HFSCREEN_HSE03 = 0.2, 0.3
 
 
 def _clean_tag(value: Any) -> str | None:
-    """A VASP XC tag is only meaningful as a string; both sources report an unset
-    tag as a non-string (OUTCAR: bool `False`, vasprun: typed `--` string)."""
+    """Return the XC tag as a clean string, or `None` when it is unset.
+
+    The two sources spell "unset" differently: OUTCAR yields a non-string (bool
+    `False`, from the shared parameter converter), vasprun yields an absent
+    element or a `--`/`NONE` sentinel. All of them normalize to `None` here.
+    """
+    # TODO: OUTCAR reports an unset tag as bool `False` because `get_key_values`
+    # converts every logical token; normalizing unset XC tags to `None` on the
+    # OUTCAR side would let the non-string guard go, at the cost of
+    # METAGGA-specific handling around that shared converter.
     if not isinstance(value, str):
         return None
     tag = value.strip().strip('"').strip()
-    return tag or None
+    if not tag or tag.upper() in ('--', 'NONE'):
+        return None
+    return tag
 
 
 def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
@@ -80,10 +89,7 @@ def get_functional_key(parameters: dict[str, Any]) -> str | None:
     """
     if parameters.get('LHFCALC'):
         return _hybrid_functional_key(parameters)
-
-    metagga = _clean_tag(parameters.get('METAGGA'))
-    if metagga and metagga not in ('--', 'NONE'):
+    if metagga := _clean_tag(parameters.get('METAGGA')):
         return VASP_TAG_TO_FUNCTIONAL.get(metagga)
-
     gga = _clean_tag(parameters.get('GGA')) or 'PE'
     return VASP_TAG_TO_FUNCTIONAL.get(gga)
