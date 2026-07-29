@@ -17,7 +17,6 @@ from nomad_simulations.schema_packages.workflow import (
     MolecularDynamics,
     SinglePoint,
 )
-
 from nomad_simulations.schema_packages.workflow.general import (
     EnergyConvergenceTarget,
     ForceConvergenceTarget,

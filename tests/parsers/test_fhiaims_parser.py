@@ -105,7 +105,7 @@ def test_k_mesh(tmp_path, k_offset_line, expected_offset):
     dft = archive.data.model_method[0]
     assert dft.m_def.name == 'DFT'
 
-    # Check NumericalSettings/KMesh exists
+    # Check NumericalSettings/KSpace exists
     assert dft.numerical_settings is not None
     # Filter for KSpace (may also contain SelfConsistency criteria)
     k_spaces = [ns for ns in dft.numerical_settings if ns.m_def.name == 'KSpace']
@@ -133,9 +133,11 @@ def test_scf_convergence_criteria():
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
 
-    # Debug: print archive structure
-    print(f"archive.data: {archive.data}")
-    print(f"model_method: {archive.data.model_method if archive.data else None}")
+    # Check DFT section exists
+    assert archive.data.model_method is not None
+    assert len(archive.data.model_method) == 1
+    dft = archive.data.model_method[0]
+    assert dft.m_def.name == 'DFT'
 
     # Check NumericalSettings contains SelfConsistency sections
     assert dft.numerical_settings is not None

@@ -162,16 +162,6 @@ class SCFSteps(outputs.SCFSteps):
     )
 
 
-class SCFSteps(outputs.SCFSteps):
-    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
-    add_mapping_annotation(
-        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
-    )
-    add_mapping_annotation(
-        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
-    )
-
-
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, OUT_KEY, '.@')
     add_mapping_annotation(
