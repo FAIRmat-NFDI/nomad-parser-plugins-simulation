@@ -135,11 +135,6 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
-<<<<<<< Updated upstream
-    add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
-    add_mapping_annotation(model_system.Representation.m_def, LOG_KEY, '.@')
-    add_mapping_annotation(model_system.Representation.m_def, TPR_KEY, '.@')
-=======
     add_mapping_annotation(
         model_system.AtomsState.m_def,
         TPR_KEY,
@@ -154,8 +149,6 @@ add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
 
 # Subsystem hierarchy annotations (apply to all ModelSystem instances including
 # subsystems)
-# sub_systems: recursively extract from nested dicts via function call
-# Pass '.@' as first argument (current node dict) to function
 add_mapping_annotation(
     model_system.ModelSystem.sub_systems,
     TPR_KEY,
@@ -169,7 +162,6 @@ add_mapping_annotation(
     model_system.ModelSystem.particle_indices, TPR_KEY, '.particle_indices'
 )
 add_mapping_annotation(model_system.ModelSystem.branch_label, TPR_KEY, '.branch_label')
->>>>>>> Stashed changes
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -223,12 +215,6 @@ class GeometryOptimizationModel(geometry_optimization.GeometryOptimization):
         geometry_optimization.GeometryOptimizationMethod.n_steps_maximum,
         LOG_KEY,
         '.input_parameters.nsteps',
-    )
-    add_mapping_annotation(
-        geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
-        LOG_KEY,
-        '.input_parameters.emtol',
-        unit='kilojoule/avogadro_number/nanometer',
     )
 
 
