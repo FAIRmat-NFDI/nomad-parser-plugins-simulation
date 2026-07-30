@@ -77,7 +77,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
         'Perdew-Wang parametrisation of Ceperley-Alder LDA': 'LDA',
         'Perdew-Zunger parametrisation of Ceperley-Alder LDA': 'PZ81',
         'VWN-LDA parametrisation of VWN5 form': 'VWN',
-        'VWN-LDA parametrisation of VWN-RPA form': 'VWN',
+        'VWN-LDA parametrisation of VWN-RPA form': 'VWN-RPA',
         'AM05 gradient-corrected functionals': 'AM05',
         'BLYP functional': 'BLYP',
         'PBE gradient-corrected functionals': 'PBE',
