@@ -495,10 +495,11 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 info_parser.filepath = info_out
                 info_parser.convert(data_parser)
 
-        # read xc functionals from input.xml
+        # read xc functionals from input.xml only if INFO.OUT did not already
+        # populate them
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
-            if not self.archive.m_xpath('data.model_method[0].xc_functionals')
+            if not self.archive.m_xpath('data.model_method[0].xc.components')
             else []
         )
         if input_xml_files:
