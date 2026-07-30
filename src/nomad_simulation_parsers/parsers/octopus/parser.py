@@ -36,6 +36,7 @@ class OctopusMainfileParser(TextParser):
     # TODO resolve solely from the integer value
     _xc_functionals = {
         'Exchange': ('lda_x', 1),
+        'Slater exchange': ('lda_x', 1),
         'Wigner parametrization': ('lda_c_wigner', 2000),
         'Random Phase Approximation': ('lda_c_rpa', 3000),
         'Hedin & Lundqvist': ('lda_c_hl', 4000),
