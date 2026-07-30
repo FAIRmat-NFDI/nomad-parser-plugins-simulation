@@ -143,7 +143,9 @@ class MainfileTextParser(TextParser):
         combo = ' '.join(tokens)
         name = self._slot_combo_names.get(combo)
         if name is None:
+            # preserve the raw slot combination so the reported XC is not dropped
             self.logger.debug('unmapped QE XC slot combination', data=dict(value=combo))
+            return combo
         return name
 
     def get_value(self, source: dict[str, Any], key: str = '', units: str = 'units'):
