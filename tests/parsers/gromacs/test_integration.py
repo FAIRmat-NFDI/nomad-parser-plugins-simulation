@@ -275,6 +275,10 @@ class TestGromacsFeTestArchive(GromacsParserIntegrationSuite):
 
         assert len(simulation.model_system) == 2
         first_system, second_system = simulation.model_system
+        for system in simulation.model_system:
+            assert system.n_particles == 1516
+            assert list(system.periodic_boundary_conditions) == [True, True, True]
+            assert system.lattice_vectors is not None
         assert first_system.positions.shape == (1516, 3)
         assert_approx(
             second_system.positions[800][1].to('nanometer').magnitude,
