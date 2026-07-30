@@ -85,9 +85,7 @@ class GromacsThermodynamicsParser(MappingParser):
                 elif key in self._base_calc_unit_map:
                     data[key] = val[n] * self._base_calc_unit_map[key]
             if step in self._trajectory_steps:
-                data['system_ref'] = (
-                    f'/data/model_system/{self._trajectory_steps.index(step)}'
-                )
+                data['system_ref'] = '/data/model_system/0'
             outputs.append(data)
         return outputs
 
@@ -139,10 +137,12 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         return (source or 'unknown').lstrip('VERSION')
 
     def get_configurations(self):
+        if not self._trajectory_steps_sampled:
+            return []
         pbc = [
             k in self.data.get('input_parameters', {}).get('pbc', 'xyz') for k in 'xyz'
         ]
-        return [dict(pbc=pbc) for _ in self._trajectory_steps_sampled]
+        return [dict(pbc=pbc)]
 
     def get_outputs(self) -> list[dict[str, Any]]:
         data = {}
@@ -496,11 +496,31 @@ class GromacsXVGParser(TextParser):
 
 
 class GromacsMDAnalysisParser(MappingParser):
+<<<<<<< Updated upstream
     aux_files: list[str] = []
     mdanalysis_parser: GromacsMDAnalysisFileParser = None
     _trajectory_steps_sampled: list[int] = []
     _trajectory_steps: list[int] = []
     _thermodynamic_steps: list[int] = []
+=======
+    aux_files: list[str]
+    mdanalysis_parser: GromacsMDAnalysisFileParser
+    _trajectory_steps_sampled: list[int]
+    _trajectory_steps: list[int]
+    _thermodynamic_steps: list[int]
+    _subsystems_hierarchy: list[dict[str, Any]]
+    _particle_parameters: list[dict[str, Any]]
+
+    def __init__(self, **kwargs):
+        self.aux_files: list[str] = []
+        self.mdanalysis_parser: GromacsMDAnalysisFileParser = None
+        self._trajectory_steps_sampled: list[int] = []
+        self._trajectory_steps: list[int] = []
+        self._thermodynamic_steps: list[int] = []
+        self._subsystems_hierarchy: list[dict[str, Any]] = []
+        self._particle_parameters: list[dict[str, Any]] = []
+        super().__init__(**kwargs)
+>>>>>>> Stashed changes
 
     # TODO: temporary fix for structlog unable to propagate logger
     @property
@@ -510,9 +530,38 @@ class GromacsMDAnalysisParser(MappingParser):
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
             self.data_object.parse()
+<<<<<<< Updated upstream
             return self.data_object._results
         return {}
 
+=======
+            result = self.data_object._results
+
+            # Cache topology-level data as parser attributes so transformer
+            # functions can access them without injecting them into per-frame
+            # config dicts (consistent with the H5MD pattern).
+            self._particle_parameters = self.get_particle_parameters()
+            self._subsystems_hierarchy = self.get_sub_systems()
+
+            return result
+        return {}
+
+    def get_subsystems_from_dict(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """Return subsystems for top-level and nested ModelSystem instances.
+
+        The top-level config dict (from get_configurations) has a 'step' key.
+        Sub-system dicts built from the topology hierarchy do not. At the top
+        level the pre-built hierarchy is returned directly; nested calls
+        propagate the already-resolved 'sub_systems' list from each dict.
+        """
+        if 'step' in source and 'sub_systems' not in source:
+            return self._subsystems_hierarchy
+
+        return source.get('sub_systems', []) if isinstance(source, dict) else []
+
+>>>>>>> Stashed changes
     def from_dict(self, dct: dict[str, Any]):
         raise NotImplementedError
 
@@ -565,7 +614,32 @@ class GromacsMDAnalysisParser(MappingParser):
 
         return result
 
+    def get_particle_states(
+        self, source: dict[str, Any], **kwargs
+    ) -> list[dict[str, Any]]:
+        """Return per-particle topology payloads for the representative frame only.
+
+        Mirrors the H5MD to_species_labels guard pattern:
+          - no 'step' in source → sub-system dict → return []
+          - 'step' != last step  → non-representative frame → return []
+          - 'step' == last step  → representative frame → return payloads
+
+        Payloads are cached as self._particle_parameters in to_dict so they
+        are read from the topology file once, not once per frame.
+        """
+        step = source.get('step')
+        if step is None:
+            return []
+        last_step = (
+            self._trajectory_steps_sampled[-1]
+            if self._trajectory_steps_sampled
+            else None
+        )
+        result = self._particle_parameters if step == last_step else []
+        return result
+
     def get_configurations(self) -> list[dict[str, Any]]:
+<<<<<<< Updated upstream
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
             config = dict(
@@ -583,6 +657,28 @@ class GromacsMDAnalysisParser(MappingParser):
 
             configurations.append(config)
         return configurations
+=======
+        if not self._trajectory_steps_sampled:
+            return []
+        n_particles = self.data_object.get_n_atoms(0)
+        bond_list = self.get_bond_list()
+        # Emit one config dict for the representative (last) frame only.
+        # Per-frame thermodynamic data lives in outputs; model_system holds the
+        # representative geometry and the full topology hierarchy.
+        last_idx = len(self._trajectory_steps_sampled) - 1
+        last_step = self._trajectory_steps_sampled[-1]
+        frame_data = self.data_object.get_frame_data(last_idx)
+        config = dict(
+            step=last_step,
+            n_particles=n_particles,
+            positions=frame_data['positions'],
+            velocities=frame_data['velocities'],
+            lattice_vectors=frame_data['lattice_vectors'],
+        )
+        if bond_list is not None:
+            config['bond_list'] = bond_list
+        return [config]
+>>>>>>> Stashed changes
 
     def get_force_field_contributions(self) -> list[dict[str, Any]]:
         """

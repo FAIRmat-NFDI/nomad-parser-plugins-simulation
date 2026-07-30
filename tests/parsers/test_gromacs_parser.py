@@ -56,13 +56,25 @@ def test_mdanalysis_get_configurations_returns_positions_and_labels(
     simple_mdanalysis_parser.data_object = stub
     configs = simple_mdanalysis_parser.get_configurations()
 
+    # One config dict for the representative (last) frame only.
     assert isinstance(configs, list)
-    assert len(configs) == 2
-    assert np.allclose(configs[0]['positions'], positions[0])
-    assert np.allclose(configs[1]['positions'], positions[1])
-    assert np.allclose(configs[0]['lattice_vectors'], lattices[0])
-    # labels are produced by get_atom_labels; ensure key exists
-    assert 'labels' in configs[0]
+    assert len(configs) == 1
+    assert np.allclose(configs[0]['positions'], positions[1])
+    assert np.allclose(configs[0]['lattice_vectors'], lattices[1])
+    # Particle labels are not injected into config dicts; each dict carries
+    # a 'step' key used by the get_particle_states transformer.
+    assert 'step' in configs[0]
+    assert 'labels' not in configs[0]
+
+    # get_particle_states returns payloads for the representative frame.
+    simple_mdanalysis_parser._particle_parameters = [
+        {'label': 'H', 'element': 'H'}
+    ] * 3
+    last_step = simple_mdanalysis_parser._trajectory_steps_sampled[-1]
+    payloads = simple_mdanalysis_parser.get_particle_states(configs[0])
+    assert len(payloads) == 3
+    assert payloads[0]['label'] == 'H'
+    assert configs[0]['step'] == last_step
 
 
 def test_metainfo_convert_populates_simulation_model_system(simple_mdanalysis_parser):
@@ -87,10 +99,10 @@ def test_metainfo_convert_populates_simulation_model_system(simple_mdanalysis_pa
     # and assert that configurations are available.
     if len(sim.model_system) == 0:
         configs = simple_mdanalysis_parser.get_configurations()
-        assert len(configs) == 2
+        assert len(configs) == 1
         assert configs[0]['positions'].shape == (2, 3)
     else:
-        assert len(sim.model_system) == 2
+        assert len(sim.model_system) == 1
         assert sim.model_system[0].positions is not None
         assert sim.model_system[0].positions.shape == (2, 3)
 
@@ -102,8 +114,9 @@ def test_logparser_get_configurations_pbc_and_sampling():
     lp._trajectory_steps_sampled = [0, 1, 2]
     configs = lp.get_configurations()
 
-    assert len(configs) == 3
-    assert all('pbc' in c for c in configs)
+    # Log parser emits one config dict (pbc is topology data, not per-frame).
+    assert len(configs) == 1
+    assert 'pbc' in configs[0]
     assert configs[0]['pbc'] == [True, True, False]
 
 

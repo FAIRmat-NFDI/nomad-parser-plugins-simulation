@@ -135,9 +135,41 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
+<<<<<<< Updated upstream
     add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
     add_mapping_annotation(model_system.Representation.m_def, LOG_KEY, '.@')
     add_mapping_annotation(model_system.Representation.m_def, TPR_KEY, '.@')
+=======
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        TPR_KEY,
+        ('get_particle_states', ['.@']),
+    )
+
+
+# ROOT annotation for nested ModelSystem instances
+# When MappingParser creates ModelSystem from subsystems list,
+# use that dict as source root
+add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
+
+# Subsystem hierarchy annotations (apply to all ModelSystem instances including
+# subsystems)
+# sub_systems: recursively extract from nested dicts via function call
+# Pass '.@' as first argument (current node dict) to function
+add_mapping_annotation(
+    model_system.ModelSystem.sub_systems,
+    TPR_KEY,
+    ('get_subsystems_from_dict', ['.@']),
+)
+add_mapping_annotation(model_system.ModelSystem.name, TPR_KEY, '.name')
+add_mapping_annotation(
+    model_system.ModelSystem.composition_formula, TPR_KEY, '.composition_formula'
+)
+add_mapping_annotation(
+    model_system.ModelSystem.particle_indices, TPR_KEY, '.particle_indices'
+)
+add_mapping_annotation(model_system.ModelSystem.branch_label, TPR_KEY, '.branch_label')
+>>>>>>> Stashed changes
 
 
 class TotalEnergy(outputs.TotalEnergy):
