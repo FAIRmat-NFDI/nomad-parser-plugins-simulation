@@ -139,37 +139,42 @@ class LammpsArchiveWriter(MDParser):
                 # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
                 self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
 
+        # dimension is frame-independent; read once
+        dimension = self._log_parser.get('dimension', 3)
+
         for step in self.trajectory_steps:
             traj_n = self.trajectory_steps.index(step)
-
-            # Extract and apply units to trajectory data
-            lattice_vectors = _get_quantity_with_units(
-                traj_n, 'lattice_vectors', 'distance'
-            )
             velocities = _get_quantity_with_units(traj_n, 'velocities', 'velocity')
-            # The 'dimension' command "must be used" to specify 2D simulations (https://docs.lammps.org/Howto_2d.html).
-            # LAMMPS default is 3D.
-            dimension = self._log_parser.get('dimension', 3)
 
-            # Extract bond list for first frame only
-            # TODO: add link to this in other frames
             if traj_n == 0:
                 _extract_bond_list()
-
-            particles_dict = {
-                'lattice_vectors': lattice_vectors,
-                'periodic_boundary_conditions': self.traj_parsers.eval(
-                    'get_pbc', traj_n
-                ),
-                'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
-                'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
-                'positions': self.apply_unit(
-                    self.traj_parsers.eval('get_positions', traj_n), 'distance'
-                ),
-                'velocities': velocities,
-                'bond_list': self._bond_list if self._bond_list else None,
-                'dimensions': dimension,
-            }
+                particles_dict = {
+                    'lattice_vectors': _get_quantity_with_units(
+                        traj_n, 'lattice_vectors', 'distance'
+                    ),
+                    'periodic_boundary_conditions': self.traj_parsers.eval(
+                        'get_pbc', traj_n
+                    ),
+                    'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
+                    'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
+                    'positions': self.apply_unit(
+                        self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                    ),
+                    'velocities': velocities,
+                    'bond_list': self._bond_list if self._bond_list else None,
+                    'dimensions': dimension,
+                }
+            else:
+                particles_dict = {
+                    'lattice_vectors': None,
+                    'periodic_boundary_conditions': None,
+                    'labels': None,
+                    'dimensions': dimension,
+                    'positions': self.apply_unit(
+                        self.traj_parsers.eval('get_positions', traj_n), 'distance'
+                    ),
+                    'velocities': velocities,
+                }
             self.parse_trajectory_step(particles_dict, simulation)
 
     def _create_system_node(
