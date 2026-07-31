@@ -46,16 +46,26 @@ class MainfileParser(TextParser):
     def logger(self):
         return LOGGER
 
-    def get_xc_functionals(self, source: dict[str, Any]) -> list[str]:
-        xc_functionals = []
-        for xc_type in ['LDA', 'GGA', 'MGGA']:
-            functionals = source.get(xc_type, '').split()
-            kind = ['XC'] if len(functionals) == 1 else ['X', 'C']
-            for n, functional in enumerate(functionals):
-                xc_functionals.append(
-                    f'{xc_type}_{kind[n]}_{functional.rstrip("x").rstrip("c").upper()}'
-                )
-        return xc_functionals
+    # AMS reports the active functional per rung ('LDA:', 'Gradient Corrections:',
+    # 'Meta-GGA:'); the highest present rung is the functional in effect. Map the
+    # AMS spelling to a standard functional name; the schema expands the name into
+    # LibXC components and derives `jacobs_ladder`. Unmapped strings pass through
+    # unchanged (a single token is usually already a standard name).
+    _ams_name_map = {
+        'Becke Perdew': 'BP86',
+        'Becke LYP': 'BLYP',
+        'BP': 'BP86',
+        'M06L': 'M06-L',
+        'M06-L': 'M06-L',
+    }
+
+    def get_functional_key(self, source: dict[str, Any]) -> str | None:
+        for rung in ('MGGA', 'GGA', 'LDA'):
+            value = (source.get(rung) or '').strip()
+            if not value:
+                continue
+            return self._ams_name_map.get(value, value)
+        return None
 
     def get_periodic_boundary_conditions(
         self, source: dict[str, Any] | Any

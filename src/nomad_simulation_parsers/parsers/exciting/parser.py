@@ -76,15 +76,15 @@ class InfoParser(TextParser):
 
     def get_xc_functionals(self, xc_type: int) -> list[dict[str, Any]]:
         xc_functional_map = {
-            2: ['LDA_C_PZ', 'LDA_X_PZ'],
-            3: ['LDA_C_PW', 'LDA_X_PZ'],
+            2: ['LDA_C_PZ', 'LDA_X'],
+            3: ['LDA_C_PW', 'LDA_X'],
             4: ['LDA_C_XALPHA'],
             5: ['LDA_C_VBH'],
             20: ['GGA_C_PBE', 'GGA_X_PBE'],
             21: ['GGA_C_PBE', 'GGA_X_PBE_R'],
             22: ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
             26: ['GGA_C_PBE', 'GGA_X_WC'],
-            30: ['GGA_C_AM05', 'GGA_C_AM05'],
+            30: ['GGA_C_AM05', 'GGA_X_AM05'],
             300: ['GGA_C_BGCP', 'GGA_X_PBE'],
             406: ['HYB_GGA_XC_PBEH'],
             408: ['HYB_GGA_XC_HSE03'],
@@ -495,10 +495,11 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 info_parser.filepath = info_out
                 info_parser.convert(data_parser)
 
-        # read xc functionals from input.xml
+        # read xc functionals from input.xml only if INFO.OUT did not already
+        # populate them
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
-            if not self.archive.m_xpath('data.model_method[0].xc_functionals')
+            if not self.archive.m_xpath('data.model_method[0].xc.components')
             else []
         )
         if input_xml_files:

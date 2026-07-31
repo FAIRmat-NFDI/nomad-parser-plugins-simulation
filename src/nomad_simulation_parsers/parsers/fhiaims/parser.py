@@ -68,112 +68,39 @@ class FHIAimsOutMappingParser(TextMappingParser):
         'scgw': 'scGW',
     }
 
-    _xc_map = {
-        'Perdew-Wang parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PW'},
-            {'name': 'LDA_X'},
-        ],
-        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PZ'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN5 form': [
-            {'name': 'LDA_C_VWN'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN-RPA form': [
-            {'name': 'LDA_C_VWN_RPA'},
-            {'name': 'LDA_X'},
-        ],
-        'AM05 gradient-corrected functionals': [
-            {'name': 'GGA_C_AM05'},
-            {'name': 'GGA_X_AM05'},
-        ],
-        'BLYP functional': [{'name': 'GGA_C_LYP'}, {'name': 'GGA_X_B88'}],
-        'PBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE'},
-        ],
-        'PBEint gradient-corrected functional': [
-            {'name': 'GGA_C_PBEINT'},
-            {'name': 'GGA_X_PBEINT'},
-        ],
-        'PBEsol gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {'name': 'GGA_X_PBE_SOL'},
-        ],
-        'RPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_RPBE'},
-        ],
-        'revPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE_R'},
-        ],
-        'PW91 gradient-corrected functionals': [
-            {'name': 'GGA_C_PW91'},
-            {'name': 'GGA_X_PW91'},
-        ],
-        'M06-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_L'},
-            {'name': 'MGGA_X_M06_L'},
-        ],
-        'M11-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11_L'},
-            {'name': 'MGGA_X_M11_L'},
-        ],
-        'TPSS gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSS'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'TPSSloc gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSSLOC'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'hybrid B3LYP functional': [{'name': 'HYB_GGA_XC_B3LYP5'}],
-        'Hartree-Fock': [{'name': 'HF_X'}],
-        'HSE': [{'name': 'HYB_GGA_XC_HSE03'}],
-        'HSE-functional': [{'name': 'HYB_GGA_XC_HSE06'}],
-        'hybrid-PBE0 functionals': [
-            {'name': 'GGA_C_PBE'},
-            {
-                'name': 'GGA_X_PBE',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'hybrid-PBEsol0 functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {
-                'name': 'GGA_X_PBE_SOL',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'Hybrid M06 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-2X gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_2X'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-HF gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_HF'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M08-HX gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_HX'},
-            {'name': 'HYB_MGGA_X_M08_HX'},
-        ],
-        'Hybrid M08-SO gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_SO'},
-            {'name': 'HYB_MGGA_X_M08_SO'},
-        ],
-        'Hybrid M11 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11'},
-            {'name': 'HYB_MGGA_X_M11'},
-        ],
+    # FHI-aims XC control description -> standard functional name. The
+    # `nomad-simulations` schema expands the name into LibXC components
+    # (family/kind) and derives `jacobs_ladder`; the parser deliberately does
+    # not resolve LibXC labels itself. Names normalize case-insensitively, so
+    # the human-readable spelling used here resolves to the schema alias.
+    _xc_name_map = {
+        'Perdew-Wang parametrisation of Ceperley-Alder LDA': 'LDA',
+        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': 'PZ81',
+        'VWN-LDA parametrisation of VWN5 form': 'VWN',
+        'VWN-LDA parametrisation of VWN-RPA form': 'VWN-RPA',
+        'AM05 gradient-corrected functionals': 'AM05',
+        'BLYP functional': 'BLYP',
+        'PBE gradient-corrected functionals': 'PBE',
+        'PBEint gradient-corrected functional': 'PBEint',
+        'PBEsol gradient-corrected functionals': 'PBEsol',
+        'RPBE gradient-corrected functionals': 'RPBE',
+        'revPBE gradient-corrected functionals': 'revPBE',
+        'PW91 gradient-corrected functionals': 'PW91',
+        'M06-L gradient-corrected functionals': 'M06-L',
+        'M11-L gradient-corrected functionals': 'M11-L',
+        'TPSS gradient-corrected functionals': 'TPSS',
+        'TPSSloc gradient-corrected functionals': 'TPSSloc',
+        'hybrid B3LYP functional': 'B3LYP',
+        'HSE': 'HSE03',
+        'HSE-functional': 'HSE06',
+        'hybrid-PBE0 functionals': 'PBE0',
+        'hybrid-PBEsol0 functionals': 'PBEsol0',
+        'Hybrid M06 gradient-corrected functionals': 'M06',
+        'Hybrid M06-2X gradient-corrected functionals': 'M06-2X',
+        'Hybrid M06-HF gradient-corrected functionals': 'M06-HF',
+        'Hybrid M08-HX gradient-corrected functionals': 'M08-HX',
+        'Hybrid M08-SO gradient-corrected functionals': 'M08-SO',
+        'Hybrid M11 gradient-corrected functionals': 'M11',
     }
 
     _section_names = ['full_scf', 'geometry_optimization', 'molecular_dynamics']
@@ -193,10 +120,11 @@ class FHIAimsOutMappingParser(TextMappingParser):
         files.sort()
         return files
 
-    def get_xc_functionals(self, xc: str) -> list[dict[str, Any]]:
-        return [
-            dict(name=functional.get('name')) for functional in self._xc_map.get(xc, [])
-        ]
+    def get_functional_key(self, xc: str) -> str | None:
+        """Standard functional name for this FHI-aims XC control string. The
+        schema expands the name into LibXC components (family/kind) and derives
+        `jacobs_ladder`; returns `None` for an unmapped string."""
+        return self._xc_name_map.get(xc)
 
     def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool]:
         return [source.get('lattice_vectors') is not None] * 3

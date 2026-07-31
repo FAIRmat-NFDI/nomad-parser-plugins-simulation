@@ -49,7 +49,7 @@ class XCComponent(model_method.XCComponent):
 
 class XCFunctional(model_method.XCFunctional):
     add_mapping_annotation(
-        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', ['.dft'])
+        model_method.XCFunctional.components, OUT_KEY, ('get_xc_functionals', ['.@'])
     )
 
 

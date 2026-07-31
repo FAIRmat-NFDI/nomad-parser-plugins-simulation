@@ -558,16 +558,24 @@ class MainfileParser(TextParser):
     def get_xc_functionals(self) -> list[dict[str, Any]]:
         ixc = self.get_input_var('ixc', 1, 1, scalar=True)
         if ixc >= 0:
-            xc_functionals = ABINIT_NATIVE_IXC.get(ixc, [])
-        else:
-            xc_functionals = []
-            functional1 = -ixc // 1000
-            if functional1 > 0:
-                xc_functionals.append(ABINIT_LIBXC_IXC.get(functional1))
-            functional2 = -ixc - (-ixc // 1000) * 1000
-            if functional2 > 0:
-                xc_functionals.append(ABINIT_LIBXC_IXC.get(functional2))
-        return xc_functionals
+            return [
+                {'unidentified': True}
+                if functional.get('XC_functional_name') == '?'
+                else functional
+                for functional in ABINIT_NATIVE_IXC.get(ixc, [])
+            ]
+        # LibXC path: the negative value packs two LibXC ids positionally. Id 0
+        # means the slot carries no functional; a non-zero id absent from the
+        # table is handed to the schema as a raw LibXC id to resolve or mark.
+        functional1 = -ixc // 1000
+        functional2 = -ixc - functional1 * 1000
+        components = []
+        for functional_id in (functional1, functional2):
+            if functional_id == 0:
+                continue
+            mapped = ABINIT_LIBXC_IXC.get(functional_id)
+            components.append(mapped if mapped else {'libxc_id': functional_id})
+        return components
 
     def get_bandstructures(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
