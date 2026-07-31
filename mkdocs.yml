@@ -28,7 +28,9 @@ nav:
       - VASP:
           - About: parsers/vasp/vasp_about.md
 
-  - Explanation: explanation/explanation.md
+  - Explanation:
+      - Overview: explanation/explanation.md
+      - Exchange-correlation functionals: explanation/xc-functionals.md
   - Reference: reference/references.md
 plugins:
   - search
