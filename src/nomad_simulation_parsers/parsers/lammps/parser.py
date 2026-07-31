@@ -4,9 +4,26 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg as _ureg
+from nomad_simulations.schema_packages.force_field import (
+    ForceCalculations,
+    ForceField,
+    HarmonicAngle,
+    HarmonicBond,
+    Potential,
+)
 from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    BarostatParameters,
+    DiffusionConstant,
+    MeanSquaredDisplacement,
+    MolecularDynamics,
+    MolecularDynamicsMethod,
+    MolecularDynamicsResults,
+    RadialDistributionFunction,
+    ThermostatParameters,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
@@ -17,6 +34,29 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+
+_KSPACE_COULOMB_TYPE = {
+    'ewald': 'ewald',
+    'pppm': 'particle_particle_particle_mesh',
+    'msm': 'multilevel_summation',
+    'pppm/stagger': 'particle_particle_particle_mesh',
+    'pppm/cg': 'particle_particle_particle_mesh',
+    'pppm/disp': 'particle_particle_particle_mesh',
+}
+
+_FIX_ENSEMBLE = {
+    'nve': 'NVE',
+    'nvt': 'NVT',
+    'npt': 'NPT',
+    'nph': 'NPH',
+    'langevin': 'NVT',
+}
+
+_THERMOSTAT_TYPE = {
+    'nvt': 'nose_hoover',
+    'npt': 'nose_hoover',
+    'langevin': 'langevin_schneider',
+}
 
 
 class LammpsArchiveWriter(MDParser):
@@ -37,40 +77,14 @@ class LammpsArchiveWriter(MDParser):
         return value
 
     def parse_method(self, simulation: Simulation) -> None:
-        """
-        Parse method information from data file and log file.
-
-        TODO: Migrate from legacy parser
-        - Still extract and set masses and charges on AtomParameters, or deprecated?
-        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
-          bond_coeffs, angle_coeffs, etc.) using MDAnalysis
-        - Set ForceField with Model containing interactions
-        - Parse force calculation parameters:
-          * pair_style: extract vdw_cutoff, coulomb_cutoff
-          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh,
-            multilevel_summation)
-        - Parse neighbor searching parameters:
-          * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
-          * neigh_modify: extract neighbor_update_frequency from 'every' parameter
-
-        Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations schemas instead of runschema
-        - Adapt to new ModelSystem structure
-        - Integrate with existing masses extraction (lines 47-57)
-        """
-
+        """Parse ForceField method with force calculation parameters."""
         if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
             return
 
         if self.traj_parsers.eval('n_frames') is None:
             return
 
-        method = ModelMethod()
-        # force_field = ForceField()
-
         masses_data = self._data_parser.get('Masses', None)
-        # Extract array from DataParser format: [(None, np.ndarray)]
         if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
             masses = (
                 masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
@@ -78,13 +92,10 @@ class LammpsArchiveWriter(MDParser):
         else:
             masses = None
 
-        # Set masses on all trajectory parsers since eval() can return from any parser
         for parser in self.traj_parsers._parsers:
             if isinstance(parser, TrajParser):
                 parser.masses = masses
 
-        # TODO: find best place for first attempt to set _bond_list
-        # Extract bond list from MDAnalysis universe if available
         if (
             self._mdanalysistraj_parser.mainfile is not None
             and self._mdanalysistraj_parser.universe is not None
@@ -97,7 +108,58 @@ class LammpsArchiveWriter(MDParser):
         else:
             self._bond_list = None
 
-        simulation.model_method.append(method)
+        force_field = ForceField()
+        self._parse_force_calculations(force_field)
+        self._parse_interactions(force_field)
+        simulation.model_method.append(force_field)
+
+    def _parse_force_calculations(self, force_field: ForceField) -> None:
+        """Populate ForceCalculations from pair_style, kspace, and neighbor settings."""
+        force_calcs = ForceCalculations()
+        dist = self._log_parser.units.get('distance', 1)
+        _set_pair_cutoffs(self._log_parser.get('pair_style'), force_calcs, dist)
+        _set_kspace_coulomb(self._log_parser.get('kspace_style'), force_calcs)
+        _set_neighbor_cutoff(self._log_parser.get('neighbor'), force_calcs, dist)
+        _set_neighbor_frequency(self._log_parser.get('neigh_modify'), force_calcs)
+        force_field.numerical_settings.append(force_calcs)
+
+    def _parse_interactions(self, force_field: ForceField) -> None:
+        """Add Potential contributions from per-category style getters."""
+        dist = self._log_parser.units.get('distance', 1)
+        energy = self._log_parser.units.get('energy', 1)
+
+        bond_styles = self._log_parser.get('bond_style') or []
+        bond_coeffs = self._log_parser.get('bond_coeff') or []
+        for style in [bond_styles] if isinstance(bond_styles, str) else bond_styles:
+            style_str = (
+                style if isinstance(style, str) else ' '.join(str(s) for s in style)
+            )
+            if 'harmonic' in style_str.lower():
+                force_field.contributions.append(
+                    _build_harmonic_bond(style_str, bond_coeffs, dist, energy)
+                )
+
+        angle_styles = self._log_parser.get('angle_style') or []
+        angle_coeffs = self._log_parser.get('angle_coeff') or []
+        for style in [angle_styles] if isinstance(angle_styles, str) else angle_styles:
+            style_str = (
+                style if isinstance(style, str) else ' '.join(str(s) for s in style)
+            )
+            if 'harmonic' in style_str.lower():
+                force_field.contributions.append(
+                    _build_harmonic_angle(style_str, angle_coeffs, energy)
+                )
+
+        pair_styles = self._log_parser.get('pair_style') or []
+        for entry in [pair_styles] if isinstance(pair_styles, str) else pair_styles:
+            style_str = entry if isinstance(entry, str) else str(entry[0])
+            style_lower = style_str.lower().split()[0]
+            if 'lj' in style_lower:
+                pot = Potential()
+                pot.type = 'nonbonded'
+                pot.functional_form = 'lennard-jones'
+                pot.name = style_str
+                force_field.contributions.append(pot)
 
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
@@ -382,80 +444,207 @@ class LammpsArchiveWriter(MDParser):
             simulation.model_system[-1].is_representative = True
 
     def parse_input(self, simulation: Simulation) -> None:
-        """
-        Parse input/control parameters from log file.
-
-        TODO: Migrate from legacy parser
-        - Extract input/output file information:
-          * Data file basename
-          * Trajectory file basename
-        - Parse control parameters from log file commands
-        - Map LAMMPS commands to x_lammps_inout_control_* attributes
-        - Store in custom section x_lammps_section_control_parameters
-
-        Legacy implementation: lines 1625-1650 in
-        atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Determine if custom x_lammps sections should be migrated or dropped
-        - Consider storing control parameters in standard schema if applicable
-        - Update file path handling to use self._data_parser, self.traj_parsers
-        """
         pass
 
     def parse_thermodynamic_data(self, simulation: Simulation) -> None:
-        """
-        Parse thermodynamic output data from log file.
+        """Parse thermodynamic outputs from the auxiliary (or main) log file."""
+        thermo_data = self._aux_log_parser.get_thermodynamic_data()
+        if thermo_data is None:
+            thermo_data = self._log_parser.get_thermodynamic_data()
+        if thermo_data is None:
+            return
 
-        TODO: Migrate from legacy parser
-        - Extract thermodynamic data from log file or aux log file
-        - Map thermodynamic quantities to TrajectoryOutputs:
-          * Step number and physical time (step * timestep)
-          * Energy contributions (kinetic, potential, pair, bond, angle, etc.)
-          * Total energy (TotEng)
-          * Pressure and temperature
-          * Forces (if available in trajectory)
-          * Calculation time (CPU)
-        - Create TrajectoryOutputs for each thermodynamic step
-        - Link outputs to corresponding model_system via model_system_ref
+        steps_raw = thermo_data.get('Step')
+        if steps_raw is None or len(steps_raw) == 0:
+            return
 
-        Legacy implementation: lines 971-1036 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations TrajectoryOutputs instead of Calculation
-        - Map energy types using self._energy_mapping
-        - Coordinate with parse_output_step in mdparserutils.py (lines 186-238)
-        - Extract timestep from log file (get_time_step method)
-        - Match thermodynamics_steps with trajectory_steps
-        """
-        pass
+        self.thermodynamics_steps = [int(s) for s in steps_raw]
+
+        for i, step in enumerate(steps_raw):
+            step_int = int(step)
+            data: dict[str, Any] = {'step': step_int}
+
+            if 'Temp' in thermo_data:
+                data['temperatures'] = {'value': thermo_data['Temp'][i]}
+
+            if 'TotEng' in thermo_data:
+                data['total_energies'] = {'value': thermo_data['TotEng'][i]}
+
+            if 'PotEng' in thermo_data:
+                data['potential_energies'] = {'value': thermo_data['PotEng'][i]}
+
+            if 'KinEng' in thermo_data:
+                data['kinetic_energies'] = {'value': thermo_data['KinEng'][i]}
+
+            self.parse_output_step(data, simulation)
 
     def parse_workflow(self, simulation: Simulation) -> None:
-        """
-        Parse workflow information for geometry optimization runs.
+        """Parse MolecularDynamics workflow with method settings and RDF/MSD results."""
+        sampling_method, fix_style = self._log_parser.get_sampling_method()
+        if sampling_method != 'molecular_dynamics':
+            return
 
-        TODO: Migrate from legacy parser
-        - Detect minimization runs from log file (minimization_stats)
-        - Create GeometryOptimization workflow:
-          * Extract minimization method (cg, hftn, sd, quickmin, fire, spin)
-          * Map to standard method names (polak_ribiere_conjugant_gradient,
-            hessian_free_truncated_newton, steepest_descent, damped_dynamics)
-          * Parse optimization parameters (max steps, force convergence)
-        - Extract optimization results:
-          * Final energy difference
-          * Final force maximum
-        - Parse minimize/minimize/kk parameters:
-          * optimization_steps_maximum
-          * convergence_tolerance_force_maximum
-        - Handle unit conversions using self._log_parser.units
+        md_method = self._build_md_method(fix_style)
+        md_results = self._build_md_results()
 
-        Legacy implementation: lines 1037-1120 in
-        atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Determine which simulation workflow schema to use from nomad_simulations
-        - Check if GeometryOptimization is available in nomad_simulations
-        - Adapt to simulation.workflow structure if different from sec_run.workflow
-        - Update unit conversion to use apply_unit method
-        """
-        pass
+        sec_md = MolecularDynamics()
+        sec_md.method = md_method
+        sec_md.results = md_results
+        self.archive.workflow2 = sec_md
+
+    def _build_md_method(self, fix_style: str) -> MolecularDynamicsMethod:
+        """Build MolecularDynamicsMethod from log parser settings."""
+        md_method = MolecularDynamicsMethod()
+
+        ensemble = _FIX_ENSEMBLE.get(fix_style.lower())
+        if ensemble is not None:
+            md_method.thermodynamic_ensemble = ensemble
+
+        timestep_raw = self._log_parser.get('timestep')
+        if timestep_raw is not None and len(timestep_raw) > 0:
+            time_unit = self._log_parser.units.get('time', 1)
+            md_method.integration_timestep = float(timestep_raw[0]) * time_unit
+
+        thermo_data = self._aux_log_parser.get_thermodynamic_data()
+        if thermo_data is None:
+            thermo_data = self._log_parser.get_thermodynamic_data()
+        if thermo_data is not None:
+            steps_raw = thermo_data.get('Step')
+            if steps_raw is not None and len(steps_raw) > 0:
+                md_method.n_steps = int(steps_raw[-1])
+
+        thermo_freq = self._log_parser.get('thermo')
+        if thermo_freq is not None and len(thermo_freq) > 0:
+            md_method.thermodynamics_save_frequency = int(thermo_freq[0])
+
+        thermostat_settings = self._log_parser.get_thermostat_settings()
+        self._add_thermostat_parameters(md_method, fix_style, thermostat_settings)
+        self._add_barostat_parameters(md_method, fix_style, thermostat_settings)
+
+        return md_method
+
+    def _add_thermostat_parameters(
+        self,
+        md_method: MolecularDynamicsMethod,
+        fix_style: str,
+        thermostat_settings: dict,
+    ) -> None:
+        """Add ThermostatParameters if temperature coupling is present."""
+        target_t = thermostat_settings.get('target_T')
+        tau = thermostat_settings.get('thermostat_tau')
+        if target_t is None and tau is None:
+            return
+
+        thermostat = ThermostatParameters()
+        thermostat_type = _THERMOSTAT_TYPE.get(fix_style.lower())
+        if thermostat_type is not None:
+            thermostat.thermostat_type = thermostat_type
+        if target_t is not None:
+            thermostat.reference_temperature = target_t
+        if tau is not None:
+            thermostat.coupling_constant = tau
+        md_method.thermostat_parameters.append(thermostat)
+
+    def _add_barostat_parameters(
+        self,
+        md_method: MolecularDynamicsMethod,
+        fix_style: str,
+        thermostat_settings: dict,
+    ) -> None:
+        """Add BarostatParameters if pressure coupling is present."""
+        target_p = thermostat_settings.get('target_P')
+        tau_p = thermostat_settings.get('barostat_tau')
+        if target_p is None and tau_p is None:
+            return
+
+        barostat = BarostatParameters()
+        if target_p is not None:
+            pressure_pa = target_p.to('pascal').magnitude
+            ref_p = np.zeros((3, 3))
+            ref_p[0, 0] = ref_p[1, 1] = ref_p[2, 2] = pressure_pa
+            barostat.reference_pressure = ref_p
+        if tau_p is not None:
+            tau_s = tau_p.to('second').magnitude
+            coupling = np.zeros((3, 3))
+            coupling[0, 0] = coupling[1, 1] = coupling[2, 2] = tau_s
+            barostat.coupling_constant = coupling
+        md_method.barostat_parameters.append(barostat)
+
+    def _build_md_results(self) -> MolecularDynamicsResults:
+        """Build MolecularDynamicsResults with RDF and MSD from MDAnalysis."""
+        md_results = MolecularDynamicsResults()
+
+        if self._mdanalysistraj_parser.universe is None:
+            return md_results
+
+        rdf_data = self._mdanalysistraj_parser.calc_molecular_rdf()
+        if rdf_data is not None:
+            self._populate_rdf(md_results, rdf_data)
+
+        msd_data = (
+            self._mdanalysistraj_parser.calc_molecular_mean_squared_displacements()
+        )
+        if msd_data is not None:
+            self._populate_msd(md_results, msd_data)
+
+        return md_results
+
+    def _populate_rdf(
+        self, md_results: MolecularDynamicsResults, rdf_data: dict
+    ) -> None:
+        """Add RadialDistributionFunction entries to MolecularDynamicsResults."""
+        types = rdf_data.get('types', [])
+        bins_list = rdf_data.get('bins', [])
+        value_list = rdf_data.get('value', [])
+        frame_start_list = rdf_data.get('frame_start', [])
+        frame_end_list = rdf_data.get('frame_end', [])
+        n_smooth = rdf_data.get('n_smooth', 0)
+
+        for i, pair_type in enumerate(types):
+            if i >= len(bins_list) or i >= len(value_list):
+                continue
+            rdf = RadialDistributionFunction()
+            rdf.label = str(pair_type)
+            rdf.type = 'molecular'
+            rdf.n_smooth = n_smooth
+            rdf.bins = bins_list[i]
+            rdf.value = value_list[i]
+            rdf.n_bins = len(bins_list[i]) if bins_list[i] is not None else 0
+            if i < len(frame_start_list):
+                rdf.frame_start = int(frame_start_list[i])
+            if i < len(frame_end_list):
+                rdf.frame_end = int(frame_end_list[i])
+            md_results.radial_distribution_functions.append(rdf)
+
+    def _populate_msd(
+        self, md_results: MolecularDynamicsResults, msd_data: dict
+    ) -> None:
+        """Add MeanSquaredDisplacement and DiffusionConstant entries."""
+        types = msd_data.get('types', [])
+        times_arr = msd_data.get('times')
+        value_arr = msd_data.get('value')
+        diffusion_arr = msd_data.get('diffusion_constant', [])
+        error_arr = msd_data.get('error_diffusion_constant', [])
+
+        for i, mol_type in enumerate(types):
+            msd = MeanSquaredDisplacement()
+            msd.label = str(mol_type)
+            msd.type = 'molecular'
+            msd.direction = 'xyz'
+            if times_arr is not None and i < len(times_arr):
+                msd.times = times_arr[i]
+                msd.n_times = len(times_arr[i])
+            if value_arr is not None and i < len(value_arr):
+                msd.value = value_arr[i]
+            md_results.mean_squared_displacements.append(msd)
+
+            if i < len(diffusion_arr):
+                dc = DiffusionConstant()
+                dc.label = str(mol_type)
+                dc.value = diffusion_arr[i]
+                if i < len(error_arr):
+                    dc.n_smooth = int(error_arr[i]) if error_arr[i] is not None else 0
+                md_results.diffusion_constants.append(dc)
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
@@ -599,11 +788,8 @@ class LammpsArchiveWriter(MDParser):
     def _parse_content_sections(self) -> None:
         self.parse_method(self.archive.data)
         self.parse_system(self.archive.data)
-
-        # TODO: uncomment when implemented
-        # self.parse_input(self.archive.data)
-        # self.parse_thermodynamic_data(self.archive.data)
-        # self.parse_workflow(self.archive.data)
+        self.parse_thermodynamic_data(self.archive.data)
+        self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
@@ -632,6 +818,131 @@ class LammpsArchiveWriter(MDParser):
         self._data_parser.close()
         for parser in parsers:
             parser.close()
+
+
+def _set_pair_cutoffs(
+    pair_styles: list | None,
+    force_calcs: ForceCalculations,
+    dist_unit: Any,
+) -> None:
+    """Set vdw_cutoff and coulomb_cutoff on force_calcs from pair_style data."""
+    if not pair_styles:
+        return
+    pair_entry = pair_styles[0]
+    _MIN_PAIR_ENTRY = 2
+    if not (isinstance(pair_entry, list) and len(pair_entry) >= _MIN_PAIR_ENTRY):
+        return
+    style_name = str(pair_entry[0])
+    try:
+        cutoff = float(pair_entry[-1]) * dist_unit
+        force_calcs.vdw_cutoff = cutoff
+        if 'coul' in style_name:
+            force_calcs.coulomb_cutoff = cutoff
+    except (ValueError, TypeError):
+        pass
+
+
+def _set_kspace_coulomb(
+    kspace_styles: list | None,
+    force_calcs: ForceCalculations,
+) -> None:
+    """Set coulomb_type on force_calcs from kspace_style data."""
+    if not kspace_styles:
+        return
+    kspace_entry = kspace_styles[0]
+    if not (isinstance(kspace_entry, list) and len(kspace_entry) >= 1):
+        return
+    kspace_name = str(kspace_entry[0]).lower()
+    coulomb_type = _KSPACE_COULOMB_TYPE.get(kspace_name)
+    if coulomb_type is not None:
+        force_calcs.coulomb_type = coulomb_type
+
+
+def _set_neighbor_cutoff(
+    neighbor: list | None,
+    force_calcs: ForceCalculations,
+    dist_unit: Any,
+) -> None:
+    """Set neighbor_update_cutoff on force_calcs from neighbor data."""
+    if not neighbor:
+        return
+    nb_entry = neighbor[0]
+    if not (isinstance(nb_entry, list) and len(nb_entry) >= 1):
+        return
+    try:
+        skin = float(nb_entry[0]) * dist_unit
+        existing = force_calcs.vdw_cutoff
+        force_calcs.neighbor_update_cutoff = (
+            existing + skin if existing is not None else skin
+        )
+    except (ValueError, TypeError):
+        pass
+
+
+def _set_neighbor_frequency(
+    neigh_modify: list | None,
+    force_calcs: ForceCalculations,
+) -> None:
+    """Set neighbor_update_frequency on force_calcs from neigh_modify data."""
+    if not neigh_modify:
+        return
+    nm_entry = neigh_modify[0]
+    if not isinstance(nm_entry, list):
+        return
+    try:
+        every_idx = nm_entry.index('every')
+        force_calcs.neighbor_update_frequency = int(nm_entry[every_idx + 1])
+    except (ValueError, IndexError):
+        pass
+
+
+def _build_harmonic_bond(
+    style: str,
+    coeffs: list | None,
+    distance_unit: Any,
+    energy_unit: Any,
+) -> HarmonicBond:
+    """Create a HarmonicBond potential from LAMMPS harmonic bond coefficients."""
+    potential = HarmonicBond()
+    potential.type = 'bond'
+    potential.functional_form = 'harmonic'
+    potential.name = style
+    if coeffs is not None and len(coeffs) > 0:
+        try:
+            n_interactions = len(coeffs)
+            k_vals = np.array([float(c[1]) for c in coeffs])
+            r0_vals = np.array([float(c[2]) for c in coeffs])
+            potential.n_interactions = n_interactions
+            potential.force_constant = k_vals.mean() * energy_unit / distance_unit**2
+            potential.equilibrium_value = r0_vals.mean() * distance_unit
+        except (IndexError, TypeError, ValueError):
+            pass
+    return potential
+
+
+def _build_harmonic_angle(
+    style: str,
+    coeffs: list | None,
+    energy_unit: Any,
+) -> HarmonicAngle:
+    """Create a HarmonicAngle potential from LAMMPS harmonic angle coefficients."""
+    potential = HarmonicAngle()
+    potential.type = 'angle'
+    potential.functional_form = 'harmonic'
+    potential.name = style
+    if coeffs is not None and len(coeffs) > 0:
+        try:
+            n_interactions = len(coeffs)
+            k_vals = np.array([float(c[1]) for c in coeffs])
+            theta0_vals = np.array([float(c[2]) for c in coeffs])
+            potential.n_interactions = n_interactions
+            potential.force_constant = k_vals.mean() * energy_unit / _ureg.radian**2
+            potential.equilibrium_value = (theta0_vals.mean() * _ureg.degree).to(
+                'radian'
+            )
+        except (IndexError, TypeError, ValueError):
+            pass
+    return potential
 
 
 class LammpsParser(MatchingParser):
