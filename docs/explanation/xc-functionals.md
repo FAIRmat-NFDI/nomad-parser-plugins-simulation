@@ -48,8 +48,10 @@ PBEsol, `RP` → RPBE, `RE` → revPBE, …). Two subtleties are worth stating:
   together, not from the screening length alone. `HFSCREEN = 0.2`/`0.3` give the
   screened HSE hybrids, but the base GGA sets the variant: a PBE base gives
   HSE06/HSE03, whereas `GGA = PS` (PBEsol) gives **HSEsol**. The unscreened
-  global hybrid **PBE0** additionally requires that screening is off. `AEXX = 1`
-  with no DFT correlation is pure Hartree–Fock, not a DFT functional.
+  global hybrid **PBE0** additionally requires that screening is off, i.e.
+  `HFSCREEN = 0` — which is VASP's default, so it holds whether the tag is
+  explicitly zero or absent. `AEXX = 1` with no DFT correlation is pure
+  Hartree–Fock, not a DFT functional.
 - `GGA = B3` and `GGA = B5` are both B3LYP but with **different correlation** —
   VWN3 (`B3` → `B3LYP`) versus VWN5 (`B5` → `B3LYP5`) — so they must not collapse
   to one key.
