@@ -1,0 +1,3 @@
+data:
+  m_def: nomad_parser_gsd.schema_packages.schema_package.NewSchemaPackage
+  name: Markus
