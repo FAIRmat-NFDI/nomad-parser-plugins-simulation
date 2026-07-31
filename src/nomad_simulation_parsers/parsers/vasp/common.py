@@ -42,8 +42,6 @@ VASP_TAG_TO_FUNCTIONAL = {
     'MBJ': 'MBJ',
 }
 
-_HFSCREEN_HSE06, _HFSCREEN_HSE03 = 0.2, 0.3
-
 
 def _clean_tag(value: Any) -> str | None:
     """Return the XC tag as a clean string, or `None` when it is unset.
@@ -87,9 +85,9 @@ def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
         return None  # pure Hartree-Fock exchange, not a DFT functional
     # Screened hybrids (HSE): the base GGA sets the variant (PBE -> HSE06/03,
     # PBEsol -> HSEsol); any other base is left unresolved.
-    if hfscreen == _HFSCREEN_HSE06:
+    if hfscreen == 0.2:  # noqa: PLR2004 — HSE06 screening length (1/Angstrom)
         return 'HSE06' if pbe_family else ('HSEsol' if gga == 'PS' else None)
-    if hfscreen == _HFSCREEN_HSE03:
+    if hfscreen == 0.3:  # noqa: PLR2004 — HSE03 screening length (1/Angstrom)
         return 'HSE03' if pbe_family else None
     # Unscreened global hybrid PBE0: no screening and a PBE-family base GGA.
     if hfscreen == 0.0 and pbe_family:
@@ -109,6 +107,10 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
     The schema expands the returned name into LibXC components during
     normalization. The per-source `get_functional_key` transformer methods
     assemble `parameters` and delegate here.
+
+    The precedence (METAGGA over GGA, and LHFCALC selecting a hybrid) follows the
+    VASP tag documentation: https://www.vasp.at/wiki/index.php/METAGGA and
+    https://www.vasp.at/wiki/index.php/LHFCALC.
     """
     if parameters.get('LHFCALC'):
         return _hybrid_functional_key(parameters)
