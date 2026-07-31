@@ -123,7 +123,7 @@ class MainfileTextParser(TextParser):
         'SLA VWN': 'VWN',
         'SLA PW PBX PBC': 'PBE',
         'SLA PW PSX PSC': 'PBEsol',
-        'SLA PW RPB PBC': 'RPBE',
+        'SLA PW HHNX PBC': 'RPBE',
         'SLA PW REVX PBC': 'revPBE',
         'SLA PW WCX PBC': 'WC',
         'SLA PW GGX GGC': 'PW91',
