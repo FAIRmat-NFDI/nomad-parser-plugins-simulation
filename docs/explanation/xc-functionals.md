@@ -35,6 +35,62 @@ code's XC specification is indirect or easy to misread.
 
 ## How each code expresses XC
 
+### ABINIT
+
+ABINIT identifies XC by the single integer `ixc`. A non-negative `ixc` selects a
+built-in preset (`1` = Teter93 LDA, `11` = PBE, `14` = revPBE, `15` = RPBE,
+`23` = Wu–Cohen, …), mapped through a small table. A **negative** `ixc` packs two
+LibXC functional ids positionally as `-(1000·id_x + id_c)` — for example
+`ixc = -101130` is LibXC `101` (`XC_GGA_X_PBE`) plus `130` (`XC_GGA_C_PBE`),
+i.e. PBE. The parser emits those ids as components and lets the schema registry
+resolve them, which also covers ids the local table does not list.
+
+### AMS / ADF
+
+AMS reports the active functional per Jacob's-ladder rung in its density-functional
+block (`LDA:`, `Gradient Corrections:`, `Meta-GGA:`). The highest present rung is
+the functional in effect. A two-word gradient-correction entry names the exchange
+and correlation authors together (`Becke Perdew` = BP86).
+
+### CRYSTAL
+
+CRYSTAL names the exchange and correlation keywords separately (`BECKE`, `PZ`,
+`PBE`, `PWGGA`, …); the parser maps each keyword to its LibXC label(s) and lets
+the schema assemble the functional.
+
+### exciting
+
+exciting's INFO file gives an integer `xctype` code that the parser maps to LibXC
+labels; the XML output gives LibXC labels directly. The integer codes track a
+specific exciting/LibXC version (see *Known limitations*).
+
+### FHI-aims
+
+FHI-aims prints a descriptive control string per functional, which the parser
+maps to the corresponding standard name.
+
+### GPAW
+
+GPAW records a standard functional name directly and the parser passes it
+through unchanged.
+
+### octopus
+
+octopus prints the exchange and correlation parts as separate descriptive lines
+(`Slater exchange`, `Perdew & Zunger (Modified)`), which the parser maps to LibXC
+short-labels. The `XCFunctional` input variable is additionally an integer that
+is the *sum* of per-piece codes; when present it is decoded as a fallback to
+recover parts the descriptions did not name.
+
+### Quantum ESPRESSO
+
+QE prints XC either as a single name (`PBE`) or as its four DFT slot codes —
+exchange, correlation, gradient-exchange, gradient-correlation. `SLA PW PBX PBC`
+is Slater exchange + Perdew–Wang correlation + PBE gradient terms, i.e. PBE;
+`SLA PZ` is the Perdew–Zunger LDA. The parser recognises the common slot
+combinations and, for anything else, keeps the raw slot string so the reported
+XC is preserved rather than dropped.
+
 ### VASP
 
 VASP emits no functional name, so the canonical name is reconstructed from the
@@ -42,7 +98,7 @@ input tags in the order VASP itself resolves them: an explicit hybrid setup
 wins, then `METAGGA`, then `GGA`.
 
 The `GGA` and `METAGGA` tags are short two-letter codes (`PE` → PBE, `PS` →
-PBEsol, `RP` → RPBE, `RE` → revPBE, …). Two subtleties are worth stating:
+PBEsol, `RP` → RPBE, `RE` → revPBE, …). A few subtleties are worth stating:
 
 - **Hybrids** (`LHFCALC = .TRUE.`) are decided from `HFSCREEN`, `GGA` and `AEXX`
   together, not from the screening length alone. `HFSCREEN = 0.2`/`0.3` give the
@@ -60,58 +116,6 @@ PBEsol, `RP` → RPBE, `RE` → revPBE, …). Two subtleties are worth stating:
   parametrisation, `PZ81`). PBE is assumed only when neither `GGA` nor `LEXCH`
   is present.
 
-### ABINIT
-
-ABINIT identifies XC by the single integer `ixc`. A non-negative `ixc` selects a
-built-in preset (`1` = Teter93 LDA, `11` = PBE, `14` = revPBE, `15` = RPBE,
-`23` = Wu–Cohen, …), mapped through a small table. A **negative** `ixc` packs two
-LibXC functional ids positionally as `-(1000·id_x + id_c)` — for example
-`ixc = -101130` is LibXC `101` (`XC_GGA_X_PBE`) plus `130` (`XC_GGA_C_PBE`),
-i.e. PBE. The parser emits those ids as components and lets the schema registry
-resolve them, which also covers ids the local table does not list.
-
-### Quantum ESPRESSO
-
-QE prints XC either as a single name (`PBE`) or as its four DFT slot codes —
-exchange, correlation, gradient-exchange, gradient-correlation. `SLA PW PBX PBC`
-is Slater exchange + Perdew–Wang correlation + PBE gradient terms, i.e. PBE;
-`SLA PZ` is the Perdew–Zunger LDA. The parser recognises the common slot
-combinations and, for anything else, keeps the raw slot string so the reported
-XC is preserved rather than dropped.
-
-### octopus
-
-octopus prints the exchange and correlation parts as separate descriptive lines
-(`Slater exchange`, `Perdew & Zunger (Modified)`), which the parser maps to LibXC
-short-labels. The `XCFunctional` input variable is additionally an integer that
-is the *sum* of per-piece codes; when present it is decoded as a fallback to
-recover parts the descriptions did not name.
-
-### exciting
-
-exciting's INFO file gives an integer `xctype` code that the parser maps to LibXC
-labels; the XML output gives LibXC labels directly. The integer codes track a
-specific exciting/LibXC version (see *Known limitations*).
-
-### CRYSTAL
-
-CRYSTAL names the exchange and correlation keywords separately (`BECKE`, `PZ`,
-`PBE`, `PWGGA`, …); the parser maps each keyword to its LibXC label(s) and lets
-the schema assemble the functional.
-
-### AMS / ADF
-
-AMS reports the active functional per Jacob's-ladder rung in its density-functional
-block (`LDA:`, `Gradient Corrections:`, `Meta-GGA:`). The highest present rung is
-the functional in effect. A two-word gradient-correction entry names the exchange
-and correlation authors together (`Becke Perdew` = BP86).
-
-### GPAW and FHI-aims
-
-GPAW records a standard functional name directly and the parser passes it
-through unchanged. FHI-aims prints a descriptive control string per functional,
-which the parser maps to the corresponding standard name.
-
 ## Known limitations
 
 Some codes tie their XC identifiers to a specific LibXC (or code) release, so a
@@ -126,17 +130,17 @@ issues.
 The LibXC label taxonomy and each code's XC-input documentation:
 
 - LibXC functional list — <https://libxc.gitlab.io/functionals/>
+- ABINIT — the [`ixc`](https://docs.abinit.org/variables/basic/#ixc) input variable
+- AMS / ADF — [Density Functionals (XC)](https://www.scm.com/doc/ADF/Input/Density_Functional.html)
+- CRYSTAL — the `DFT`/`EXCHANGE`/`CORRELAT` keywords in the
+  [CRYSTAL23 user's manual](https://www.crystal.unito.it/include/manuals/crystal23.pdf)
+- exciting — the [`groundstate`/`xctype`](http://exciting-code.org/ref:groundstate) reference
+- FHI-aims — the `xc` keyword ([manual §3.3](https://fhi-aims.org/uploads/manual/Ch3/S3.html))
+- GPAW — [exchange–correlation functionals](https://gpaw.readthedocs.io/documentation/xc/functionals.html)
+- octopus — the [`XCFunctional`](https://octopus-code.org/documentation/13/variables/hamiltonian/xc/xcfunctional/) variable
+- Quantum ESPRESSO — [`input_dft`](https://www.quantum-espresso.org/Doc/INPUT_PW.html)
+  (the slot codes are defined in `Modules/funct.f90` / `XClib`)
 - VASP — [`GGA`](https://www.vasp.at/wiki/index.php/GGA),
   [`METAGGA`](https://www.vasp.at/wiki/index.php/METAGGA),
   [`LHFCALC`](https://www.vasp.at/wiki/index.php/LHFCALC) and the
   [list of hybrid functionals](https://www.vasp.at/wiki/index.php/List_of_hybrid_functionals)
-- ABINIT — the [`ixc`](https://docs.abinit.org/variables/basic/#ixc) input variable
-- Quantum ESPRESSO — [`input_dft`](https://www.quantum-espresso.org/Doc/INPUT_PW.html)
-  (the slot codes are defined in `Modules/funct.f90` / `XClib`)
-- octopus — the [`XCFunctional`](https://octopus-code.org/documentation/13/variables/hamiltonian/xc/xcfunctional/) variable
-- exciting — the [`groundstate`/`xctype`](http://exciting-code.org/ref:groundstate) reference
-- CRYSTAL — the `DFT`/`EXCHANGE`/`CORRELAT` keywords in the
-  [CRYSTAL23 user's manual](https://www.crystal.unito.it/include/manuals/crystal23.pdf)
-- AMS / ADF — [Density Functionals (XC)](https://www.scm.com/doc/ADF/Input/Density_Functional.html)
-- GPAW — [exchange–correlation functionals](https://gpaw.readthedocs.io/documentation/xc/functionals.html)
-- FHI-aims — the `xc` keyword ([manual §3.3](https://fhi-aims.org/uploads/manual/Ch3/S3.html))
