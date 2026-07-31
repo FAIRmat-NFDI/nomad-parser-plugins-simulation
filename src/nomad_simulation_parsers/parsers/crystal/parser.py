@@ -45,7 +45,7 @@ class CrystalOutputParser(TextParser):
         'LDA': ['LDA_X'],
         'PWGGA': ['GGA_X_PW91', 'GGA_C_PW91'],
         'PZ': ['LDA_C_PZ'],
-        'WFN': ['LDA_C_VWN'],
+        'VWN': ['LDA_C_VWN'],
     }
 
     @property

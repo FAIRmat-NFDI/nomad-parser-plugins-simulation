@@ -93,18 +93,19 @@ class Program(general.Program):
 
 class DFT(model_method.DFT):
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper='.name')))
+class XCFunctional(model_method.XCFunctional):
+    # Set `functional_key` to the standard functional name from the FHI-aims XC
+    # control string; the schema expands the name into components (family/kind)
+    # and derives `jacobs_ladder`.
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        TEXT_KEY,
+        ('get_functional_key', ['.controlInOut_xc']),
+    )
 
 
 class GW(model_method.GW):

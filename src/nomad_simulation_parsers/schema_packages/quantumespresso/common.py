@@ -31,22 +31,24 @@ class Program(general.Program):
     )
 
 
-class XCComponent(model_method.XCComponent):
+class DFT(model_method.DFT):
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
+
+
+class XCFunctional(model_method.XCFunctional):
+    # The output prints a functional name or the four DFT slot codes; the XML
+    # carries a clean functional name. Both resolve to a standard name that the
+    # schema expands into components (family/kind) and `jacobs_ladder`.
     add_mapping_annotation(
-        model_method.XCComponent.canonical_label, OUT_KEY, '.XC_functional_name'
+        model_method.XCFunctional.functional_key,
+        OUT_KEY,
+        ('get_functional_key', ['.xc_functional']),
     )
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.XC_functional_name')))
-
-
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.xc_functional']))))
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key, XML_KEY, '.dft.functional'
+    )
 
 
 class AtomsState(model_system.AtomsState):

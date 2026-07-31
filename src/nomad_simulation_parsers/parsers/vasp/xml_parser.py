@@ -32,7 +32,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
-from .common import get_xc_functionals
+from .common import functional_key_from_params
 from .outcar_parser import OutcarArchiveWriter
 
 LOGGER = get_logger(__name__)
@@ -411,19 +411,68 @@ class VasprunParser(XMLParser):
     def get_periodic_boundary_conditions(self) -> list[bool]:
         return [True, True, True]
 
-    def get_xc_functionals(self, source: dict[str, Any] | None) -> list[dict[str, str]]:
-        if source is None:
-            return []
-        raw_params = source.get('i') if isinstance(source, dict) else None
-        params = {}
-        for item in raw_params or []:
-            key = item.get(f'{self.attribute_prefix}name')
+    def _find_parameters(self, names: tuple[str, ...]) -> dict[str, Any]:
+        """Collect the requested `<i name=...>` values from the vasprun
+        `<parameters>` tree in a single pre-order walk, typing each by its `type`
+        attribute (`logical` -> bool, `int`/`float` -> number), mirroring the
+        OUTCAR parameter typing.
+
+        We read `modeling.parameters` (VASP's reprinted, default-resolved INCAR)
+        rather than `<incar>` (only the explicitly-set tags): a run using the
+        POTCAR-default functional omits `GGA` from `<incar>`, so only the
+        parameter set carries the effective value. The XC-relevant tags
+        (`GGA`, `METAGGA`, `LHFCALC`, `AEXX`, ...) live in different, sometimes
+        nested, `<separator>` blocks, so one traversal gathers them all instead
+        of re-walking the tree per key. Unfound tags are left absent from the
+        result (the consumer treats absence as unset), so the dict is sparse.
+        """
+        wanted = set(names)
+        found: dict[str, Any] = {}
+
+        def typed(item: dict[str, Any]) -> Any:
             value = item.get(self.value_key)
-            if key is not None:
-                params[key] = value
-        if not params:
-            return []
-        return get_xc_functionals(params)
+            if not isinstance(value, str):
+                return value
+            text = value.strip()
+            match item.get(f'{self.attribute_prefix}type'):
+                case 'logical':
+                    return text.strip('.').upper() in ('T', 'TRUE')
+                case 'string':
+                    return text
+                case 'int':
+                    return int(text) if text.lstrip('-').isdigit() else None
+                case _:
+                    # untyped numeric `<i>` default to float in vasprun
+                    try:
+                        return float(text)
+                    except ValueError:
+                        return text
+
+        def search(node: Any) -> None:
+            if not isinstance(node, dict) or len(found) == len(wanted):
+                return
+            for item in as_list(node.get('i')):
+                if not isinstance(item, dict):
+                    continue
+                name = item.get(f'{self.attribute_prefix}name')
+                # First match wins: a tag is normally unique in `<parameters>`,
+                # and pre-order makes the shallowest/earliest occurrence
+                # authoritative; the guard also avoids re-typing a found value.
+                if name in wanted and name not in found:
+                    found[name] = typed(item)
+            for sub in as_list(node.get('separator')):
+                if len(found) == len(wanted):
+                    break
+                search(sub)
+
+        search(self.data.get('modeling', {}).get('parameters', {}))
+        return found
+
+    def get_functional_key(self, source: Any = None) -> str | None:
+        params = self._find_parameters(
+            ('GGA', 'METAGGA', 'LHFCALC', 'AEXX', 'AGGAC', 'ALDAC', 'HFSCREEN', 'LEXCH')
+        )
+        return functional_key_from_params(params)
 
 
 class XMLArchiveWriter(ArchiveWriter):
