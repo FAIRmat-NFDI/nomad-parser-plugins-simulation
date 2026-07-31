@@ -6,8 +6,9 @@ Every DFT code records the exchange–correlation (XC) functional in its own way
 an input tag, an integer code, or a human-readable line in the output — and only
 rarely as a single canonical name. The simulation parsers reduce that variety to
 one of two forms that the `nomad-simulations` schema understands, and leave the
-LibXC taxonomy (family, kind, and the derived Jacob's ladder rung) to the schema
-rather than reconstructing it per parser.
+[LibXC](https://libxc.gitlab.io/functionals/) taxonomy (family, kind, and the
+derived Jacob's ladder rung) to the schema rather than reconstructing it per
+parser.
 
 A parser produces either:
 
@@ -117,3 +118,23 @@ mapping that is correct for one version can drift in another — ABINIT's negati
 Mappings should be cross-checked against the LibXC version the code is built with
 when in doubt. Open verification items are tracked in the parser repository's
 issues.
+
+## References
+
+The LibXC label taxonomy and each code's XC-input documentation:
+
+- LibXC functional list — <https://libxc.gitlab.io/functionals/>
+- VASP — [`GGA`](https://www.vasp.at/wiki/index.php/GGA),
+  [`METAGGA`](https://www.vasp.at/wiki/index.php/METAGGA),
+  [`LHFCALC`](https://www.vasp.at/wiki/index.php/LHFCALC) and the
+  [list of hybrid functionals](https://www.vasp.at/wiki/index.php/List_of_hybrid_functionals)
+- ABINIT — the [`ixc`](https://docs.abinit.org/variables/basic/#ixc) input variable
+- Quantum ESPRESSO — [`input_dft`](https://www.quantum-espresso.org/Doc/INPUT_PW.html)
+  (the slot codes are defined in `Modules/funct.f90` / `XClib`)
+- octopus — the [`XCFunctional`](https://octopus-code.org/documentation/13/variables/hamiltonian/xc/xcfunctional/) variable
+- exciting — the [`groundstate`/`xctype`](http://exciting-code.org/ref:groundstate) reference
+- CRYSTAL — the `DFT`/`EXCHANGE`/`CORRELAT` keywords in the
+  [CRYSTAL23 user's manual](https://www.crystal.unito.it/include/manuals/crystal23.pdf)
+- AMS / ADF — [Density Functionals (XC)](https://www.scm.com/doc/ADF/Input/Density_Functional.html)
+- GPAW — [exchange–correlation functionals](https://gpaw.readthedocs.io/documentation/xc/functionals.html)
+- FHI-aims — the `xc` keyword ([manual §3.3](https://fhi-aims.org/uploads/manual/Ch3/S3.html))
