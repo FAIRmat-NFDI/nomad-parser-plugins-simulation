@@ -470,7 +470,7 @@ class VasprunParser(XMLParser):
 
     def get_functional_key(self, source: Any = None) -> str | None:
         params = self._find_parameters(
-            ('GGA', 'METAGGA', 'LHFCALC', 'AEXX', 'AGGAC', 'ALDAC', 'HFSCREEN')
+            ('GGA', 'METAGGA', 'LHFCALC', 'AEXX', 'AGGAC', 'ALDAC', 'HFSCREEN', 'LEXCH')
         )
         return functional_key_from_params(params)
 

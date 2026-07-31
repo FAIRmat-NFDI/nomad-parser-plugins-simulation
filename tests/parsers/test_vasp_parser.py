@@ -98,11 +98,26 @@ def test_outcar():
         pytest.param({'GGA': 'PE'}, 'PBE', id='gga-pe'),
         pytest.param({'GGA': '--'}, 'PBE', id='gga-default'),
         pytest.param({'METAGGA': 'SCAN'}, 'SCAN', id='metagga-scan'),
+        # unset GGA defers to the POTCAR default (LEXCH), not PBE
+        pytest.param({'LEXCH': 'CA'}, 'PZ81', id='lexch-ca-lda'),
         pytest.param({'LHFCALC': True, 'HFSCREEN': 0.2}, 'HSE06', id='hse06'),
         pytest.param({'LHFCALC': True, 'HFSCREEN': 0.3}, 'HSE03', id='hse03'),
+        # HSE variant follows the base GGA: PBEsol -> HSEsol, non-PBE -> unknown
+        pytest.param(
+            {'LHFCALC': True, 'HFSCREEN': 0.2, 'GGA': 'PS'}, 'HSEsol', id='hsesol'
+        ),
+        pytest.param(
+            {'LHFCALC': True, 'HFSCREEN': 0.2, 'GGA': 'RP'}, None, id='hse-non-pbe'
+        ),
         pytest.param({'LHFCALC': True, 'AEXX': 0.25}, 'PBE0', id='pbe0-gga-unset'),
         pytest.param({'LHFCALC': True, 'GGA': 'PBE'}, 'PBE0', id='pbe0-gga-pbe'),
-        pytest.param({'LHFCALC': True, 'GGA': 'B5'}, 'B3LYP', id='b3lyp-b5'),
+        # PBE0 requires screening off
+        pytest.param(
+            {'LHFCALC': True, 'AEXX': 0.25, 'HFSCREEN': 0.5},
+            None,
+            id='screened-not-pbe0',
+        ),
+        pytest.param({'LHFCALC': True, 'GGA': 'B5'}, 'B3LYP5', id='b3lyp5-b5'),
         pytest.param({'LHFCALC': True, 'GGA': 'B3'}, 'B3LYP', id='b3lyp-b3'),
         pytest.param(
             {'LHFCALC': True, 'AEXX': 1.0, 'ALDAC': 0.0, 'AGGAC': 0.0},
@@ -112,8 +127,8 @@ def test_outcar():
     ],
 )
 def test_functional_key_from_params(parameters, expected):
-    """Tag-to-canonical-name mapping, including hybrids where GGA may be unset or
-    `PBE` (PBE0) or `B5` (B3LYP)."""
+    """Tag-to-canonical-name mapping: GGA/METAGGA, the POTCAR-default LDA via
+    LEXCH, and hybrids decided from HFSCREEN + GGA + AEXX together."""
     assert functional_key_from_params(parameters) == expected
 
 
