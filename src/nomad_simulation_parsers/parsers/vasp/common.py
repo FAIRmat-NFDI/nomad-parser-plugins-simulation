@@ -75,6 +75,7 @@ def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
     aexx = parameters.get('AEXX') or 0.0
     aggac = parameters.get('AGGAC')
     aldac = parameters.get('ALDAC')
+    # an absent HFSCREEN normalizes to VASP's default, 0 (unscreened)
     hfscreen = parameters.get('HFSCREEN') or 0.0
     pbe_family = gga in (None, 'PE', 'PBE')
 
@@ -89,7 +90,8 @@ def _hybrid_functional_key(parameters: dict[str, Any]) -> str | None:
         return 'HSE06' if pbe_family else ('HSEsol' if gga == 'PS' else None)
     if hfscreen == 0.3:  # noqa: PLR2004 — HSE03 screening length (1/Angstrom)
         return 'HSE03' if pbe_family else None
-    # Unscreened global hybrid PBE0: no screening and a PBE-family base GGA.
+    # Unscreened global hybrid PBE0: screening off (HFSCREEN 0 or unset) and a
+    # PBE-family base GGA.
     if hfscreen == 0.0 and pbe_family:
         return 'PBE0'
     return None
