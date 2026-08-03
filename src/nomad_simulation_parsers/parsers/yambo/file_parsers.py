@@ -15,12 +15,19 @@ class SpectraParser(DataTextParser):  # EM: moved sp_type here (from MainfilePar
                 r'(EELS|Polarizability|Absorption)',
                 repeats=False,
             ),
-            # EM, Jul 23rd, 2026
+            #HB, Aug 3rd, 2026
             Quantity(
                 'n_energies',
-                r'BEnSteps=|ETStpsXd=|\s+(\d+)',
+                r'(?:BEnSteps=|ETStpsXd=)\s*(\d+)',
                 dtype=np.int32,
             ),
+            end HB
+            # EM, Jul 23rd, 2026
+          #  Quantity(
+           #     'n_energies',
+            #    r'BEnSteps=|ETStpsXd=|\s+(\d+)',
+             #   dtype=np.int32,
+            # ),
             # end EM
         ]    
 #    pass
