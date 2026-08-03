@@ -29,7 +29,9 @@ add_mapping_annotation(
 )
 add_mapping_annotation(model_system.ModelSystem.positions, OUT_KEY, '.positions')
 add_mapping_annotation(model_system.ModelSystem.total_charge, OUT_KEY, '.total_charge')
-add_mapping_annotation(model_system.ModelSystem.total_spin, OUT_KEY, '.total_spin')
+add_mapping_annotation(
+    model_system.ModelSystem.total_multiplicity, OUT_KEY, '.total_multiplicity'
+)
 add_mapping_annotation(atoms_state.AtomsState.m_def, OUT_KEY, '.particle_states')
 add_mapping_annotation(
     atoms_state.AtomsState.chemical_symbol,

@@ -217,7 +217,7 @@ class OutParser(MappingTextParser):
     def _build_particle_states(symbols: list[str]) -> list[dict[str, str]]:
         return [{'chemical_symbol': symbol} for symbol in symbols]
 
-    def _get_charge_and_spin(self, source: dict[str, Any]) -> dict[str, int]:
+    def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
             source, 'single_point', 'self_consistent', 'scf_settings'
         )
@@ -227,7 +227,7 @@ class OutParser(MappingTextParser):
             result['total_charge'] = int(total_charge)
         multiplicity = self._scalar(scf_settings.get('multiplicity'))
         if multiplicity is not None:
-            result['total_spin'] = int(multiplicity) - 1
+            result['total_multiplicity'] = int(multiplicity)
         return result
 
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
@@ -240,7 +240,7 @@ class OutParser(MappingTextParser):
                 'is_representative': True,
                 'positions': positions,
                 'particle_states': self._build_particle_states(symbols),
-                **self._get_charge_and_spin(src),
+                **self._get_charge_and_multiplicity(src),
             }
         ]
 
