@@ -528,10 +528,6 @@ class QuantumEspressoParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
         self.level = len(child_archives)
-
-        # TODO add this in the archive writer
-        if archive.data and archive.data.outputs:
-            link_outputs_to_model_systems(archive.data)
         # run the old parser
         # TODO remove
         from electronicparsers.quantumespresso.parser import QuantumEspressoParser  # noqa
@@ -559,3 +555,7 @@ class QuantumEspressoParser(MatchingParser):
 
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
+
+        # TODO add this in the archive writer
+        if archive.data and archive.data.outputs:
+            link_outputs_to_model_systems(archive.data)
