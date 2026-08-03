@@ -4,10 +4,10 @@ from typing import Any
 import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 
@@ -408,7 +408,7 @@ class H5MDH5Parser(HDF5Parser):
         if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
             try:
                 # Access h5_archive directly (already opened by h5_parser)
-                # Will be closed via h5_parser.close()
+                # It is closed once at the end of archive writing via h5_parser.close().
                 h5_file = self.h5_parser.h5_archive
                 if h5_file and 'observables' in h5_file:
                     obs_path = f'observables/{label}'
@@ -418,8 +418,6 @@ class H5MDH5Parser(HDF5Parser):
                             return obs_group.attrs['type']
             except Exception:
                 pass
-            finally:
-                self.h5_parser.h5_archive.close()
 
         # Fallback to parsed data structure
         return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
@@ -512,31 +510,34 @@ class H5MDArchiveWriter(MDParser):
         workflow_data = h5md.MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
-        # map from h5 source to metainfo target
-        self.h5_parser.convert(self.simulation_parser)
-        self.h5_parser.convert(self.workflow_parser)
+        try:
+            # map from h5 source to metainfo target
+            self.h5_parser.convert(self.simulation_parser)
+            self.h5_parser.convert(self.workflow_parser)
 
-        for model_system in self.simulation_parser.data_object.model_system:
-            if not model_system.particle_states:
-                continue
-            if not all(
-                type(particle_state) is ParticleState
-                for particle_state in model_system.particle_states
-            ):
-                continue
-            labels = [
-                particle_state.label for particle_state in model_system.particle_states
-            ]
-            model_system.particle_states = particle_states_from_labels(labels)
+            for model_system in self.simulation_parser.data_object.model_system:
+                if not model_system.particle_states:
+                    continue
+                if not all(
+                    type(particle_state) is ParticleState
+                    for particle_state in model_system.particle_states
+                ):
+                    continue
+                labels = [
+                    particle_state.label
+                    for particle_state in model_system.particle_states
+                ]
+                model_system.particle_states = particle_states_from_labels(labels)
 
-        # assign simulation to archive data
-        self.archive.data = self.simulation_parser.data_object
-        self.archive.workflow2 = self.workflow_parser.data_object
-
-        # close parsers
-        self.h5_parser.close()
-        self.simulation_parser.close()
-        self.workflow_parser.close()
+            # assign simulation to archive data
+            self.archive.data = self.simulation_parser.data_object
+            self.archive.workflow2 = self.workflow_parser.data_object
+        finally:
+            # the h5 archive handle is shared across transformer calls; close
+            # it exactly once, also when conversion fails
+            self.h5_parser.close()
+            self.simulation_parser.close()
+            self.workflow_parser.close()
 
 
 class H5MDParser(MatchingParser):

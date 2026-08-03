@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from nomad.metainfo import SchemaPackage
+from nomad.datamodel import ArchiveSection
+from nomad.datamodel.hdf5 import HDF5Dataset
+from nomad.metainfo import Quantity, SchemaPackage, SubSection
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -11,6 +13,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
     properties,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
@@ -20,11 +23,23 @@ m_package = SchemaPackage()
 XML_KEY = 'vasp_xml'
 XML2_KEY = 'vasp_xml2'
 OUTCAR_KEY = 'vasp_outcar'
+CHGCAR_KEY = 'vasp_chgcar'
 
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, CHGCAR_KEY, '@')
+
+
+class ChargeDensity(ArchiveSection):
+    value_h5_dataset = Quantity(type=HDF5Dataset)
+    add_mapping_annotation(value_h5_dataset, CHGCAR_KEY, '.@')
+
+
+class VASPOutputs(outputs.Outputs):
+    charge_density = SubSection(sub_section=ChargeDensity.m_def, repeats=True)
+    add_mapping_annotation(charge_density, CHGCAR_KEY, '.values')
 
 
 class Simulation(general.Simulation):
@@ -42,6 +57,8 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
+    # TODO: make update_mode merge@last when mapping parser is updated
+    add_mapping_annotation(VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='append')
 
 
 class Program(general.Program):
@@ -59,55 +76,73 @@ class Program(general.Program):
     )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
-#             ),
-#             outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
-#         )
-#     )
-#     model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper=(
-#                     'mix_alpha',
-#                     [
-#                         '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-#                         '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-#                     ],
-#                 )
-#             )
-#         )
-#     )  # TODO convert vasp bool
+# TODO: map hybrid exact-exchange mixing into `XCFunctional.global_exact_exchange`
+# (formerly `DFT.exact_exchange_mixing_factor`). VASP exposes it via HFALPHA /
+# LHFCALC, and `VasprunParser.mix_alpha` is the intended transformer. Deferred:
+# needs a hybrid test fixture (AgAc_relax is PBE).
+class XCFunctional(model_method.XCFunctional):
+    # Set only the canonical functional name; `XCFunctional.normalize` expands it
+    # into complete LibXC `components` (exchange + correlation, with family/kind)
+    # from the shared alias/registry tables, and `DFT.normalize` derives
+    # `jacobs_ladder`. The parser therefore does not build components itself. The
+    # `get_functional_key` transformer gathers the VASP XC tags itself (flat
+    # OUTCAR parameters, or by walking the vasprun `<parameters>` tree).
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        XML_KEY,
+        ('get_functional_key', ['.@']),
+    )
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        OUTCAR_KEY,
+        ('get_functional_key', ['.@']),
+    )
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 # TODO add LDA & mGGA, convert_xc
-#                 mapper='.i[?"@name"==\'GGA\'] | [0].__value'
-#             ),
-#             outcar=MapperAnnotation(mapper='.name'),
-#         )
-#     )
+class DFT(model_method.DFT):
+    # The binding only needs to materialize the `xc` subsection so the child
+    # `functional_key` mapper runs -- `get_functional_key` ignores the bound node
+    # and gathers the XC tags itself (walking the full vasprun `<parameters>`
+    # tree, or the flat OUTCAR parameters). So bind to the current node (`.@`,
+    # always present) for both sources rather than a specific nested separator
+    # that some vasprun variants omit.
+    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        XML_KEY,
+        'modeling.parameters.separator[?"@name"==\'electronic\'] | [0]',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def, OUTCAR_KEY, 'parameters'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
+
+
+class SelfConsistency(numerical_settings.SelfConsistency):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        XML_KEY,
+        (
+            'modeling.parameters.separator[?"@name"==\'electronic\'] '
+            '| [0].i[?"@name"==\'EDIFF\'] | [0].__value'
+        ),
+        unit='eV',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        OUTCAR_KEY,
+        'parameters.EDIFF',
+        unit='eV',
+    )
 
 
 class KMesh(numerical_settings.KMesh):
@@ -143,15 +178,25 @@ class KMesh(numerical_settings.KMesh):
 
 class ModelSystem(model_system.ModelSystem):
     # atomic cell
-    add_mapping_annotation(model_system.Representation.m_def, XML_KEY, '.structure')
-    add_mapping_annotation(model_system.Representation.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        XML_KEY,
+        ('get_atoms', ['modeling.atominfo.array']),
+    )
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        OUTCAR_KEY,
+        ('get_atoms', ['ions_per_type', 'species']),
+    )
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         XML_KEY,
         (
-            'reshape_array',
-            ['.structure.varray.v'],
-            dict(shape_rest=(3,)),
+            'get_positions',
+            [
+                '.structure.varray.v',
+                '.structure.crystal.varray[?"@name"==\'basis\'] | [0].v',
+            ],
         ),
         unit='angstrom',
     )
@@ -162,21 +207,35 @@ class ModelSystem(model_system.ModelSystem):
         unit='angstrom',
         search='@ | [0]',
     )
-
-
-class Representation(model_system.Representation):
     add_mapping_annotation(
-        model_system.Representation.lattice_vectors,
+        model_system.ModelSystem.lattice_vectors,
         XML_KEY,
-        '.structure.varray[?"@name"==\'basis\'] | [0].v',
+        '.structure.crystal.varray[?"@name"==\'basis\'] | [0].v',
         unit='angstrom',
     )
     add_mapping_annotation(
-        model_system.Representation.lattice_vectors,
+        model_system.ModelSystem.lattice_vectors,
         OUTCAR_KEY,
         '.lattice_vectors',
         unit='angstrom',
         search='@ | [0]',
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.periodic_boundary_conditions,
+        XML_KEY,
+        ('get_periodic_boundary_conditions', []),
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.periodic_boundary_conditions,
+        OUTCAR_KEY,
+        ('get_periodic_boundary_conditions', []),
+    )
+
+
+class AtomsState(model_system.AtomsState):
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, XML_KEY, '.label')
+    add_mapping_annotation(
+        model_system.AtomsState.chemical_symbol, OUTCAR_KEY, '.label'
     )
 
 
@@ -192,12 +251,12 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML_KEY,
-        ('get_eigenvalues', ['eigenvalues']),
+        ('get_eigenvalues', ['.eigenvalues']),
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         XML2_KEY,
-        ('get_eigenvalues', ['eigenvalues']),
+        ('get_eigenvalues', ['.eigenvalues']),
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
@@ -216,6 +275,36 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.scf_steps, OUTCAR_KEY, ('get_scf_steps', ['.@'])
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        XML_KEY,
+        ('get_band_gaps', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        XML2_KEY,
+        ('get_band_gaps', ['.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        OUTCAR_KEY,
+        ('get_band_gaps', ['.eigenvalues', 'parameters']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        XML_KEY,
+        ('get_total_dos', ['.dos']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        XML2_KEY,
+        ('get_total_dos', ['.dos']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_dos,
+        OUTCAR_KEY,
+        ('get_total_dos', []),
     )
 
 
@@ -304,19 +393,106 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     #     )
     # )
 
-    # TODO This only works for non-spin pol
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, XML_KEY, '.n_levels')
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupations'
+        outputs.ElectronicEigenvalues.n_levels, XML2_KEY, '.n_levels'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupations'
+        outputs.ElectronicEigenvalues.value, XML_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.eigenvalues'
+        outputs.ElectronicEigenvalues.value, XML2_KEY, '.value', unit='eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.value, XML2_KEY, '.eigenvalues'
+        outputs.ElectronicEigenvalues.value, OUTCAR_KEY, '.value', unit='eV'
     )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, XML_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, XML2_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, OUTCAR_KEY, '.occupation'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, OUTCAR_KEY, '.spin_channel'
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, XML_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, XML2_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, OUTCAR_KEY, '.value', unit='eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUTCAR_KEY, '.spin_channel'
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, XML_KEY, '.energies', unit='eV')
+    add_mapping_annotation(variables.Energy2.points, XML2_KEY, '.energies', unit='eV')
+    add_mapping_annotation(variables.Energy2.points, OUTCAR_KEY, '.energies', unit='eV')
+
+
+class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, XML_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, XML2_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, OUTCAR_KEY, '.value', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, XML_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, XML2_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, OUTCAR_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        XML_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        XML2_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        OUTCAR_KEY,
+        '.energy_fermi',
+        unit='eV',
+    )
+    add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
+    add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
+    add_mapping_annotation(variables.Energy2.m_def, OUTCAR_KEY, '.@')
 
 
 try:

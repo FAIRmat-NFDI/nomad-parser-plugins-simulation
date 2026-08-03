@@ -59,6 +59,25 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.energies')
 
 
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, NETCDF_KEY, '.energies'
+    )
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, OUT_KEY, '.energies')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        OUT_KEY,
+        '.highest_occupied',
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, OUT_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
@@ -68,6 +87,24 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, OUT_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        NETCDF_KEY,
+        ('get_eigenvalues', []),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        OUT_KEY,
+        '.eigenvalues',
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        OUT_KEY,
+        (
+            'get_band_gaps',
+            ['.valence_conduction', '.valence', '.conduction'],
+        ),
     )
 
 

@@ -1,6 +1,6 @@
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     atoms_state,
     general,
@@ -148,6 +148,12 @@ class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotation(
         numerical_settings.KLinePath.high_symmetry_path_values, WOUT_KEY, '.values'
     )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_names, BAND_KEY, '.names'
+    )
+    add_mapping_annotation(
+        numerical_settings.KLinePath.high_symmetry_path_values, BAND_KEY, '.values'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
@@ -180,14 +186,18 @@ class Wannier(model_method.Wannier):
 
 
 # TODO: check whether this section is k-dependent
-class ElectronicBandStructure(properties.ElectronicBandStructure):
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
     # properties.ElectronicBandStructure.n_bands.m_annotations.setdefault(
     #     MAPPING_ANNOTATION_KEY, {}
     # ).update(dict(wout=Mapper(mapper='.Nwannier')))
 
-    properties.ElectronicBandStructure.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(band=Mapper(mapper=('get_data', ['.data']))))
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, BAND_KEY, '.value')
+    add_mapping_annotation(outputs.ElectronicBandStructure.k_path, BAND_KEY, '.k_path')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        BAND_KEY,
+        '.highest_occupied',
+    )
 
 
 class WignerSeitz(variables.WignerSeitz):
@@ -226,12 +236,22 @@ class ElectronicDensityOfStates(properties.ElectronicDensityOfStates):
     add_mapping_annotation(
         properties.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1/eV'
     )
+    add_mapping_annotation(
+        properties.ElectronicDensityOfStates.energies_origin,
+        DOS_KEY,
+        '.energies_origin',
+    )
     add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.electronic_band_structures, WOUT_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.electronic_band_structures, BAND_KEY, '.@')
+    # Legacy parity: Wannier90 band structures come from `*band.dat`; avoid
+    # placeholder sections from `.wout` metadata-only mappings.
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        BAND_KEY,
+        ('get_band_structure', ['.data']),
+    )
     add_mapping_annotation(
         outputs.Outputs.hopping_matrices,
         WHR_KEY,
@@ -243,6 +263,8 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
     )
+    # TODO(legacy-parity): legacy Wannier90 parser did not populate explicit
+    # electronic band-gap sections; keep unmapped for now.
 
 
 class Simulation(general.Simulation):

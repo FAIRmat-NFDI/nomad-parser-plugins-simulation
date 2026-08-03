@@ -9,9 +9,9 @@ from ase.data import chemical_symbols
 from nomad import atomutils
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
@@ -30,6 +30,7 @@ from .file_parser import F25Parser, OutputParser
 
 
 class CrystalOutputParser(TextParser):
+    re_label = re.compile(r'([a-z][a-z]?).*')
     libxc_map = {
         'PBEXC': ['GGA_C_PBE', 'GGA_X_PBE'],
         'PBE0': ['HYB_GGA_XC_PBEH'],
@@ -44,7 +45,7 @@ class CrystalOutputParser(TextParser):
         'LDA': ['LDA_X'],
         'PWGGA': ['GGA_X_PW91', 'GGA_C_PW91'],
         'PZ': ['LDA_C_PZ'],
-        'WFN': ['LDA_C_VWN'],
+        'VWN': ['LDA_C_VWN'],
     }
 
     @property
@@ -112,7 +113,7 @@ class CrystalOutputParser(TextParser):
                 numbers = labels_positions[:, 1]
 
         def normalize_label(label: str) -> str:
-            norm = re.match(r'([a-z][a-z]?).*', label.lower())
+            norm = self.re_label.match(label.lower())
             # unknown specie
             # TODO not possible to define ghost atom
             unknown = None
@@ -121,10 +122,34 @@ class CrystalOutputParser(TextParser):
                 return label if label in chemical_symbols[1:] else unknown
             return unknown
 
-        return [
-            dict(label=normalize_label(label), number=numbers[n])
-            for n, label in enumerate(labels)
-        ] or None
+        def normalize_number(number: Any, normalized_label: str | None) -> int | None:
+            try:
+                raw = int(float(number))
+            except Exception:
+                return None
+
+            # Legacy CRYSTAL parser semantics: NAT atomic numbers are mapped
+            # with modulo 100.
+            # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
+            normalized = raw % 100
+            if normalized == 0:
+                return 0
+
+            if 0 < normalized < len(chemical_symbols):
+                return normalized
+
+            return raw
+
+        atoms = []
+        for n, label in enumerate(labels):
+            normalized_label = normalize_label(label)
+            normalized_number = normalize_number(numbers[n], normalized_label)
+            if normalized_label is None and normalized_number is not None:
+                if 0 < normalized_number < len(chemical_symbols):
+                    normalized_label = chemical_symbols[normalized_number]
+            atoms.append(dict(label=normalized_label, number=normalized_number))
+
+        return atoms or None
 
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = set()
@@ -228,6 +253,15 @@ class CrystalOutputParser(TextParser):
             ]
         return workflow
 
+    def get_periodic_boundary_conditions(
+        self, lattice_vectors: Any = None
+    ) -> list[bool] | None:
+        if lattice_vectors is None:
+            return None
+        dimensionality = int(self.data.get('dimensionality', 3) or 3)
+        dimensionality = max(0, min(3, dimensionality))
+        return [axis < dimensionality for axis in range(3)]
+
     def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         initial = source.get('system_edited', source)
         systems = [
@@ -249,9 +283,6 @@ class CrystalOutputParser(TextParser):
             )
         return systems
 
-    def get_band_structures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        pass
-
 
 class CrystalF25Parser(TextParser):
     @property
@@ -271,7 +302,6 @@ class CrystalF25Parser(TextParser):
         first_row = source['first_row']
         cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
-        # fermi_energy = first_row[4]
         second_row = source['second_row']
         start_energy = second_row[1]
         dos_values = self.to_array(cols, rows, source['values']).T
@@ -282,6 +312,20 @@ class CrystalF25Parser(TextParser):
             )
             for n in range(len(dos_values))
         ]
+
+    def get_band_structures(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        band_structures = []
+        for segment in source or []:
+            first_row = segment.get('first_row')
+            energies = segment.get('energies')
+            if first_row is None or energies is None:
+                continue
+
+            cols, rows = (int(first_row[n]) for n in range(2))
+            values = self.to_array(cols, rows, energies)
+            band_structures.append(dict(value=values[None, :]))
+
+        return band_structures
 
 
 class CrystalMetainfoParser(MetainfoParser):
@@ -304,7 +348,6 @@ class CrystalArchiveWriter(ArchiveWriter):
         self.output_parser.convert(self.archive_parser)
 
         self.archive.data = self.archive_parser.data_object
-        outputs_before_f25 = list(self.archive.data.outputs or [])
         self.archive.workflow2 = self.output_parser.build_workflow(
             self.output_parser.data
         )
@@ -321,20 +364,6 @@ class CrystalArchiveWriter(ArchiveWriter):
             )
 
             self.f25_parser.convert(self.archive_parser)
-            outputs_after_f25 = self.archive.data.outputs or []
-            if outputs_before_f25:
-                if not outputs_after_f25:
-                    self.archive.data.outputs = outputs_before_f25
-                else:
-                    for idx, output in enumerate(outputs_before_f25):
-                        if idx >= len(outputs_after_f25):
-                            outputs_after_f25.append(output)
-                            continue
-                        if (
-                            outputs_after_f25[idx].scf_steps is None
-                            and output.scf_steps is not None
-                        ):
-                            outputs_after_f25[idx].scf_steps = output.scf_steps
 
 
 class CrystalParser(MatchingParser):

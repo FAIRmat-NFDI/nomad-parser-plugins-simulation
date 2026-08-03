@@ -7,15 +7,15 @@ import numpy as np
 from ase.data import chemical_symbols
 from netCDF4 import Dataset
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
     TextParser,
 )
-from nomad.parsing.parser import MatchingParser
-from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import BoundLogger
 
@@ -188,6 +188,22 @@ class YamboMainfileParser(TextParser):
     ) -> list[dict[str, Any]]:
         outputs = []
         data = {}
+
+        def get_reference_energy(source: dict[str, Any]) -> Any | None:
+            required_levels = 2
+            valence_conduction = source.get('valence_conduction')
+            if (
+                valence_conduction is not None
+                and len(valence_conduction) >= required_levels
+            ):
+                return float(valence_conduction[0]) * ureg.eV
+
+            valence = source.get('valence')
+            if valence is not None:
+                return float(valence) * ureg.eV
+
+            return None
+
         for key, val in energies_occupations.items():
             if key == 'eigenenergies':
                 kpoints = val.get('kpoints')
@@ -212,6 +228,14 @@ class YamboMainfileParser(TextParser):
                 ]
             else:
                 data[key] = val
+
+        reference_energy = get_reference_energy(data)
+        if reference_energy is not None:
+            # band-structure sections are sourced from the eigenvalue entries,
+            # so the reference must live on each entry
+            for entry in data.get('eigenvalues', []):
+                entry['highest_occupied'] = reference_energy
+
         if data:
             outputs.append(data)
 
@@ -265,6 +289,31 @@ class YamboMainfileParser(TextParser):
 
         return outputs
 
+    def get_band_gaps(
+        self,
+        valence_conduction: Any = None,
+        valence: Any = None,
+        conduction: Any = None,
+    ) -> list[dict[str, Any]]:
+        required_levels = 2
+        if (
+            valence_conduction is not None
+            and len(valence_conduction) >= required_levels
+        ):
+            valence, conduction = valence_conduction[0], valence_conduction[1]
+
+        if valence is None or conduction is None:
+            return []
+
+        value = conduction - valence
+        if hasattr(value, 'magnitude'):
+            if value.magnitude < 0:
+                value = 0 * value.units
+        else:
+            value = max(0.0, value)
+
+        return [dict(value=value)]
+
 
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
@@ -289,6 +338,7 @@ class YamboArchiveWriter(ArchiveWriter):
             .get('input', {})
             .get('file', '')
         )
+        netcdf_parser = None
         if netcdf_file:
             # set up parser for yambo netcdf file
             netcdf_parser = YamboNetCDFParser(
@@ -298,7 +348,8 @@ class YamboArchiveWriter(ArchiveWriter):
             netcdf_parser.convert(data_parser)
 
         data_parser.close()
-        netcdf_parser.close()
+        if netcdf_parser is not None:
+            netcdf_parser.close()
 
 
 class YamboParser(MatchingParser):

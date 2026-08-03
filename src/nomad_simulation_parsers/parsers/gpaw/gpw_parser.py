@@ -4,8 +4,8 @@ import ase
 import numpy as np
 import pint
 from ase.io.ulm import Reader
-from nomad.parsing.file_parser import DataTextParser, FileParser, TarParser, XMLParser
 from nomad.units import ureg
+from nomad_file_parser import DataTextParser, FileParser, TarParser, XMLParser
 
 
 class GPWTarParser(TarParser):
@@ -230,28 +230,46 @@ class GPW2FileParser(FileParser):
     def get_parameter(self, key: str) -> Any:
         return self.info.get(key, self.info['parameter'].get(key))
 
+    def _get_band_paths(self) -> list[dict] | None:
+        """Normalize ULM band-path payloads to a list of plain dicts."""
+        paths = getattr(getattr(self.ulm, 'wave_functions', None), 'band_paths', None)
+        if paths is None:
+            return None
+        if hasattr(paths, 'asdict'):
+            paths = paths.asdict()
+        if hasattr(paths, 'get'):
+            paths = paths.get('band_paths', [paths])
+        return [path.asdict() if hasattr(path, 'asdict') else path for path in paths]
+
     def get_array(self, key: str) -> np.ndarray:
         if self.ulm is None:
             return
         values = {
-            'unitcell': self.ulm.atoms.cell,
-            'atomicnumbers': self.ulm.atoms.numbers,
-            'atom_positions': self.ulm.atoms.positions,
-            'boundaryconditions': self.ulm.atoms.pbc,
-            'momenta': self.ulm.atoms.momenta,
-            'atom_forces_free_raw': self.ulm.results.forces,
-            'magneticmoments': self.ulm.results.magmoms,
-            'eigenvalues': self.ulm.wave_functions.eigenvalues,
-            'occupation': self.ulm.wave_functions.occupations,
+            'unitcell': lambda: self.ulm.atoms.cell,
+            'atomicnumbers': lambda: self.ulm.atoms.numbers,
+            'atom_positions': lambda: self.ulm.atoms.positions,
+            'boundaryconditions': lambda: self.ulm.atoms.pbc,
+            # Accept both key variants used in parser code and source metadata.
+            'boundary_conditions': lambda: self.ulm.atoms.pbc,
+            'momenta': lambda: self.ulm.atoms.momenta,
+            'atom_forces_free_raw': lambda: self.ulm.results.forces,
+            'magneticmoments': lambda: self.ulm.results.magmoms,
+            'eigenvalues': lambda: self.ulm.wave_functions.eigenvalues,
+            'occupation': lambda: self.ulm.wave_functions.occupations,
             # TODO no koints data in ulm?
             'kpoints': lambda: self.ulm.IBZKPoints,
             'density': lambda: self.ulm.density.density,
             'potential_effective': lambda: self.ulm.hamiltonian.potential,
-            'band_paths': self.ulm.wave_functions.band_paths.asdict,
+            # Not all GPAW files provide band path data (e.g., nowfs snapshots).
+            'band_paths': self._get_band_paths,
         }
         try:
             if key in values:
                 val = values.get(key)
+                if callable(val):
+                    val = val()
+                if hasattr(val, 'asdict'):
+                    val = val.asdict()
             else:
                 val = self.ulm.asdict().get(key, None)
         except Exception:
@@ -286,22 +304,6 @@ class GPWFileParser(FileParser):
         'bohr': ureg.bohr,
         'femtosecond': ureg.fs,
     }
-    _xc_map = {
-        'LDA': ['LDA_X', 'LDA_C_PW'],
-        'PW91': ['GGA_X_PW91', 'GGA_C_PW91'],
-        'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
-        'PBEsol': ['GGA_X_PBE_SOL', 'GGA_C_PBE_SOL'],
-        'revPBE': ['GGA_X_PBE_R', 'GGA_C_PBE'],
-        'RPBE': ['GGA_X_RPBE', 'GGA_C_PBE'],
-        'BLYP': ['GGA_X_B88', 'GGA_C_LYP'],
-        'HCTH407': ['GGA_XC_HCTH_407'],
-        'WC': ['GGA_X_WC', 'GGA_C_PBE'],
-        'AM05': ['GGA_X_AM05', 'GGA_C_AM05'],
-        'M06-L': ['MGGA_X_M06_L', 'MGGA_C_M06_L'],
-        'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
-        'revTPSS': ['MGGA_X_REVTPSS', 'MGGA_C_REVTPSS'],
-        'mBEEF': ['MGGA_X_MBEEF', 'GGA_C_PBE_SOL'],
-    }
     parser = GPWTarParser()
 
     def apply_unit(self, val: np.ndarray | float, unit: str) -> pint.Quantity:
@@ -332,9 +334,12 @@ class GPWFileParser(FileParser):
         self._results['atom_positions'] = self.apply_unit(
             self.parser.get_array('atom_positions'), 'lengthunit'
         )
-        self._results['labels'] = [
-            ase.data.chemical_symbols[z] for z in self.parser.get_array('atomicnumbers')
-        ]
+        atomic_numbers = self.parser.get_array('atomicnumbers')
+        self._results['labels'] = (
+            [ase.data.chemical_symbols[z] for z in atomic_numbers]
+            if atomic_numbers is not None
+            else []
+        )
 
         pbc = np.ones(3, bool) if self.get_mode() == 'pw' else np.zeros(3, bool)
         if self.parser.get_array('boundary_conditions') is not None:
@@ -342,7 +347,6 @@ class GPWFileParser(FileParser):
             bc.shape = [bc.size]
             pbc[: bc.size] = bc
         self._results['boundary_conditions'] = pbc
-        xc_functional = self.parser.get_parameter('xcfunctional')
-        self._results['xcfunctional'] = [
-            xc for xc in self._xc_map.get(xc_functional, [xc_functional])
-        ]
+        # GPAW records the standard functional name (e.g. 'PBE', 'revPBE');
+        # the schema expands it into LibXC components and derives `jacobs_ladder`.
+        self._results['xcfunctional'] = self.parser.get_parameter('xcfunctional')

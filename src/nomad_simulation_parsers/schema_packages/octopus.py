@@ -23,20 +23,35 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.@')
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.@')))
+class XCFunctional(model_method.XCFunctional):
+    add_mapping_annotation(
+        model_method.XCFunctional.components,
+        OUT_KEY,
+        ('get_xc_functionals', ['.theory_level']),
+    )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper=('get_xc_functionals', ['.theory_level']))))
+class DFT(model_method.DFT):
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.positions, OUT_KEY, '.positions')
+    add_mapping_annotation(model_system.Representation.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.m_def, OUT_KEY, '.labels')
+
+
+class Representation(model_system.Representation):
+    add_mapping_annotation(
+        model_system.Representation.lattice_vectors, OUT_KEY, '.lattice_vectors'
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions, OUT_KEY, '.pbc'
+    )
+
+
+class AtomsState(model_system.AtomsState):
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, OUT_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -61,6 +76,44 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, EIGENVALUES_KEY, '.occupations'
     )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        INFO_KEY,
+        '.highest_occupied',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        EIGENVALUES_KEY,
+        '.highest_occupied',
+    )
+
+
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, INFO_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, EIGENVALUES_KEY, '.value'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        INFO_KEY,
+        '.highest_occupied',
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        EIGENVALUES_KEY,
+        '.highest_occupied',
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, INFO_KEY, '.value')
+    add_mapping_annotation(outputs.ElectronicBandGap.value, EIGENVALUES_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, INFO_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, EIGENVALUES_KEY, '.spin_channel'
+    )
 
 
 class Outputs(outputs.Outputs):
@@ -77,6 +130,28 @@ class Outputs(outputs.Outputs):
         EIGENVALUES_KEY,
         ('get_eigenvalues', ['eigenvalues']),
     )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        INFO_KEY,
+        ('get_band_structures', ['eigenvalues.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        EIGENVALUES_KEY,
+        ('get_band_structures', ['eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        INFO_KEY,
+        ('get_band_gaps', ['eigenvalues.eigenvalues']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        EIGENVALUES_KEY,
+        ('get_band_gaps', ['eigenvalues']),
+    )
+    # TODO(legacy-parity): legacy Octopus parser did not populate explicit
+    # electronic DOS result sections.
 
 
 class Simulation(general.Simulation):

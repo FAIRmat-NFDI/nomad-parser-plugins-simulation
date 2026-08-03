@@ -2,7 +2,7 @@ from typing import Any
 
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import Quantity, Section, SubSection
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 
 
 def remove_mapping_annotations(property: Section, max_depth: int = 5) -> None:
@@ -52,6 +52,21 @@ def add_mapping_annotation(
     m_def: Section | None = None,
     **kwargs,
 ) -> None:
+    """
+    Bind a schema ``property`` to a source path/transformer under
+    ``annotation_key``, consumed by the ``nomad_file_parser`` mapping parser to
+    populate the archive from parsed data.
+
+    Caveat for polymorphic subsections: the mapping conversion builds subsections
+    by instantiating their *declared* type
+    (``section.sub_section.section_cls()`` in ``nomad_file_parser``
+    ``file_parser.parse_section``). A concrete subclass instance assigned to a
+    subsection before conversion is therefore rebuilt as the declared base type
+    (e.g. ``EnergyConvergenceTarget``/``ForceConvergenceTarget`` collapse to
+    ``WorkflowConvergenceTarget``). To keep a polymorphic subclass, populate it
+    manually *after* the parser's ``convert()`` pass instead of via this
+    annotation (see ``abinit``/``exciting`` ``parse_workflow``).
+    """
     annotation = {annotation_key: Mapper(mapper=mapper, **kwargs)}
     if m_def is not None and isinstance(property, SubSection):
         property.more['mapper_m_def'] = m_def.qualified_name()

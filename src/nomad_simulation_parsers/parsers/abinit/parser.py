@@ -6,11 +6,11 @@ from typing import Any
 import numpy as np
 from ase.data import chemical_symbols
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter, DataTextParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter, DataTextParser
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -28,6 +28,9 @@ from nomad_simulations.schema_packages.workflow.geometry_optimization import (
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
@@ -545,23 +548,39 @@ class MainfileParser(TextParser):
             return []
         return [dict(label=chemical_symbols[int(znucl[n_at - 1])]) for n_at in typat]
 
+    def get_periodic_boundary_conditions(
+        self, lattice_vectors: Any = None
+    ) -> list[bool] | None:
+        if lattice_vectors is None:
+            return None
+        return [vec is not None for vec in lattice_vectors]
+
     def get_xc_functionals(self) -> list[dict[str, Any]]:
         ixc = self.get_input_var('ixc', 1, 1, scalar=True)
         if ixc >= 0:
-            xc_functionals = ABINIT_NATIVE_IXC.get(ixc, [])
-        else:
-            xc_functionals = []
-            functional1 = -ixc // 1000
-            if functional1 > 0:
-                xc_functionals.append(ABINIT_LIBXC_IXC.get(functional1))
-            functional2 = -ixc - (-ixc // 1000) * 1000
-            if functional2 > 0:
-                xc_functionals.append(ABINIT_LIBXC_IXC.get(functional2))
-        return xc_functionals
+            return [
+                {'unidentified': True}
+                if functional.get('XC_functional_name') == '?'
+                else functional
+                for functional in ABINIT_NATIVE_IXC.get(ixc, [])
+            ]
+        # LibXC path: the negative value packs two LibXC ids positionally. Id 0
+        # means the slot carries no functional; a non-zero id absent from the
+        # table is handed to the schema as a raw LibXC id to resolve or mark.
+        functional1 = -ixc // 1000
+        functional2 = -ixc - functional1 * 1000
+        components = []
+        for functional_id in (functional1, functional2):
+            if functional_id == 0:
+                continue
+            mapped = ABINIT_LIBXC_IXC.get(functional_id)
+            components.append(mapped if mapped else {'libxc_id': functional_id})
+        return components
 
     def get_bandstructures(
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
+        n_spin_channels = 2
         nsppol = self.get_input_var('nsppol', 2, 1, scalar=True)
         eigs = np.reshape(
             eigenvalues,
@@ -578,7 +597,13 @@ class MainfileParser(TextParser):
 
         nband = int(eigs.T[1].T[0][0])
         eigs = eigs.T[6 : 6 + nband].T
-        bandstructures = [dict(energies=eig, k_points=kpts) for eig in eigs]
+        is_spin_polarized = nsppol == n_spin_channels
+        bandstructures = []
+        for n, eig in enumerate(eigs):
+            entry = dict(energies=eig, k_points=kpts)
+            if is_spin_polarized:
+                entry['spin_channel'] = n
+            bandstructures.append(entry)
 
         if occupations is not None:
             occs = np.reshape(
@@ -605,11 +630,11 @@ class MainfileParser(TextParser):
 
         return [
             EnergyConvergenceTarget(
-                threshold=tolmxde,
-                threshold_type='relative',
+                threshold=tolmxde * ureg.hartree,
+                threshold_type='absolute',
             ),
             ForceConvergenceTarget(
-                threshold=tolmxf,
+                threshold=tolmxf * ureg.hartree / ureg.bohr,
                 threshold_type='maximum',
             ),
         ]
@@ -653,6 +678,29 @@ class MainfileParser(TextParser):
             scf_steps['code_specific_quantities'] = extra_columns
         return scf_steps
 
+    def get_band_gaps(
+        self, eigenvalues: np.ndarray, occupations: np.ndarray
+    ) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues and occupations using common utility."""
+        if eigenvalues is None or occupations is None:
+            return []
+
+        bandstructures = self.get_bandstructures(eigenvalues, occupations)
+        gaps = []
+        for bandstructure in bandstructures:
+            eigs = bandstructure.get('energies')
+            occs = bandstructure.get('occupations')
+            spin_channel = bandstructure.get('spin_channel')
+
+            # Use common utility for band gap calculation
+            gap_result = calculate_band_gap_from_occupations(
+                eigs, occs, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                gaps.append(gap_result)
+
+        return gaps
+
 
 class DosParser(TextParser):
     # TODO temporary fix for structlog unable to propagate logger
@@ -671,7 +719,7 @@ class DosParser(TextParser):
             source, (nsp, len(source) // nsp, np.size(source) // len(source))
         ):
             dos_sp_t = dos_sp.T
-            dos.append(dict(value=dos_sp_t[1]))
+            dos.append(dict(energies=dos_sp_t[0], value=dos_sp_t[1]))
         return dos
 
 
@@ -688,24 +736,36 @@ class AbinitArchiveWriter(ArchiveWriter):
     def parse_workflow(self):
         ionmov = self.mainfile_parser.get_input_var('ionmov', 1, [0])[0]
         vis = self.mainfile_parser.get_input_var('vis', 1, [100.0])[0]
+        convergence = None
         if ionmov in [2, 3, 4, 5, 7, 10, 11, 20] or (ionmov == 1 and vis > 0.0):
             workflow = GeometryOptimization()
             workflow.method = GeometryOptimizationMethod()
+
+            # Set optimization type based on optcell parameter
+            optcell = self.mainfile_parser.get_input_var('optcell', 1, [0])[0]
+            if optcell == 0:
+                workflow.method.optimization_type = 'atomic'
+            elif optcell == 1:
+                workflow.method.optimization_type = 'cell_volume'
+            else:
+                workflow.method.optimization_type = 'cell_shape'
+
             convergence = self.mainfile_parser.get_geometry_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         elif ionmov in [6, 8, 9, 12, 13, 14, 23] or (ionmov == 1 and vis == 0.0):
             workflow = MolecularDynamics()
         else:
             workflow = SinglePoint()
             workflow.method = SinglePointMethod()
             convergence = self.mainfile_parser.get_single_point_convergence()
-            if convergence:
-                workflow.method.convergence_targets = convergence
         self.archive.workflow2 = workflow
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
+        # Assign convergence targets only after convert() to preserve the
+        # polymorphic EnergyConvergenceTarget/ForceConvergenceTarget subclasses;
+        # see the `add_mapping_annotation` docstring for why the ordering matters.
+        if convergence:
+            self.archive.workflow2.method.convergence_targets = convergence
 
     def write_to_archive(self):
         self.archive.data = Simulation(program=Program(name=self.code_name))

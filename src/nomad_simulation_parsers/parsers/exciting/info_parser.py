@@ -3,8 +3,8 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_SYMBOL = re.compile(r'([A-Z][a-z]?)')
@@ -329,6 +329,7 @@ class InfoFileParser(TextParser):
 
         self._miscellaneous_keys_mapping = {
             'x_exciting_gap': (r'Estimated fundamental gap', ureg.hartree),
+            'x_exciting_fermi_energy': (r'Fermi energy', ureg.hartree),
             'time_physical': (r'Wall time \(seconds\)', ureg.s),
         }
 
