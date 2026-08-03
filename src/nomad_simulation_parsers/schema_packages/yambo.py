@@ -111,10 +111,16 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, OUT_KEY, '.eigenvalues'
     )
-    # TODO is this the correct def to use for spectra data
+
+#HB, 3rd Aug, 2026
     add_mapping_annotation(
-        AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])  # EM: outputs.AbsorptionSpectrum  -->  AbsorptionSpectrum
+        AbsorptionSpectra.m_def, SPECTRA_KEY, ('get_spectra', ['data'])
     )
+# end HB
+    # TODO is this the correct def to use for spectra data
+ #   add_mapping_annotation(
+  #      AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])  # EM: outputs.AbsorptionSpectrum  -->  AbsorptionSpectrum
+   # )
 
 
 class Simulation(general.Simulation):
