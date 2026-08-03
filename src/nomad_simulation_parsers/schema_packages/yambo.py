@@ -6,6 +6,7 @@ from nomad_simulations.schema_packages import (
     numerical_settings,
     outputs,
 )
+from nomad_simulations.schema_packages.properties import AbsorptionSpectrum #HB, 3 Aug, 2026
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
@@ -60,21 +61,39 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.energies')
 
 
-class AbsorptionSpectra(outputs.AbsorptionSpectrum):
-    add_mapping_annotation(
-        outputs.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
-    )
-    add_mapping_annotation(
-        outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
-    )
+# class AbsorptionSpectra(outputs.AbsorptionSpectrum):
+  #  add_mapping_annotation(
+   #     outputs.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
+    # )
+    # add_mapping_annotation(
+      #  outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
+    # )
 # EM, 6 Jul, 2026:    
-    add_mapping_annotation(
-        outputs.AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
-    )
-    add_mapping_annotation(
-        outputs.AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
-    )
+   # add_mapping_annotation(
+   #     outputs.AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
+   # )
+   # add_mapping_annotation(
+    #    outputs.AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
+    # )
 # end EM
+
+#HB, 3 Aug, 2026
+
+class AbsorptionSpectra(AbsorptionSpectrum):
+    add_mapping_annotation(
+        AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
+    )
+    add_mapping_annotation(
+        AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
+    )
+    
+    add_mapping_annotation(
+        AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
+    )
+    add_mapping_annotation(
+        AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
+    )
+# end HB
 
 
 class Outputs(outputs.Outputs):
