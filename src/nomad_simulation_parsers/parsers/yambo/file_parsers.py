@@ -18,10 +18,10 @@ class SpectraParser(DataTextParser):  # EM: moved sp_type here (from MainfilePar
             #HB, Aug 3rd, 2026
             Quantity(
                 'n_energies',
-                r'(?:BEnSteps=|ETStpsXd=)\s*(\d+)',
+                r'(?:BEnSteps|ETStpsXd)\s*=\s*(\d+)',
                 dtype=np.int32,
             ),
-            end HB
+           # end HB
             # EM, Jul 23rd, 2026
           #  Quantity(
            #     'n_energies',
