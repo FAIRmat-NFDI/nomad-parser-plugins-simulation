@@ -267,18 +267,18 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return np.array([0.0, 0.0, 0.0])
         return k_offset
 
-    def get_all_criteria(self) -> list[dict[str, Any]]:
+    def get_all_criteria(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         criteria = []
         for fcriteria in [
             self.get_scf_energy_criterion,
             self.get_scf_density_criterion,
             self.get_scf_eigenvalues_criterion,
         ]:
-            data = fcriteria(self.data)
+            data = fcriteria(source)
             if data:
                 criteria.append(data)
         if not criteria:
-            max_iterations = self.data.get('max_scf_iterations')
+            max_iterations = source.get('max_scf_iterations')
             if max_iterations is not None:
                 criteria.append({'n_max_iterations': max_iterations})
         return criteria
@@ -588,7 +588,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             if energy_threshold is not None:
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=energy_threshold * ureg.eV,
+                        threshold=energy_threshold,
                         threshold_type='absolute',
                     )
                 ]

@@ -53,7 +53,7 @@ class Simulation(general.Simulation):
         ),
     )
     # DFT method - only annotate DFT.m_def, not ModelMethod base class
-    add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@', update_mode='merge')
+    add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
     add_mapping_annotation(model_method.GW.m_def, TEXT_GW_KEY, '.@')
     # electronic structure outputs
@@ -99,9 +99,23 @@ class SelfConsistency(numerical_settings.SelfConsistency):
     )
     add_mapping_annotation(numerical_settings.SelfConsistency.name, TEXT_KEY, '.name')
 
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.n_max_iterations,
+        TEXT_KEY,
+        '.n_max_iterations',
+    )
+
 
 class DFT(model_method.DFT):
-    add_mapping_annotation(numerical_settings.SelfConsistency.m_def, TEXT_KEY, ('get_all_criteria', []), update_mode='append')
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        TEXT_KEY,
+        ('get_all_criteria', ['.@']),
+        update_mode='append',
+    )
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def, TEXT_KEY, '.@', update_mode='append'
+    )
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
     # Materialize the `xc` subsection so its child `functional_key` mapper runs.
     add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
@@ -115,22 +129,6 @@ class XCFunctional(model_method.XCFunctional):
         model_method.XCFunctional.functional_key,
         TEXT_KEY,
         ('get_functional_key', ['.controlInOut_xc']),
-    )
-# Add SelfConsistency instances to DFT numerical_settings
-# Must be at module level for multi-mapper detection to work
-# add_mapping_annotation(
-#     numerical_settings.SelfConsistency.m_def,
-#     TEXT_KEY,
-#     ('get_scf_convergence_criteria', ['@']),
-# )
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.m_def,
-        TEXT_KEY,
-        ('get_all_criteria', []),
-        update_mode='append',
-    )
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def, TEXT_KEY, '.@', update_mode='append'
     )
 
 
