@@ -476,7 +476,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
         )
         phonopy_obj.generate_displacements(distance=displacement)
-        supercells = phonopy_obj.get_supercells_with_displacements()
+        supercells = phonopy_obj.supercells_with_displacements
 
         force_sets = []
         n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
@@ -504,7 +504,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             force_sets.append(forces)
 
         try:
-            phonopy_obj.set_forces(force_sets)
+            phonopy_obj.forces = force_sets
             phonopy_obj.produce_force_constants()
         except Exception:
             self.logger.error('Error producing force constants.')
