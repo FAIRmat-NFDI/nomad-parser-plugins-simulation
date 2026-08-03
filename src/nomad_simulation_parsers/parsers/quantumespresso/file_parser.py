@@ -8,6 +8,14 @@ class QuantumEspressoFileParser(TextParser):
                 'program',
                 r'(Program\s*\w+\s*v[\S\s]+?(?:JOB DONE|\Z))',
                 repeats=True,
-                flatten=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'header',
+                            r'(Program.+)',
+                            flatten=False,
+                        )
+                    ]
+                ),
             ),
         ]

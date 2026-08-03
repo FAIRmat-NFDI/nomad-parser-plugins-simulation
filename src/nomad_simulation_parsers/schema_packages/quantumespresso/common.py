@@ -14,6 +14,7 @@ OUT_KEY = 'quantumespresso_out'
 XML_KEY = 'quantumespresso_xml'
 GIPAW_OUT_KEY = 'quantumespresso_gipaw_out'
 GIPAW_XML_KEY = 'quantumespresso_gipaw_xml'
+DOS_KEY = 'quantumespresso_dos'
 
 
 class Program(general.Program):
@@ -143,6 +144,7 @@ class Simulation(general.Simulation):
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '@')
 
 
 try:
