@@ -1,5 +1,7 @@
 name: install-and-test-workflow
+
 on: [push]
+
 # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
 # `contents` is for permission to the contents of the repository.
 # `pull-requests` is for permission to pull request
@@ -15,53 +17,72 @@ jobs:
   install-and-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        uv pip install --override <(printf '%s\n' 'nomad-simulations[md] @ git+https://github.com/nomad-coe/nomad-simulations.git@qc-super') -e '.[dev,md]'
-        uv pip install coverage coveralls
-    - name: Test with pytest
-      run: |
-        python -m coverage run -m pytest -sv
-    - name: Submit to coveralls
-      continue-on-error: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        coveralls --service=github
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          uv pip install \
+            --override <(printf '%s\n' \
+              'nomad-simulations[md] @ git+https://github.com/nomad-coe/nomad-simulations.git@qc-super') \
+            -e '.[dev,md]'
+          uv pip install coverage coveralls
+
+      - name: Test with pytest
+        run: |
+          python -m coverage run -m pytest -sv
+
+      - name: Submit to coveralls
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          coveralls --service=github
+
   build-and-install:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name: Build the package
-      run: |
-        uv pip install build
-        python -m build --sdist
-    - name: Install the package
-      run: |
-        uv pip install dist/*.tar.gz
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Build the package
+        run: |
+          uv pip install build
+          python -m build --sdist
+
+      - name: Install the package
+        run: |
+          uv pip install \
+            --override <(printf '%s\n' \
+              'nomad-simulations[md] @ git+https://github.com/nomad-coe/nomad-simulations.git@qc-super') \
+            dist/*.tar.gz
+
   ruff-linting:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: chartboost/ruff-action@v1
         with:
           args: "check ."
+
   # to enable auto-formatting check, uncomment the following lines below
   # ruff-formatting:
   #   runs-on: ubuntu-latest
