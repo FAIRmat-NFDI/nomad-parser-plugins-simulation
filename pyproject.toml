@@ -54,7 +54,7 @@ nomad-sim-parser-init = "nomad_simulation_parsers.cli:main"
 
 [project.optional-dependencies]
 md = [
-    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@develop",
+    "nomad-simulations[md]@git+https://github.com/nomad-coe/nomad-simulations.git@qc-super",
     "MDAnalysis>=2.4.0",
 ]
 dev = ["ruff", "pytest", "structlog"]
