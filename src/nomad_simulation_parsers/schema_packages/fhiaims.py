@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -91,7 +91,28 @@ class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
 
 
+class SelfConsistency(numerical_settings.SelfConsistency):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        TEXT_KEY,
+        '.threshold_change',
+    )
+    add_mapping_annotation(numerical_settings.SelfConsistency.name, TEXT_KEY, '.name')
+
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.n_max_iterations,
+        TEXT_KEY,
+        '.n_max_iterations',
+    )
+
+
 class DFT(model_method.DFT):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        TEXT_KEY,
+        ('get_all_criteria', ['.@']),
+        update_mode='append',
+    )
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
     # Materialize the `xc` subsection so its child `functional_key` mapper runs.
     add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
@@ -106,6 +127,18 @@ class XCFunctional(model_method.XCFunctional):
         TEXT_KEY,
         ('get_functional_key', ['.controlInOut_xc']),
     )
+
+
+# class DFT(model_method.DFT):
+#     model_method.DFT.xc_functionals.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
+
+
+# class XCFunctional(model_method.XCFunctional):
+#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
+#         MAPPING_ANNOTATION_KEY, {}
+#     ).update(dict(text=Mapper(mapper='.name')))
 
 
 class GW(model_method.GW):
