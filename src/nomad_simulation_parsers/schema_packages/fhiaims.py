@@ -113,9 +113,6 @@ class DFT(model_method.DFT):
         ('get_all_criteria', ['.@']),
         update_mode='append',
     )
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def, TEXT_KEY, '.@', update_mode='append'
-    )
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
     # Materialize the `xc` subsection so its child `functional_key` mapper runs.
     add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
