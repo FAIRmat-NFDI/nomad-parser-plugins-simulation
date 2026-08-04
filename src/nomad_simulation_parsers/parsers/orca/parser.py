@@ -227,7 +227,7 @@ class OutParser(MappingTextParser):
             result['total_charge'] = int(total_charge)
         multiplicity = self._scalar(scf_settings.get('multiplicity'))
         if multiplicity is not None:
-            result['total_multiplicity'] = int(multiplicity)
+            result['total_spin_multiplicity'] = int(multiplicity)
         return result
 
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:

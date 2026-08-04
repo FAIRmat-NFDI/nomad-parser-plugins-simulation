@@ -160,7 +160,7 @@ def test_model_system_and_molecular_orbitals():
     ]
     assert system.positions[0][2].to('angstrom').magnitude == pytest.approx(0.11779)
     assert system.total_charge == 0
-    assert system.total_multiplicity == 1
+    assert system.total_spin_multiplicity == 1
 
     assert len(archive.data.outputs) == 1
     output = archive.data.outputs[0]
