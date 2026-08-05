@@ -6,12 +6,70 @@ import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
+from nomad_simulation_parsers.parsers.wannier90.file_parsers import (
+    WInParser,
+    WOutParser,
+)
 from nomad_simulation_parsers.parsers.wannier90.parser import (
     Wannier90Parser,
     WInTextParser,
+    WOutTextParser,
+    _read_wien2k_structure_labels,
 )
 
 LOGGER = get_logger(__name__)
+
+
+def test_numeric_wout_sites_map_only_cartesian_positions(tmp_path):
+    mainfile = tmp_path / 'numeric.wout'
+    mainfile.write_text(
+        """
+ Fractional Coordinate          Cartesian Coordinate (Ang)
+ | 1  1  0.000 0.000 0.000 | 0.100 0.200 0.300 |
+ | 2  1  0.500 0.500 0.500 | 1.100 1.200 1.300 |
+ K-POINT GRID
+"""
+    )
+    parser = WOutTextParser(text_parser=WOutParser())
+    parser.filepath = str(mainfile)
+
+    positions = parser.data['structure'].get('positions')
+
+    assert len(positions) == 2
+    assert positions[0].tolist() == pytest.approx([0.1, 0.2, 0.3])
+    assert positions[1].tolist() == pytest.approx([1.1, 1.2, 1.3])
+
+
+def test_wien2k_structure_expands_labels_and_numeric_projection(tmp_path):
+    struct = tmp_path / 'seed.struct'
+    struct.write_text(
+        """
+ATOM  -1: X=0.0 Y=0.0 Z=0.0
+          MULT= 1          ISPLIT=-2
+La1        NPT=  781  R0=.00001 RMT=2.5 Z: 57.
+ATOM  -2: X=0.5 Y=0.5 Z=0.5
+          MULT= 2          ISPLIT=8
+O 1        NPT=  781  R0=.00010 RMT=1.7 Z: 8.
+"""
+    )
+    labels = _read_wien2k_structure_labels(str(struct))
+    parser = WInTextParser()
+
+    branch = parser.get_branch_label_indices(
+        '2', [[0.0, 0.0, 0.0]] * 3, labels, [[1.0, 0.0, 0.0]] * 3
+    )
+
+    assert labels == ['La', 'O', 'O']
+    assert branch == {'label': 'O', 'indices': [1]}
+
+
+def test_projection_parser_preserves_indented_numeric_site(tmp_path):
+    win = tmp_path / 'seed.win'
+    win.write_text('begin projections\n   2:s\nend projections\n')
+    parser = WInTextParser(text_parser=WInParser())
+    parser.filepath = str(win)
+
+    assert parser.data['projections'] == [[2, 's']]
 
 
 @pytest.fixture

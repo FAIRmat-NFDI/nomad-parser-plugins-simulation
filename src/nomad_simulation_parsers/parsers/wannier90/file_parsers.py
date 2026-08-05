@@ -9,7 +9,9 @@ class WInParser(TextParser):
     def init_quantities(self):
         def str_proj_to_list(val_in: str) -> list[str]:
             # To avoid inconsistent regex that can contain or not spaces
-            val_n = [re.sub(r'\s.*', '', x) for x in val_in.split('\n') if x]
+            val_n = [
+                re.sub(r'\s.*', '', x.strip()) for x in val_in.split('\n') if x.strip()
+            ]
             return [v.strip('[]').replace(' ', '').split(':') for v in val_n]
 
         self._quantities = [
@@ -80,7 +82,10 @@ class WOutParser(TextParser):
             Quantity('labels', r'\|\s*([A-Z][a-z]*)', repeats=True),
             Quantity(
                 'positions',
-                r'\|\s*([\-\d\.]+)\s*([\-\d\.]+)\s*([\-\d\.]+)',
+                # Read only the Cartesian coordinates after the middle table
+                # separator. Numeric site labels would otherwise be mistaken
+                # for an additional set of coordinates.
+                r'\|[^\r\n\|]*\|\s*([\-\d\.]+)\s*([\-\d\.]+)\s*([\-\d\.]+)',
                 repeats=True,
                 dtype=float,
             ),

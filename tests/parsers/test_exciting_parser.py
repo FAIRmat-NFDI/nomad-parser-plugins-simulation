@@ -10,9 +10,34 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.exciting.parser import (
     EigvalParser,
     ExcitingParser,
+    _m_def_first,
 )
 
 LOGGER = get_logger(__name__)
+
+
+def test_polymorphic_mapping_definitions_are_ordered_first():
+    mapped = {
+        'model_method': [
+            {
+                '.numerical_settings': [
+                    {
+                        '.k_line_path': {'.points': [[0.0, 0.0, 0.0]]},
+                        '.m_def': 'KSpace',
+                    }
+                ],
+                '.m_def': 'DFT',
+            }
+        ]
+    }
+
+    ordered = _m_def_first(mapped)
+    method = ordered['model_method'][0]
+    setting = method['.numerical_settings'][0]
+
+    assert list(method)[0] == '.m_def'
+    assert list(setting)[0] == '.m_def'
+
 
 CASES = {
     'C_minimal': {

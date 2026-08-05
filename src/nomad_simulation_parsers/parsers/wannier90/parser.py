@@ -14,6 +14,7 @@ from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_file_parser.text_parser import DataTextParser
 from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_system import AtomsState
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -27,6 +28,27 @@ configuration = config.get_plugin_entry_point(
     'nomad_simulation_parsers.parsers:wannier90_parser'
 )
 LOGGER = get_logger(__name__)
+
+
+def _read_wien2k_structure_labels(path: str) -> list[str]:
+    """Read expanded chemical symbols from a WIEN2k ``.struct`` file."""
+    try:
+        with open(path) as handle:
+            contents = handle.read()
+    except OSError:
+        return []
+
+    labels: list[str] = []
+    blocks = re.split(r'(?=^ATOM\s+-?\d+:)', contents, flags=re.MULTILINE)
+    for block in blocks:
+        multiplicity = re.search(r'\bMULT=\s*(\d+)', block)
+        species = re.search(
+            r'^\s*([A-Z][a-z]?)\s*\d*\s+NPT=', block, flags=re.MULTILINE
+        )
+        if multiplicity is None or species is None:
+            continue
+        labels.extend([species.group(1)] * int(multiplicity.group(1)))
+    return labels
 
 
 # TODO temporary fix for structlog unable to propagate logger
@@ -299,8 +321,13 @@ class WInTextParser(TextParser):
         if atom is None:
             return None
 
-        elif isinstance(atom, int):
-            indices = [atom]
+        elif isinstance(atom, int) or (isinstance(atom, str) and atom.isdecimal()):
+            # Wannier90 site numbers are one-based, including numeric labels
+            # commonly emitted by WIEN2k interfaces.
+            index = int(atom) - 1
+            if 0 <= index < len(positions):
+                indices = [index]
+                symbols = [labels[index]]
 
         elif match := re.match(r'([cf])=(.+?),(.+?),(.+)', atom):
             coord = match.groups()[0]
@@ -458,6 +485,23 @@ class WannierArchiveWriter(ArchiveWriter):
 
         win_parser.close()
 
+    def populate_structure_labels(self) -> list[str]:
+        """Use a sibling WIEN2k structure when W90 prints numeric site labels."""
+        structure = self.wout_parser.data.get('structure') or {}
+        if labels := structure.get('labels'):
+            return list(labels)
+
+        positions = structure.get('positions') or []
+        struct_files = search_files(
+            pattern='*.struct', basedir=self.basedir, re_pattern=self.basename
+        )
+        for struct_file in struct_files:
+            labels = _read_wien2k_structure_labels(struct_file)
+            if len(labels) == len(positions):
+                structure['labels'] = labels
+                return labels
+        return []
+
     def parse_hr(self) -> None:
         """
         Parse wannier hr files.
@@ -533,7 +577,12 @@ class WannierArchiveWriter(ArchiveWriter):
         self.archive.data = data
         self.reference_energy = None
 
+        structure_labels = self.populate_structure_labels()
         self.wout_parser.convert(self.data_parser)
+        if structure_labels and data.model_system:
+            data.model_system[0].particle_states = [
+                AtomsState(chemical_symbol=label) for label in structure_labels
+            ]
 
         # parse input file
         if data.model_system:
