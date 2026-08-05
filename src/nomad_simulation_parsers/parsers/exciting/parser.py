@@ -62,45 +62,10 @@ convergence_threshold_mapping = {
 }
 
 
-def _m_def_first(value: Any) -> Any:
-    """Order polymorphic section definitions before their mapped contents.
-
-    The mapping engine processes relative paths in insertion order.  An ``.m_def``
-    entry that follows another relative path can be consumed while that earlier
-    path is expanded, causing the later lookup to fail.  Exciting's electronic
-    mappings contain these polymorphic nested sections, so make their definition
-    deterministic before handing the mapping result to NOMAD.
-    """
-    if isinstance(value, list):
-        return [_m_def_first(item) for item in value]
-    if not isinstance(value, dict):
-        return value
-
-    ordered = {}
-    for key in ('.m_def', 'm_def'):
-        if key in value:
-            ordered[key] = _m_def_first(value[key])
-    for key, item in value.items():
-        if key not in ordered:
-            ordered[key] = _m_def_first(item)
-    return ordered
-
-
 class ExcitingMetainfoParser(MetainfoParser):
     @property
     def logger(self):
         return LOGGER
-
-    def set_data(self, data: Any, target: dict[str, Any], **kwargs) -> None:
-        outermost = not getattr(self, '_setting_data', False)
-        if outermost:
-            self._setting_data = True
-            data = _m_def_first(data)
-        try:
-            super().set_data(data, target, **kwargs)
-        finally:
-            if outermost:
-                self._setting_data = False
 
 
 class InfoParser(TextParser):

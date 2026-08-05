@@ -586,14 +586,9 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             self.archive.workflow2.method = SinglePointMethod()
             energy_threshold = out_parser.data.get('convergence_energy')
             if energy_threshold is not None:
-                threshold_value = (
-                    energy_threshold
-                    if hasattr(energy_threshold, 'units')
-                    else energy_threshold * ureg.eV
-                )
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=threshold_value,
+                        threshold=energy_threshold,
                         threshold_type='absolute',
                     )
                 ]
