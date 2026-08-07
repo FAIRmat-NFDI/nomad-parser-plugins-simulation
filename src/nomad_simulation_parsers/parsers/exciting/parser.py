@@ -14,7 +14,7 @@ from nomad_file_parser.mapping_parser import (
 )
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow.general import (
-    ChargeConvergenceTarget,
+    DensityConvergenceTarget,
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
     PotentialConvergenceTarget,
@@ -52,8 +52,9 @@ convergence_threshold_mapping = {
         'threshold_type': 'absolute',
     },
     'x_exciting_charge_convergence': {
-        'class': ChargeConvergenceTarget,
+        'class': DensityConvergenceTarget,
         'threshold_type': 'absolute',
+        'type': 'charge_abs',
     },
     'x_exciting_IBS_force_convergence': {
         'class': ForceConvergenceTarget,
@@ -219,10 +220,13 @@ class InfoParser(TextParser):
             # target Quantity units.
             threshold_value = quantity[1]
 
-            target = info_['class'](
-                threshold=threshold_value,
-                threshold_type=info_['threshold_type'],
-            )
+            target_kwargs = {
+                'threshold': threshold_value,
+                'threshold_type': info_['threshold_type'],
+            }
+            if 'type' in info_:
+                target_kwargs['type'] = info_['type']
+            target = info_['class'](**target_kwargs)
             convergence_targets.append(target)
         return convergence_targets
 
@@ -267,7 +271,7 @@ class InfoParser(TextParser):
             [
                 'delta_energies_total',
                 'delta_potential_rms',
-                'delta_density_rms',
+                'delta_charge_abs',
                 'delta_force_abs',
             ],
             [delta_energies, delta_potential, delta_charge, delta_force],

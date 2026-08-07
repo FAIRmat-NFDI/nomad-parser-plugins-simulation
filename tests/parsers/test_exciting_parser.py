@@ -27,7 +27,7 @@ CASES = {
                     'threshold_type': 'absolute',
                     'threshold': (4.3597447222071695e-24, 'joule'),
                 },
-                'ChargeConvergenceTarget': {
+                'DensityConvergenceTarget': {
                     'threshold_type': 'absolute',
                     'threshold': (1e-05, 'coulomb'),
                 },
@@ -39,7 +39,7 @@ CASES = {
                 'last': (4.3213092127361915e-25, 'joule'),
             },
             'delta_potential_rms': {'len': 10, 'last': (1.41636334713761e-26, 'joule')},
-            'delta_density_rms': {'len': 10, 'last': (2.35501e-09, 'coulomb')},
+            'delta_charge_abs': {'len': 10, 'last': (2.35501e-09, 'coulomb')},
             'delta_force_abs': None,
         },
     },
@@ -61,7 +61,7 @@ CASES = {
                     'threshold_type': 'absolute',
                     'threshold': (4.35974472220717e-22, 'joule'),
                 },
-                'ChargeConvergenceTarget': {
+                'DensityConvergenceTarget': {
                     'threshold_type': 'absolute',
                     'threshold': (1e-05, 'coulomb'),
                 },
@@ -77,7 +77,7 @@ CASES = {
                 'last': (1.4699010123263138e-23, 'joule'),
             },
             'delta_potential_rms': {'len': 24, 'last': (2.13237730209986e-25, 'joule')},
-            'delta_density_rms': {
+            'delta_charge_abs': {
                 'len': 24,
                 'last': (4.16073e-08, 'coulomb'),
             },
