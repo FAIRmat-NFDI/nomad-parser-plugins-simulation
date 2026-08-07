@@ -466,9 +466,6 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
         outputs.ElectronicDensityOfStates.value, XML2_KEY, '.value', unit='1/eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value, DOSCAR_KEY, '.value', unit='1/eV'
-    )
-    add_mapping_annotation(
         outputs.ElectronicDensityOfStates.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
@@ -498,6 +495,9 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, DOSCAR_KEY, '@')
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, DOSCAR_KEY, '.dos', unit='1/eV'
+    )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.projected_dos, DOSCAR_KEY, '.projected'
     )

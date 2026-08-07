@@ -175,6 +175,7 @@ def test_outcar_electronic_outputs_from_doscar_and_eigenvalues():
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
 
+    output = outputs[-1]
     assert output.electronic_dos is not None
     assert len(output.electronic_dos) > 0
     dos = output.electronic_dos[0]
@@ -206,7 +207,7 @@ def test_outcar_scf_steps_and_single_point_convergence():
 
     outputs = archive.data.outputs
     assert outputs is not None
-    assert len(outputs) == 1
+    assert len(outputs) == 2
     scf_steps = outputs[0].scf_steps
     assert scf_steps is not None
     assert len(scf_steps.energies_total) == 11
