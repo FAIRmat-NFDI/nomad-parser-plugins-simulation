@@ -61,7 +61,7 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         n_bands = np.size(eigenvalues) // int(n_spin * n_eigs)
         eigenvalues = np.reshape(eigenvalues, (n_spin, n_bands, n_eigs)) * ureg.eV
         results = [
-            dict(eigenvalues=eig, n_levels=eig.shape[-1])
+            dict(eigenvalues=eig, n_levels=eig.shape[-1], spin_channel=n)
             for n, eig in enumerate(eigenvalues)
         ]
         occupations = section.get('occupation_numbers')
@@ -126,16 +126,6 @@ class PWSCFMainfileTextParser(MainfileTextParser):
                     if sec is sc_config:
                         sec = sec.copy()
                     sec['labels_positions'] = header.get('labels_positions')
-
-            payload_target = (
-                sec if isinstance(sec, dict) else getattr(sec, 'data', None)
-            )
-            if isinstance(payload_target, dict):
-                payload_target['electronic_eigenvalues'] = self.get_eigenvalues(sec)
-                payload_target['electronic_band_structures'] = self.get_band_structures(
-                    sec
-                )
-                payload_target['electronic_dos'] = self.get_dos(sec)
 
             configurations.append(sec)
         return configurations
@@ -445,7 +435,11 @@ class DOSParser(TextParser):
     def logger(self):
         return LOGGER
 
+    def get_dos_contributions(self) -> list[dict[str, Any]]:
+        return []
+
     def load_file(self):
+        self.text_parser.mainfile = None
         for dos_file in search_files(
             pattern='*.dos', basedir=os.path.dirname(self.filepath)
         ):
@@ -459,7 +453,7 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     schema = pwscf
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
-    _dos_parser = DOSParser(text_parser=PWSCFDOSTextParser())
+    dos_parser = DOSParser(text_parser=PWSCFDOSTextParser())
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)
@@ -469,16 +463,15 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
             return
 
         # parse dos
-        self._dos_parser.filepath = self._mainfile_parser.filepath
+        self.dos_parser.filepath = self._mainfile_parser.filepath
         self.simulation_parser.annotation_key = common.DOS_KEY
-        self._dos_parser.convert(self.simulation_parser)
+        self.dos_parser.convert(self.simulation_parser)
         if archive.data.outputs and archive.data.outputs[-1].electronic_dos:
             # parse reference energy from out_file
-            # we use the same annotation as DOS_KEY but we target the mainfile
             self.simulation_parser.data_object = archive.data.outputs[
                 -1
             ].electronic_dos[-1]
-            self.simulation_parser.annotation_key = common.DOS_KEY
-            self._mainfile_parser.convert(self.simulation_parser)
+            self.simulation_parser.annotation_key = common.DOS_OUT_KEY
+            self.mainfile_parser.convert(self.simulation_parser)
             # reset to archive
             self.simulation_parser.data_object = archive

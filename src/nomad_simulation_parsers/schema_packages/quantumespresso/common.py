@@ -15,6 +15,8 @@ XML_KEY = 'quantumespresso_xml'
 GIPAW_OUT_KEY = 'quantumespresso_gipaw_out'
 GIPAW_XML_KEY = 'quantumespresso_gipaw_xml'
 DOS_KEY = 'quantumespresso_dos'
+# necessary for mapping reference energy for dos
+DOS_OUT_KEY = 'quantumespresso_dos_out'
 
 
 class Program(general.Program):

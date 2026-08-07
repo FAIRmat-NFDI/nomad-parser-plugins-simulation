@@ -3,7 +3,7 @@ from nomad_simulations.schema_packages import general, outputs, variables
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-from .common import DOS_KEY, OUT_KEY, XML_KEY
+from .common import DOS_KEY, DOS_OUT_KEY, OUT_KEY, XML_KEY
 
 m_package = SchemaPackage()
 
@@ -63,8 +63,13 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(outputs.ElectronicDensityOfStates.value, DOS_KEY, '.value')
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.energies_origin,
-        OUT_KEY,
-        ('get_reference_energy', ['.@']),
+        DOS_OUT_KEY,
+        ('get_reference_energy', ['.bandstructure']),
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.contributions,
+        DOS_OUT_KEY,
+        ('get_dos_contributions', ['.@']),
     )
     add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
@@ -93,7 +98,7 @@ class Outputs(outputs.Outputs):
         ('get_eigenvalues', ['.@']),
     )
     add_mapping_annotation(outputs.Outputs.electronic_dos, DOS_KEY, '.@')
-    add_mapping_annotation(outputs.ElectronicDensityOfStates.m_def, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.ElectronicDensityOfStates.m_def, DOS_OUT_KEY, '@')
 
 
 class SCFSteps(outputs.SCFSteps):
