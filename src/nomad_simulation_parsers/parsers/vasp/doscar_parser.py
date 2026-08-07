@@ -47,7 +47,8 @@ class DOSCARFileParser(FileParser):
                     continue
 
                 if n == n_header:
-                    # VASP's DOSCAR header is Emax, Emin, NEDOS, Efermi.
+                    # VASP's DOSCAR header is Emax, Emin, NEDOS, Efermi
+                    # (https://www.vasp.at/wiki/index.php/DOSCAR).
                     # Older Lobster files may omit the latter fields.
                     self._results['e_fermi'] = float(
                         value[3] if len(value) > 3 else value[1]
@@ -95,7 +96,7 @@ class DOSCARFileParser(FileParser):
             )
             if n_lm == 1:
                 fields = ['s']
-            if n_lm == 3:
+            elif n_lm == 3:
                 fields = ['s', 'p', 'd']
             elif n_lm == 9:
                 fields = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
@@ -156,7 +157,7 @@ class DOSCARParser(MappingParser):
             dct = dict(
                 dos=total[spin],
                 integrated=total[n_spin + spin],
-                spin=spin,
+                spin=spin if n_spin == 2 else None,
                 projected=[],
             )
             for atom, pdos_dict in enumerate(projected):

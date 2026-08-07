@@ -61,7 +61,9 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
     # TODO: make update_mode merge@last when mapping parser is updated
     add_mapping_annotation(VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='append')
-    add_mapping_annotation(general.Simulation.outputs, DOSCAR_KEY, '.@')
+    add_mapping_annotation(
+        general.Simulation.outputs, DOSCAR_KEY, '.@', update_mode='append'
+    )
 
 
 class Program(general.Program):
@@ -496,9 +498,6 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, DOSCAR_KEY, '@')
-    add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value, DOSCAR_KEY, '.dos', unit='1/eV'
-    )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.projected_dos, DOSCAR_KEY, '.projected'
     )
