@@ -153,13 +153,17 @@ def test_pwscf_workflow_and_scf_steps():
 
     outputs = archive.data.outputs
     assert outputs is not None
-    assert len(outputs) == 2
+    assert len(outputs) == 6
     assert outputs[0].scf_steps is not None
     assert outputs[1].scf_steps is not None
     assert len(outputs[0].scf_steps.energies_total) == 12
-    assert len(outputs[1].scf_steps.energies_total) == 14
-    assert len(outputs[0].scf_steps.delta_energies_total) == 12
-    assert len(outputs[1].scf_steps.delta_energies_total) == 14
+    assert len(outputs[1].scf_steps.energies_total) == 6
+    assert len(outputs[5].scf_steps.energies_total) == 14
+    assert len(outputs[2].scf_steps.delta_energies_total) == 6
+    assert len(outputs[3].scf_steps.delta_energies_total) == 5
+    assert len(outputs[4].scf_steps.delta_energies_total) == 5
+    assert len(outputs[0].total_forces) == 1
+    assert len(outputs[5].total_forces) == 1
     assert outputs[0].electronic_eigenvalues is not None
     assert outputs[0].electronic_eigenvalues[0].occupation is not None
 

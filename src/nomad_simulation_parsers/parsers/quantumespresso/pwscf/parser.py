@@ -99,35 +99,13 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         methods = self._configuration_methods
 
         configurations = []
-        header = source.get('header', {}) if isinstance(source, dict) else {}
         for key in methods:
             config = source.get(key)
             if config is None:
                 continue
             sc_config = config.get('self_consistent', config)
-            if isinstance(sc_config, list):
-                if not sc_config:
-                    continue
-                sec = sc_config[-1]
-            else:
-                sec = sc_config
-
-            if isinstance(sec, dict):
-                if (
-                    sec.get('simulation_cell') is None
-                    and header.get('simulation_cell') is not None
-                ):
-                    sec = sec.copy()
-                    sec['simulation_cell'] = header.get('simulation_cell')
-                if (
-                    sec.get('labels_positions') is None
-                    and header.get('labels_positions') is not None
-                ):
-                    if sec is sc_config:
-                        sec = sec.copy()
-                    sec['labels_positions'] = header.get('labels_positions')
-
-            configurations.append(sec)
+            sec_config = sc_config if isinstance(sc_config, list) else [sc_config]
+            configurations.extend(sec_config)
         return configurations
 
     def get_configuration_forces(self, source: dict[str, Any]) -> list[list[Any]]:
@@ -435,6 +413,9 @@ class DOSParser(TextParser):
     def logger(self):
         return LOGGER
 
+    # TODO: fix to prevent creation of contributions sections.
+    # clarify the purpose of ElectronicDensityOfStates.contributions
+    # and projected_dos
     def get_dos_contributions(self) -> list[dict[str, Any]]:
         return []
 
