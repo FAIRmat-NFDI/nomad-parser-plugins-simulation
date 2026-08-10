@@ -58,6 +58,7 @@ md = [
     "MDAnalysis>=2.4.0",
 ]
 dev = ["ruff", "pytest", "structlog"]
+gui-test = ["pytest-playwright", "playwright", "pyyaml"]  # GUI testing with Playwright
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
@@ -177,6 +178,14 @@ wannier90_parser = "nomad_simulation_parsers.parsers:wannier90_parser"
 wannier90_schema_package = "nomad_simulation_parsers.schema_packages:wannier90_schema_package"
 yambo_parser = "nomad_simulation_parsers.parsers:yambo_parser"
 yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_package"
+
+
+[tool.pytest.ini_options]
+markers = [
+    "cli: CLI parsing tests (run with pytest -m cli)",
+    "gui: GUI upload tests requiring dev environment (run with pytest -m gui)",
+    "slow: Tests taking >5 seconds",
+]
 
 
 [tool.cruft]
