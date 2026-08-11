@@ -151,23 +151,36 @@ class DOSCARParser(MappingParser):
     def get_dos(
         self, total: np.ndarray, projected: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
+        if len(total) % 2 != 0:
+            return []
+
         dos = []
         n_spin = len(total) // 2
-        if n_spin < 1:
-            return dos
+        has_negative_dos = False
         for spin in range(n_spin):
+            if np.any(total[spin] < 0):
+                has_negative_dos = True
             dct = dict(
-                dos=total[spin],
+                dos=np.maximum(total[spin], 0),
                 integrated=total[n_spin + spin],
                 spin=spin if n_spin == 2 else None,
                 projected=[],
             )
             for atom, pdos_dict in enumerate(projected):
                 for lm, pdos_lm in enumerate(pdos_dict['dos'][spin]):
+                    if np.any(pdos_lm < 0):
+                        has_negative_dos = True
                     dct['projected'].append(
-                        dict(dos=pdos_lm, lm=lm, atom_index=atom, spin=spin)
+                        dict(
+                            dos=np.maximum(pdos_lm, 0),
+                            lm=lm,
+                            atom_index=atom,
+                            spin=spin if n_spin == 2 else None,
+                        )
                     )
             dos.append(dct)
+        if has_negative_dos:
+            self.logger.warning('Found negative values in DOS, setting them to zero.')
         return dos
 
     def from_dict(self, dct: dict):
