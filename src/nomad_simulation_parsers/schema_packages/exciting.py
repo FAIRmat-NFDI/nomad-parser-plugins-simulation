@@ -218,7 +218,7 @@ add_mapping_annotations(
     (outputs.SCFSteps.energies_total, INFO_KEY, '.energies_total'),
     (outputs.SCFSteps.delta_energies_total, INFO_KEY, '.delta_energies_total'),
     (outputs.SCFSteps.delta_potential_rms, INFO_KEY, '.delta_potential_rms'),
-    (outputs.SCFSteps.delta_density_rms, INFO_KEY, '.delta_density_rms'),
+    (outputs.SCFSteps.delta_charge_abs, INFO_KEY, '.delta_charge_abs'),
     (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
 )
 

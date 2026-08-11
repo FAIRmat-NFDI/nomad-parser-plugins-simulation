@@ -356,7 +356,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         delta_energies_total = []
-        delta_density_rms = []
+        delta_charge_abs = []
         durations = []
         delta_sum_eigenvalues = []
 
@@ -368,7 +368,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
             delta_density = convergence.get('Change of charge density')
             if delta_density is not None:
-                delta_density_rms.append(
+                delta_charge_abs.append(
                     abs(float(delta_density)) * ureg.elementary_charge
                 )
 
@@ -383,8 +383,8 @@ class FHIAimsOutMappingParser(TextMappingParser):
         scf_steps = {}
         if delta_energies_total:
             scf_steps['delta_energies_total'] = delta_energies_total
-        if delta_density_rms:
-            scf_steps['delta_density_rms'] = delta_density_rms
+        if delta_charge_abs:
+            scf_steps['delta_charge_abs'] = delta_charge_abs
         if len(durations) == len(scf_iterations):
             scf_steps['durations'] = durations
         if delta_sum_eigenvalues:

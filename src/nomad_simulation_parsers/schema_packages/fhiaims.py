@@ -231,7 +231,7 @@ class SCFSteps(outputs.SCFSteps):
         outputs.SCFSteps.delta_energies_total, TEXT_KEY, '.delta_energies_total'
     )
     add_mapping_annotation(
-        outputs.SCFSteps.delta_density_rms, TEXT_KEY, '.delta_density_rms'
+        outputs.SCFSteps.delta_charge_abs, TEXT_KEY, '.delta_charge_abs'
     )
     add_mapping_annotation(outputs.SCFSteps.durations, TEXT_KEY, '.durations')
     add_mapping_annotation(

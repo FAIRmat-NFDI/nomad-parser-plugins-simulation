@@ -56,13 +56,13 @@ def test_scf_steps_quantities():
         scf_steps = output.scf_steps
         assert scf_steps is not None
         assert len(scf_steps.delta_energies_total) == n_scf
-        assert len(scf_steps.delta_density_rms) == n_scf
+        assert len(scf_steps.delta_charge_abs) == n_scf
         assert len(scf_steps.durations) == n_scf
 
     # Explicitly check last SCF-step deltas in first geometry-optimization step
     first_steps = outputs[1].scf_steps
     assert first_steps.delta_energies_total[-1].to('eV').magnitude == approx(7.477e-09)
-    assert first_steps.delta_density_rms[-1].to('coulomb').magnitude == approx(
+    assert first_steps.delta_charge_abs[-1].to('coulomb').magnitude == approx(
         6.375e-08 * 1.602176634e-19
     )
 
