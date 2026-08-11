@@ -19,12 +19,15 @@ from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.vasp.doscar_parser import (
+    DOSCARFileParser,
+    DOSCARParser,
+)
 from nomad_simulation_parsers.schema_packages import lobster
 
 from .file_parser import (
     CHARGEParser,
     COXPCARParser,
-    DOSCARParser,
     ICOXPLISTParser,
     OutParser,
 )
@@ -296,7 +299,7 @@ class LobsterCHARGEParser(LobsterTextParser):
         return charges
 
 
-class LobsterDOSCARParser(LobsterTextParser):
+class LobsterDOSCARParser(LobsterTextParser, DOSCARParser):
     _sources = ['DOSCAR']
 
     # TODO temporary fix for structlog unable to propagate logger
@@ -305,7 +308,7 @@ class LobsterDOSCARParser(LobsterTextParser):
         return LOGGER
 
     def load_file(self) -> FileParser:
-        return DOSCARParser()
+        return DOSCARFileParser()
 
     def to_dict(self):
         doscar_files = search_files(
@@ -314,26 +317,6 @@ class LobsterDOSCARParser(LobsterTextParser):
         if doscar_files:
             self._sources = ['DOSCAR.LSO']
         return super().to_dict()
-
-    def get_dos(
-        self, total: np.ndarray, projected: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        dos = []
-        n_spin = len(total) // 2
-        for spin in range(n_spin):
-            dct = dict(
-                dos=total[spin],
-                integrated=total[n_spin + spin],
-                spin=spin,
-                projected=[],
-            )
-            for atom, pdos_dict in enumerate(projected):
-                for lm, pdos_lm in enumerate(pdos_dict['dos'][spin]):
-                    dct['projected'].append(
-                        dict(dos=pdos_lm, lm=lm, atom_index=atom, spin=spin)
-                    )
-            dos.append(dct)
-        return dos
 
 
 class LobsterMetainfoParser(MetainfoParser):
