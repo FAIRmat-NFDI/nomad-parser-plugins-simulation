@@ -153,7 +153,8 @@ class DOSCARParser(MappingParser):
     ) -> list[dict[str, Any]]:
         if len(total) % 2 != 0:
             self.logger.error(
-                'Incorrect shape for total DOS.', extra=dict(file=self.filepath)
+                'Incorrect shape for total DOS.',
+                extra=dict(file=self.data_object.mainfile),
             )
             return []
 
