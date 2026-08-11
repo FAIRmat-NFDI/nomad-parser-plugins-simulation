@@ -61,7 +61,11 @@ class PWSCFMainfileTextParser(MainfileTextParser):
         n_bands = np.size(eigenvalues) // int(n_spin * n_eigs)
         eigenvalues = np.reshape(eigenvalues, (n_spin, n_bands, n_eigs)) * ureg.eV
         results = [
-            dict(eigenvalues=eig, n_levels=eig.shape[-1], spin_channel=n)
+            dict(
+                eigenvalues=eig,
+                n_levels=eig.shape[-1],
+                spin_channel=n if n_spin > 1 else None,
+            )
             for n, eig in enumerate(eigenvalues)
         ]
         occupations = section.get('occupation_numbers')
