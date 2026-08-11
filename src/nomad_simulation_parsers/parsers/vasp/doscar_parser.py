@@ -152,6 +152,9 @@ class DOSCARParser(MappingParser):
         self, total: np.ndarray, projected: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         if len(total) % 2 != 0:
+            self.logger.error(
+                'Incorrect shape for total DOS.', extra=dict(file=self.filepath)
+            )
             return []
 
         dos = []
