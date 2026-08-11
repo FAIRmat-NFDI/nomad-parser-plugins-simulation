@@ -151,8 +151,10 @@ class DOSCARParser(MappingParser):
     def get_dos(
         self, total: np.ndarray, projected: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        n_spin = max(1, len(total) // 2)
         dos = []
+        n_spin = len(total) // 2
+        if n_spin < 1:
+            return dos
         for spin in range(n_spin):
             dct = dict(
                 dos=total[spin],
