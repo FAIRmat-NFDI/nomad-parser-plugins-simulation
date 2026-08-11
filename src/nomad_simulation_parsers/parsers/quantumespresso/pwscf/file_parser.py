@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 import pint
 from nomad.units import ureg
-from nomad_file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import DataTextParser, Quantity, TextParser
 
 from ..common import (
     RE_FLOAT,
@@ -53,8 +53,8 @@ def str_to_algorithm(val_in: str) -> str:
 
 
 def str_to_band_energies(val_in: str) -> np.ndarray:
-    val = re.findall(r'(\-?[\d\.Ee]+)', val_in)
-    return np.array(val, dtype=float)
+    out = [line.strip().split() for line in val_in.strip().splitlines()]
+    return np.array([item for line in out for item in line], dtype=np.float64)
 
 
 class PWSCFFileParser(TextParser):
@@ -334,3 +334,21 @@ class PWSCFFileParser(TextParser):
                 sub_parser=TextParser(quantities=vcs_quantities),
             ),
         ] + tail_quantities
+
+
+class PWSCFDOSTextParser(DataTextParser):
+    MIN_DOS_COLUMNS = 2
+    DOS_ARRAY_NDIM = 2
+
+    def parse(self, key=None):
+        super().parse(key)
+        data = self._results.pop('data', None)
+        if data is not None:
+            if data.ndim == 1 and data.size >= self.MIN_DOS_COLUMNS:
+                data = data.reshape(1, -1)
+            if (
+                data.ndim == self.DOS_ARRAY_NDIM
+                and data.shape[1] >= self.MIN_DOS_COLUMNS
+            ):
+                self._results['energies'] = data[:, 0] * ureg.eV
+                self._results['value'] = np.abs(data[:, 1]) / ureg.eV
