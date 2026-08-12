@@ -189,6 +189,18 @@ class Outputs(outputs.Outputs):
             )
         )
     )
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            text=Mapper(
+                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
+            )
+        )
+    )
     add_mapping_annotation(
         outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
     )
@@ -363,8 +375,10 @@ class GeometryOptimizationMethod(
     ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
 
 
-class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(numerical_settings.KSpace.k_mesh, TEXT_KEY, '.@')
+class NumericalSettings(numerical_settings.NumericalSettings):
+    add_mapping_annotation(
+        numerical_settings.KMesh.m_def, TEXT_KEY, '.@'
+    )
 
 
 class KMesh(numerical_settings.KMesh):

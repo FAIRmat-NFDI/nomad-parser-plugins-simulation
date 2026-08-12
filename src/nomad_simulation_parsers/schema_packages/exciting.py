@@ -222,6 +222,70 @@ add_mapping_annotations(
     (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
 )
 
+add_mapping_annotations(
+    (outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'),
+)
+add_mapping_annotation(
+    outputs.ElectronicBandGap.value,
+    EIGVAL_KEY,
+    '.value',
+    unit='eV',
+)
+
+add_mapping_annotation(
+    variables.Energy2.points,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@e"']),
+    unit='hartree',
+)
+
+add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
+
+###### TODO read unit from axis
+add_mapping_annotation(
+    outputs.ElectronicDensityOfStates.value,
+    DOS_XML_KEY,
+    ('to_float', [r'.point[*]."@dos"']),
+    unit='1/hartree',
+)
+
+# workflow
+
+add_mapping_annotations(
+    (workflow.GeometryOptimization.m_def, GEO_OPT_KEY, '@'),
+    (
+        workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
+        GEO_OPT_KEY,
+        '.@',
+    ),
+    # TODO: Mapping annotations don't work for convergence targets because
+    # parser methods return fully-formed metainfo objects, not dictionaries.
+    # The mapper expects dict data. Convergence targets are now populated
+    # manually in the parser. Consider refactoring the mapping annotation
+    # system to support object instantiation or keep manual approach.
+    # (workflow.geometry_optimization.GeometryOptimizationMethod.convergence_targets,
+    #  GEO_OPT_KEY, ('get_geometry_convergence', ['.@'])),
+    # (workflow.geometry_optimization
+    #  .GeometryOptimizationMethod.single_point_convergence_targets,
+    #  GEO_OPT_KEY, ('get_single_point_convergence', ['.@'])),
+    (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
+    (workflow.SinglePoint.m_def, INFO_KEY, '.@'),
+    # TODO: Same issue as above - manually populated in parser
+    # (workflow.single_point.SinglePointMethod.convergence_targets,
+    #  INFO_KEY, ('get_single_point_convergence', ['.@']))
+)
+
+# scf steps
+add_mapping_annotations(
+    (outputs.Outputs.scf_steps, INFO_KEY, ('get_scf_steps', ['@'])),
+    (outputs.SCFSteps.durations, INFO_KEY, '.durations'),
+    (outputs.SCFSteps.energies_total, INFO_KEY, '.energies_total'),
+    (outputs.SCFSteps.delta_energies_total, INFO_KEY, '.delta_energies_total'),
+    (outputs.SCFSteps.delta_potential_rms, INFO_KEY, '.delta_potential_rms'),
+    (outputs.SCFSteps.delta_density_rms, INFO_KEY, '.delta_density_rms'),
+    (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
+)
+
 try:
     m_package.__init_metainfo__()
 except Exception:

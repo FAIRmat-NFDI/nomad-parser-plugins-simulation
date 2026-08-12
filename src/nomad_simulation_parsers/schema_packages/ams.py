@@ -139,6 +139,9 @@ class Energy2(variables.Energy2):
     add_mapping_annotation(
         variables.Energy2.points, OUT_KEY, '.energies', unit='hartree'
     )
+    outputs.Outputs.scf_steps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
 
 
 class Simulation(general.Simulation):

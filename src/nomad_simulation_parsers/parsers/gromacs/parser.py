@@ -1145,6 +1145,29 @@ class GromacsArchiveWriter(MDParser):
             if ppc.particle_parameters:
                 self.archive.data.model_method[-1].numerical_settings.append(ppc)
 
+        # ForceField contributions: target model_method[0] directly, mirroring
+        # the XVG/FEP pattern. This avoids depending on from_dict's in-place
+        # sub-section update behaviour to preserve numerical_settings across passes.
+        # The Simulation-level TPR pass above has no Simulation->model_method
+        # mapping for TPR_KEY, so it does not traverse model_method; this pass
+        # is authoritative for ForceField content.
+        if self.archive.data.model_method:
+            self._simulation_parser.data_object = self.archive.data.model_method[0]
+            self._simulation_parser.annotation_key = gromacs.TPR_KEY
+            self._simulation_parser.mapper = None
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            self._simulation_parser.data_object = self.archive.data
+
+        # ParticleParametersContainer: no annotation path from Simulation to
+        # model_method for PARTICLE_PARAM_KEY; target directly.
+        if self.archive.data.model_method:
+            ppc = ParticleParametersContainer()
+            self._simulation_parser.data_object = ppc
+            self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
+            self._mdanalysis_parser.convert(self._simulation_parser)
+            if ppc.particle_parameters:
+                self.archive.data.model_method[-1].numerical_settings.append(ppc)
+
     def write_to_archive(self):
         # intitialize variables
         self._maindir = os.path.dirname(self.mainfile)
