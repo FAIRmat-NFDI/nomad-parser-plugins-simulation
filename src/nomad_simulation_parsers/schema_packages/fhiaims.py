@@ -129,18 +129,6 @@ class XCFunctional(model_method.XCFunctional):
     )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper='.name')))
-
-
 class GW(model_method.GW):
     add_mapping_annotation(
         model_method.GW.type, TEXT_GW_KEY, ('get_gw_flag', ['.gw_flag'])
