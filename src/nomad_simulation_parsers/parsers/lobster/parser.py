@@ -376,5 +376,11 @@ class LobsterArchiveWriter(ArchiveWriter):
 
 class LobsterParser(MatchingParser):
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger) -> None:
+        # run the old parser
+        # TODO remove
+        from workflowparsers.lobster.parser import LobsterParser  # noqa
+
+        LobsterParser().parse(mainfile, archive, logger)
+
         archive_writer = LobsterArchiveWriter()
         archive_writer.write(mainfile, archive, logger)

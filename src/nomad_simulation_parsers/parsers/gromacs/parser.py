@@ -1236,4 +1236,10 @@ class GromacsParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = None,
     ):
+        # run the old parser
+        # TODO remove
+        from atomisticparsers.gromacs.parser import GromacsParser  # noqa
+
+        GromacsParser().parse(mainfile, archive, logger)
+
         self.archive_writer.write(mainfile, archive, logger, child_archives)

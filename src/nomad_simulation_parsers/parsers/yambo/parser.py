@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -362,7 +361,10 @@ class YamboParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        # reload schema to load yambo annotations
-        reload(yambo)
+        # run the old parser
+        # TODO remove
+        from electronicparsers.yambo.parser import YamboParser  # noqa
+
+        YamboParser().parse(mainfile, archive, logger)
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)

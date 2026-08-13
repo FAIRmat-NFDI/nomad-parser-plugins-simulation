@@ -209,4 +209,10 @@ class PhonopyParser(MatchingParser):
     archive_writer = PhonopyArchiveWriter()
 
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger):
+        # run the old parser
+        # TODO remove
+        from workflowparsers.phonopy.parser import PhonopyParser  # noqa
+
+        PhonopyParser().parse(mainfile, archive, logger)
+
         self.archive_writer.write(mainfile, archive, logger)
