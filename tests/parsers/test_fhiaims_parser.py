@@ -193,7 +193,7 @@ def test_scf_eigenvalues_not_band_structures():
 
     for output in outputs:
         # No band structures are manufactured from SCF eigenvalue prints.
-        assert len(output.electronic_band_structures) == 0
+        assert not output.electronic_band_structures
 
         # Exactly one converged eigenvalues section per output (spin-unpolarized Si).
         eigenvalues = output.electronic_eigenvalues
