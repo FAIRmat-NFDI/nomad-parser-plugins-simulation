@@ -226,4 +226,10 @@ class GPAWParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ):
+        # run the old parser
+        # TODO remove
+        from electronicparsers.gpaw.parser import GPAWParser  # noqa
+
+        GPAWParser().parse(mainfile, archive, logger)
+
         self.archive_writer.write(mainfile, archive, logger, child_archives)

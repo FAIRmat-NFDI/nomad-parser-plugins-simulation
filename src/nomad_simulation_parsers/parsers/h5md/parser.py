@@ -553,4 +553,10 @@ class H5MDParser(MatchingParser):
         logger: BoundLogger | None = None,
         child_archives: dict[str, EntryArchive] | None = None,
     ) -> None:
+        # run the old parser
+        # TODO remove
+        from atomisticparsers.h5md.parser import H5MDParser  # noqa
+
+        H5MDParser().parse(mainfile, archive, logger)
+
         self.archive_writer.write(mainfile, archive, logger, child_archives or {})
