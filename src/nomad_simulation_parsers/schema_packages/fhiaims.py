@@ -177,18 +177,6 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
     )
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text=Mapper(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
-            )
-        )
-    )
     add_mapping_annotation(
         outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
     )
@@ -196,11 +184,6 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_eigenvalues,
         TEXT_KEY,
         ('get_eigenvalues', ['.eigenvalues', 'array_size_parameters']),
-    )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_band_structures,
-        TEXT_KEY,
-        ('get_band_structures', ['.eigenvalues', 'array_size_parameters']),
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_dos,
@@ -254,26 +237,15 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
-# TODO: check whether this section is k-dependent
 class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    # properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(text=Mapper(mapper='.nbands')))
-    properties.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.eigenvalues')))
-    properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.occupations')))
-
-
-class ElectronicBandStructure(properties.ElectronicBandStructure):
-    add_mapping_annotation(properties.ElectronicBandStructure.value, TEXT_KEY, '.value')
     add_mapping_annotation(
-        properties.ElectronicBandStructure.occupation, TEXT_KEY, '.occupation'
+        properties.ElectronicEigenvalues.value, TEXT_KEY, '.eigenvalues'
     )
     add_mapping_annotation(
-        properties.ElectronicBandStructure.spin_channel, TEXT_KEY, '.spin_channel'
+        properties.ElectronicEigenvalues.occupation, TEXT_KEY, '.occupations'
+    )
+    add_mapping_annotation(
+        properties.ElectronicEigenvalues.spin_channel, TEXT_KEY, '.spin_channel'
     )
 
 

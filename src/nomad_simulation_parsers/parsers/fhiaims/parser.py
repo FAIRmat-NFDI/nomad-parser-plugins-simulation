@@ -194,7 +194,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
     ) -> list[dict[str, Any]]:
         n_spin = params.get('Number of spin channels', 1)
         eigenvalues = []
-        for data in source:
+        # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
+        # eigenvalues; earlier blocks are intermediate SCF snapshots.
+        for data in (source or [])[-1:]:
             kpts = data.get('kpoints', [np.zeros(3)] * n_spin)
             kpts = np.reshape(kpts, (len(kpts) // n_spin, n_spin, 3))
             kpts = np.transpose(kpts, axes=(1, 0, 2))[0]
@@ -212,27 +214,14 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         npoints=n_kpts,
                         points=kpts,
                         occupations=occs_eigs[0][spin],
-                        eigenvalues=occs_eigs[1][spin],
+                        # FHI-aims reports the eigenvalue in the Hartree column.
+                        eigenvalues=occs_eigs[1][spin] * ureg.hartree,
+                        # Leave unset for spin-unpolarized runs so `occupation`
+                        # is read on a 0-2 scale.
+                        spin_channel=spin if n_spin > 1 else None,
                     )
                 )
         return eigenvalues
-
-    def get_band_structures(
-        self, source: list[dict[str, Any]], params: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        band_structures = []
-        for spin_channel, eig in enumerate(self.get_eigenvalues(source, params)):
-            values = eig.get('eigenvalues')
-            if values is None:
-                continue
-            band_structures.append(
-                dict(
-                    value=values,
-                    occupation=eig.get('occupations'),
-                    spin_channel=spin_channel,
-                )
-            )
-        return band_structures
 
     def get_energies(self, source: dict[str, Any]) -> dict[str, Any]:
         total_keys = ['Total energy uncorrected', 'Total energy']

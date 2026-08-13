@@ -175,3 +175,41 @@ def test_scf_convergence_criteria():
     assert eigenvalues_criterion is not None
     assert eigenvalues_criterion.threshold_change.magnitude == approx(1.0e-3)
     assert str(eigenvalues_criterion.threshold_change.units) == 'electron_volt'
+
+
+def test_scf_eigenvalues_not_band_structures():
+    """
+    Regression test for FHIaims issue #462: SCF Kohn-Sham eigenvalue prints must be
+    routed to `electronic_eigenvalues`, not turned into malformed
+    `electronic_band_structures` (wrong `spin_channel`, one per SCF snapshot, wide
+    `(1, N)` arrays that crashed the archive browser).
+    """
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None and len(outputs) == 5
+
+    for output in outputs:
+        # No band structures are manufactured from SCF eigenvalue prints.
+        assert len(output.electronic_band_structures) == 0
+
+        # Exactly one converged eigenvalues section per output (spin-unpolarized Si).
+        eigenvalues = output.electronic_eigenvalues
+        assert len(eigenvalues) == 1
+        ev = eigenvalues[0]
+
+        # `spin_channel` left unset so `occupation` is read on the 0-2 scale.
+        assert ev.spin_channel is None
+
+        # Shape is [n_kpoints, n_levels]; FHI-aims default prints only the Gamma point.
+        assert ev.value.shape == ev.occupation.shape
+        assert ev.value.shape[0] == 1
+
+        # Eigenvalues carry the Hartree->Joule conversion (state 1 ~ -1774 eV).
+        state_1_eV = ev.value.to('eV').magnitude[0][0]
+        assert state_1_eV == approx(-1774.0, abs=2.0)
+
+        # Occupations of the lowest bands are 2.0 (spin-unpolarized).
+        assert ev.occupation[0][0] == approx(2.0)
