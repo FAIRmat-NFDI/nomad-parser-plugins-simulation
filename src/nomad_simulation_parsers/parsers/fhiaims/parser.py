@@ -214,10 +214,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         npoints=n_kpts,
                         points=kpts,
                         occupations=occs_eigs[0][spin],
-                        # FHI-aims reports the eigenvalue in the Hartree column.
                         eigenvalues=occs_eigs[1][spin] * ureg.hartree,
-                        # Leave unset for spin-unpolarized runs so `occupation`
-                        # is read on a 0-2 scale.
                         spin_channel=spin if n_spin > 1 else None,
                     )
                 )
