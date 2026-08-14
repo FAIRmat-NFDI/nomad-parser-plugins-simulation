@@ -129,18 +129,6 @@ class XCFunctional(model_method.XCFunctional):
     )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper='.name')))
-
-
 class GW(model_method.GW):
     add_mapping_annotation(
         model_method.GW.type, TEXT_GW_KEY, ('get_gw_flag', ['.gw_flag'])
@@ -176,18 +164,6 @@ class AtomsState(model_system.AtomsState):
 class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
-    )
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text=Mapper(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
-            )
-        )
     )
     add_mapping_annotation(
         outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
@@ -254,19 +230,11 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
-# TODO: check whether this section is k-dependent
-class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    # properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(text=Mapper(mapper='.nbands')))
-    properties.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.eigenvalues')))
-    properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.occupations')))
-
-
+# `value`, `occupation` and `spin_channel` are inherited (shared Quantity objects)
+# from `ElectronicEigenvalues`, so annotating them here also drives the
+# `electronic_eigenvalues` sections. Both are populated from the same converged
+# Kohn-Sham eigenvalues (`get_eigenvalues` / `get_band_structures`), which emit
+# matching `value`/`occupation`/`spin_channel` keys.
 class ElectronicBandStructure(properties.ElectronicBandStructure):
     add_mapping_annotation(properties.ElectronicBandStructure.value, TEXT_KEY, '.value')
     add_mapping_annotation(
