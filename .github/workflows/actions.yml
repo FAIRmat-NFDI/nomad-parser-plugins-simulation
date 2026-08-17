@@ -1,7 +1,6 @@
 name: Parser test stages
 
 on:
-  pull_request:
   push:
   schedule:
     - cron: '0 2 * * *'
@@ -65,6 +64,8 @@ jobs:
         run: uv sync --extra dev --extra md --locked
       - name: Run non-large unit and integration tests
         run: uv run pytest tests -m '(unit or integration) and not large_fixture' -q
+      - name: Run legacy unmarked tests
+        run: uv run pytest tests -m 'not unit and not integration and not pipeline and not large_fixture' -q
 
   nightly-release-gate:
     name: Nightly or release gate
