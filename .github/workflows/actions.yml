@@ -1,6 +1,7 @@
 name: Parser test stages
 
 on:
+  pull_request:
   push:
   schedule:
     - cron: '0 2 * * *'
@@ -34,7 +35,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-          shared_change=$(printf '%s\n' "$changed_files" | grep -Eq '^(pyproject\.toml|uv\.lock|src/|tests/(conftest\.py|common\.py|scenarios/))' && echo true || echo false)
+          shared_change=$(printf '%s\n' "$changed_files" | grep -Eq '^(pyproject\.toml|uv\.lock|src/|tests/(conftest\.py|common\.py))' && echo true || echo false)
           if [ "$shared_change" = true ]; then
             uv run pytest tests -m integration -q
             exit 0
