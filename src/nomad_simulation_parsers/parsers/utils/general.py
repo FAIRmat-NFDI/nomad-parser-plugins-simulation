@@ -55,9 +55,7 @@ def create_mapping_table(  # noqa: PLR0915
             yield path, quantity
             sub_parser = getattr(quantity, 'sub_parser', None)
             if sub_parser is not None:
-                yield from iter_quantities(
-                    getattr(sub_parser, 'quantities', []), path
-                )
+                yield from iter_quantities(getattr(sub_parser, 'quantities', []), path)
 
     def path_string(path: Any) -> str | None:
         if path is None:
@@ -146,8 +144,8 @@ def create_mapping_table(  # noqa: PLR0915
                         *arguments.args,
                         *arguments.kwonlyargs,
                     )
-                        if argument.arg not in {'self', 'cls'}
-                    ]
+                    if argument.arg not in {'self', 'cls'}
+                ]
                 access_names.extend(
                     node.id
                     for node in ast.walk(function)
@@ -164,7 +162,7 @@ def create_mapping_table(  # noqa: PLR0915
                 matches = re.findall(
                     rf"(?:\b{parameter}\s*\.\s*get\s*\(\s*['\"]([^'\"]+)"
                     rf"|\b{parameter}\s*\[\s*['\"]([^'\"]+)"
-                    rf"|\b{parameter}\s*\.\s*(?!get\b)([A-Za-z_]\w*))",
+                    rf'|\b{parameter}\s*\.\s*(?!get\b)([A-Za-z_]\w*))',
                     source,
                 )
                 keys.update(key for match in matches for key in match if key)

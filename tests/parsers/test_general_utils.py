@@ -67,9 +67,7 @@ def test_create_mapping_table_compares_file_quantities_with_mapper_paths():
         [
             _Quantity(
                 'eigenvalues_occupancies',
-                _FileParser(
-                    [_Quantity('eigenvalues'), _Quantity('occupancies')]
-                ),
+                _FileParser([_Quantity('eigenvalues'), _Quantity('occupancies')]),
             ),
             _Quantity('n_states'),
             _Quantity('unused'),

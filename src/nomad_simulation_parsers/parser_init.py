@@ -7,7 +7,6 @@ from typing import Any
 import yaml
 
 
-
 def _to_snake_case(value: str) -> str:
     return value.strip().replace('-', '_').replace(' ', '_').lower()
 
@@ -515,4 +514,3 @@ def run(
     for path in changed_paths:
         print(f'{mode_label}: {path}')
     return 0
-

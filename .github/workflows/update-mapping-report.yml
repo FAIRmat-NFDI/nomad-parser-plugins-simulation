@@ -12,6 +12,15 @@ on:
       - 'docs/reference/parser_mapping_report_overrides.yaml'
       - 'pyproject.toml'
       - 'uv.lock'
+  pull_request:
+    paths:
+      - 'src/nomad_simulation_parsers/parsers/**'
+      - 'src/nomad_simulation_parsers/schema_packages/**'
+      - 'src/nomad_simulation_parsers/parsers/utils/general.py'
+      - 'src/nomad_simulation_parsers/mapping_report.py'
+      - 'docs/reference/parser_mapping_report_overrides.yaml'
+      - 'pyproject.toml'
+      - 'uv.lock'
   workflow_dispatch:
 
 permissions:
@@ -91,6 +100,7 @@ jobs:
           PY
 
       - name: Commit updated report
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
         run: |
           if git diff --quiet -- docs/reference/parser_mapping_report.md; then
             echo 'Mapping report is already up to date.'

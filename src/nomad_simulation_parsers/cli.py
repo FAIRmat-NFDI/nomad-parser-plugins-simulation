@@ -5,8 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from nomad_simulation_parsers import mapping_report
-from nomad_simulation_parsers import parser_init
+from nomad_simulation_parsers import mapping_report, parser_init
 
 
 def _print_main_help() -> None:

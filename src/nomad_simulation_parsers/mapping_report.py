@@ -251,6 +251,33 @@ def _read_overrides(path: str | Path | None) -> dict:
     return overrides
 
 
+def _apply_quantity_override(
+    row: dict,
+    parser_name: str,
+    override: object,
+) -> None:
+    if not isinstance(override, dict):
+        raise ValueError(
+            f'Override for {parser_name!r}/{row["quantity"]!r} must be a mapping.'
+        )
+    if 'mapped' in override:
+        row['mapped'] = bool(override['mapped'])
+    if 'mapping' not in override:
+        return
+
+    mapping = override['mapping']
+    if isinstance(mapping, str):
+        mapping = [mapping]
+    if not isinstance(mapping, list) or not all(
+        isinstance(value, str) for value in mapping
+    ):
+        raise ValueError(
+            f'Mapping override for {parser_name!r}/{row["quantity"]!r} '
+            'must be a string or list of strings.'
+        )
+    row['mapping'] = mapping
+
+
 def _apply_overrides(
     rows: dict[str, list[dict]],
     skipped: list[str],
@@ -258,9 +285,7 @@ def _apply_overrides(
 ) -> None:
     for parser_name, parser_override in overrides.items():
         if not isinstance(parser_override, dict):
-            raise ValueError(
-                f'Override for {parser_name!r} must be a mapping.'
-            )
+            raise ValueError(f'Override for {parser_name!r} must be a mapping.')
         if parser_override.get('skip'):
             rows.pop(parser_name, None)
             if parser_name not in skipped:
@@ -272,32 +297,10 @@ def _apply_overrides(
             raise ValueError(
                 f'Quantity overrides for {parser_name!r} must be a mapping.'
             )
-        if parser_name not in rows:
-            continue
-
-        for row in rows[parser_name]:
+        for row in rows.get(parser_name, []):
             override = quantity_overrides.get(row['quantity'])
-            if override is None:
-                continue
-            if not isinstance(override, dict):
-                raise ValueError(
-                    f'Override for {parser_name!r}/{row["quantity"]!r} '
-                    'must be a mapping.'
-                )
-            if 'mapped' in override:
-                row['mapped'] = bool(override['mapped'])
-            if 'mapping' in override:
-                mapping = override['mapping']
-                if isinstance(mapping, str):
-                    mapping = [mapping]
-                if not isinstance(mapping, list) or not all(
-                    isinstance(value, str) for value in mapping
-                ):
-                    raise ValueError(
-                        f'Mapping override for {parser_name!r}/{row["quantity"]!r} '
-                        'must be a string or list of strings.'
-                    )
-                row['mapping'] = mapping
+            if override is not None:
+                _apply_quantity_override(row, parser_name, override)
 
 
 def generate_rows(
