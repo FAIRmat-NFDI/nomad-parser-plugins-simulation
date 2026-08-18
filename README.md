@@ -47,7 +47,7 @@ in `src/nomad_simulation_parsers/parsers/__init__.py`,
 `pyproject.toml` entry points:
 
 ```sh
-nomad-sim-parser-init parser_metadata.yaml --root .
+nomad-sim-parser init parser_metadata.yaml --root .
 ```
 
 Supported flags:

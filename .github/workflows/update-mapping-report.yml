@@ -1,0 +1,103 @@
+name: Update parser mapping report
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'src/nomad_simulation_parsers/parsers/**'
+      - 'src/nomad_simulation_parsers/schema_packages/**'
+      - 'src/nomad_simulation_parsers/parsers/utils/general.py'
+      - 'src/nomad_simulation_parsers/mapping_report.py'
+      - 'docs/reference/parser_mapping_report_overrides.yaml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Generate mapping report
+        run: >-
+          uv run nomad-sim-parser mapping-report
+          --override docs/reference/parser_mapping_report_overrides.yaml
+
+      - name: Emit coverage change
+        env:
+          REPORT_PATH: docs/reference/parser_mapping_report.md
+        run: |
+          git show "HEAD:${REPORT_PATH}" > /tmp/previous_mapping_report.md 2>/dev/null || true
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          report_path = Path(os.environ['REPORT_PATH'])
+          previous_path = Path('/tmp/previous_mapping_report.md')
+          pattern = re.compile(
+              r'^## (?P<name>.+?)\n\n\*\*Summary:\*\* .*?\((?P<coverage>[0-9.]+)% coverage\)\.',
+              re.MULTILINE,
+          )
+
+          def read(path):
+              return {
+                  match.group('name'): float(match.group('coverage'))
+                  for match in pattern.finditer(path.read_text())
+              } if path.exists() else {}
+
+          previous = read(previous_path)
+          current = read(report_path)
+          lines = ['## Mapping coverage change', '']
+          notices = []
+          for name in current:
+              value = current[name]
+              old = previous.get(name)
+              if old is None:
+                  lines.append(f'- **{name}**: {value:.2f}% (new)')
+                  notices.append(f'{name}: {value:.2f}% (new)')
+                  continue
+              delta = value - old
+              sign = '+' if delta >= 0 else ''
+              lines.append(f'- **{name}**: {old:.2f}% → {value:.2f}% ({sign}{delta:.2f} percentage points)')
+              notices.append(f'{name}: {sign}{delta:.2f} percentage points')
+
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              with open(summary_path, 'a', encoding='utf-8') as summary:
+                  summary.write('\n'.join(lines) + '\n')
+          print('\n'.join(notices))
+          if notices:
+              print('::notice title=Mapping coverage changed::' + '; '.join(notices))
+          PY
+
+      - name: Commit updated report
+        run: |
+          if git diff --quiet -- docs/reference/parser_mapping_report.md; then
+            echo 'Mapping report is already up to date.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/reference/parser_mapping_report.md
+          git commit -m 'Update parser mapping report'
+          git push

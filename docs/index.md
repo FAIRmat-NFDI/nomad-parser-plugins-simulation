@@ -28,6 +28,7 @@ How-to guides provide step-by-step instructions for a wide range of tasks, with 
 - [Contribute to this plugin](how_to/contribute_to_this_plugin.md)
 - [Test parsers](how_to/test_parsers.md)
 - [Contribute to the documentation](how_to/contribute_to_the_documentation.md)
+- [Parser file-mapping report](reference/parser_mapping_report.md)
 
 </div>
 
