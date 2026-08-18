@@ -36,7 +36,9 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
-    FHIAimsOutFileParser,
+)
+from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
+    FHIAimsOutFileParserLine as FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -535,6 +537,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser.text_parser.line_parsing = True
+        out_parser.text_parser.allow_overlap = True
         out_parser.filepath = self.mainfile
 
         archive_handler = FHIAimsMetainfoParser()

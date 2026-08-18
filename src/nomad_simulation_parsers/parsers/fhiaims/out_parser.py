@@ -5,13 +5,13 @@ import numpy as np
 import pint
 from nomad.units import ureg
 from nomad.utils import get_logger
-from nomad_file_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 from nomad_simulation_parsers.parsers.utils.general import log
 
-RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
+RE_FLOAT = r'[-+]?\d*\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
-RE_GW_FLAG = rf'{RE_N}\s*(?:qpe_calc|sc_self_energy)\s*([\w]+)'
+RE_GW_FLAG = r'\s*(?:qpe_calc|sc_self_energy)\s*([\w]+)'
 
 LOGGER = get_logger(__name__)
 
@@ -59,9 +59,11 @@ def str_to_scf_convergence(val_in: str) -> dict[str, float | pint.Quantity]:
     res = dict()
     min_n = 2
     for val_n in val_in.strip().splitlines():
+        if '|' not in val_n:
+            continue
         v = val_n.lstrip(' |').split(':')
         if len(v) != min_n:
-            break
+            continue
         vs = v[1].split()
         unit = None
         if len(vs) > 1:
@@ -1000,6 +1002,886 @@ class FHIAimsOutFileParser(TextParser):
                             'total_time',
                             r'\| Total time +: +[\d\.]+ s +([\d\.]+) s',
                             dtype=np.float64,
+                        ),
+                    ]
+                ),
+            ),
+        ]
+        # TODO add SOC perturbed eigs, dielectric function
+
+
+class FHIAimsOutFileParserLine(TextParser):
+    def init_quantities(self):
+        structure_quantities = [
+            Quantity(
+                'labels',
+                [
+                    rf'\s+\|\s+\d+\:\s+Species\s+([A-Z][a-z]*)\s+{RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT}'
+                ],
+                repeats=True,
+            ),
+            Quantity(
+                'labels',
+                [rf'\s+atom\s+{RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT}\s+?([A-Z][a-z]*)'],
+                repeats=True,
+            ),
+            Quantity(
+                'positions',
+                [
+                    rf'\s+\|\s+\d+\:\s+Species\s+[A-Z][a-z]*\s+({RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT})'
+                ],
+                dtype=np.dtype(np.float64),
+                repeats=True,
+            ),
+            Quantity(
+                'positions',
+                [rf'\s+atom\s+({RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT})\s+?[A-Z][a-z]*'],
+                dtype=np.dtype(np.float64),
+                repeats=True,
+            ),
+            Quantity(
+                'velocities',
+                [rf'\s+velocity\s+({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})'],
+                dtype=np.dtype(np.float64),
+                repeats=True,
+            ),
+        ]
+
+        eigenvalues = Quantity(
+            'eigenvalues',
+            [
+                r'\s+Writing Kohn\-Sham eigenvalues\.',
+                r'\s+State\s+Occupation.+',
+                rf'\s*{RE_N}\s*{RE_N}\s+[A-RT-Z]',
+            ],
+            multiline=True,
+            repeats=True,
+            sub_parser=TextParser(
+                quantities=[
+                    Quantity(
+                        'kpoints',
+                        [
+                            rf'\s*K-point:\s*\d+ at\s*'
+                            rf'({RE_FLOAT})\s*({RE_FLOAT})\s*({RE_FLOAT}).+',
+                        ],
+                        dtype=float,
+                        repeats=True,
+                    ),
+                    Quantity(
+                        'occupation_eigenvalue',
+                        [
+                            rf'\s*\d+\s*({RE_FLOAT})\s*({RE_FLOAT})\s*{RE_FLOAT}',
+                        ],
+                        repeats=True,
+                    ),
+                ]
+            ),
+        )
+
+        date_time = Quantity(
+            'date_time',
+            [rf'\s+Date\s*:\s*(\d+), Time\s*:\s*({RE_FLOAT})'],
+            repeats=False,
+            convert=False,
+            str_operation=lambda x: datetime.strptime(
+                x, '%Y%m%d %H%M%S.%f'
+            ).timestamp(),
+        )
+
+        structure = Quantity(
+            'structure',
+            [
+                r'\s+\| Atomic structure\:',
+                r'\s*\|\s*Atom\s*x \[A\]\s*y \[A\]\s*z \[A\]',
+                r'\s*\|\s*\d+\: Species [A-Z][a-z]*.+',
+                r'\s*\|',
+            ],
+            repeats=False,
+            convert=False,
+            sub_parser=TextParser(quantities=structure_quantities),
+        )
+
+        energy_components = Quantity(
+            'energy_components',
+            [
+                r'\s*Total energy components:',
+                rf'\s*(?:{RE_N}{RE_N}|\| '
+                rf'Electronic free energy per atom\s*:\s*{RE_FLOAT} eV)',
+            ],
+            repeats=False,
+            str_operation=str_to_energy_components,
+            convert=False,
+        )
+
+        scf_quantities = [
+            # TODO add section_eigenvalues to scf_iteration
+            date_time,
+            eigenvalues,
+            energy_components,
+            Quantity(
+                'forces',
+                [
+                    rf'\s*Total forces\([\s\d]+\)\s*:\s*'
+                    rf'({RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT})',
+                ],
+                repeats=True,
+            ),
+            Quantity(
+                'stress_tensor',
+                [r'\s*Sum of all contributions\s*:\s*([\d\.\-\+Ee ]+)'],
+                repeats=False,
+            ),
+            Quantity('pressure', rf'\s*\|\s*Pressure:\s*({RE_FLOAT}).+', repeats=False),
+            Quantity(
+                'scf_convergence',
+                [
+                    r'\s+Self\-consistency convergence accuracy:',
+                    rf'\s+\| Change of total energy\s*:\s*{RE_FLOAT}.+',
+                ],
+                repeats=False,
+                str_operation=str_to_scf_convergence,
+                convert=False,
+            ),
+            Quantity(
+                'humo',
+                [
+                    rf'\s*Highest occupied state \(VBM\) '
+                    rf'at\s*({RE_FLOAT}) (?P<__unit>\w+).+',
+                ],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity(
+                'lumo',
+                [
+                    rf'\s*Lowest unoccupied state \(CBM\) '
+                    rf'at\s*({RE_FLOAT}) (?P<__unit>\w+).+',
+                ],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity(
+                'fermi_level',  # older version
+                [
+                    rf'\s*\| Chemical potential \(Fermi level\) in '
+                    rf'(\w+)\s*:\s*({RE_FLOAT})',
+                ],
+                str_operation=lambda x: (
+                    float(x.split()[1]) * units_mapping.get(x.split()[0])
+                ),
+            ),
+            Quantity(
+                'fermi_level',  # newer version
+                [
+                    rf'\s*\| Chemical potential \(Fermi level\)\:'
+                    rf'\s*({RE_FLOAT})\s*(\w+)',
+                ],
+                str_operation=lambda x: (
+                    float(x.split()[0]) * units_mapping.get(x.split()[1], 1)
+                ),
+            ),
+            Quantity(
+                'time_calculation',
+                [
+                    rf'\s*\| Time for this iteration\s*:\s*'
+                    rf'{RE_FLOAT} s\s+({RE_FLOAT}) s',
+                ],
+                dtype=float,
+            ),
+        ]
+
+        calculation_quantities = [
+            Quantity(
+                'self_consistency',
+                [
+                    r'\s+Begin self\-consistency iteration #\s*\d+',
+                    rf'\s+\| Total energy evaluation\s+\:\s+'
+                    rf'{RE_FLOAT} s\s+{RE_FLOAT} s',
+                ],
+                repeats=True,
+                sub_parser=TextParser(quantities=scf_quantities),
+            ),
+            # different format for scf loop
+            Quantity(
+                'self_consistency',
+                [
+                    rf'\s*SCF\s*\d+\s*:\s*{RE_FLOAT}.+',
+                ],
+                repeats=True,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'scf_convergence',
+                            [
+                                rf'\s*SCF\s*\d+\s*:\s*({RE_FLOAT}.+)',
+                            ],
+                            str_operation=str_to_scf_convergence2,
+                            repeats=False,
+                            convert=False,
+                        )
+                    ]
+                ),
+            ),
+            structure,
+            Quantity(
+                'structure',
+                [
+                    rf'\s*atom\s+{RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT}\s+[A-Z].*',
+                    rf'\s*(?:{RE_N}\s*{RE_N}|\-\-\-.+)',
+                ],
+                repeats=False,
+                convert=False,
+                sub_parser=TextParser(quantities=structure_quantities),
+            ),
+            Quantity(
+                'lattice_vectors',
+                [
+                    rf'\s*lattice_vector\s+({RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT})',
+                    rf'\s*lattice_vector\s+({RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT})',
+                    rf'\s*lattice_vector\s+({RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT})',
+                ],
+                unit='angstrom',
+                repeats=False,
+                shape=(3, 3),
+                dtype=float,
+            ),
+            Quantity(
+                'energy',
+                [
+                    r'\s*Energy and forces in a compact form:',
+                    rf'\s*\| Electronic free energy\s*:\s*{RE_FLOAT} eV',
+                ],
+                str_operation=str_to_energy_components,
+                repeats=False,
+                convert=False,
+            ),
+            # in some cases, the energy components are also printed for after a
+            # calculation same format as in scf iteration, they are printed also in
+            # initialization so we should get last occurence
+            energy_components,
+            Quantity(
+                'energy_xc',
+                [
+                    r'\s*Start decomposition of the XC Energy',
+                    r'\s*End decomposition of the XC Energy',
+                ],
+                str_operation=str_to_energy_components,
+                repeats=False,
+                convert=False,
+            ),
+            eigenvalues,
+            Quantity(
+                'forces',
+                [
+                    r'\s*Total atomic forces.+',
+                    rf'\s*\|\s*\d+\s+{RE_FLOAT}\s+{RE_FLOAT}\s+{RE_FLOAT}\s*{RE_N}\s*{RE_N}',
+                ],
+                multiline=True,
+                str_operation=str_to_atomic_forces,
+                repeats=False,
+                convert=False,
+            ),
+            # # TODO no metainfo for scf forces but old parser put it in
+            # atom_forces_free_raw
+            Quantity(
+                'forces_raw',
+                [
+                    rf'\s*Total forces\([\s\d]+\)\s*:\s*({RE_FLOAT}\s+'
+                    rf'{RE_FLOAT}\s+{RE_FLOAT})'
+                ],
+                repeats=True,
+                dtype=np.float64,
+            ),
+            Quantity(
+                'force_maximum',
+                [
+                    rf'\ſ*Maximum force component is +({RE_FLOAT}) *eV/A\.',
+                ],
+                dtype=float,
+                unit='eV/angstrom',
+            ),
+            Quantity(
+                'time_calculation',
+                [
+                    rf'\s*\| Time for this force evaluation\s*:'
+                    rf'\s*{RE_FLOAT} s\s*({RE_FLOAT}) s',
+                ],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity(
+                'total_dos_files',
+                [r'\s*Calculating total density of states \.\.\.', r'\s*\-\-\-\-\-.+'],
+                str_operation=str_to_dos_files,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'atom_projected_dos_files',
+                [
+                    r'\s*Calculating atom\-projected density of states \.\.\.',
+                    r'\s*\-\-\-\-\-.+',
+                ],
+                str_operation=str_to_dos_files,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'species_projected_dos_files',
+                [
+                    r'\s*Calculating angular momentum projected density of states '
+                    r'\.\.\.',
+                    r'\s*\-\-\-\-\-.+',
+                ],
+                str_operation=str_to_dos_files,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'vdW_TS',
+                [
+                    r'\s*Evaluating non\-empirical van der Waals correction.+',
+                    rf'\s*(?:\|\s*Converged\.|\-{5}.+{RE_N}\s*{RE_N})',
+                ],
+                repeats=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'kind',
+                            [
+                                r'\s*Evaluating non\-empirical van der Waals '
+                                r'correction (.+?)\.',
+                            ],
+                            repeats=False,
+                            convert=False,
+                            flatten=False,
+                        ),
+                        Quantity(
+                            'atom_hirshfeld',
+                            [
+                                r'\s*\| Atom\s*\d+\:.+',
+                                r'\s*\-{5}.+',
+                            ],
+                            str_operation=str_to_hirshfeld,
+                            repeats=True,
+                            convert=False,
+                        ),
+                    ]
+                ),
+            ),
+            Quantity(
+                'converged',
+                [r'\s*Self\-consistency cycle (converged)\.'],
+                repeats=False,
+                dtype=str,
+            ),
+            date_time,
+        ]
+
+        molecular_dynamics_quantities = [
+            Quantity(
+                'md_run',
+                [
+                    r'\s*Running\s*Born-Oppenheimer\s*molecular\s*dynamics\s*in\s*([A-Z]{3})'
+                    r'\s*ensemble*\D*\s*with\s*([A-Za-z\-]*)\s*thermostat'
+                ],
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_timestep',
+                [
+                    rf'\s*Molecular dynamics time step\s*=\s*'
+                    rf'({RE_FLOAT} \w+)',
+                ],
+                str_operation=str_to_quantity,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_simulation_time',
+                [rf'\s*\|\s*simulation time\s*=\s*({RE_FLOAT} \w+)'],
+                str_operation=str_to_quantity,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_temperature',
+                [rf'\s*\|\s*at temperature\s*=\s*({RE_FLOAT} \w+)'],
+                str_operation=str_to_quantity,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_thermostat_mass',
+                [rf'\s*\|\s*thermostat effective mass\s*=\s*({RE_FLOAT})'],
+                str_operation=str_to_quantity,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_thermostat_units',
+                [
+                    r'\s*Thermostat\s*units\s*for\s*molecular\s*dynamics\s*:\s*([A-Za-z\^\-0-9]*)'
+                ],
+                str_operation=str_to_ureg,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_calculation_info',
+                [
+                    r'\s*Advancing structure using Born-Oppenheimer '
+                    r'Molecular Dynamics:',
+                    r'\s*Complete information for previous time-step:',
+                    rf'\s*(?:{RE_N}{RE_N}|\| Nose-Hoover Hamiltonian\s*:'
+                    rf'\s*{RE_FLOAT} eV)',
+                ],
+                str_operation=str_to_md_calculation_info,
+                repeats=False,
+                convert=False,
+            ),
+            Quantity(
+                'md_system_info',
+                [
+                    r'\s*Atomic structure.*as used in the preceding time step:',
+                    rf'\s*(?:{RE_N}{RE_N}|\s*Begin self-consistency loop.+)',
+                ],
+                repeats=False,
+                convert=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'positions',
+                            rf'atom +({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})',
+                            dtype=np.dtype(np.float64),
+                            repeats=True,
+                        ),
+                        Quantity(
+                            'velocities',
+                            rf'velocity\s+({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})',
+                            dtype=np.dtype(np.float64),
+                            repeats=True,
+                        ),
+                    ]
+                ),
+            ),
+        ]
+
+        tail = '|'.join(
+            [
+                rf'\s+\|\s+Time for this force evaluation\s*:\s*'
+                rf'{RE_FLOAT} s\s*{RE_FLOAT} s',
+                r'\s+Final output of selected total energy values\:',
+                r'\s+No geometry change',
+                r'\s+Leaving FHI\-aims\.',
+                r'\Z',
+            ]
+        )
+
+        self._quantities = [
+            Quantity(
+                'version',
+                [r'\s+(?:Version|FHI\-aims version)\s*\:*\s*([\d\.]+)\s*'],
+                repeats=False,
+            ),
+            Quantity(
+                'program_compilation_date',
+                [r'\s+Compiled on ([\d\/]+) at \d+\:\d+\:\d+ on host .+?\.'],
+                repeats=False,
+            ),
+            Quantity(
+                'program_compilation_time',
+                [r'\s+Compiled on [\d\/]+ at (\d+\:\d+\:\d+) on host .+?\.'],
+                repeats=False,
+            ),
+            Quantity(
+                'compilation_host',
+                [r'\s+Compiled on [\d\/]+ at \d+\:\d+\:\d+ on host (.+?)\.'],
+                repeats=False,
+            ),
+            date_time,
+            Quantity(
+                'cpu1_start',
+                [r'\s+Time zero on CPU 1\s*:\s*([0-9\-E\.]+)\s*(?P<__unit>\w+)\.'],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity(
+                'wall_start',
+                [
+                    r'\s+Internal wall clock time zero\s*:\s*'
+                    r'([0-9\-E\.]+)\s*(?P<__unit>\w+)\.'
+                ],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity('raw_id', [r'\s+aims_uuid\s*:\s*([\w\-]+)'], repeats=False),
+            Quantity(
+                'x_fhi_aims_number_of_tasks',
+                [r'\s+Using\s*(\d+)\s*parallel tasks\.'],
+                repeats=False,
+            ),
+            Quantity(
+                'parallel_task_nr',
+                [r'\s+Task\s*(\d+)\s*on host\s+.+?\s+reporting\.'],
+                repeats=True,
+            ),
+            Quantity(
+                'parallel_task_host',
+                [r'\s+Task\s*\d+\s*on host\s+(.+?)\s+reporting\.'],
+                repeats=True,
+                flatten=False,
+            ),
+            Quantity(
+                'fhi_aims_files',
+                [r'\s+(?:\#FHI\-aims file:|Parsing)\s*(\S+).+'],
+                repeats=True,
+            ),
+            Quantity(
+                'array_size_parameters',
+                [
+                    r'\s+Basic array size parameters:',
+                    rf'\s+\|\s+[A-Z].+?\d+{RE_N}{RE_N}',
+                ],
+                multiline=True,
+                repeats=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'parameter',
+                            [r'\s+\|\s+([A-Z].+?\:\s*\d+)'],
+                            str_operation=str_to_array_size_parameters,
+                            repeats=True,
+                        )
+                    ]
+                ),
+            ),
+            Quantity(
+                'controlInOut_hse_unit',
+                [
+                    r'\s+hse_unit: Unit for the HSE06 hybrid functional '
+                    r'screening parameter set to\s*(.+?)\.',
+                ],
+                str_operation=str_to_unit,
+                repeats=False,
+            ),
+            Quantity(
+                'controlInOut_hybrid_xc_coeff',
+                [
+                    rf'\s+hybrid_xc_coeff\: Mixing coefficient for hybrid-functional '
+                    rf'exact exchange modified to\s*({RE_FLOAT})\s*\.',
+                ],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity('k_grid', r'\s+Found k\-point grid:\s*([\d\s]+)', repeats=False),
+            Quantity(
+                'k_offset',
+                [rf'\s+k_offset\s*({RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT})'],
+                repeats=False,
+                str_operation=lambda value: np.fromstring(value, sep=' '),
+            ),
+            Quantity(
+                'controlInOut_MD_time_step',
+                [
+                    rf'\s+Molecular dynamics time step\s*=\s*({RE_FLOAT})\s*'
+                    rf'(?P<__unit>[\w]+)',
+                ],
+                repeats=False,
+            ),
+            Quantity(
+                'controlInOut_relativistic',
+                [
+                    r'\s+Scalar relativistic treatment of kinetic energy\:'
+                    r'\s*(.+?)\.',
+                ],
+                flatten=False,
+                repeats=False,
+            ),
+            Quantity(
+                'controlInOut_relativistic',
+                [
+                    r'\s+(Non\-relativistic) treatment of kinetic energy\.',
+                ],
+                repeats=False,
+            ),
+            Quantity(
+                'controlInOut_relativistic_threshold',
+                [rf'\s+Threshold value for ZORA:\s*({RE_FLOAT}).*'],
+                repeats=False,
+            ),
+            Quantity(
+                'convergence_energy',
+                [rf'\s+Convergence accuracy of total energy\: *({RE_FLOAT})'],
+                dtype=float,
+                unit='eV',
+            ),
+            Quantity(
+                'convergence_density',
+                [
+                    rf'\s+Convergence accuracy of self\-consistent '
+                    rf'charge density\:\s*({RE_FLOAT})'
+                ],
+                dtype=float,
+            ),
+            Quantity(
+                'convergence_eigenvalues',
+                [rf'\s+Convergence accuracy of sum of eigenvalues: *({RE_FLOAT})'],
+                dtype=float,
+                unit='eV',
+            ),
+            Quantity(
+                'max_scf_iterations',
+                [
+                    r'\s+Maximum number of (?:self\-consistency|s\.\-c\.) '
+                    r'iterations\s*:\s*(\d+)'
+                ],
+                dtype=int,
+            ),
+            Quantity(
+                'convergence_forces',
+                [
+                    rf'\s+Convergence accuracy for geometry relaxation: '
+                    rf'Maximum force <\s*({RE_FLOAT})\s*eV/A',
+                ],
+                dtype=float,
+                unit='eV/angstrom',
+            ),
+            Quantity(
+                'geometry_relaxation_method',
+                [r'\s+Geometry relaxation: ([\w ]+).+'],
+                flatten=False,
+            ),
+            Quantity(
+                'controlInOut_xc',
+                [
+                    rf'\s+XC:\s*(?:Using)*\s*(.+?) with OMEGA ='
+                    rf'\s*({RE_FLOAT}).+',
+                ],
+                repeats=False,
+                flatten=False,
+            ),
+            Quantity(
+                'petukhov',
+                [rf'\s+Fixing petukhov mixing factor to\s+({RE_FLOAT})'],
+                repeats=False,
+                dtype=float,
+            ),
+            Quantity(
+                'controlInOut_xc',
+                [r'\s+XC: (?:Running|Using) ([\-\w \(\) ]+)\.'],
+                repeats=False,
+                flatten=False,
+            ),
+            Quantity(
+                'controlInOut_xc',
+                [r'\s+(Hartree-Fock) calculation starts.+'],
+                repeats=False,
+                flatten=False,
+            ),
+            Quantity(
+                'band_segment_points',
+                [
+                    r'\s+Plot band\s*\d+',
+                    rf'\s+\|\s*begin\s*{RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}',
+                    rf'\s+\|\s*end\s*{RE_FLOAT}\s*{RE_FLOAT}\s*{RE_FLOAT}',
+                    r'\s+\|\s*number of points:\s*(\d+)',
+                ],
+                repeats=True,
+            ),
+            Quantity(
+                'species',
+                [
+                    r'\s+Reading configuration options for species [A-Z][a-z]*.+',
+                    rf'\s+Finished|{RE_N}\s*{RE_N}',
+                ],
+                str_operation=str_to_species_in,
+                repeats=False,
+            ),
+            Quantity(
+                'control_inout',
+                [
+                    r'\s+Reading file control\.in\.',
+                    r'\s+(?:Finished reading input file \'control\.in\'|'
+                    r'Input file control\.in ends)\.',
+                ],
+                repeats=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'species',
+                            [
+                                r'\s+Reading configuration options for species '
+                                r'[A-Z][a-z]*.*',
+                                r'\s+Species [A-Z][a-z]*.+?grid points\.',
+                            ],
+                            repeats=True,
+                            str_operation=str_to_species,
+                        ),
+                        *molecular_dynamics_quantities,
+                    ]
+                ),
+            ),
+            Quantity(
+                'control_in_verbatim',
+                [
+                    r'\s+Parsing control\.in.+',
+                    r'\s+Completed first pass over input file control\.in.+',
+                ],
+                repeats=False,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'md_controlin',
+                            [
+                                rf'\s+([\_a-zA-Z\d\-]*MD[\_a-zA-Z\d\-]*)\s+'
+                                rf'([a-zA-Z\d\.\-\_\^]+.*){RE_N}',
+                            ],
+                            str_operation=str_to_md_control_in,
+                            repeats=True,
+                            convert=False,
+                        )
+                    ]
+                ),
+            ),
+            # # GW input quantities
+            Quantity('gw_flag', [RE_GW_FLAG], repeats=False),
+            Quantity('anacon_type', [r'\s*anacon_type\s*(\d+)'], repeats=False),
+            Quantity(
+                'gw_analytical_continuation',
+                [r'\s+(?:Using)*\s*([\w\-\s]+) for analytical continuation\.'],
+                repeats=False,
+                flatten=True,
+                str_operation=lambda x: [
+                    y.lower() for v in x.split(' ') for y in v.split('-')
+                ],
+            ),
+            Quantity('k_grid', [r'\s*k\_grid\s*([\d ]+)'], repeats=False),
+            Quantity(
+                'freq_grid_type',
+                [r'\s*Initialising([\w\-\s]+)time and frequency grids'],
+                repeats=False,
+            ),
+            Quantity(
+                'n_freq',
+                [r'\s*frequency_points\s*(\d+)'],
+                repeats=False,
+                dtype=int,
+            ),
+            Quantity(
+                'frequency_data',
+                [rf'\s*\|*\s*i_freq\s*(\d+)\s+({RE_FLOAT})'],
+                repeats=True,
+                str_operation=str_to_frequency,
+            ),
+            Quantity(
+                'frozen_core',
+                [r'\s*frozen_core_scf\s*(\d+)'],
+                repeats=False,
+                dtype=int,
+            ),
+            Quantity(
+                'n_states_gw',
+                r'\s+\|\s*Number of Kohn\-Sham states '
+                r'\(occupied \+ empty\)\s*\:\s*(\d+)',
+                repeats=False,
+            ),
+            Quantity(
+                'gw_self_consistency',
+                [r'\s+\-\-\- GW Total Energy Calculation', r'\s+\-{5}.+'],
+                repeats=True,
+                str_operation=str_to_gw_scf,
+                convert=False,
+            ),
+            Quantity(
+                'gw_eigenvalues',
+                [
+                    r'\s+state\s*occ_num\s*e_gs.+',
+                    r'\s*\| Total time.+',
+                ],
+                str_operation=str_to_gw_eigs,
+                repeats=False,
+                convert=False,
+            ),
+            # assign the initial geometry to full scf as no change in structure is done
+            # during the initial scf step
+            Quantity(
+                'lattice_vectors',
+                [
+                    r'\s+Input geometry:',
+                    r'\s*\|\s*Unit cell:',
+                    rf'\s*\|\s*({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})',
+                    rf'\s*\|\s*({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})',
+                    rf'\s*\|\s*({RE_FLOAT})\s+({RE_FLOAT})\s+({RE_FLOAT})',
+                ],
+                repeats=False,
+                unit='angstrom',
+                shape=(3, 3),
+                dtype=float,
+            ),
+            structure,
+            Quantity(
+                'lattice_vectors_reciprocal',
+                [
+                    r'\s*Quantities derived from the lattice vectors:',
+                    rf'\s*\|\s*Reciprocal lattice vector 1:\s*'
+                    rf'({RE_FLOAT})\s*({RE_FLOAT})\s*({RE_FLOAT})',
+                    rf'\s*\|\s*Reciprocal lattice vector 2:\s*'
+                    rf'({RE_FLOAT})\s*({RE_FLOAT})\s*({RE_FLOAT})',
+                    rf'\s*\|\s*Reciprocal lattice vector 3:\s*'
+                    rf'({RE_FLOAT})\s*({RE_FLOAT})\s*({RE_FLOAT})',
+                ],
+                repeats=False,
+                unit='1/angstrom',
+                shape=(3, 3),
+                dtype=float,
+            ),
+            Quantity(
+                'full_scf',
+                [r'\s+Begin self\-consistency loop: Initialization\.', rf'{tail}'],
+                repeats=True,
+                sub_parser=TextParser(quantities=calculation_quantities),
+            ),
+            Quantity(
+                'geometry_optimization',
+                [
+                    r'\s+Geometry optimization\: Attempting to predict improved'
+                    r' coordinates\.',
+                    rf'{tail}',
+                ],
+                repeats=True,
+                sub_parser=TextParser(quantities=calculation_quantities),
+            ),
+            Quantity(
+                'molecular_dynamics',
+                [
+                    r'\s+Molecular dynamics\: Attempting to update all'
+                    r' nuclear coordinates\.',
+                    rf'{tail}',
+                ],
+                repeats=True,
+                sub_parser=TextParser(
+                    quantities=[*calculation_quantities, *molecular_dynamics_quantities]
+                ),
+            ),
+            Quantity(
+                'timing',
+                [
+                    rf'\s+Date.+?{RE_N}{RE_N}\s+Computational steps',
+                    rf'\s+\| Total time.+{RE_N}{RE_N}',
+                ],
+                multiline=True,
+                sub_parser=TextParser(
+                    quantities=[
+                        date_time,
+                        Quantity(
+                            'total_time',
+                            [
+                                rf'\s*\| Total time\s+\:\s+{RE_FLOAT} s'
+                                rf'\s+({RE_FLOAT}) s',
+                            ],
+                            dtype=float,
                         ),
                     ]
                 ),
