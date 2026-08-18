@@ -1,72 +1,98 @@
-name: install-and-test-workflow
-on: [push]
-# https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-# `contents` is for permission to the contents of the repository.
-# `pull-requests` is for permission to pull request
-permissions:
-  contents: write
-  checks: write
-  pull-requests: write
+name: Parser test stages
 
-env:
-  UV_SYSTEM_PYTHON: true
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  install-and-test:
+  fast-gate:
+    name: PR fast gate
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        uv pip install -e '.[dev,md]'
-        uv pip install coverage coveralls
-    - name: Test with pytest
-      run: |
-        python -m coverage run -m pytest -sv
-    - name: Submit to coveralls
-      continue-on-error: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        coveralls --service=github
-  build-and-install:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies
+        run: uv sync --extra dev --extra md --locked
+      - name: Run unit tests
+        run: uv run pytest tests -m unit -q
+      - name: Run integration tests for changed parsers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          shared_change=$(printf '%s\n' "$changed_files" | grep -Eq '^(pyproject\.toml|uv\.lock|src/|tests/(conftest\.py|common\.py))' && echo true || echo false)
+          if [ "$shared_change" = true ]; then
+            uv run pytest tests -m integration -q
+            exit 0
+          fi
+          parsers=$(printf '%s\n' "$changed_files" | sed -n -E 's#^(src/nomad_simulation_parsers/parsers|tests/parsers)/([^/]+)/.*#\2#p' | sort -u)
+          if [ -n "$parsers" ]; then
+            while IFS= read -r parser; do
+              uv run pytest "tests/parsers/$parser" -m integration -q
+            done <<< "$parsers"
+          else
+            echo 'No parser-specific integration tests selected.'
+          fi
+
+  package-gate:
+    name: PR package gate
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name: Build the package
-      run: |
-        uv pip install build
-        python -m build --sdist
-    - name: Install the package
-      run: |
-        uv pip install dist/*.tar.gz
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies
+        run: uv sync --extra dev --extra md --locked
+      - name: Run non-large unit and integration tests
+        run: uv run pytest tests -m '(unit or integration) and not large_fixture' -q
+      - name: Run legacy unmarked tests
+        run: uv run pytest tests -m 'not unit and not integration and not pipeline and not large_fixture' -q
+
+  nightly-release-gate:
+    name: Nightly or release gate
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies
+        run: uv sync --extra dev --extra md --locked
+      - name: Verify the versioned fixture bundle
+        run: uv run python tools/verify_fixture_bundle.py tests/fixtures/nightly.sha256
+      - name: Run pipeline and large-fixture tests
+        run: uv run pytest tests -m 'pipeline or large_fixture' -q
+
   ruff-linting:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: chartboost/ruff-action@v1
         with:
-          args: "check ."
-  # to enable auto-formatting check, uncomment the following lines below
-  # ruff-formatting:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: chartboost/ruff-action@v1
-  #       with:
-  #         args: "format . --check"
+          args: 'check .'
