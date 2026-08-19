@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update-report:
@@ -99,15 +100,29 @@ jobs:
               print('::notice title=Mapping coverage changed::' + '; '.join(notices))
           PY
 
-      - name: Commit updated report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      - name: Check whether report changed
+        id: report-diff
         run: |
           if git diff --quiet -- docs/reference/parser_mapping_report.md; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
             echo 'Mapping report is already up to date.'
-            exit 0
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            echo 'Mapping report changes detected.'
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/reference/parser_mapping_report.md
-          git commit -m 'Update parser mapping report'
-          git push
+
+      - name: Create report pull request
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/develop' &&
+          steps.report-diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/update-parser-mapping-report
+          delete-branch: true
+          commit-message: Update parser mapping report
+          title: Update parser mapping report
+          body: |
+            Automated update of the generated parser mapping report.
+          add-paths: docs/reference/parser_mapping_report.md

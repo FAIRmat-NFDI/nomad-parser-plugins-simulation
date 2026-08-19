@@ -204,11 +204,11 @@ def create_mapping_table(  # noqa: PLR0915
         for path in mapper_paths(archive_parser.mapper)
         for part in path.split('||')
     ]
-    source_paths = list(
+    source_paths = sorted(
         dict.fromkeys(path for path in source_paths if path and path != '@')
     )
     accessed_by = function_accesses(function_objects)
-    function_names = mapper_function_names(archive_parser.mapper)
+    function_names = sorted(mapper_function_names(archive_parser.mapper))
     table = []
     for quantity_path, _ in iter_quantities(quantities):
         normalized_quantity = normalize(quantity_path)
