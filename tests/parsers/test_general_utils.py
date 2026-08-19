@@ -7,6 +7,7 @@ from nomad.units import ureg
 from nomad_simulation_parsers.parsers.utils.general import (
     OCCUPATION_THRESHOLD,
     calculate_band_gap_from_occupations,
+    create_mapping_table,
 )
 
 
@@ -16,6 +17,148 @@ class TestOccupationThreshold:
     def test_threshold_value(self):
         """Verify occupation threshold is 0.5 as per DFT convention."""
         assert OCCUPATION_THRESHOLD == 0.5
+
+
+class _Quantity:
+    def __init__(self, name, sub_parser=None):
+        self.name = name
+        self.sub_parser = sub_parser
+
+
+class _FileParser:
+    def __init__(self, quantities):
+        self.quantities = quantities
+
+
+class _Path:
+    def __init__(self, path):
+        self.absolute_path = path
+
+
+class _Mapper:
+    def __init__(self, paths, function_name=None):
+        self.source = None
+        self.function_args = [_Path(path) for path in paths]
+        self.mappers = []
+        self.function_name = function_name
+
+
+class _MappingFunctions:
+    def transform(self, source):
+        return source.get('unused')
+
+
+class _MappingFunctionsWithMultipleAccessStyles:
+    def transform(self, data):
+        return data.get('get_value'), data['dict_value'], data.object_value
+
+
+class _MappingFunctionsWithHelper:
+    def transform(self, data):
+        return self.extract(data)
+
+    def extract(self, data):
+        values = data.get('values', {})
+        return values['indirect_value']
+
+
+def test_create_mapping_table_compares_file_quantities_with_mapper_paths():
+    file_parser = _FileParser(
+        [
+            _Quantity(
+                'eigenvalues_occupancies',
+                _FileParser([_Quantity('eigenvalues'), _Quantity('occupancies')]),
+            ),
+            _Quantity('n_states'),
+            _Quantity('unused'),
+        ]
+    )
+    archive_parser = _FileParser([])
+    archive_parser.mapper = _Mapper(['eigenvalues_occupancies', 'n_states'])
+
+    assert create_mapping_table(file_parser, archive_parser) == [
+        {
+            'quantity': 'eigenvalues_occupancies',
+            'mapped': True,
+            'mapping': ['eigenvalues_occupancies'],
+        },
+        {
+            'quantity': 'eigenvalues_occupancies.eigenvalues',
+            'mapped': True,
+            'mapping': ['eigenvalues_occupancies'],
+        },
+        {
+            'quantity': 'eigenvalues_occupancies.occupancies',
+            'mapped': True,
+            'mapping': ['eigenvalues_occupancies'],
+        },
+        {'quantity': 'n_states', 'mapped': True, 'mapping': ['n_states']},
+        {'quantity': 'unused', 'mapped': False, 'mapping': []},
+    ]
+
+
+def test_create_mapping_table_inspects_mapping_functions():
+    file_parser = _FileParser([_Quantity('unused')])
+    archive_parser = _FileParser([])
+    archive_parser.mapper = _Mapper([], function_name='transform')
+
+    assert create_mapping_table(
+        file_parser, archive_parser, function_objects=_MappingFunctions()
+    ) == [
+        {
+            'quantity': 'unused',
+            'mapped': True,
+            'mapping': ['transform(unused)'],
+        }
+    ]
+
+
+def test_create_mapping_table_inspects_mapping_function_access_styles():
+    file_parser = _FileParser(
+        [_Quantity('get_value'), _Quantity('dict_value'), _Quantity('object_value')]
+    )
+    archive_parser = _FileParser([])
+    archive_parser.mapper = _Mapper([], function_name='transform')
+
+    assert create_mapping_table(
+        file_parser,
+        archive_parser,
+        function_objects=_MappingFunctionsWithMultipleAccessStyles(),
+    ) == [
+        {
+            'quantity': 'get_value',
+            'mapped': True,
+            'mapping': ['transform(get_value)'],
+        },
+        {
+            'quantity': 'dict_value',
+            'mapped': True,
+            'mapping': ['transform(dict_value)'],
+        },
+        {
+            'quantity': 'object_value',
+            'mapped': True,
+            'mapping': ['transform(object_value)'],
+        },
+    ]
+
+
+def test_create_mapping_table_inspects_helper_function_accesses():
+    file_parser = _FileParser([_Quantity('indirect_value')])
+    archive_parser = _FileParser([])
+    archive_parser.mapper = _Mapper([], function_name='transform')
+
+    assert create_mapping_table(
+        file_parser,
+        archive_parser,
+        function_objects=_MappingFunctionsWithHelper(),
+    ) == [
+        {
+            'quantity': 'indirect_value',
+            'mapped': True,
+            'mapping': ['transform(indirect_value)'],
+        }
+    ]
 
 
 class TestCalculateBandGapFromOccupations:

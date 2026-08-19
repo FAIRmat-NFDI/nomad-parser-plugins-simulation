@@ -50,7 +50,7 @@ dependencies = [
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.scripts]
-nomad-sim-parser-init = "nomad_simulation_parsers.cli:main"
+nomad-sim-parser = "nomad_simulation_parsers.cli:main"
 
 [project.optional-dependencies]
 md = [

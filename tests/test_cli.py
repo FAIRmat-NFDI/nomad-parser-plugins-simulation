@@ -1,8 +1,11 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
-from nomad_simulation_parsers.cli import initialize_from_metadata
+from nomad_simulation_parsers import mapping_report
+from nomad_simulation_parsers.cli import main
+from nomad_simulation_parsers.parser_init import initialize_from_metadata
 
 PARSERS_INIT_TEMPLATE = """import importlib
 
@@ -59,6 +62,30 @@ def _prepare_repo(tmp_path: Path) -> Path:
     )
     (root / 'pyproject.toml').write_text(PYPROJECT_TEMPLATE, encoding='utf-8')
     return root
+
+
+def test_unified_cli_dispatches_mapping_report(monkeypatch):
+    called = {}
+
+    def fake_report(arguments):
+        called['arguments'] = arguments
+        return 0
+
+    monkeypatch.setattr(mapping_report, 'run', fake_report)
+
+    assert main(['mapping-report', '--output', 'report.md']) == 0
+    assert called['arguments'] == ['--output', 'report.md']
+
+
+def test_unified_cli_requires_a_subcommand():
+    assert main(['--help']) == 0
+
+
+def test_unified_cli_rejects_unknown_command():
+    with pytest.raises(SystemExit) as error:
+        main(['unknown-command'])
+
+    assert error.value.code == 2
 
 
 def test_initialize_from_metadata_creates_parser_and_schema(tmp_path: Path):
