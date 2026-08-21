@@ -1,4 +1,4 @@
-name: Update parser mapping report
+name: Check parser mapping report
 
 on:
   push:
@@ -24,11 +24,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  update-report:
+  check-report:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -100,29 +99,11 @@ jobs:
               print('::notice title=Mapping coverage changed::' + '; '.join(notices))
           PY
 
-      - name: Check whether report changed
-        id: report-diff
+      - name: Check that the mapping report is up to date
         run: |
-          if git diff --quiet -- docs/reference/parser_mapping_report.md; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-            echo 'Mapping report is already up to date.'
-          else
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-            echo 'Mapping report changes detected.'
+          if ! git diff --quiet -- docs/reference/parser_mapping_report.md; then
+            echo '::error title=Parser mapping report is out of date::Regenerate and commit docs/reference/parser_mapping_report.md before merging.'
+            git diff -- docs/reference/parser_mapping_report.md
+            exit 1
           fi
-
-      - name: Create report pull request
-        if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/develop' &&
-          steps.report-diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: automation/update-parser-mapping-report
-          delete-branch: true
-          commit-message: Update parser mapping report
-          title: Update parser mapping report
-          body: |
-            Automated update of the generated parser mapping report.
-          add-paths: docs/reference/parser_mapping_report.md
+          echo 'Mapping report is up to date.'

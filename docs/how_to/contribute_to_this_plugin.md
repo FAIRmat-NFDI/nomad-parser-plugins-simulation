@@ -11,7 +11,7 @@ request contains source-code changes to be merged into `develop`, regenerate
 the report and commit the resulting update as part of that pull request:
 
 ```sh
-nomad-sim-parser mapping-report \
+uv run nomad-sim-parser mapping-report \
   --override docs/reference/parser_mapping_report_overrides.yaml
 ```
 
