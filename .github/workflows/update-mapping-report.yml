@@ -1,4 +1,4 @@
-name: Update parser mapping report
+name: Check parser mapping report
 
 on:
   push:
@@ -24,10 +24,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  update-report:
+  check-report:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -99,15 +99,11 @@ jobs:
               print('::notice title=Mapping coverage changed::' + '; '.join(notices))
           PY
 
-      - name: Commit updated report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      - name: Check that the mapping report is up to date
         run: |
-          if git diff --quiet -- docs/reference/parser_mapping_report.md; then
-            echo 'Mapping report is already up to date.'
-            exit 0
+          if ! git diff --quiet -- docs/reference/parser_mapping_report.md; then
+            echo '::error title=Parser mapping report is out of date::Regenerate and commit docs/reference/parser_mapping_report.md before merging.'
+            git diff -- docs/reference/parser_mapping_report.md
+            exit 1
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/reference/parser_mapping_report.md
-          git commit -m 'Update parser mapping report'
-          git push
+          echo 'Mapping report is up to date.'

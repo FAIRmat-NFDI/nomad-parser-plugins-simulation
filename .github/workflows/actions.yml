@@ -3,6 +3,10 @@ name: Parser test stages
 on:
   pull_request:
   push:
+    branches:
+      - develop
+    tags:
+      - '*'
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch:

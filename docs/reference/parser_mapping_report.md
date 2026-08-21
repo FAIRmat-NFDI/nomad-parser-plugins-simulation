@@ -34,7 +34,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `dataset.self_consistent` | Mapped | `get_outputs(self_consistent)` |
 | `dataset.self_consistent.energy_total_scf_iteration` | Mapped | `get_outputs(energy_total_scf_iteration)` |
 | `dataset.self_consistent.convergence` | Unmapped | — |
-| `dataset.relaxation` | Mapped | `get_systems(relaxation)`<br>`get_outputs(relaxation)` |
+| `dataset.relaxation` | Mapped | `get_outputs(relaxation)`<br>`get_systems(relaxation)` |
 | `dataset.relaxation.stress_tensor` | Unmapped | — |
 | `dataset.relaxation.self_consistent` | Mapped | `get_outputs(self_consistent)` |
 | `dataset.relaxation.self_consistent.energy_total_scf_iteration` | Mapped | `get_outputs(energy_total_scf_iteration)` |
@@ -131,7 +131,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `time_start` | Unmapped | — |
-| `single_point` | Mapped | `single_point`<br>`single_point.labels_positions`<br>`single_point.band_gap`<br>`single_point.total_dos`<br>`single_point.total_dos.value`<br>`single_point.total_dos.energies`<br>`single_point.eigenvalues`<br>`single_point.value`<br>`single_point.forces`<br>`single_point.forces.value`<br>`single_point.energies`<br>`single_point.energies.value`<br>`single_point.delta_energies_total`<br>`single_point.code_specific_quantities` |
+| `single_point` | Mapped | `single_point`<br>`single_point.band_gap`<br>`single_point.code_specific_quantities`<br>`single_point.delta_energies_total`<br>`single_point.eigenvalues`<br>`single_point.energies`<br>`single_point.energies.value`<br>`single_point.forces`<br>`single_point.forces.value`<br>`single_point.labels_positions`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.value`<br>`single_point.value` |
 | `single_point.labels_positions` | Mapped | `single_point`<br>`single_point.labels_positions` |
 | `single_point.lattice_vectors` | Mapped | `single_point`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
 | `single_point.band_engine_input` | Mapped | `single_point` |
@@ -241,12 +241,12 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `single_point.forces.electrostatic` | Mapped | `single_point`<br>`single_point.forces` |
 | `single_point.forces.nuclear_repulsion` | Mapped | `single_point`<br>`single_point.forces` |
 | `single_point.forces.dispersion` | Mapped | `single_point`<br>`single_point.forces` |
-| `single_point.energy_total` | Mapped | `single_point`<br>`energy_total` |
-| `single_point.energy_total` | Mapped | `single_point`<br>`energy_total` |
-| `single_point.forces_total` | Mapped | `single_point`<br>`forces_total` |
+| `single_point.energy_total` | Mapped | `energy_total`<br>`single_point` |
+| `single_point.energy_total` | Mapped | `energy_total`<br>`single_point` |
+| `single_point.forces_total` | Mapped | `forces_total`<br>`single_point` |
 | `single_point.self_consistency` | Mapped | `single_point`<br>`get_scf_steps(self_consistency)` |
 | `single_point.self_consistency.energy_change` | Mapped | `single_point`<br>`get_scf_steps(energy_change)` |
-| `single_point.total_dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`single_point.total_dos.value`<br>`single_point.total_dos.energies` |
+| `single_point.total_dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.value` |
 | `single_point.total_dos.nspin_ne` | Mapped | `single_point`<br>`single_point.total_dos` |
 | `single_point.total_dos.dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`get_dos(dos)` |
 | `single_point.mulliken_populations` | Mapped | `single_point` |
@@ -261,8 +261,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `single_point.atom_charge_analysis.atom_charges` | Mapped | `single_point` |
 | `single_point.atom_charge_analysis.total` | Mapped | `single_point` |
 | `single_point.dipole_moment` | Mapped | `single_point` |
-| `single_point.band_energy_ranges` | Mapped | `single_point`<br>`band_energy_ranges` |
-| `single_point.band_gap_info` | Mapped | `single_point`<br>`band_gap_info` |
+| `single_point.band_energy_ranges` | Mapped | `band_energy_ranges`<br>`single_point` |
+| `single_point.band_gap_info` | Mapped | `band_gap_info`<br>`single_point` |
 | `single_point.band_gap_info.x_ams_n_valence_electrons` | Mapped | `single_point` |
 | `single_point.band_gap_info.x_ams_valence_band_index` | Mapped | `single_point` |
 | `single_point.band_gap_info.x_ams_valence_band_spin_index` | Mapped | `single_point` |
@@ -271,7 +271,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `single_point.band_gap_info.energy_highest_occupied` | Mapped | `single_point`<br>`get_band_gaps(energy_highest_occupied)` |
 | `single_point.band_gap_info.energy_lowest_unoccupied` | Mapped | `single_point`<br>`get_band_gaps(energy_lowest_unoccupied)` |
 | `single_point.band_gap_info.value` | Mapped | `single_point`<br>`get_band_gaps(value)` |
-| `geometry_optimization` | Mapped | `geometry_optimization.step molecular_dynamics.step  single_point`<br>`geometry_optimization.step molecular_dynamics.step  single_point.labels_positions`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.spin_channel`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.energies`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.eigenvalues`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.occupations`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  forces_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.forces.value  forces_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.energies.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.delta_energies_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.code_specific_quantities`<br>`geometry_optimization.step` |
+| `geometry_optimization` | Mapped | `geometry_optimization.step`<br>`geometry_optimization.step molecular_dynamics.step  single_point`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.spin_channel`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.code_specific_quantities`<br>`geometry_optimization.step molecular_dynamics.step  single_point.delta_energies_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.eigenvalues`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.occupations`<br>`geometry_optimization.step molecular_dynamics.step  single_point.energies.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.forces.value  forces_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.labels_positions`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.energies`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  forces_total` |
 | `geometry_optimization.labels_positions` | Unmapped | — |
 | `geometry_optimization.lattice_vectors` | Mapped | `get_periodic_boundary_conditions(lattice_vectors)` |
 | `geometry_optimization.band_engine_input` | Unmapped | — |
@@ -459,9 +459,9 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.step.forces.electrostatic` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.forces.nuclear_repulsion` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.forces.dispersion` | Mapped | `geometry_optimization.step` |
-| `geometry_optimization.step.energy_total` | Mapped | `geometry_optimization.step`<br>`energy_total` |
-| `geometry_optimization.step.energy_total` | Mapped | `geometry_optimization.step`<br>`energy_total` |
-| `geometry_optimization.step.forces_total` | Mapped | `geometry_optimization.step`<br>`forces_total` |
+| `geometry_optimization.step.energy_total` | Mapped | `energy_total`<br>`geometry_optimization.step` |
+| `geometry_optimization.step.energy_total` | Mapped | `energy_total`<br>`geometry_optimization.step` |
+| `geometry_optimization.step.forces_total` | Mapped | `forces_total`<br>`geometry_optimization.step` |
 | `geometry_optimization.step.self_consistency` | Mapped | `geometry_optimization.step`<br>`get_scf_steps(self_consistency)` |
 | `geometry_optimization.step.self_consistency.energy_change` | Mapped | `geometry_optimization.step`<br>`get_scf_steps(energy_change)` |
 | `geometry_optimization.step.total_dos` | Mapped | `geometry_optimization.step` |
@@ -479,8 +479,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.step.atom_charge_analysis.atom_charges` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.atom_charge_analysis.total` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.dipole_moment` | Mapped | `geometry_optimization.step` |
-| `geometry_optimization.step.band_energy_ranges` | Mapped | `geometry_optimization.step`<br>`band_energy_ranges` |
-| `geometry_optimization.step.band_gap_info` | Mapped | `geometry_optimization.step`<br>`band_gap_info` |
+| `geometry_optimization.step.band_energy_ranges` | Mapped | `band_energy_ranges`<br>`geometry_optimization.step` |
+| `geometry_optimization.step.band_gap_info` | Mapped | `band_gap_info`<br>`geometry_optimization.step` |
 | `geometry_optimization.step.band_gap_info.x_ams_n_valence_electrons` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.band_gap_info.x_ams_valence_band_index` | Mapped | `geometry_optimization.step` |
 | `geometry_optimization.step.band_gap_info.x_ams_valence_band_spin_index` | Mapped | `geometry_optimization.step` |
@@ -756,7 +756,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `scf_block.scf_iterations.FDIK` | Unmapped | — |
 | `number_of_scf_iterations` | Mapped | `get_outputs(number_of_scf_iterations)` |
 | `energy_total` | Mapped | `get_outputs(energy_total)` |
-| `geo_opt` | Mapped | `get_systems(geo_opt)`<br>`get_outputs(geo_opt)` |
+| `geo_opt` | Mapped | `get_outputs(geo_opt)`<br>`get_systems(geo_opt)` |
 | `geo_opt.geo_opt_step` | Unmapped | — |
 | `geo_opt.geo_opt_step.lattice_parameters` | Mapped | `get_systems(lattice_parameters)` |
 | `geo_opt.geo_opt_step.labels_positions` | Mapped | `get_systems(labels_positions)` |
@@ -867,7 +867,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `groundstate.scf_iteration.x_exciting_charge_convergence` | Unmapped | — |
 | `groundstate.scf_iteration.x_exciting_IBS_force_convergence` | Unmapped | — |
 | `groundstate.final` | Mapped | `get_configurations(final)` |
-| `groundstate.final.energy_total` | Mapped | `final.energy_total`<br>`energy_total`<br>`get_scf_steps(energy_total)` |
+| `groundstate.final.energy_total` | Mapped | `energy_total`<br>`final.energy_total`<br>`get_scf_steps(energy_total)` |
 | `groundstate.final.energy_contributions` | Unmapped | — |
 | `groundstate.final.x_exciting_dos_fermi` | Unmapped | — |
 | `groundstate.final.charge_contributions` | Unmapped | — |
@@ -898,7 +898,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `structure_optimization.optimization_step.energy_total` | Mapped | `energy_total`<br>`get_scf_steps(energy_total)` |
 | `structure_optimization.optimization_step.time_calculation` | Unmapped | — |
 | `structure_optimization.final` | Mapped | `get_configurations(final)` |
-| `structure_optimization.final.energy_total` | Mapped | `final.energy_total`<br>`energy_total`<br>`get_scf_steps(energy_total)` |
+| `structure_optimization.final.energy_total` | Mapped | `energy_total`<br>`final.energy_total`<br>`get_scf_steps(energy_total)` |
 | `structure_optimization.final.energy_contributions` | Unmapped | — |
 | `structure_optimization.final.x_exciting_dos_fermi` | Unmapped | — |
 | `structure_optimization.final.charge_contributions` | Unmapped | — |
@@ -931,7 +931,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `hybrids.scf_iteration.x_exciting_charge_convergence` | Unmapped | — |
 | `hybrids.scf_iteration.x_exciting_IBS_force_convergence` | Unmapped | — |
 | `hybrids.final` | Mapped | `get_configurations(final)` |
-| `hybrids.final.energy_total` | Mapped | `final.energy_total`<br>`energy_total`<br>`get_scf_steps(energy_total)` |
+| `hybrids.final.energy_total` | Mapped | `energy_total`<br>`final.energy_total`<br>`get_scf_steps(energy_total)` |
 | `hybrids.final.energy_contributions` | Unmapped | — |
 | `hybrids.final.x_exciting_dos_fermi` | Unmapped | — |
 | `hybrids.final.charge_contributions` | Unmapped | — |
@@ -957,7 +957,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
 | `k_points` | Unmapped | — |
-| `eigenvalues_occupancies` | Mapped | `get_eigenvalues(eigenvalues_occupancies)`<br>`get_band_gaps(eigenvalues_occupancies)` |
+| `eigenvalues_occupancies` | Mapped | `get_band_gaps(eigenvalues_occupancies)`<br>`get_eigenvalues(eigenvalues_occupancies)` |
 | `n_k_points` | Unmapped | — |
 | `n_states` | Mapped | `n_states` |
 
@@ -1026,7 +1026,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `gw_self_consistency` | Unmapped | — |
 | `gw_eigenvalues` | Unmapped | — |
 | `lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
-| `structure` | Mapped | `structure.positions`<br>`structure.labels` |
+| `structure` | Mapped | `structure.labels`<br>`structure.positions` |
 | `structure.labels` | Mapped | `structure.labels` |
 | `structure.positions` | Mapped | `structure.positions` |
 | `structure.positions` | Mapped | `structure.positions` |
@@ -1036,8 +1036,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `full_scf.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `full_scf.self_consistency.date_time` | Unmapped | — |
 | `full_scf.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `full_scf.self_consistency.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `full_scf.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `full_scf.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `full_scf.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `full_scf.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `full_scf.self_consistency.forces` | Mapped | `forces` |
 | `full_scf.self_consistency.stress_tensor` | Unmapped | — |
@@ -1065,8 +1065,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `full_scf.energy_components` | Mapped | `get_energies(energy_components)` |
 | `full_scf.energy_xc` | Unmapped | — |
 | `full_scf.eigenvalues` | Mapped | `eigenvalues` |
-| `full_scf.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `full_scf.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `full_scf.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `full_scf.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `full_scf.forces` | Mapped | `forces` |
 | `full_scf.forces_raw` | Unmapped | — |
 | `full_scf.force_maximum` | Unmapped | — |
@@ -1083,8 +1083,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `geometry_optimization.self_consistency.date_time` | Unmapped | — |
 | `geometry_optimization.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `geometry_optimization.self_consistency.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `geometry_optimization.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `geometry_optimization.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `geometry_optimization.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `geometry_optimization.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `geometry_optimization.self_consistency.forces` | Mapped | `forces` |
 | `geometry_optimization.self_consistency.stress_tensor` | Unmapped | — |
@@ -1112,8 +1112,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.energy_components` | Mapped | `get_energies(energy_components)` |
 | `geometry_optimization.energy_xc` | Unmapped | — |
 | `geometry_optimization.eigenvalues` | Mapped | `eigenvalues` |
-| `geometry_optimization.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `geometry_optimization.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `geometry_optimization.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `geometry_optimization.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `geometry_optimization.forces` | Mapped | `forces` |
 | `geometry_optimization.forces_raw` | Unmapped | — |
 | `geometry_optimization.force_maximum` | Unmapped | — |
@@ -1130,8 +1130,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `molecular_dynamics.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `molecular_dynamics.self_consistency.date_time` | Unmapped | — |
 | `molecular_dynamics.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `molecular_dynamics.self_consistency.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `molecular_dynamics.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `molecular_dynamics.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `molecular_dynamics.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `molecular_dynamics.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `molecular_dynamics.self_consistency.forces` | Mapped | `forces` |
 | `molecular_dynamics.self_consistency.stress_tensor` | Unmapped | — |
@@ -1159,8 +1159,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `molecular_dynamics.energy_components` | Mapped | `get_energies(energy_components)` |
 | `molecular_dynamics.energy_xc` | Unmapped | — |
 | `molecular_dynamics.eigenvalues` | Mapped | `eigenvalues` |
-| `molecular_dynamics.eigenvalues.kpoints` | Mapped | `get_eigenvalues(kpoints)` |
-| `molecular_dynamics.eigenvalues.occupation_eigenvalue` | Mapped | `get_eigenvalues(occupation_eigenvalue)` |
+| `molecular_dynamics.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `molecular_dynamics.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `molecular_dynamics.forces` | Mapped | `forces` |
 | `molecular_dynamics.forces_raw` | Unmapped | — |
 | `molecular_dynamics.force_maximum` | Unmapped | — |
@@ -1226,7 +1226,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header.Version`<br>`header` |
+| `header` | Mapped | `header`<br>`header.Version` |
 | `header.options` | Mapped | `header`<br>`get_header(options)` |
 | `grid` | Unmapped | — |
 | `grid.boxshape` | Unmapped | — |
@@ -1245,7 +1245,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `time_dependent` | Mapped | `time_dependent.iteration`<br>`time_dependent.iteration.energy` |
 | `time_dependent.iteration` | Mapped | `time_dependent.iteration`<br>`time_dependent.iteration.energy` |
 | `x_octopus_info_scf_converged_iterations` | Unmapped | — |
-| `minimization` | Mapped | `minimization.lattice_vectors`<br>`minimization.pbc`<br>`minimization.positions`<br>`minimization.labels`<br>`minimization`<br>`get_systems(minimization)` |
+| `minimization` | Mapped | `minimization`<br>`minimization.labels`<br>`minimization.lattice_vectors`<br>`minimization.pbc`<br>`minimization.positions`<br>`get_systems(minimization)` |
 | `minimization.energy_total` | Mapped | `minimization`<br>`get_outputs(energy_total)` |
 | `minimization.number` | Mapped | `minimization` |
 
@@ -1255,10 +1255,10 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `eigenvalues` | Mapped | `eigenvalues.spin_channel`<br>`eigenvalues.value`<br>`eigenvalues.occupations`<br>`eigenvalues.highest_occupied`<br>`eigenvalues`<br>`get_band_structures(eigenvalues)`<br>`get_band_gaps(eigenvalues)` |
-| `eigenvalues.eigenvalues` | Mapped | `eigenvalues`<br>`get_band_structures(eigenvalues)`<br>`get_band_gaps(eigenvalues)` |
+| `eigenvalues` | Mapped | `eigenvalues`<br>`eigenvalues.highest_occupied`<br>`eigenvalues.occupations`<br>`eigenvalues.spin_channel`<br>`eigenvalues.value`<br>`get_band_gaps(eigenvalues)`<br>`get_band_structures(eigenvalues)` |
+| `eigenvalues.eigenvalues` | Mapped | `eigenvalues`<br>`get_band_gaps(eigenvalues)`<br>`get_band_structures(eigenvalues)` |
 | `eigenvalues.unit` | Mapped | `eigenvalues` |
-| `eigenvalues.fermi_energy` | Mapped | `eigenvalues`<br>`get_eigenvalues(fermi_energy)` |
+| `eigenvalues.fermi_energy` | Mapped | `eigenvalues`<br>`get_band_gaps(fermi_energy)`<br>`get_band_structures(fermi_energy)`<br>`get_eigenvalues(fermi_energy)` |
 
 ## Quantum ESPRESSO / OUT
 
@@ -2468,9 +2468,9 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header.start_date_time`<br>`header.program_name_version`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.xc_functional`<br>`header` |
-| `header.program_name_version` | Mapped | `header.program_name_version`<br>`header` |
-| `header.start_date_time` | Mapped | `header.start_date_time`<br>`header` |
+| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
+| `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
+| `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
 | `header.compile_parallel_version` | Mapped | `header` |
 | `header.nthreads` | Mapped | `header` |
 | `header.nproc` | Mapped | `header` |
@@ -2497,7 +2497,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.dispersion` | Mapped | `header` |
 | `header.g_vector_sticks` | Mapped | `header` |
 | `header.ibrav` | Mapped | `header` |
-| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)` |
+| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
 | `header.cell_volume` | Mapped | `header` |
 | `header.number_of_atoms` | Mapped | `header` |
 | `header.number_of_species` | Mapped | `header` |
@@ -2512,7 +2512,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.scf_threshold_energy_change` | Mapped | `header` |
 | `header.potential_mixing_beta` | Mapped | `header` |
 | `header.mixing_scheme` | Mapped | `header` |
-| `header.xc_functional` | Mapped | `header.xc_functional`<br>`header` |
+| `header.xc_functional` | Mapped | `header`<br>`header.xc_functional` |
 | `header.exact_exchange_fraction` | Mapped | `header` |
 | `header.md_max_steps` | Mapped | `header` |
 | `header.spin_orbit_mode` | Mapped | `header` |
@@ -2640,9 +2640,9 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header.start_date_time`<br>`header.program_name_version`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.xc_functional`<br>`header` |
-| `header.program_name_version` | Mapped | `header.program_name_version`<br>`header` |
-| `header.start_date_time` | Mapped | `header.start_date_time`<br>`header` |
+| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
+| `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
+| `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
 | `header.compile_parallel_version` | Mapped | `header` |
 | `header.nthreads` | Mapped | `header` |
 | `header.nproc` | Mapped | `header` |
@@ -2669,7 +2669,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.dispersion` | Mapped | `header` |
 | `header.g_vector_sticks` | Mapped | `header` |
 | `header.ibrav` | Mapped | `header` |
-| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)` |
+| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
 | `header.cell_volume` | Mapped | `header` |
 | `header.number_of_atoms` | Mapped | `header` |
 | `header.number_of_species` | Mapped | `header` |
@@ -2684,7 +2684,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.scf_threshold_energy_change` | Mapped | `header` |
 | `header.potential_mixing_beta` | Mapped | `header` |
 | `header.mixing_scheme` | Mapped | `header` |
-| `header.xc_functional` | Mapped | `header.xc_functional`<br>`header` |
+| `header.xc_functional` | Mapped | `header`<br>`header.xc_functional` |
 | `header.exact_exchange_fraction` | Mapped | `header` |
 | `header.md_max_steps` | Mapped | `header` |
 | `header.spin_orbit_mode` | Mapped | `header` |
@@ -2765,7 +2765,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `calculation.dispersion` | Mapped | `calculation` |
 | `calculation.g_vector_sticks` | Mapped | `calculation` |
 | `calculation.ibrav` | Mapped | `calculation` |
-| `calculation.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)` |
+| `calculation.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
 | `calculation.cell_volume` | Mapped | `calculation` |
 | `calculation.number_of_atoms` | Mapped | `calculation` |
 | `calculation.number_of_species` | Mapped | `calculation` |
@@ -2872,7 +2872,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `calculation.dynamical_matrix.dispersion` | Mapped | `calculation` |
 | `calculation.dynamical_matrix.g_vector_sticks` | Mapped | `calculation` |
 | `calculation.dynamical_matrix.ibrav` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)` |
+| `calculation.dynamical_matrix.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
 | `calculation.dynamical_matrix.cell_volume` | Mapped | `calculation` |
 | `calculation.dynamical_matrix.number_of_atoms` | Mapped | `calculation` |
 | `calculation.dynamical_matrix.number_of_species` | Mapped | `calculation` |
@@ -2996,9 +2996,9 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header.start_date_time`<br>`header.program_name_version`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.xc_functional`<br>`header` |
-| `header.program_name_version` | Mapped | `header.program_name_version`<br>`header` |
-| `header.start_date_time` | Mapped | `header.start_date_time`<br>`header` |
+| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
+| `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
+| `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
 | `header.compile_parallel_version` | Mapped | `header` |
 | `header.nthreads` | Mapped | `header` |
 | `header.nproc` | Mapped | `header` |
@@ -3025,7 +3025,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.dispersion` | Mapped | `header` |
 | `header.g_vector_sticks` | Mapped | `header` |
 | `header.ibrav` | Mapped | `header` |
-| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)` |
+| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
 | `header.cell_volume` | Mapped | `header` |
 | `header.number_of_atoms` | Mapped | `header` |
 | `header.number_of_species` | Mapped | `header` |
@@ -3040,7 +3040,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `header.scf_threshold_energy_change` | Mapped | `header` |
 | `header.potential_mixing_beta` | Mapped | `header` |
 | `header.mixing_scheme` | Mapped | `header` |
-| `header.xc_functional` | Mapped | `header.xc_functional`<br>`header` |
+| `header.xc_functional` | Mapped | `header`<br>`header.xc_functional` |
 | `header.exact_exchange_fraction` | Mapped | `header` |
 | `header.md_max_steps` | Mapped | `header` |
 | `header.spin_orbit_mode` | Mapped | `header` |
@@ -3290,27 +3290,27 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `calculation` | Mapped | `calculation.lattice_vectors`<br>`calculation.positions_forces`<br>`calculation.name`<br>`calculation.forces`<br>`calculation.energies.name`<br>`calculation.energies`<br>`calculation.energies_total`<br>`calculation.delta_energies_total`<br>`calculation.durations`<br>`calculation`<br>`calculation.eigenvalues` |
+| `calculation` | Mapped | `calculation`<br>`calculation.delta_energies_total`<br>`calculation.durations`<br>`calculation.eigenvalues`<br>`calculation.energies`<br>`calculation.energies.name`<br>`calculation.energies_total`<br>`calculation.forces`<br>`calculation.lattice_vectors`<br>`calculation.name`<br>`calculation.positions_forces` |
 | `calculation.scf_iteration` | Mapped | `calculation` |
 | `calculation.scf_iteration.energy_total` | Mapped | `calculation` |
 | `calculation.scf_iteration.energy_entropy0` | Mapped | `calculation` |
 | `calculation.scf_iteration.energy_T0` | Mapped | `calculation` |
 | `calculation.scf_iteration.energy_components` | Mapped | `calculation` |
 | `calculation.scf_iteration.time` | Mapped | `calculation` |
-| `calculation.energies` | Mapped | `calculation.energies.name`<br>`calculation.energies`<br>`calculation` |
-| `calculation.energies.energy_total` | Mapped | `calculation.energies`<br>`calculation` |
-| `calculation.energies.energy_entropy0` | Mapped | `calculation.energies`<br>`calculation` |
-| `calculation.energies.energy_T0` | Mapped | `calculation.energies`<br>`calculation` |
+| `calculation.energies` | Mapped | `calculation`<br>`calculation.energies`<br>`calculation.energies.name` |
+| `calculation.energies.energy_total` | Mapped | `calculation`<br>`calculation.energies` |
+| `calculation.energies.energy_entropy0` | Mapped | `calculation`<br>`calculation.energies` |
+| `calculation.energies.energy_T0` | Mapped | `calculation`<br>`calculation.energies` |
 | `calculation.stress` | Mapped | `calculation` |
-| `calculation.positions_forces` | Mapped | `calculation.positions_forces`<br>`calculation` |
-| `calculation.lattice_vectors` | Mapped | `calculation.lattice_vectors`<br>`calculation` |
+| `calculation.positions_forces` | Mapped | `calculation`<br>`calculation.positions_forces` |
+| `calculation.lattice_vectors` | Mapped | `calculation`<br>`calculation.lattice_vectors` |
 | `calculation.converged` | Mapped | `calculation` |
 | `calculation.fermi_energy` | Mapped | `calculation` |
 | `calculation.eigenvalues` | Mapped | `calculation`<br>`calculation.eigenvalues` |
 | `calculation.convergence` | Mapped | `calculation` |
 | `calculation.time` | Mapped | `calculation` |
 | `header` | Mapped | `header` |
-| `parameters` | Mapped | `parameters.EDIFF`<br>`parameters` |
+| `parameters` | Mapped | `parameters`<br>`parameters.EDIFF` |
 | `ions_per_type` | Unmapped | — |
 | `species` | Unmapped | — |
 | `kpoints` | Unmapped | — |
@@ -3344,7 +3344,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `core_variables_setup` | Mapped | `core_variables_setup.energies_occupations` |
 | `core_variables_setup.energies_occupations` | Mapped | `core_variables_setup.energies_occupations` |
 | `core_variables_setup.energies_occupations.fermi` | Mapped | `core_variables_setup.energies_occupations` |
-| `core_variables_setup.energies_occupations.conduction` | Mapped | `core_variables_setup.energies_occupations`<br>`conduction` |
+| `core_variables_setup.energies_occupations.conduction` | Mapped | `conduction`<br>`core_variables_setup.energies_occupations` |
 | `core_variables_setup.energies_occupations.valence` | Mapped | `core_variables_setup.energies_occupations`<br>`valence`<br>`get_outputs(valence)` |
 | `core_variables_setup.energies_occupations.valence_conduction` | Mapped | `core_variables_setup.energies_occupations`<br>`valence_conduction`<br>`get_outputs(valence_conduction)` |
 | `core_variables_setup.energies_occupations.x_yambo_filled_bands` | Mapped | `core_variables_setup.energies_occupations` |
@@ -3394,7 +3394,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `transferred_momenta.module.local_xc_nonlocal_fock.corrections.band_sp` | Mapped | `transferred_momenta` |
 | `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations` | Mapped | `transferred_momenta` |
 | `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.fermi` | Mapped | `transferred_momenta` |
-| `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.conduction` | Mapped | `transferred_momenta`<br>`conduction` |
+| `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.conduction` | Mapped | `conduction`<br>`transferred_momenta` |
 | `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.valence` | Mapped | `transferred_momenta`<br>`valence`<br>`get_outputs(valence)` |
 | `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.valence_conduction` | Mapped | `transferred_momenta`<br>`valence_conduction`<br>`get_outputs(valence_conduction)` |
 | `transferred_momenta.module.local_xc_nonlocal_fock.hf_occupations.x_yambo_filled_bands` | Mapped | `transferred_momenta` |
@@ -3425,7 +3425,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `transferred_momenta.module.bare_xc.xc_hf_dft.band` | Mapped | `transferred_momenta`<br>`get_outputs(band)` |
 | `transferred_momenta.module.bare_xc.hf_occupations` | Mapped | `transferred_momenta` |
 | `transferred_momenta.module.bare_xc.hf_occupations.fermi` | Mapped | `transferred_momenta` |
-| `transferred_momenta.module.bare_xc.hf_occupations.conduction` | Mapped | `transferred_momenta`<br>`conduction` |
+| `transferred_momenta.module.bare_xc.hf_occupations.conduction` | Mapped | `conduction`<br>`transferred_momenta` |
 | `transferred_momenta.module.bare_xc.hf_occupations.valence` | Mapped | `transferred_momenta`<br>`valence`<br>`get_outputs(valence)` |
 | `transferred_momenta.module.bare_xc.hf_occupations.valence_conduction` | Mapped | `transferred_momenta`<br>`valence_conduction`<br>`get_outputs(valence_conduction)` |
 | `transferred_momenta.module.bare_xc.hf_occupations.x_yambo_filled_bands` | Mapped | `transferred_momenta` |
@@ -3564,10 +3564,10 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `version` | Mapped | `version` |
 | `lattice_vectors` | Mapped | `lattice_vectors` |
 | `reciprocal_lattice_vectors` | Unmapped | — |
-| `structure` | Mapped | `structure.positions`<br>`structure` |
+| `structure` | Mapped | `structure`<br>`structure.positions` |
 | `structure.labels` | Mapped | `structure` |
-| `structure.positions` | Mapped | `structure.positions`<br>`structure` |
-| `k_mesh` | Mapped | `k_mesh.n_points`<br>`k_mesh.grid`<br>`k_mesh.k_points` |
+| `structure.positions` | Mapped | `structure`<br>`structure.positions` |
+| `k_mesh` | Mapped | `k_mesh.grid`<br>`k_mesh.k_points`<br>`k_mesh.n_points` |
 | `k_mesh.n_points` | Mapped | `k_mesh.n_points` |
 | `k_mesh.grid` | Mapped | `k_mesh.grid` |
 | `k_mesh.k_points` | Mapped | `k_mesh.k_points` |
@@ -3578,7 +3578,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `Nband` | Unmapped | — |
 | `Niter` | Mapped | `Niter` |
 | `conv_tol` | Unmapped | — |
-| `energy_windows` | Mapped | `energy_windows.outer`<br>`energy_windows.inner` |
+| `energy_windows` | Mapped | `energy_windows.inner`<br>`energy_windows.outer` |
 | `energy_windows.outer` | Mapped | `energy_windows.outer` |
 | `energy_windows.inner` | Mapped | `energy_windows.inner` |
 | `n_k_segments` | Unmapped | — |
@@ -3592,7 +3592,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
 | `energy_fermi` | Unmapped | — |
-| `projections` | Mapped | `projections.projection`<br>`projections.projections.projection`<br>`projections`<br>`projections.projections` |
+| `projections` | Mapped | `projections`<br>`projections.projection`<br>`projections.projections`<br>`projections.projections.projection` |
 
 ## Wannier90 / hr
 

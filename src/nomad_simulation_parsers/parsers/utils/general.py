@@ -113,7 +113,8 @@ def create_mapping_table(  # noqa: PLR0915
             objects = [objects]
         objects = list(objects)
         accesses: dict[str, set[str]] = {}
-        inspected: set[tuple[str, int]] = set()
+        cached_accesses: dict[int, set[str]] = {}
+        inspecting: set[int] = set()
 
         def find_function(name: str) -> Any:
             for obj in objects:
@@ -123,15 +124,22 @@ def create_mapping_table(  # noqa: PLR0915
             return None
 
         def inspect_function(name: str, candidate: Any) -> set[str]:
-            identity = (name, id(candidate))
-            if identity in inspected:
+            # Accessing a bound method creates a new method object each time.
+            # Its underlying function is stable and lets helper results be
+            # cached independently of the traversal order.
+            identity = id(getattr(candidate, '__func__', candidate))
+            if identity in cached_accesses:
+                return cached_accesses[identity]
+            if identity in inspecting:
                 return set()
-            inspected.add(identity)
+            inspecting.add(identity)
 
             try:
                 source = inspect.getsource(candidate)
             except (OSError, TypeError):
-                return set()
+                cached_accesses[identity] = set()
+                inspecting.remove(identity)
+                return cached_accesses[identity]
 
             source = textwrap.dedent(source)
             try:
@@ -157,7 +165,7 @@ def create_mapping_table(  # noqa: PLR0915
                 access_names = ['source']
 
             keys: set[str] = set()
-            for access_name in set(access_names):
+            for access_name in sorted(set(access_names)):
                 parameter = re.escape(access_name)
                 matches = re.findall(
                     rf"(?:\b{parameter}\s*\.\s*get\s*\(\s*['\"]([^'\"]+)"
@@ -180,13 +188,15 @@ def create_mapping_table(  # noqa: PLR0915
                 for call in ast.walk(function)
                 if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
             )
-            for helper_name in helper_names:
+            for helper_name in sorted(helper_names):
                 helper = find_function(helper_name)
                 if helper is not None:
                     keys.update(inspect_function(helper_name, helper))
-            return keys
+            inspecting.remove(identity)
+            cached_accesses[identity] = keys
+            return cached_accesses[identity]
 
-        for name in mapper_function_names(archive_parser.mapper):
+        for name in sorted(mapper_function_names(archive_parser.mapper)):
             candidate = find_function(name)
             if candidate is None:
                 continue
@@ -204,11 +214,11 @@ def create_mapping_table(  # noqa: PLR0915
         for path in mapper_paths(archive_parser.mapper)
         for part in path.split('||')
     ]
-    source_paths = list(
+    source_paths = sorted(
         dict.fromkeys(path for path in source_paths if path and path != '@')
     )
     accessed_by = function_accesses(function_objects)
-    function_names = mapper_function_names(archive_parser.mapper)
+    function_names = sorted(mapper_function_names(archive_parser.mapper))
     table = []
     for quantity_path, _ in iter_quantities(quantities):
         normalized_quantity = normalize(quantity_path)
