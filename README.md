@@ -141,6 +141,12 @@ Run the documentation server:
 mkdocs serve
 ```
 
+### Parser coverage report
+
+Generation of the mapping parser coverage report is part of CI. It is
+necessary to regenerate and commit the report as part of every pull request
+containing source-code changes. See [Contribute to This
+Plugin](docs/how_to/contribute_to_this_plugin.md) for the command and details.
 
 ## Adding this plugin to NOMAD
 
