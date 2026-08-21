@@ -62,6 +62,17 @@ class _MappingFunctionsWithHelper:
         return values['indirect_value']
 
 
+class _MappingFunctionsWithSharedHelper:
+    def first_transform(self, data):
+        return self.extract(data)
+
+    def second_transform(self, data):
+        return self.extract(data)
+
+    def extract(self, data):
+        return data.get('shared_value')
+
+
 def test_create_mapping_table_compares_file_quantities_with_mapper_paths():
     file_parser = _FileParser(
         [
@@ -157,6 +168,30 @@ def test_create_mapping_table_inspects_helper_function_accesses():
             'quantity': 'indirect_value',
             'mapped': True,
             'mapping': ['transform(indirect_value)'],
+        }
+    ]
+
+
+def test_create_mapping_table_reports_shared_helper_for_each_mapper_function():
+    file_parser = _FileParser([_Quantity('shared_value')])
+    archive_parser = _FileParser([])
+    archive_parser.mapper = _Mapper([], function_name='second_transform')
+    archive_parser.mapper.mappers.append(
+        _Mapper([], function_name='first_transform')
+    )
+
+    assert create_mapping_table(
+        file_parser,
+        archive_parser,
+        function_objects=_MappingFunctionsWithSharedHelper(),
+    ) == [
+        {
+            'quantity': 'shared_value',
+            'mapped': True,
+            'mapping': [
+                'first_transform(shared_value)',
+                'second_transform(shared_value)',
+            ],
         }
     ]
 
