@@ -36,9 +36,7 @@ def test_Fe(parser):  # noqa: PLR0915
 
 
 def test_lobster_text_parser_retains_each_source_data_object():
-    parser = LobsterICOXPLISTParser(
-        filepath='tests/data/lobster/Fe/lobsterout'
-    )
+    parser = LobsterICOXPLISTParser(filepath='tests/data/lobster/Fe/lobsterout')
 
     parser.data
 
@@ -58,7 +56,7 @@ def test_Fe_records_parsed_blocks(parser):
     assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
 
 
-def test_Fe_data(parser):
+def test_Fe_data(parser):  # noqa: PLR0915
     archive = EntryArchive()
     parser.parse('tests/data/lobster/Fe/lobsterout', archive, logger)
 

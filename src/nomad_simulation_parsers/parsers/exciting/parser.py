@@ -486,7 +486,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
             eigval_parser.convert(data_parser, update_mode='merge')
             text_parsers.append(eigval_parser.data_object)
             eigval_parser.close()
-            print('EEEEE', text_parsers)
 
         # bandstructure from bandstructure.xml
         bandstructure_files = search_files(

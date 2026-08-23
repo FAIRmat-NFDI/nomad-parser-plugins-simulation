@@ -212,9 +212,7 @@ def test_create_mapping_table_reports_shared_helper_for_each_mapper_function():
     file_parser = _FileParser([_Quantity('shared_value')])
     archive_parser = _FileParser([])
     archive_parser.mapper = _Mapper([], function_name='second_transform')
-    archive_parser.mapper.mappers.append(
-        _Mapper([], function_name='first_transform')
-    )
+    archive_parser.mapper.mappers.append(_Mapper([], function_name='first_transform'))
 
     assert create_mapping_table(
         file_parser,

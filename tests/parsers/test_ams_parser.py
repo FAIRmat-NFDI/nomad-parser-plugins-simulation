@@ -31,7 +31,6 @@ def test_parse_file():
     parser.parse(str(MAINFILE), archive, LOGGER)
 
 
-
 # TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
 @pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
 def test_parse_file_records_parsed_blocks():
