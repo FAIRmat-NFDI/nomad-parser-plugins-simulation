@@ -392,6 +392,7 @@ class LobsterArchiveWriter(ArchiveWriter):
             ],
         )
 
+
 class LobsterParser(MatchingParser):
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger) -> None:
         archive_writer = LobsterArchiveWriter()
