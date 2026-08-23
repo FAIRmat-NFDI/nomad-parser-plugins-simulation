@@ -30,6 +30,7 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import abinit
 
@@ -805,6 +806,10 @@ class AbinitArchiveWriter(ArchiveWriter):
                 tasks=[self.archive.workflow2, gw_archive.workflow2]
             )
 
+        write_parsed_blocks(
+            self.archive,
+            [self.mainfile_parser.data_object, self.dos_parser.data_object],
+        )
         self.metainfo_parser.close()
         self.mainfile_parser.close()
         self.dos_parser.close()

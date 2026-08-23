@@ -18,7 +18,10 @@ from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    search_files,
+    write_parsed_blocks,
+)
 from nomad_simulation_parsers.schema_packages import wannier90
 
 from .file_parsers import HrParser, WInParser, WOutParser
@@ -450,6 +453,7 @@ class WannierArchiveWriter(ArchiveWriter):
             win_parser.data[key] = self.wout_parser.data.get(key)
         self.data_parser.annotation_key = wannier90.WIN_KEY
         self.data_parser.data_object = self.archive.data
+        self._parsed_text_parsers.append(win_parser.data_object)
         win_parser.convert(self.data_parser)
 
         reference_energy = win_parser.data.get('energy_fermi')
@@ -475,6 +479,7 @@ class WannierArchiveWriter(ArchiveWriter):
             self.data_parser.annotation_key = wannier90.WHR_KEY
             self.data_parser.data_object = self.archive.data
             whr_parser.convert(self.data_parser)
+            self._parsed_text_parsers.append(whr_parser.data_object)
         whr_parser.close()
 
     def parse_dos(self) -> None:
@@ -493,6 +498,7 @@ class WannierArchiveWriter(ArchiveWriter):
             wdos_parser._energies_origin = self.reference_energy
             self.data_parser.annotation_key = wannier90.DOS_KEY
             self.data_parser.data_object = self.archive.data
+            self._parsed_text_parsers.append(wdos_parser.data_object)
             wdos_parser.convert(self.data_parser)
         wdos_parser.close()
 
@@ -515,6 +521,7 @@ class WannierArchiveWriter(ArchiveWriter):
             wband_parser._highest_occupied = self.reference_energy
             self.data_parser.annotation_key = wannier90.BAND_KEY
             self.data_parser.data_object = self.archive.data
+            self._parsed_text_parsers.append(wband_parser.data_object)
             wband_parser.convert(self.data_parser)
         wband_parser.close()
 
@@ -534,6 +541,7 @@ class WannierArchiveWriter(ArchiveWriter):
         self.reference_energy = None
 
         self.wout_parser.convert(self.data_parser)
+        self._parsed_text_parsers = [self.wout_parser.data_object]
 
         # parse input file
         if data.model_system:
@@ -549,6 +557,8 @@ class WannierArchiveWriter(ArchiveWriter):
         self.parse_band()
 
         self.parse_workflow()
+
+        write_parsed_blocks(self.archive, self._parsed_text_parsers)
 
         # close parser contexts
         self.wout_parser.close()

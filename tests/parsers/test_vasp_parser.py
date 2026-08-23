@@ -89,6 +89,18 @@ def test_outcar():
     assert sec_system.periodic_boundary_conditions == [True, True, True]
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_outcar_records_parsed_blocks():
+    archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
+
+    assert archive.metadata.auxiliary_files
+    assert any(
+        file.file_name.endswith('OUTCAR') and file.parsed_blocks
+        for file in archive.metadata.auxiliary_files
+    )
+
+
 @pytest.mark.parametrize(
     'parameters, expected',
     [

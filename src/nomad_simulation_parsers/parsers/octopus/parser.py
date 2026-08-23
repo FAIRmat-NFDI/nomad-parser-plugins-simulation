@@ -14,6 +14,7 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import octopus
 
@@ -537,6 +538,14 @@ class OctopusArchiveWriter(ArchiveWriter):
         self.archive_parser.annotation_key = octopus.EIGENVALUES_KEY
         self.eigenvalues_parser.convert(self.archive_parser, update_mode='merge@-1')
 
+        write_parsed_blocks(
+            self.archive,
+            [
+                self.mainfile_parser.data_object,
+                self.info_parser.data_object,
+                self.eigenvalues_parser.data_object,
+            ],
+        )
         self.eigenvalues_parser.close()
         self.archive_parser.close()
         self.mainfile_parser.close()

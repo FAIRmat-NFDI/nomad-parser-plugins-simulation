@@ -412,6 +412,8 @@ class PWSCFMainfileXMLParser(MainfileXMLParser):
 
 
 class DOSParser(TextParser):
+    source_data_objects: list[TextParser] = []
+
     # TODO temporary fix for structlog unable to propagate logger
     @property
     def logger(self):
@@ -424,12 +426,14 @@ class DOSParser(TextParser):
         return []
 
     def load_file(self):
+        self.source_data_objects = []
         self.text_parser.mainfile = None
         for dos_file in search_files(
             pattern='*.dos', basedir=os.path.dirname(self.filepath)
         ):
             self.text_parser.mainfile = dos_file
             if self.text_parser.energies is not None:
+                self.source_data_objects.append(self.text_parser)
                 break
         return self.text_parser
 
@@ -439,6 +443,12 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
     dos_parser = DOSParser(text_parser=PWSCFDOSTextParser())
+
+    def parsed_text_parsers(self) -> list[Any]:
+        return [
+            *super().parsed_text_parsers(),
+            *self.dos_parser.source_data_objects,
+        ]
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)

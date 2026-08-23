@@ -41,7 +41,10 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParserLine as FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    search_files,
+    write_parsed_blocks,
+)
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
@@ -535,11 +538,13 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     def write_to_archive(  # noqa: PLR0915, PLR0912
         self,
     ) -> None:
+        text_parsers = []
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
         out_parser.text_parser.line_parsing = True
         out_parser.text_parser.allow_overlap = True
         out_parser.filepath = self.mainfile
+        text_parsers.append(out_parser.data_object)
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
@@ -622,6 +627,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     TaskReference(task=gw_archive.workflow2),
                 ]
             )
+
+        write_parsed_blocks(self.archive, text_parsers)
 
         phonon_archive = (
             self.child_archives.get('phonon') if self.child_archives else None

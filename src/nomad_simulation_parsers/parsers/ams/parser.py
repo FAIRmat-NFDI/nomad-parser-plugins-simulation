@@ -30,6 +30,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     link_outputs_to_model_systems,
     search_files,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import ams
 
@@ -326,6 +327,8 @@ class AMSArchiveWriter(ArchiveWriter):
         link_outputs_to_model_systems(self.archive.data)
 
         self.archive.workflow2 = self.parser.build_workflow(self.parser.data)
+        if hasattr(self.parser.data_object, 'visualize'):
+            write_parsed_blocks(self.archive, self.parser.data_object)
 
 
 class AMSParser(MatchingParser):

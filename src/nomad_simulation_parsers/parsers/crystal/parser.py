@@ -24,6 +24,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import write_parsed_blocks
 from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
@@ -364,6 +365,14 @@ class CrystalArchiveWriter(ArchiveWriter):
             )
 
             self.f25_parser.convert(self.archive_parser)
+
+        write_parsed_blocks(
+            self.archive,
+            [
+                self.output_parser.data_object,
+                *([self.f25_parser.data_object] if self.f25_parser.data_object else []),
+            ],
+        )
 
 
 class CrystalParser(MatchingParser):

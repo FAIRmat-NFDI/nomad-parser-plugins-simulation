@@ -31,6 +31,18 @@ def test_parse_file():
     parser.parse(str(MAINFILE), archive, LOGGER)
 
 
+
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_parse_file_records_parsed_blocks():
+    parser = AMSParser()
+    archive = EntryArchive()
+    parser.parse(str(MAINFILE), archive, LOGGER)
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
 def test_periodic_boundary_conditions_mapping_input_variants():
     parser = MainfileParser()
 
