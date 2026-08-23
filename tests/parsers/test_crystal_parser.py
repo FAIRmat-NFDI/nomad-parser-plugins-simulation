@@ -37,6 +37,15 @@ def test_parse_file():
     _parse()
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_parse_file_records_parsed_blocks():
+    archive = _parse()
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
 def test_workflow_and_scf_steps():
     archive = _parse()
 

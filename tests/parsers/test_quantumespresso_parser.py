@@ -30,6 +30,15 @@ def test_pwscf():
     assert_identity_populated_once(archive)
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_pwscf_records_parsed_blocks():
+    archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
 def test_pwscf_xml():
     archive = _parse(
         'tests/data/quantumespresso/pwscf/TiO2_opt/TiO2.save/data-file-schema.xml',
