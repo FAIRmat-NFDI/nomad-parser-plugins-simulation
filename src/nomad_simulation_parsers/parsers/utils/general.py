@@ -10,16 +10,103 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from nomad.datamodel.datamodel import EntryMetadata
+
+try:
+    from nomad.datamodel.datamodel import AuxiliaryFile, ParsedBlock
+except ImportError:  # Compatibility with NOMAD versions without parsed-block metadata.
+    AuxiliaryFile = None
+    ParsedBlock = None
+
 if TYPE_CHECKING:
+    from nomad.datamodel import EntryArchive
+    from nomad_file_parser.text_parser import TextParser
     from structlog.stdlib import (
         BoundLogger,
     )
+
 from nomad.utils import get_logger
 
 DEFAULT_LOGGER = get_logger(__name__)
 
 # Electronic structure constants
 OCCUPATION_THRESHOLD = 0.5  # Threshold for occupied vs unoccupied states
+
+
+def write_parsed_blocks(
+    archive: 'EntryArchive', text_parsers: 'Iterable[TextParser]'
+) -> None:
+    """Write parsed text ranges to ``archive.metadata.auxiliary_files``.
+
+    Call this after the supplied ``TextParser`` instances have parsed their files.
+    The visualizer's blocks provide the parser ranges and labels for the archive.
+    """
+    metadata = getattr(archive, 'metadata', None)
+    if metadata is None:
+        metadata = EntryMetadata()
+        archive.metadata = metadata
+    if (
+        AuxiliaryFile is None
+        or ParsedBlock is None
+        or not hasattr(metadata, 'auxiliary_files')
+    ):
+        DEFAULT_LOGGER.debug('archive metadata does not support auxiliary files')
+        return
+
+    context = getattr(archive, 'm_context', None)
+    files: dict[str, dict[str, Any]] = {}
+    archive_mainfile = getattr(archive, 'mainfile', None)
+    if not isinstance(text_parsers, Iterable):
+        text_parsers = [text_parsers]
+    for parser in text_parsers:
+        visualize = getattr(parser, 'visualize', None)
+        if not callable(visualize):
+            continue
+        mainfile = parser.mainfile
+        if mainfile is None:
+            continue
+
+        file_name = str(mainfile)
+        if context is not None and hasattr(context, 'get_relative_path'):
+            file_name = context.get_relative_path(file_name)
+
+        file_info = files.setdefault(
+            file_name,
+            {
+                'blocks': [],
+                'parser': type(parser).__name__,
+                'source_path': str(mainfile),
+            },
+        )
+        file_blocks = file_info['blocks']
+        visualizer_blocks = visualize(leaves_only=False).blocks
+        for block in visualizer_blocks:
+            block_kwargs = {
+                key: getattr(block, key)
+                for key in ('quantity_name', 'depth')
+                if getattr(block, key, None) is not None
+            }
+            parsed_block = ParsedBlock(
+                start=block.start,
+                end=block.end,
+                **block_kwargs,
+            )
+            file_blocks.append(parsed_block)
+
+    auxiliary_files = []
+    for file_name, file_info in files.items():
+        file_path = file_info['source_path']
+        file_kwargs = {
+            'file_name': file_name,
+            'parsed_blocks': file_info['blocks'],
+            'parser': file_info['parser'],
+        }
+        if archive_mainfile is not None:
+            file_kwargs['is_mainfile'] = str(archive_mainfile) == file_path
+        auxiliary_file = AuxiliaryFile(**file_kwargs)
+        auxiliary_files.append(auxiliary_file)
+
+    metadata.auxiliary_files = auxiliary_files
 
 
 def create_mapping_table(  # noqa: PLR0915

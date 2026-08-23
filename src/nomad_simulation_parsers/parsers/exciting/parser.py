@@ -33,6 +33,7 @@ from structlog.stdlib import (
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import exciting
 
@@ -433,6 +434,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
         maindir = os.path.dirname(self.mainfile)
         mainbase = os.path.basename(self.mainfile)
+        text_parsers = []
 
         # mainfile INFO.OUT parser
         info_parser = InfoParser(logger=self.logger, text_parser=InfoFileParser())
@@ -444,6 +446,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
+        text_parsers.append(info_parser.data_object)
 
         # Legacy exciting behavior uses INFO.OUT as the canonical source for
         # reference energy metadata. If the selected mainfile is GW_INFO.OUT
@@ -481,7 +484,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
             )
             data_parser.annotation_key = exciting.EIGVAL_KEY
             eigval_parser.convert(data_parser, update_mode='merge')
+            text_parsers.append(eigval_parser.data_object)
             eigval_parser.close()
+            print('EEEEE', text_parsers)
 
         # bandstructure from bandstructure.xml
         bandstructure_files = search_files(
@@ -580,6 +585,8 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
             self.archive.workflow2 = workflow
+
+        write_parsed_blocks(self.archive, text_parsers)
 
         # close parsers
         info_parser.close()
