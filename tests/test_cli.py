@@ -77,6 +77,8 @@ def test_unified_cli_dispatches_mapping_report(monkeypatch):
     assert called['arguments'] == ['--output', 'report.md']
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
 def test_unified_cli_visualizes_parsed_blocks(tmp_path: Path, capsys, monkeypatch):
     mainfile = Path(__file__).parent / 'data' / 'exciting' / 'C_minimal' / 'INFO.OUT'
     output = tmp_path / 'parsed-blocks.html'
