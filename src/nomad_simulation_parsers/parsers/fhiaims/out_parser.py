@@ -443,7 +443,7 @@ class FHIAimsOutFileParser(TextParser):
             ),
             Quantity(
                 'structure',
-                rf'Atomic structure(.|\n)*\| *Atom *x \[A\] *y \[A\] *z \[A\]([\s\S]+?'
+                rf'Atomic structure[\s\S]*?\| *Atom *x \[A\] *y \[A\] *z \[A\]([\s\S]+?'
                 rf'Species[\s\S]+?(?:{RE_N} *{RE_N}| 1\: ))',
                 repeats=False,
                 convert=False,
@@ -953,7 +953,7 @@ class FHIAimsOutFileParser(TextParser):
             ),
             Quantity(
                 'structure',
-                rf'Atomic structure(.|\n)*\| *Atom *x \[A\] *y \[A\] *z \[A\]([\s\S]+?'
+                rf'Atomic structure[\s\S]*?\| *Atom *x \[A\] *y \[A\] *z \[A\]([\s\S]+?'
                 rf'Species[\s\S]+?(?:{RE_N} *{RE_N}| 1\: ))',
                 repeats=False,
                 convert=False,
