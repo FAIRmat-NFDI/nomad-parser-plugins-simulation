@@ -451,3 +451,46 @@ def log(
         return wrapper
 
     return _log(function) if function else _log
+
+
+def write_legacy_and_new(  # noqa: PLR0913, PLR0917
+    legacy_parser: Any,
+    writer: Any,
+    mainfile: str,
+    archive: Any,
+    logger: 'BoundLogger' = None,
+    child_archives: dict[str, Any] | None = None,
+    text_parser_attr: str = 'out_parser',
+) -> None:
+    """Execute the legacy parser and new writer sequentially.
+
+    Reuse the parsed text parser object to eliminate duplicate file scans.
+
+    Args:
+        legacy_parser: An instance of the legacy parser.
+        writer: An instance of ArchiveWriter (e.g. FHIAimsArchiveWriter).
+        mainfile: Path to the mainfile.
+        archive: The target EntryArchive.
+        logger: Bound logger.
+        child_archives: Optional dictionary of child EntryArchives.
+        text_parser_attr: Attribute containing the parsed text parser.
+    """
+    if child_archives and hasattr(legacy_parser, '_child_archives'):
+        legacy_parser._child_archives = child_archives
+
+    legacy_parser.parse(mainfile, archive, logger)
+    parsed_text_parser = getattr(legacy_parser, text_parser_attr, None)
+
+    if (
+        hasattr(writer, 'write')
+        and 'parsed_text_parser' in inspect.signature(writer.write).parameters
+    ):
+        writer.write(
+            mainfile,
+            archive,
+            logger,
+            child_archives=child_archives,
+            parsed_text_parser=parsed_text_parser,
+        )
+    else:
+        writer.write(mainfile, archive, logger, child_archives=child_archives)
