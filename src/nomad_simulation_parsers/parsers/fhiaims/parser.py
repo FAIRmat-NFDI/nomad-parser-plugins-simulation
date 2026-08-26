@@ -414,11 +414,88 @@ class FHIAimsOutMappingParser(TextMappingParser):
                     result.append(res)
         return result
 
+    _ALIAS_MAP = {
+        'x_fhi_aims_program_compilation_date': 'program_compilation_date',
+        'x_fhi_aims_program_compilation_time': 'program_compilation_time',
+        'x_fhi_aims_parallel_task_nr': 'parallel_task_nr',
+        'x_fhi_aims_parallel_task_host': 'parallel_task_host',
+        'x_fhi_aims_controlInOut_hse_unit': 'controlInOut_hse_unit',
+        'x_fhi_aims_controlInOut_hybrid_xc_coeff': 'controlInOut_hybrid_xc_coeff',
+        'x_fhi_aims_controlInOut_MD_time_step': 'controlInOut_MD_time_step',
+        'x_fhi_aims_controlInOut_relativistic': 'controlInOut_relativistic',
+        'x_fhi_aims_controlInOut_relativistic_threshold': 'controlInOut_relativistic_threshold',
+        'x_fhi_aims_controlInOut_xc': 'controlInOut_xc',
+    }
+
+    def load_file(self) -> Any:
+        if self.filepath and self.text_parser is not None:
+            if getattr(self.text_parser, '_results', None) is None:
+                self.text_parser.findlazy = True
+                self.text_parser.mainfile = self.filepath
+        return self.text_parser
+
+    def to_dict(self, **kwargs) -> dict[str | int, Any]:
+        if self.data_object:
+            if hasattr(self.data_object, 'parse'):
+                self.data_object.parse()
+            if hasattr(self.data_object, 'to_dict'):
+                res = self.data_object.to_dict()
+            else:
+                res = getattr(self.data_object, '_results', {})
+            if res:
+                for leg_k, map_k in self._ALIAS_MAP.items():
+                    if leg_k in res and map_k not in res:
+                        res[map_k] = res[leg_k]
+                    elif map_k in res and leg_k not in res:
+                        res[leg_k] = res[map_k]
+            return res or {}
+        return {}
+
+
+def _extend_legacy_out_parser(legacy_out_parser: Any) -> None:
+    """Dynamically extend legacy out_parser with next-gen simulation quantities before parsing."""
+    from nomad_simulation_parsers.parsers.fhiaims.out_parser import FHIAimsOutFileParser
+
+    sim_out = FHIAimsOutFileParser()
+    existing = {q.name for q in legacy_out_parser.quantities if hasattr(q, 'name')}
+    for q in sim_out.quantities:
+        if hasattr(q, 'name') and q.name not in existing:
+            legacy_out_parser.quantities.append(q)
+
+    # Also extend calculation quantities (e.g. force_maximum) inside calculation sections
+    calc_sections = ['full_scf', 'geometry_optimization', 'molecular_dynamics']
+    for q in sim_out.quantities:
+        if getattr(q, 'name', None) in calc_sections and getattr(q, 'sub_parser', None):
+            for leg_q in legacy_out_parser.quantities:
+                if getattr(leg_q, 'name', None) == q.name and getattr(
+                    leg_q, 'sub_parser', None
+                ):
+                    leg_sub_existing = {
+                        sq.name
+                        for sq in leg_q.sub_parser.quantities
+                        if hasattr(sq, 'name')
+                    }
+                    for sq in q.sub_parser.quantities:
+                        if hasattr(sq, 'name') and sq.name not in leg_sub_existing:
+                            leg_q.sub_parser.quantities.append(sq)
+
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = fhiaims.TEXT_KEY
     geometry_parser = GeometryParser()
     control_parser = ControlParser()
+    parsed_text_parser: Any | None = None
+
+    def write(
+        self,
+        mainfile: str,
+        archive: Any,
+        logger=None,
+        child_archives=None,
+        parsed_text_parser=None,
+    ) -> None:
+        self.parsed_text_parser = parsed_text_parser
+        super().write(mainfile, archive, logger, child_archives)
 
     def build_phonopy_object(
         self, tolerance=1e-6
@@ -536,10 +613,15 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         self,
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
-        out_parser.text_parser = FHIAimsOutFileParser()
-        out_parser.text_parser.line_parsing = True
-        out_parser.text_parser.allow_overlap = True
-        out_parser.filepath = self.mainfile
+        if self.parsed_text_parser is not None:
+            out_parser.text_parser = self.parsed_text_parser
+            out_parser._filepath = self.mainfile
+            out_parser._data_object = self.parsed_text_parser
+        else:
+            out_parser.text_parser = FHIAimsOutFileParser()
+            out_parser.text_parser.line_parsing = True
+            out_parser.text_parser.allow_overlap = True
+            out_parser.filepath = self.mainfile
 
         archive_handler = FHIAimsMetainfoParser()
         archive_handler.annotation_key = self.annotation_key
@@ -551,8 +633,14 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
-        archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
-        out_parser.convert(archive_handler, remove=False)
+        has_dos = bool(
+            out_parser.data.get('total_dos_files')
+            or out_parser.data.get('species_projected_dos_files')
+            or out_parser.data.get('atom_projected_dos_files')
+        )
+        if has_dos:
+            archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
+            out_parser.convert(archive_handler, remove=False)
 
         # workflow
         if out_parser.data.get('geometry_optimization'):
@@ -611,7 +699,12 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             # GW single point
             parser = FHIAimsArchiveWriter()
             parser.annotation_key = fhiaims.TEXT_GW_KEY
-            parser.write(self.mainfile, gw_archive, self.logger)
+            parser.write(
+                self.mainfile,
+                gw_archive,
+                self.logger,
+                parsed_text_parser=out_parser.text_parser,
+            )
             gw_archive.workflow2.name = 'GW'
 
             # DFT-GW workflow
@@ -733,11 +826,22 @@ class FHIAimsParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, EntryArchive] = None,
     ) -> None:
+        from electronicparsers.fhiaims.parser import (
+            FHIAimsParser as LegacyFHIAimsParser,
+        )
 
-        # run the old parser
-        # TODO remove
-        from electronicparsers.fhiaims.parser import FHIAimsParser  # noqa
+        from nomad_simulation_parsers.parsers.utils.general import write_legacy_and_new
 
-        FHIAimsParser().parse(mainfile, archive, logger)
+        legacy_parser = LegacyFHIAimsParser()
+        if hasattr(legacy_parser, 'out_parser'):
+            _extend_legacy_out_parser(legacy_parser.out_parser)
 
-        self.archive_writer.write(mainfile, archive, logger, child_archives)
+        write_legacy_and_new(
+            legacy_parser=legacy_parser,
+            writer=self.archive_writer,
+            mainfile=mainfile,
+            archive=archive,
+            logger=logger,
+            child_archives=child_archives,
+            text_parser_attr='out_parser',
+        )
