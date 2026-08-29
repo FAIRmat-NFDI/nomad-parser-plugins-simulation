@@ -135,7 +135,7 @@ class WOutTextParser(TextParser):
         return (niter or default) > 1
 
     def get_kpoints(self, points: np.ndarray) -> np.ndarray:
-        return np.complex128(points[::2])
+        return np.float64(points[::2])
 
     def get_k_line_path(self, k_line_path: dict[str, Any]):
         high_symm_names = k_line_path.get('high_symm_name')
