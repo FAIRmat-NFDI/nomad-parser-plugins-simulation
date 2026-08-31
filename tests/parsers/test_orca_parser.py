@@ -174,7 +174,7 @@ def test_model_system_and_molecular_orbitals():
     assert molecular_orbitals.kind == 'canonical'
     assert molecular_orbitals.occupations[0] == pytest.approx(2.0)
     assert molecular_orbitals.occupations[-1] == pytest.approx(0.0)
-    assert molecular_orbitals.energies[0].to('electron_volt').magnitude == (
+    assert molecular_orbitals.value[0].to('electron_volt').magnitude == (
         pytest.approx(-559.0826)
     )
 
@@ -195,7 +195,7 @@ def test_molecular_orbital_coefficients(archive_with_hdf5):
         assert coefficients[5, 9] == pytest.approx(0.995146)
         assert coefficients[-1, -1] == pytest.approx(-0.006075)
     assert molecular_orbitals.occupations[28] == pytest.approx(0.0)
-    assert molecular_orbitals.energies[0].to('electron_volt').magnitude == (
+    assert molecular_orbitals.value[0].to('electron_volt').magnitude == (
         pytest.approx(-520.4853)
     )
 

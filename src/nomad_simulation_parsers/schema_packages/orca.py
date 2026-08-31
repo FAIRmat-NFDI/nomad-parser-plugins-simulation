@@ -300,7 +300,7 @@ add_mapping_annotation(
     '.occupations',
 )
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.energies,
+    molecular_orbitals.MolecularOrbitals.value,
     OUT_KEY,
     '.energies',
 )
