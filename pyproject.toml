@@ -50,7 +50,7 @@ dependencies = [
 Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.scripts]
-nomad-sim-parser-init = "nomad_simulation_parsers.cli:main"
+nomad-sim-parser = "nomad_simulation_parsers.cli:main"
 
 [project.optional-dependencies]
 md = [
@@ -136,6 +136,14 @@ line-ending = "auto"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ['PLR2004']
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: recognition, source-reader, utility, and mapping-contract tests",
+    "integration: tests of the public parser entry point",
+    "pipeline: parser and NOMAD normalization compatibility tests",
+    "large_fixture: test requires a fixture excluded from the default CI checkout",
+]
 
 [tool.setuptools]
 package-dir = { "" = "src" }

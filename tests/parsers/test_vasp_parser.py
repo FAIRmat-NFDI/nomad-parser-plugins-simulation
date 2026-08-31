@@ -12,10 +12,7 @@ from nomad.utils import get_logger
 from pytest import approx
 
 from nomad_simulation_parsers.parsers.vasp.common import functional_key_from_params
-from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
-    OutcarParser,
-    OutcarTextParser,
-)
+from nomad_simulation_parsers.parsers.vasp.doscar_parser import DOSCARParser
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 
 LOGGER = get_logger(__name__)
@@ -178,12 +175,21 @@ def test_outcar_electronic_outputs_from_doscar_and_eigenvalues():
     if output.electronic_band_gaps:
         assert output.electronic_band_gaps[0].value is not None
 
+    output = outputs[-1]
     assert output.electronic_dos is not None
     assert len(output.electronic_dos) > 0
     dos = output.electronic_dos[0]
     assert dos.value is not None
     assert dos.energies is not None
     assert dos.energies.points is not None
+    assert dos.projected_dos is not None
+    assert len(dos.projected_dos) == 32
+    projected_0 = dos.projected_dos[0].value.to('1/eV').magnitude
+    projected_15 = dos.projected_dos[15].value.to('1/eV').magnitude
+    projected_16 = dos.projected_dos[16].value.to('1/eV').magnitude
+    assert projected_0[218] == approx(0.07835)
+    assert projected_15[277] == approx(0.20490)
+    assert projected_16[238] == approx(0.33900)
 
 
 def test_outcar_scf_steps_and_single_point_convergence():
@@ -201,7 +207,7 @@ def test_outcar_scf_steps_and_single_point_convergence():
 
     outputs = archive.data.outputs
     assert outputs is not None
-    assert len(outputs) == 1
+    assert len(outputs) == 2
     scf_steps = outputs[0].scf_steps
     assert scf_steps is not None
     assert len(scf_steps.energies_total) == 11
@@ -285,26 +291,24 @@ def test_outcar_doscar_suffix_resolution(tmp_path, outcar_name, doscar_name):
         'header3',
         'header4',
         '0.0 0.0 3 0.5 0.0',
-        '-1.0 1.0',
-        '0.0 2.0',
-        '1.0 3.0',
+        '-1.0 1.0 0.0',
+        '0.0 2.0 0.0',
+        '1.0 3.0 0.0',
     ]
     (tmp_path / doscar_name).write_text('\n'.join(doscar_lines))
     # Decoy with different values: resolving the wrong file becomes visible.
-    decoy_lines = doscar_lines[:6] + ['-1.0 9.0', '0.0 9.0', '1.0 9.0']
+    decoy_lines = doscar_lines[:6] + ['-1.0 9.0 0.0', '0.0 9.0 0.0', '1.0 9.0 0.0']
     if doscar_name != 'DOSCAR':
         (tmp_path / 'DOSCAR').write_text('\n'.join(decoy_lines))
     (tmp_path / outcar_name).write_text('dummy\n')
 
-    parser = OutcarParser()
-    parser.text_parser = OutcarTextParser()
+    parser = DOSCARParser()
     parser.filepath = str(tmp_path / outcar_name)
 
-    dos = parser.get_total_dos()
-
+    dos = parser.get_dos(parser.data['total_dos'], parser.data['projected_dos'])
     assert len(dos) == 1
-    assert dos[0]['energy_fermi'] == approx(0.5)
-    assert list(dos[0]['value']) == approx([1.0, 2.0, 3.0])
+    assert parser.data['e_fermi'] == approx(0.5)
+    assert list(dos[0]['dos']) == approx([1.0, 2.0, 3.0])
 
 
 def test_chgcar(test_context, test_upload):

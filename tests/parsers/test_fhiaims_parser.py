@@ -56,13 +56,13 @@ def test_scf_steps_quantities():
         scf_steps = output.scf_steps
         assert scf_steps is not None
         assert len(scf_steps.delta_energies_total) == n_scf
-        assert len(scf_steps.delta_density_rms) == n_scf
+        assert len(scf_steps.delta_charge_abs) == n_scf
         assert len(scf_steps.durations) == n_scf
 
     # Explicitly check last SCF-step deltas in first geometry-optimization step
     first_steps = outputs[1].scf_steps
     assert first_steps.delta_energies_total[-1].to('eV').magnitude == approx(7.477e-09)
-    assert first_steps.delta_density_rms[-1].to('coulomb').magnitude == approx(
+    assert first_steps.delta_charge_abs[-1].to('coulomb').magnitude == approx(
         6.375e-08 * 1.602176634e-19
     )
 
@@ -175,3 +175,36 @@ def test_scf_convergence_criteria():
     assert eigenvalues_criterion is not None
     assert eigenvalues_criterion.threshold_change.magnitude == approx(1.0e-3)
     assert str(eigenvalues_criterion.threshold_change.units) == 'electron_volt'
+
+
+def test_scf_eigenvalues_and_band_structures():
+    """
+    Regression for FHIaims #462: the SCF Kohn-Sham eigenvalue prints populate BOTH
+    `electronic_eigenvalues` and `electronic_band_structures`, as a single converged
+    section per output, correctly shaped (Hartree->eV, `spin_channel` unset for
+    spin-unpolarized) rather than the earlier malformed multi-section output with a
+    bogus `spin_channel` and raw (unconverted) values.
+    """
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    outputs = archive.data.outputs
+    assert outputs is not None and len(outputs) == 5
+
+    for output in outputs:
+        eigenvalues = output.electronic_eigenvalues
+        band_structures = output.electronic_band_structures
+        # exactly one converged section of each per output (spin-unpolarized Si)
+        assert len(eigenvalues) == 1
+        assert len(band_structures) == 1
+
+        for section in (eigenvalues[0], band_structures[0]):
+            # `spin_channel` unset so `occupation` is read on the 0-2 scale
+            assert section.spin_channel is None
+            assert section.value.shape == section.occupation.shape
+            # FHI-aims default prints only the Gamma point
+            assert section.value.shape[0] == 1
+            # Hartree->Joule conversion applied (state 1 ~ -1774 eV, not ~1e20)
+            assert section.value.to('eV').magnitude[0][0] == approx(-1774.0, abs=2.0)
+            assert section.occupation[0][0] == approx(2.0)

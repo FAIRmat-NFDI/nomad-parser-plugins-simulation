@@ -36,7 +36,9 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
-    FHIAimsOutFileParser,
+)
+from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
+    FHIAimsOutFileParserLine as FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -194,7 +196,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
     ) -> list[dict[str, Any]]:
         n_spin = params.get('Number of spin channels', 1)
         eigenvalues = []
-        for data in source:
+        # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
+        # eigenvalues; earlier blocks are intermediate SCF snapshots.
+        for data in (source or [])[-1:]:
             kpts = data.get('kpoints', [np.zeros(3)] * n_spin)
             kpts = np.reshape(kpts, (len(kpts) // n_spin, n_spin, 3))
             kpts = np.transpose(kpts, axes=(1, 0, 2))[0]
@@ -211,8 +215,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         nbands=n_eigs,
                         npoints=n_kpts,
                         points=kpts,
-                        occupations=occs_eigs[0][spin],
-                        eigenvalues=occs_eigs[1][spin],
+                        occupation=occs_eigs[0][spin],
+                        value=occs_eigs[1][spin] * ureg.hartree,
+                        spin_channel=spin if n_spin > 1 else None,
                     )
                 )
         return eigenvalues
@@ -221,15 +226,15 @@ class FHIAimsOutMappingParser(TextMappingParser):
         self, source: list[dict[str, Any]], params: dict[str, Any]
     ) -> list[dict[str, Any]]:
         band_structures = []
-        for spin_channel, eig in enumerate(self.get_eigenvalues(source, params)):
-            values = eig.get('eigenvalues')
+        for eig in self.get_eigenvalues(source, params):
+            values = eig.get('value')
             if values is None:
                 continue
             band_structures.append(
                 dict(
                     value=values,
-                    occupation=eig.get('occupations'),
-                    spin_channel=spin_channel,
+                    occupation=eig.get('occupation'),
+                    spin_channel=eig.get('spin_channel'),
                 )
             )
         return band_structures
@@ -266,6 +271,22 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if k_offset is None:
             return np.array([0.0, 0.0, 0.0])
         return k_offset
+
+    def get_all_criteria(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        criteria = []
+        for fcriteria in [
+            self.get_scf_energy_criterion,
+            self.get_scf_density_criterion,
+            self.get_scf_eigenvalues_criterion,
+        ]:
+            data = fcriteria(source)
+            if data:
+                criteria.append(data)
+        if not criteria:
+            max_iterations = source.get('max_scf_iterations')
+            if max_iterations is not None:
+                criteria.append({'n_max_iterations': max_iterations})
+        return criteria
 
     def get_scf_energy_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
         """
@@ -340,7 +361,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         delta_energies_total = []
-        delta_density_rms = []
+        delta_charge_abs = []
         durations = []
         delta_sum_eigenvalues = []
 
@@ -352,7 +373,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
             delta_density = convergence.get('Change of charge density')
             if delta_density is not None:
-                delta_density_rms.append(
+                delta_charge_abs.append(
                     abs(float(delta_density)) * ureg.elementary_charge
                 )
 
@@ -367,8 +388,8 @@ class FHIAimsOutMappingParser(TextMappingParser):
         scf_steps = {}
         if delta_energies_total:
             scf_steps['delta_energies_total'] = delta_energies_total
-        if delta_density_rms:
-            scf_steps['delta_density_rms'] = delta_density_rms
+        if delta_charge_abs:
+            scf_steps['delta_charge_abs'] = delta_charge_abs
         if len(durations) == len(scf_iterations):
             scf_steps['durations'] = durations
         if delta_sum_eigenvalues:
@@ -516,6 +537,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser.text_parser.line_parsing = True
+        out_parser.text_parser.allow_overlap = True
         out_parser.filepath = self.mainfile
 
         archive_handler = FHIAimsMetainfoParser()
@@ -525,42 +548,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
-
-        # Manually create SelfConsistency instances for SCF convergence criteria
-        # (multi-mapper doesn't support function-returns-list pattern)
-        from nomad_simulations.schema_packages.numerical_settings import (  # noqa: PLC0415
-            SelfConsistency,
-        )
-
-        if self.archive.data.model_method:
-            dft = self.archive.data.model_method[0]
-
-            # Collect all criteria
-            criteria = []
-            scf_criteria = out_parser.get_scf_energy_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-            scf_criteria = out_parser.get_scf_density_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-            scf_criteria = out_parser.get_scf_eigenvalues_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-
-            # If no thresholds parsed but max_iterations present, preserve it
-            if not criteria:
-                max_iterations = out_parser.data.get('max_scf_iterations')
-                if max_iterations is not None:
-                    criteria.append({'n_max_iterations': max_iterations})
-
-            # Add all criteria to numerical_settings
-            for criterion in criteria:
-                # Extract name (must be set after instantiation due to __init__)
-                criterion_name = criterion.pop('name', None)
-                instance = SelfConsistency(**criterion)
-                if criterion_name:
-                    instance.name = criterion_name
-                dft.numerical_settings.append(instance)
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
@@ -608,7 +595,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             if energy_threshold is not None:
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=energy_threshold * ureg.eV,
+                        threshold=energy_threshold,
                         threshold_type='absolute',
                     )
                 ]

@@ -3,7 +3,7 @@ from nomad_simulations.schema_packages import general, outputs, variables
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-from .common import OUT_KEY, XML_KEY
+from .common import DOS_KEY, DOS_OUT_KEY, OUT_KEY, XML_KEY
 
 m_package = SchemaPackage()
 
@@ -24,17 +24,22 @@ class TotalForce(outputs.TotalForce):
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, OUT_KEY, '.n_levels')
     add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.eigenvalues')
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
     )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, OUT_KEY, '.n_levels')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, OUT_KEY, '.spin_channel'
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
-    add_mapping_annotation(outputs.ElectronicBandStructure.value, OUT_KEY, '.value')
     add_mapping_annotation(
-        outputs.ElectronicBandStructure.occupation, OUT_KEY, '.occupation'
+        outputs.ElectronicBandStructure.value, OUT_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, OUT_KEY, '.occupations'
     )
     add_mapping_annotation(
         outputs.ElectronicBandStructure.n_levels, OUT_KEY, '.n_levels'
@@ -45,22 +50,28 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(
         outputs.ElectronicBandStructure.highest_occupied,
         OUT_KEY,
-        '.highest_occupied',
+        ('get_reference_energy', ['@']),
     )
 
 
 class Energy2(variables.Energy2):
     add_mapping_annotation(variables.Energy2.points, OUT_KEY, '.points')
+    add_mapping_annotation(variables.Energy2.points, DOS_KEY, '.energies')
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    add_mapping_annotation(outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value')
+    add_mapping_annotation(outputs.ElectronicDensityOfStates.value, DOS_KEY, '.value')
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.energies_origin,
-        OUT_KEY,
-        '.energies_origin',
+        DOS_OUT_KEY,
+        ('get_reference_energy', ['.bandstructure']),
     )
-    add_mapping_annotation(variables.Energy2.m_def, OUT_KEY, '.energies')
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.contributions,
+        DOS_OUT_KEY,
+        ('get_dos_contributions', ['.@']),
+    )
+    add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
@@ -69,7 +80,7 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         OUT_KEY,
-        '.electronic_eigenvalues',
+        ('get_eigenvalues', ['.@']),
     )
     add_mapping_annotation(
         outputs.Outputs.scf_steps,
@@ -84,13 +95,10 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_band_structures,
         OUT_KEY,
-        '.electronic_band_structures',
+        ('get_eigenvalues', ['.@']),
     )
-    add_mapping_annotation(
-        outputs.Outputs.electronic_dos,
-        OUT_KEY,
-        '.electronic_dos',
-    )
+    add_mapping_annotation(outputs.Outputs.electronic_dos, DOS_KEY, '.@')
+    add_mapping_annotation(outputs.ElectronicDensityOfStates.m_def, DOS_OUT_KEY, '@')
 
 
 class SCFSteps(outputs.SCFSteps):
@@ -129,6 +137,9 @@ class Simulation(general.Simulation):
     )
     add_mapping_annotation(
         general.Simulation.outputs, XML_KEY, ('get_configurations', ['.@']), cache=True
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, DOS_KEY, '.@', update_mode='merge@last'
     )
 
 

@@ -1,8 +1,10 @@
+import ast
 import functools
 import inspect
 import os
 import re
-from collections.abc import Callable
+import textwrap
+from collections.abc import Callable, Iterable
 from glob import glob
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +20,231 @@ DEFAULT_LOGGER = get_logger(__name__)
 
 # Electronic structure constants
 OCCUPATION_THRESHOLD = 0.5  # Threshold for occupied vs unoccupied states
+
+
+def create_mapping_table(  # noqa: PLR0915
+    file_parser: Any,
+    archive_parser: Any,
+    function_objects: Iterable[Any] | Any | None = None,
+) -> list[dict[str, Any]]:
+    """Compare file-parser quantities with the archive mapper's source paths.
+
+    ``file_parser`` can be a ``TextParser`` or a parser wrapper exposing its
+    ``text_parser``.  Nested ``Quantity`` objects are expanded using their
+    ``sub_parser``.  ``archive_parser`` is the ``MetainfoParser`` used in the
+    conversion.  Its mapper is inspected directly, including paths passed to
+    transformation functions, so custom mappings such as
+    ``get_eigenvalues(.eigenvalues_occupancies)`` are included. If
+    ``function_objects`` is provided, functions named by the mapper are also
+    inspected for direct accesses such as ``source.get('energy_total')``,
+    ``source['energy_total']``, and ``source.energy_total``.
+
+    Returns rows with ``quantity``, ``mapped``, and ``mapping`` keys.  The latter
+    contains the mapper source paths that consume the file quantity.
+    """
+
+    parser = getattr(file_parser, 'text_parser', None) or file_parser
+    quantities = getattr(parser, 'quantities', [])
+
+    def iter_quantities(items: Iterable[Any], prefix: str = ''):
+        for quantity in items:
+            name = getattr(quantity, 'name', None)
+            if not name:
+                continue
+            path = f'{prefix}.{name}' if prefix else name
+            yield path, quantity
+            sub_parser = getattr(quantity, 'sub_parser', None)
+            if sub_parser is not None:
+                yield from iter_quantities(getattr(sub_parser, 'quantities', []), path)
+
+    def path_string(path: Any) -> str | None:
+        if path is None:
+            return None
+        value = getattr(path, 'absolute_path', None) or getattr(path, 'path', None)
+        return str(value) if value is not None else str(path)
+
+    def mapper_paths(mapper: Any) -> list[str]:
+        paths: list[str] = []
+        paths.extend(getattr(mapper, 'all_paths', []))
+        source = getattr(mapper, 'source', None)
+        source_path = path_string(getattr(source, 'path', None))
+        if source_path:
+            paths.append(source_path)
+        source_transformer = getattr(source, 'transformer', None)
+        if source_transformer is not None:
+            paths.extend(
+                path
+                for path in (
+                    path_string(argument)
+                    for argument in getattr(source_transformer, 'function_args', [])
+                )
+                if path
+            )
+        paths.extend(
+            path
+            for path in (
+                path_string(argument)
+                for argument in getattr(mapper, 'function_args', [])
+            )
+            if path
+        )
+        for child in getattr(mapper, 'mappers', []):
+            paths.extend(mapper_paths(child))
+        return paths
+
+    def mapper_function_names(mapper: Any) -> set[str]:
+        names = set()
+        source_transformer = getattr(
+            getattr(mapper, 'source', None), 'transformer', None
+        )
+        if source_transformer is not None and source_transformer.function_name:
+            names.add(source_transformer.function_name)
+        function_name = getattr(mapper, 'function_name', None)
+        if function_name:
+            names.add(function_name)
+        for child in getattr(mapper, 'mappers', []):
+            names.update(mapper_function_names(child))
+        return names
+
+    def function_accesses(objects: Iterable[Any] | Any | None) -> dict[str, set[str]]:
+        if objects is None:
+            return {}
+        if isinstance(objects, type | str) or not isinstance(objects, Iterable):
+            objects = [objects]
+        objects = list(objects)
+        accesses: dict[str, set[str]] = {}
+        cached_accesses: dict[int, set[str]] = {}
+        inspecting: set[int] = set()
+
+        def find_function(name: str) -> Any:
+            for obj in objects:
+                candidate = getattr(obj, name, None)
+                if callable(candidate):
+                    return candidate
+            return None
+
+        def inspect_function(name: str, candidate: Any) -> set[str]:
+            # Accessing a bound method creates a new method object each time.
+            # Its underlying function is stable and lets helper results be
+            # cached independently of the traversal order.
+            identity = id(getattr(candidate, '__func__', candidate))
+            if identity in cached_accesses:
+                return cached_accesses[identity]
+            if identity in inspecting:
+                return set()
+            inspecting.add(identity)
+
+            try:
+                source = inspect.getsource(candidate)
+            except (OSError, TypeError):
+                cached_accesses[identity] = set()
+                inspecting.remove(identity)
+                return cached_accesses[identity]
+
+            source = textwrap.dedent(source)
+            try:
+                function = ast.parse(source).body[0]
+                arguments = function.args  # type: ignore[attr-defined]
+                access_names = [
+                    argument.arg
+                    for argument in (
+                        *getattr(arguments, 'posonlyargs', []),
+                        *arguments.args,
+                        *arguments.kwonlyargs,
+                    )
+                    if argument.arg not in {'self', 'cls'}
+                ]
+                access_names.extend(
+                    node.id
+                    for node in ast.walk(function)
+                    if isinstance(node, ast.Name)
+                    and isinstance(node.ctx, ast.Store)
+                    and node.id not in {'self', 'cls'}
+                )
+            except (AttributeError, SyntaxError, TypeError):
+                access_names = ['source']
+
+            keys: set[str] = set()
+            for access_name in sorted(set(access_names)):
+                parameter = re.escape(access_name)
+                matches = re.findall(
+                    rf"(?:\b{parameter}\s*\.\s*get\s*\(\s*['\"]([^'\"]+)"
+                    rf"|\b{parameter}\s*\[\s*['\"]([^'\"]+)"
+                    rf'|\b{parameter}\s*\.\s*(?!get\b)([A-Za-z_]\w*))',
+                    source,
+                )
+                keys.update(key for match in matches for key in match if key)
+
+            helper_names = {
+                call.func.attr
+                for call in ast.walk(function)
+                if isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id in {'self', 'cls'}
+            }
+            helper_names.update(
+                call.func.id
+                for call in ast.walk(function)
+                if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+            )
+            for helper_name in sorted(helper_names):
+                helper = find_function(helper_name)
+                if helper is not None:
+                    keys.update(inspect_function(helper_name, helper))
+            inspecting.remove(identity)
+            cached_accesses[identity] = keys
+            return cached_accesses[identity]
+
+        for name in sorted(mapper_function_names(archive_parser.mapper)):
+            candidate = find_function(name)
+            if candidate is None:
+                continue
+            accesses[name] = inspect_function(name, candidate)
+        return accesses
+
+    def normalize(path: str) -> str:
+        path = path.strip().lstrip('.')
+        path = path.replace('"', '').replace("'", '')
+        path = re.sub(r'\[[^]]*\]', '', path)
+        return path.strip('.')
+
+    source_paths = [
+        normalize(part)
+        for path in mapper_paths(archive_parser.mapper)
+        for part in path.split('||')
+    ]
+    source_paths = sorted(
+        dict.fromkeys(path for path in source_paths if path and path != '@')
+    )
+    accessed_by = function_accesses(function_objects)
+    function_names = sorted(mapper_function_names(archive_parser.mapper))
+    table = []
+    for quantity_path, _ in iter_quantities(quantities):
+        normalized_quantity = normalize(quantity_path)
+        consumed_by = [
+            source
+            for source in source_paths
+            if source == normalized_quantity
+            or source.startswith(f'{normalized_quantity}.')
+            or normalized_quantity.startswith(f'{source}.')
+            or normalized_quantity.endswith(f'.{source}')
+        ]
+        leaf = normalized_quantity.rsplit('.', 1)[-1]
+        consumed_by.extend(
+            f'{name}({leaf})'
+            for name in function_names
+            if leaf in accessed_by.get(name, set())
+        )
+        consumed_by = list(dict.fromkeys(consumed_by))
+        table.append(
+            {
+                'quantity': quantity_path,
+                'mapped': bool(consumed_by),
+                'mapping': consumed_by,
+            }
+        )
+    return table
 
 
 def as_list(value: Any) -> list[Any]:
