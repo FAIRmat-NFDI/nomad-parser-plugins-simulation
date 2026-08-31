@@ -299,8 +299,10 @@ add_mapping_annotation(
     OUT_KEY,
     '.occupations',
 )
+# `value` overrides the `PhysicalProperty.value` placeholder; its class-attribute
+# access can resolve to `None`, so read the quantity from the `m_def` registry.
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.value,
+    molecular_orbitals.MolecularOrbitals.m_def.all_quantities['value'],
     OUT_KEY,
     '.energies',
 )
