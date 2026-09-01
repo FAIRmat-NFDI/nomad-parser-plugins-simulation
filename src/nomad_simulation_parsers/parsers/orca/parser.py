@@ -167,6 +167,23 @@ def _coefficient_matrix(
 
 
 class OutParser(MappingTextParser):
+    _BASIS_SET_ROLES = {
+        'main_basis_set': 'orbital',
+        'auxj_basis_set': 'auxiliary_scf',
+        'auxjk_basis_set': 'auxiliary_scf',
+        'auxc_basis_set': 'auxiliary_post_hf',
+    }
+    _BASIS_SET_KEYS = {
+        **dict.fromkeys(
+            ('HF', 'DFT', 'MultireferenceSCF', 'MultireferenceCI'),
+            frozenset({'main_basis_set', 'auxj_basis_set', 'auxjk_basis_set'}),
+        ),
+        **dict.fromkeys(
+            ('PerturbationMethod', 'CC', 'MultireferencePT'),
+            frozenset({'main_basis_set', 'auxc_basis_set'}),
+        ),
+    }
+
     def __init__(self) -> None:
         super().__init__(text_parser=OutReader())
         self._method = None
@@ -275,7 +292,8 @@ class OutParser(MappingTextParser):
     def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         return self._navigate(source, 'single_point', 'self_consistent', 'scf_settings')
 
-    def _get_xc_functional_key(self, scf_settings: dict[str, Any]) -> str:
+    def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
+        xc = {}
         exchange = self._scalar(scf_settings.get('exchange_functional'))
         correlation = self._scalar(
             scf_settings.get('correlation_functional')
@@ -286,23 +304,13 @@ class OutParser(MappingTextParser):
             for value in (exchange, correlation)
             if isinstance(value, str) and value
         ]
-        return '+'.join(dict.fromkeys(functionals))
-
-    def _get_exact_exchange_fraction(self, scf_settings: dict[str, Any]) -> Any:
-        return self._scalar(scf_settings.get('fraction_hf_exchange'))
-
-    def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
-        xc = {}
-        functional_key = self._get_xc_functional_key(scf_settings)
+        functional_key = '+'.join(dict.fromkeys(functionals))
         if functional_key:
             xc['functional_key'] = functional_key
-        hf_fraction = self._get_exact_exchange_fraction(scf_settings)
+        hf_fraction = self._scalar(scf_settings.get('fraction_hf_exchange'))
         if hf_fraction is not None:
             xc['global_exact_exchange'] = hf_fraction
         return xc
-
-    def _get_dft_reference_form(self, scf_settings: dict[str, Any]) -> str | None:
-        return self._dft_reference_form(scf_settings.get('hf_type'))
 
     def get_dft(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = self._build_xc(scf_settings)
@@ -310,7 +318,7 @@ class OutParser(MappingTextParser):
             return {}
 
         method = {'xc': xc}
-        reference_form = self._get_dft_reference_form(scf_settings)
+        reference_form = self._dft_reference_form(scf_settings.get('hf_type'))
         if reference_form:
             method['reference_form'] = reference_form
         return method
@@ -650,31 +658,17 @@ class OutParser(MappingTextParser):
         model.setdefault('basis_set', {})
         return [model]
 
-    @staticmethod
-    def _allowed_basis_set_keys(method: str | None) -> set[str]:
-        if method in ('HF', 'DFT', 'MultireferenceSCF', 'MultireferenceCI'):
-            return {'main_basis_set', 'auxj_basis_set', 'auxjk_basis_set'}
-        if method in ('PerturbationMethod', 'CC', 'MultireferencePT'):
-            return {'main_basis_set', 'auxc_basis_set'}
-        return set()
-
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         source = source.get('basis_set', self.data)
         if not source:
             return []
         names = self._parser_results(source.get('basis_set_name'))
         totals = self._parser_results(source.get('basis_set_total'))
-        roles = {
-            'main_basis_set': 'orbital',
-            'auxj_basis_set': 'auxiliary_scf',
-            'auxjk_basis_set': 'auxiliary_scf',
-            'auxc_basis_set': 'auxiliary_post_hf',
-        }
-        allowed_keys = self._allowed_basis_set_keys(self._method)
+        allowed_keys = self._BASIS_SET_KEYS.get(self._method, frozenset())
         if not allowed_keys:
             return []
         components = []
-        for key, role in roles.items():
+        for key, role in self._BASIS_SET_ROLES.items():
             if key not in allowed_keys:
                 continue
             name = self._scalar(names.get(key))
