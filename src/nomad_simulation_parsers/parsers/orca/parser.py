@@ -217,10 +217,6 @@ class OutParser(MappingTextParser):
         coordinates = single_point.get('cartesian_coordinates', [])
         return str_to_cartesian_coordinates(coordinates) if coordinates else ([], None)
 
-    @staticmethod
-    def _build_particle_states(symbols: list[str]) -> list[dict[str, str]]:
-        return [{'chemical_symbol': symbol} for symbol in symbols]
-
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
             source, 'single_point', 'self_consistent', 'scf_settings'
@@ -243,7 +239,9 @@ class OutParser(MappingTextParser):
             {
                 'is_representative': True,
                 'positions': positions,
-                'particle_states': self._build_particle_states(symbols),
+                'particle_states': [
+                    {'chemical_symbol': symbol} for symbol in symbols
+                ],
                 **self._get_charge_and_multiplicity(src),
             }
         ]
@@ -329,13 +327,6 @@ class OutParser(MappingTextParser):
             self._method = 'DFT'
         return [method] if method else []
 
-    def _build_active_space_data(self, casscf: dict[str, Any]) -> dict[str, Any]:
-        return {
-            'n_active_electrons': self._to_scalar(casscf.get('n_active_electrons')),
-            'n_active_orbitals': self._to_scalar(casscf.get('n_active_orbitals')),
-            'orbital_space_type': 'CAS',
-        }
-
     def _collect_state_data(self, casscf: dict[str, Any]) -> dict[str, Any]:
         state_multiplicities = []
         n_roots_per_multiplicity = []
@@ -380,7 +371,11 @@ class OutParser(MappingTextParser):
 
         method = {
             'type': 'CASCI' if self._is_casci(casscf, input_file) else 'CASSCF',
-            'active_space': self._build_active_space_data(casscf),
+            'active_space': {
+                'n_active_electrons': self._to_scalar(casscf.get('n_active_electrons')),
+                'n_active_orbitals': self._to_scalar(casscf.get('n_active_orbitals')),
+                'orbital_space_type': 'CAS',
+            },
             **self._collect_state_data(casscf),
         }
 
