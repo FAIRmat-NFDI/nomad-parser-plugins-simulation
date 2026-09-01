@@ -187,9 +187,6 @@ class OutParser(MappingTextParser):
             current = self._parser_results(current.get(key))
         return current
 
-    def _get_mdci_data(self, source: dict[str, Any]) -> dict[str, Any]:
-        return self._navigate(source, 'single_point', 'ci')
-
     @staticmethod
     def _scalar(value: Any) -> Any:
         if isinstance(value, np.ndarray):
@@ -317,9 +314,6 @@ class OutParser(MappingTextParser):
         if reference_form:
             method['reference_form'] = reference_form
         return method
-
-    def _get_casscf_data(self, source: dict[str, Any]) -> dict[str, Any]:
-        return self._navigate(source, 'single_point', 'casscf')
 
     def get_dft_methods(
         self, scf_settings: dict[str, Any]
