@@ -1858,8 +1858,8 @@ name = "httpcore2"
 version = "2.10.0"
 source = { registry = "https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple" }
 dependencies = [
-    { name = "h11" },
-    { name = "truststore" },
+    { name = "h11", marker = "python_full_version < '3.11' or sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "python_full_version < '3.11' or sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/83/a896fc59940fc5a6e2aff3a4be1d92fa890112936803b331cae75a993c34/httpcore2-2.10.0.tar.gz", hash = "sha256:13c0cc3d1919d4f28457f60cd2c2abe04113a8af184ccf1142811beba936f9dc", size = 67427, upload-time = "2026-08-09T09:11:32.123Z" }
 wheels = [
@@ -3550,8 +3550,8 @@ provides-extras = ["md", "dev"]
 
 [[package]]
 name = "nomad-simulations"
-version = "0.8.0"
-source = { git = "https://github.com/nomad-coe/nomad-simulations.git?rev=develop#90bb7b1fcb26f4056bcfead71b7b3779c0701af8" }
+version = "0.8.1.dev7+g722b118f8"
+source = { git = "https://github.com/nomad-coe/nomad-simulations.git?rev=develop#722b118f8dbf474938efc230bf42e6d377a88184" }
 dependencies = [
     { name = "matid" },
     { name = "nomad-lab", extra = ["infrastructure"] },
