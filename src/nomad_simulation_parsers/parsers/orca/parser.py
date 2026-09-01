@@ -606,7 +606,8 @@ class OutParser(MappingTextParser):
         reference_form = self._hf_reference_form(
             cc_data.get('cc_reference_wavefunction')
         )
-        self._method = 'HF'
+        if reference_form:
+            self._method = 'HF'
         return [{'reference_form': reference_form}] if reference_form else []
 
     def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
