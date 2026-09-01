@@ -675,7 +675,6 @@ class OutParser(MappingTextParser):
             if not isinstance(name, str) or not name.strip():
                 continue
             component = {
-                'source_key': key,
                 'basis_set': name.strip(),
                 'type': 'GTO',
                 'role': role,
