@@ -361,26 +361,25 @@ class OutParser(MappingTextParser):
             'state_weights': state_weights or None,
         }
 
-    def _is_casci(self, source: dict[str, Any], casscf: dict[str, Any]) -> bool:
-        input_file = source.get('input_file') or ''
+    def _is_casci(self, casscf: dict[str, Any], input_file: Any) -> bool:
         if isinstance(input_file, (list, tuple, np.ndarray)):
             input_file = ' '.join(str(item) for item in input_file)
-        return 'MAXITER 1' in str(input_file).upper() or any(
+        return 'MAXITER 1' in str(input_file or '').upper() or any(
             self._parser_results(block).get('casci_marker') is not None
             for block in casscf.get('block') or []
         )
 
     def _get_multireference_method_data(
         self,
-        source: dict[str, Any],
+        casscf: dict[str, Any],
+        input_file: Any,
         method_type: str | None = None,
     ) -> dict[str, Any] | None:
-        casscf = self._get_casscf_data(source)
         if not casscf:
             return None
 
         method = {
-            'type': 'CASCI' if self._is_casci(source, casscf) else 'CASSCF',
+            'type': 'CASCI' if self._is_casci(casscf, input_file) else 'CASSCF',
             'active_space': self._build_active_space_data(casscf),
             **self._collect_state_data(casscf),
         }
@@ -391,32 +390,30 @@ class OutParser(MappingTextParser):
         return method
 
     def get_multireference_scf_methods(
-        self, source: dict[str, Any]
+        self, casscf: dict[str, Any], input_file: Any
     ) -> list[dict[str, Any]]:
-        method = self._get_multireference_method_data(source, 'CASSCF')
+        method = self._get_multireference_method_data(casscf, input_file, 'CASSCF')
         if method is None:
             return []
         self._method = 'MultireferenceSCF'
         return [method]
 
     def get_multireference_ci_methods(
-        self, source: dict[str, Any]
+        self, casscf: dict[str, Any], input_file: Any
     ) -> list[dict[str, Any]]:
-        method = self._get_multireference_method_data(source, 'CASCI')
+        method = self._get_multireference_method_data(casscf, input_file, 'CASCI')
         if method is None:
             return []
         self._method = 'MultireferenceCI'
         return [method]
 
     def get_multireference_pt_methods(
-        self, source: dict[str, Any]
+        self, casscf: dict[str, Any], input_file: Any
     ) -> list[dict[str, Any]]:
-        method = self._get_multireference_method_data(source)
+        method = self._get_multireference_method_data(casscf, input_file)
         if method is None:
             return []
 
-        casscf = self._get_casscf_data(source)
-        input_file = source.get('input_file') or ''
         hints = '\n'.join(
             str(value)
             for value in (

@@ -85,7 +85,7 @@ add_mapping_annotation(model_method.HF.reference_form, OUT_KEY, '.reference_form
 add_mapping_annotation(
     model_method.MultireferenceSCF.m_def,
     OUT_KEY,
-    ('get_multireference_scf_methods', ['.@']),
+    ('get_multireference_scf_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
@@ -130,7 +130,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.MultireferencePT.m_def,
     OUT_KEY,
-    ('get_multireference_pt_methods', ['.@']),
+    ('get_multireference_pt_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferencePT.type, OUT_KEY, '.type')
@@ -146,7 +146,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.MultireferenceCI.m_def,
     OUT_KEY,
-    ('get_multireference_ci_methods', ['.@']),
+    ('get_multireference_ci_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceCI.type, OUT_KEY, '.type')
