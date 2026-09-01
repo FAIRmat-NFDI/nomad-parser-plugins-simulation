@@ -257,7 +257,10 @@ add_mapping_annotation(model_method.PerturbationMethod.order, OUT_KEY, '.order')
 add_mapping_annotation(
     model_method.PerturbationMethod.m_def,
     OUT_KEY,
-    ('get_perturbation_methods', ['.single_point.ci', '.single_point.mp2', '.input_file']),
+    (
+        'get_perturbation_methods',
+        ['.single_point.ci', '.single_point.mp2', '.input_file'],
+    ),
     update_mode='append',
 )
 
