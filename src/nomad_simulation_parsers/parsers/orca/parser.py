@@ -12,18 +12,8 @@ from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import (
     CC,
     HF,
-    ActiveSpace,
-    LocalCorrelation,
-    LocalCorrelationSpace,
     OrbitalLocalization,
     PerturbationMethod,
-)
-from nomad_simulations.schema_packages.numerical_settings import (
-    LocalCorrelationSettings,
-    LocalCorrelationThreshold,
-)
-from nomad_simulations.schema_packages.properties.molecular_orbitals import (
-    MolecularOrbitals,
 )
 from nomad_simulations.schema_packages.workflow.general import SerialWorkflow
 
@@ -734,7 +724,6 @@ class OutParser(MappingTextParser):
 
         n_ao = self._scalar(basis_set_total.get('main_basis_set'))
         molecular_orbitals = {
-            'm_def': MolecularOrbitals.m_def.qualified_name(),
             'n_mo': int(table.shape[0])
             if table is not None
             else int(coefficients.shape[0]),
@@ -768,61 +757,6 @@ class OutParser(MappingTextParser):
                 'molecular_orbitals': molecular_orbitals,
             }
         ]
-
-    @staticmethod
-    def _build_active_space(data: dict[str, Any] | None) -> ActiveSpace | None:
-        return ActiveSpace(**data) if data else None
-
-    @staticmethod
-    def _build_local_correlation(data: dict[str, Any]) -> LocalCorrelation:
-        return LocalCorrelation(
-            type=data.get('type'),
-            spaces=[
-                LocalCorrelationSpace(**space_data)
-                for space_data in data.get('spaces', [])
-            ],
-        )
-
-    @staticmethod
-    def _build_local_settings(data: dict[str, Any]) -> LocalCorrelationSettings:
-        return LocalCorrelationSettings(
-            screening_thresholds=[
-                LocalCorrelationThreshold(**threshold)
-                for threshold in data.get('screening_thresholds', [])
-            ]
-        )
-
-    @classmethod
-    def _build_perturbation(cls, data: dict[str, Any]) -> PerturbationMethod:
-        return PerturbationMethod(
-            type=data.get('type'),
-            order=data.get('order'),
-            spin_component_scaling=data.get('spin_component_scaling'),
-            local_correlation=cls._build_local_correlation(data['local_correlation'])
-            if data.get('local_correlation')
-            else None,
-            numerical_settings=[
-                cls._build_local_settings(settings)
-                for settings in data.get('numerical_settings', [])
-            ],
-        )
-
-    @classmethod
-    def _build_cc(cls, data: dict[str, Any]) -> CC:
-        return CC(
-            type=data.get('type'),
-            excitation_order=data.get('excitation_order'),
-            perturbative_correction=data.get('perturbative_correction'),
-            perturbative_correction_order=data.get('perturbative_correction_order'),
-            explicit_correlation=data.get('explicit_correlation'),
-            local_correlation=cls._build_local_correlation(data['local_correlation'])
-            if data.get('local_correlation')
-            else None,
-            numerical_settings=[
-                cls._build_local_settings(settings)
-                for settings in data.get('numerical_settings', [])
-            ],
-        )
 
     def build_workflow(
         self, archive: 'EntryArchive', logger: 'BoundLogger'
