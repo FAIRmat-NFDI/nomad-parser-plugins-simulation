@@ -6,6 +6,7 @@ import numpy as np
 from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -766,7 +767,28 @@ class OutParser(MappingTextParser):
         return archive.workflow2
 
 
+class OrcaArchiveWriter(ArchiveWriter):
+    def write_to_archive(self) -> None:
+        reload(orca)
+
+        reader = OutParser()
+        reader.filepath = self.mainfile
+        self.archive.data = Simulation(program=Program(name='ORCA'))
+        metainfo_parser = MetainfoParser(data_object=self.archive.data)
+        metainfo_parser.annotation_key = orca.OUT_KEY
+        metainfo_parser.max_nested_level = 3
+
+        try:
+            reader.convert(metainfo_parser)
+            reader.build_workflow(self.archive, self.logger)
+        finally:
+            metainfo_parser.close()
+            reader.close()
+
+
 class OrcaParser(MatchingParser):
+    archive_writer = OrcaArchiveWriter()
+
     def parse(
         self,
         mainfile: str,
@@ -774,18 +796,4 @@ class OrcaParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] | None = None,
     ) -> None:
-        reload(orca)
-
-        reader = OutParser()
-        reader.filepath = mainfile
-        archive.data = Simulation(program=Program(name='ORCA'))
-        metainfo_parser = MetainfoParser(data_object=archive.data)
-        metainfo_parser.annotation_key = orca.OUT_KEY
-        metainfo_parser.max_nested_level = 3
-
-        try:
-            reader.convert(metainfo_parser)
-            reader.build_workflow(archive, logger)
-        finally:
-            metainfo_parser.close()
-            reader.close()
+        self.archive_writer.write(mainfile, archive, logger, child_archives)
