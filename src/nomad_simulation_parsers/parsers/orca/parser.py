@@ -307,8 +307,7 @@ class OutParser(MappingTextParser):
     def _get_dft_reference_form(self, scf_settings: dict[str, Any]) -> str | None:
         return self._dft_reference_form(scf_settings.get('hf_type'))
 
-    def get_dft(self, src: dict[str, Any]) -> dict[str, Any]:
-        scf_settings = self._get_scf_settings(src)
+    def get_dft(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = self._build_xc(scf_settings)
         if not xc:
             return {}
@@ -322,8 +321,10 @@ class OutParser(MappingTextParser):
     def _get_casscf_data(self, source: dict[str, Any]) -> dict[str, Any]:
         return self._navigate(source, 'single_point', 'casscf')
 
-    def get_dft_methods(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        method = self.get_dft(src)
+    def get_dft_methods(
+        self, scf_settings: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        method = self.get_dft(scf_settings)
         if method:
             self._method = 'DFT'
         return [method] if method else []
