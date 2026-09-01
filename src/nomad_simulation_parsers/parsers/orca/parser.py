@@ -463,11 +463,10 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _infer_local_correlation_type(
-        source: dict[str, Any], cc_data: dict[str, Any]
+        input_file: Any, cc_data: dict[str, Any]
     ) -> str | None:
-        input_file = source.get('input_file') or ''
         kc_formation = OutParser._scalar(cc_data.get('kc_formation')) or ''
-        hints = f'{input_file}\n{kc_formation}'.upper()
+        hints = f'{input_file or ""}\n{kc_formation}'.upper()
         return next(
             (
                 local_type
@@ -538,13 +537,14 @@ class OutParser(MappingTextParser):
             methods, key=lambda item: item.get('n_localized_orbitals', 0), reverse=True
         )[:1]
 
-    def get_perturbation_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        mdci_data = self._get_mdci_data(source)
-        mp2_data = self._navigate(source, 'single_point', 'mp2')
+    def get_perturbation_methods(
+        self, mdci_data: dict[str, Any], mp2_data: dict[str, Any], input_file: Any
+    ) -> list[dict[str, Any]]:
+        mdci_data = mdci_data or {}
         if not mdci_data and not mp2_data:
             return []
 
-        local_type = self._infer_local_correlation_type(source, mdci_data)
+        local_type = self._infer_local_correlation_type(input_file, mdci_data)
         method: dict[str, Any] = {'type': 'MP', 'order': 2}
         scaling = self._scalar(mdci_data.get('spin_component_scaling'))
         if isinstance(scaling, str) and scaling.strip().upper() in {'SCS', 'SOS'}:
@@ -558,9 +558,9 @@ class OutParser(MappingTextParser):
         return [method]
 
     def get_coupled_cluster_methods(
-        self, source: dict[str, Any]
+        self, cc_data: dict[str, Any], input_file: Any
     ) -> list[dict[str, Any]]:
-        cc_data = self._get_mdci_data(source)
+        cc_data = cc_data or {}
         cc_type = self._scalar(cc_data.get('coupled_cluster_type'))
         if not isinstance(cc_type, str) or not cc_type:
             return []
@@ -580,7 +580,7 @@ class OutParser(MappingTextParser):
             )
         if str(self._scalar(cc_data.get('f12_correction_on_off'))).upper() == 'ON':
             method['explicit_correlation'] = 'F12'
-        local_type = self._infer_local_correlation_type(source, cc_data)
+        local_type = self._infer_local_correlation_type(input_file, cc_data)
         if local_type:
             method['local_correlation'] = self._build_local_correlation_dict(local_type)
         thresholds = self._local_thresholds(cc_data)
@@ -589,8 +589,8 @@ class OutParser(MappingTextParser):
         self._method = 'CC'
         return [{key: value for key, value in method.items() if value is not None}]
 
-    def get_hf_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        cc_data = self._get_mdci_data(source)
+    def get_hf_methods(self, cc_data: dict[str, Any]) -> list[dict[str, Any]]:
+        cc_data = cc_data or {}
         reference_form = self._hf_reference_form(
             cc_data.get('cc_reference_wavefunction')
         )
