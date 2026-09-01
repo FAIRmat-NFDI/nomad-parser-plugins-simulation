@@ -205,7 +205,7 @@ class OutParser(MappingTextParser):
         return current
 
     @staticmethod
-    def _scalar(value: Any) -> Any:
+    def _to_scalar(value: Any) -> Any:
         if isinstance(value, np.ndarray):
             value = value.tolist()
         if isinstance(value, (list, tuple)):
@@ -226,10 +226,10 @@ class OutParser(MappingTextParser):
             source, 'single_point', 'self_consistent', 'scf_settings'
         )
         result = {}
-        total_charge = self._scalar(scf_settings.get('total_charge'))
+        total_charge = self._to_scalar(scf_settings.get('total_charge'))
         if total_charge is not None:
             result['total_charge'] = int(total_charge)
-        multiplicity = self._scalar(scf_settings.get('multiplicity'))
+        multiplicity = self._to_scalar(scf_settings.get('multiplicity'))
         if multiplicity is not None:
             result['total_spin_multiplicity'] = int(multiplicity)
         return result
@@ -250,7 +250,7 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _normalize_localization_method(value: Any) -> str | None:
-        raw = OutParser._scalar(value)
+        raw = OutParser._to_scalar(value)
         if not isinstance(raw, str):
             return None
 
@@ -269,7 +269,7 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _hf_reference_form(value: Any) -> str | None:
-        reference = OutParser._scalar(value)
+        reference = OutParser._to_scalar(value)
         if not isinstance(reference, str):
             return None
         reference = reference.upper()
@@ -277,7 +277,7 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _dft_reference_form(value: Any) -> str | None:
-        reference = OutParser._scalar(value)
+        reference = OutParser._to_scalar(value)
         if not isinstance(reference, str):
             return None
         return {
@@ -294,8 +294,8 @@ class OutParser(MappingTextParser):
 
     def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = {}
-        exchange = self._scalar(scf_settings.get('exchange_functional'))
-        correlation = self._scalar(
+        exchange = self._to_scalar(scf_settings.get('exchange_functional'))
+        correlation = self._to_scalar(
             scf_settings.get('correlation_functional')
             or scf_settings.get('correl_functional')
         )
@@ -307,7 +307,7 @@ class OutParser(MappingTextParser):
         functional_key = '+'.join(dict.fromkeys(functionals))
         if functional_key:
             xc['functional_key'] = functional_key
-        hf_fraction = self._scalar(scf_settings.get('fraction_hf_exchange'))
+        hf_fraction = self._to_scalar(scf_settings.get('fraction_hf_exchange'))
         if hf_fraction is not None:
             xc['global_exact_exchange'] = hf_fraction
         return xc
@@ -323,9 +323,7 @@ class OutParser(MappingTextParser):
             method['reference_form'] = reference_form
         return method
 
-    def get_dft_methods(
-        self, scf_settings: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def get_dft_methods(self, scf_settings: dict[str, Any]) -> list[dict[str, Any]]:
         method = self.get_dft(scf_settings)
         if method:
             self._method = 'DFT'
@@ -333,8 +331,8 @@ class OutParser(MappingTextParser):
 
     def _build_active_space_data(self, casscf: dict[str, Any]) -> dict[str, Any]:
         return {
-            'n_active_electrons': self._scalar(casscf.get('n_active_electrons')),
-            'n_active_orbitals': self._scalar(casscf.get('n_active_orbitals')),
+            'n_active_electrons': self._to_scalar(casscf.get('n_active_electrons')),
+            'n_active_orbitals': self._to_scalar(casscf.get('n_active_orbitals')),
             'orbital_space_type': 'CAS',
         }
 
@@ -344,11 +342,11 @@ class OutParser(MappingTextParser):
         state_weights = []
         for block in casscf.get('block') or []:
             block_data = self._parser_results(block)
-            multiplicity = self._scalar(block_data.get('multiplicity'))
+            multiplicity = self._to_scalar(block_data.get('multiplicity'))
             weights = block_data.get('root_weights') or []
             if isinstance(weights, np.ndarray):
                 weights = weights.tolist()
-            n_roots = self._scalar(block_data.get('n_roots'))
+            n_roots = self._to_scalar(block_data.get('n_roots'))
             if multiplicity is not None:
                 state_multiplicities.append(int(multiplicity))
                 n_roots_per_multiplicity.append(len(weights) or int(n_roots or 0))
@@ -419,8 +417,8 @@ class OutParser(MappingTextParser):
         hints = '\n'.join(
             str(value)
             for value in (
-                self._scalar(casscf.get('pt_method')),
-                self._scalar(casscf.get('qd_nevpt_type')),
+                self._to_scalar(casscf.get('pt_method')),
+                self._to_scalar(casscf.get('qd_nevpt_type')),
                 input_file,
             )
             if value
@@ -467,7 +465,7 @@ class OutParser(MappingTextParser):
     def _infer_local_correlation_type(
         input_file: Any, cc_data: dict[str, Any]
     ) -> str | None:
-        kc_formation = OutParser._scalar(cc_data.get('kc_formation')) or ''
+        kc_formation = OutParser._to_scalar(cc_data.get('kc_formation')) or ''
         hints = f'{input_file or ""}\n{kc_formation}'.upper()
         return next(
             (
@@ -503,14 +501,16 @@ class OutParser(MappingTextParser):
                 ]
             )
         return [
-            {'name': name, 'value': OutParser._scalar(block[key]), 'applies_to': target}
+            {
+                'name': name,
+                'value': OutParser._to_scalar(block[key]),
+                'applies_to': target,
+            }
             for key, name, target in mapping
             if block.get(key) is not None
         ]
 
-    def get_orbital_localization_methods(
-        self, loc_data: Any
-    ) -> list[dict[str, Any]]:
+    def get_orbital_localization_methods(self, loc_data: Any) -> list[dict[str, Any]]:
         blocks = (
             loc_data if isinstance(loc_data, (list, tuple, np.ndarray)) else [loc_data]
         )
@@ -547,7 +547,7 @@ class OutParser(MappingTextParser):
 
         local_type = self._infer_local_correlation_type(input_file, mdci_data)
         method: dict[str, Any] = {'type': 'MP', 'order': 2}
-        scaling = self._scalar(mdci_data.get('spin_component_scaling'))
+        scaling = self._to_scalar(mdci_data.get('spin_component_scaling'))
         if isinstance(scaling, str) and scaling.strip().upper() in {'SCS', 'SOS'}:
             method['spin_component_scaling'] = scaling.strip().upper()
         if local_type:
@@ -562,7 +562,7 @@ class OutParser(MappingTextParser):
         self, cc_data: dict[str, Any], input_file: Any
     ) -> list[dict[str, Any]]:
         cc_data = cc_data or {}
-        cc_type = self._scalar(cc_data.get('coupled_cluster_type'))
+        cc_type = self._to_scalar(cc_data.get('coupled_cluster_type'))
         if not isinstance(cc_type, str) or not cc_type:
             return []
 
@@ -572,14 +572,14 @@ class OutParser(MappingTextParser):
         }
         if (
             str(
-                self._scalar(cc_data.get('perturbative_triple_excitations_on_off'))
+                self._to_scalar(cc_data.get('perturbative_triple_excitations_on_off'))
             ).upper()
             == 'ON'
         ):
             method.update(
                 perturbative_correction='(T)', perturbative_correction_order=[3]
             )
-        if str(self._scalar(cc_data.get('f12_correction_on_off'))).upper() == 'ON':
+        if str(self._to_scalar(cc_data.get('f12_correction_on_off'))).upper() == 'ON':
             method['explicit_correlation'] = 'F12'
         local_type = self._infer_local_correlation_type(input_file, cc_data)
         if local_type:
@@ -603,7 +603,7 @@ class OutParser(MappingTextParser):
         relativistic = self._parser_results(source.get('relativistic_hamiltonian'))
         scf_settings = self._get_scf_settings(source)
 
-        raw_method = self._scalar(
+        raw_method = self._to_scalar(
             relativistic.get('method') or scf_settings.get('scalar_relativistic_method')
         )
         if not isinstance(raw_method, str):
@@ -633,7 +633,7 @@ class OutParser(MappingTextParser):
             return {}
 
         model = {'level': 'scalar', 'approximation': approximation}
-        dkh_order = self._scalar(
+        dkh_order = self._to_scalar(
             relativistic.get('dkh_order') or scf_settings.get('dkh_order')
         )
         if approximation == 'DKH' and dkh_order is not None:
@@ -671,7 +671,7 @@ class OutParser(MappingTextParser):
         for key, role in self._BASIS_SET_ROLES.items():
             if key not in allowed_keys:
                 continue
-            name = self._scalar(names.get(key))
+            name = self._to_scalar(names.get(key))
             if not isinstance(name, str) or not name.strip():
                 continue
             component = {
@@ -680,7 +680,7 @@ class OutParser(MappingTextParser):
                 'type': 'GTO',
                 'role': role,
             }
-            total = self._scalar(totals.get(key))
+            total = self._to_scalar(totals.get(key))
             if total is not None:
                 component['n_total_basis_functions'] = int(total)
             components.append(component)
@@ -691,7 +691,7 @@ class OutParser(MappingTextParser):
         self_consistent = self._navigate(src, 'single_point', 'self_consistent')
         basis_set_total = self._parser_results(src.get('basis_set_total'))
 
-        orbital_energies = self._scalar(self_consistent.get('orbital_energies'))
+        orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
         coefficients = str_to_mo_coefficients(
             self_consistent.get('molecular_orbital_coefficients')
         )
@@ -707,7 +707,7 @@ class OutParser(MappingTextParser):
             ):
                 table = None
 
-        n_ao = self._scalar(basis_set_total.get('main_basis_set'))
+        n_ao = self._to_scalar(basis_set_total.get('main_basis_set'))
         molecular_orbitals = {
             'n_mo': int(table.shape[0])
             if table is not None
