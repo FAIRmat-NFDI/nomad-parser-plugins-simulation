@@ -178,7 +178,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.OrbitalLocalization.m_def,
     OUT_KEY,
-    ('get_orbital_localization_methods', ['.@']),
+    ('get_orbital_localization_methods', ['.single_point.loc']),
 )
 add_mapping_annotation(model_method.OrbitalLocalization.method, OUT_KEY, '.method')
 add_mapping_annotation(

@@ -507,9 +507,8 @@ class OutParser(MappingTextParser):
         ]
 
     def get_orbital_localization_methods(
-        self, source: dict[str, Any]
+        self, loc_data: Any
     ) -> list[dict[str, Any]]:
-        loc_data = self._navigate(source, 'single_point').get('loc')
         blocks = (
             loc_data if isinstance(loc_data, (list, tuple, np.ndarray)) else [loc_data]
         )
