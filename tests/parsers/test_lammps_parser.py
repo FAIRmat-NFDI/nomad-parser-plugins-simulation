@@ -332,7 +332,7 @@ ITEM: BOX BOUNDS pp pp pp
 def test_pbc_cell_extraction(description, content, expected_pbc, expected_cell):
     """Test PBC and cell extraction from synthetic LAMMPS trajectory content"""
     parser = TrajParser()
-    parser.mainfile = 'dummy'
+    parser._mainfile_contents = 'dummy'
     parser._file_handler = content.encode('utf-8')
     parser.init_quantities()
 
