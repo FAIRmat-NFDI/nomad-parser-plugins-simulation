@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from nomad import files
+from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.datamodel.context import ServerContext
 from nomad.utils import create_uuid, get_logger
@@ -177,6 +178,28 @@ def test_model_system_and_molecular_orbitals():
     assert molecular_orbitals.value[0].to('electron_volt').magnitude == (
         pytest.approx(-559.0826)
     )
+
+
+@pytest.mark.pipeline
+def test_molecular_orbitals_frontier_gap_derived_in_pipeline():
+    # ORCA reports no HOMO-LUMO gap directly; it only prints the ORBITAL ENERGIES
+    # block (per-orbital energy + occupation). The schema derives the frontier gap
+    # in `MolecularOrbitals.normalize()` -- reached by the `MetainfoNormalizer` pass,
+    # NOT by `Simulation.normalize()` -- from `value` and `occupations` of the
+    # canonical orbitals. Drive the full NOMAD normalization the way processing does
+    # (rather than calling `normalize()` by hand) and assert the gap is produced
+    # end-to-end. RI_MP2_water has a clean 2 -> 0 occupation boundary.
+    archive = _parse_orca('RI_MP2_water.out')
+    archive.metadata = EntryMetadata()
+    normalize_all(archive, logger=LOGGER)
+
+    molecular_orbitals = archive.data.outputs[0].molecular_orbitals[0]
+    homo = molecular_orbitals.homo_normalized
+    lumo = molecular_orbitals.lumo_normalized
+    gap = molecular_orbitals.homo_lumo_gap_normalized
+    assert homo is not None and lumo is not None and gap is not None
+    assert gap.magnitude >= 0
+    assert gap.magnitude == pytest.approx((lumo - homo).magnitude)
 
 
 def test_molecular_orbital_coefficients(archive_with_hdf5):
