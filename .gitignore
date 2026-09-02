@@ -137,4 +137,3 @@ tests/data/**/*.npz
 # Parser-output snapshots are generated in CI, never tracked
 target_snapshots.json
 source_snapshots.json
-PR170_MIGRATION_VERIFICATION_REPORT.md
