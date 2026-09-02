@@ -87,7 +87,10 @@ class TestRIMP2Water(OrcaParserIntegrationSuite):
         )
 
 
+@pytest.mark.large_fixture
 class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
+    # The CoPc CASCI/NEVPT2 mainfile is ~19 MB, too large for the default PR
+    # gate; `large_fixture` moves this class to the nightly gate.
     archive_fixture = 'casci_qd_archive'
     # This CASCI/NEVPT2 run carries no parsed output block.
     required_simulation_sections = ('model_method', 'model_system')
