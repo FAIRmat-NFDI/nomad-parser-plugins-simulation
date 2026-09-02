@@ -34,7 +34,9 @@ The check works in stages, mirrored by the sections below:
 
 Lists are aligned by index, so a genuine reordering shows up as ``changed``.
 Deterministic section ordering (from the nomad-lab pre-releases used in CI)
-keeps that alignment stable. Float noise below ``_FLOAT_RTOL`` is ignored.
+keeps that alignment stable. Each list also carries a ``[len]`` leaf, and leaf
+comparison is type-sensitive: a value changing type (e.g. number to string) is
+flagged, while only int/float noise below ``_FLOAT_RTOL`` is tolerated.
 
 Usage: ``compare_snapshots.py <target.json> <source.json>``
 """
@@ -82,8 +84,11 @@ def flatten(
     """Flatten a nested archive into ``{path: scalar}`` leaves.
 
     Dict keys become ``.key`` and list indices become ``[i]`` segments, e.g.
-    ``.outputs[0].total_energies[0].value``. Only scalar leaves are stored, so
-    two archives can be compared by set operations on their leaf paths.
+    ``.outputs[0].total_energies[0].value``. Each list also contributes a
+    ``[len]`` leaf recording its length, so a resize or an empty-vs-absent list
+    is caught directly rather than only via missing indices. Only scalar leaves
+    (and these lengths) are stored, so two archives can be compared by set
+    operations on their leaf paths.
     """
     if out is None:
         out = {}
@@ -91,6 +96,7 @@ def flatten(
         for key, value in obj.items():
             flatten(value, f'{path}.{key}', out)
     elif isinstance(obj, list):
+        out[f'{path}[len]'] = len(obj)
         for index, value in enumerate(obj):
             flatten(value, f'{path}[{index}]', out)
     elif obj is None and path == '':
@@ -124,13 +130,22 @@ class LeafDiff(NamedTuple):
 
 
 def _values_equal(a: Any, b: Any) -> bool:
-    """Equality that tolerates floating-point noise between two numbers."""
-    if a == b:
-        return True
-    try:
+    """Equality that tolerates float noise but is otherwise type-sensitive.
+
+    Two numbers (int or float, but not bool) compare equal within ``_FLOAT_RTOL``;
+    everything else requires the same type *and* an equal value, so a leaf
+    changing type -- ``1 -> "1"``, ``1 -> true``, ``0 -> null`` -- is flagged
+    rather than slipping through ``==``.
+    """
+    numeric = (int, float)
+    if (
+        isinstance(a, numeric)
+        and isinstance(b, numeric)
+        and not isinstance(a, bool)
+        and not isinstance(b, bool)
+    ):
         return abs(float(a) - float(b)) <= _FLOAT_RTOL * max(1.0, abs(float(a)))
-    except (TypeError, ValueError):
-        return False
+    return type(a) is type(b) and a == b
 
 
 def diff_leaves(baseline: Any, current: Any) -> LeafDiff:
