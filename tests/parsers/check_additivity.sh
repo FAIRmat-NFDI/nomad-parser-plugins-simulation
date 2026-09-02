@@ -81,13 +81,17 @@ generate () {  # <sha> <out.json> <worktree-name>
   local tmp wt
   tmp="$(mktemp -d)"
   wt="$tmp/snapshot-${name}"       # git worktree add needs a non-existent path
-  git -C "$REPO" worktree add --quiet --force "$wt" "$sha"
-  cp "$HERE/generate_snapshots.py" "$wt/tests/parsers/"
-  uv pip install -e "$wt" --no-deps >/dev/null
-  # shellcheck disable=SC2086  # word-splitting of $PARSERS is intended
-  ( cd "$wt" && python tests/parsers/generate_snapshots.py "$out" $PARSERS )
-  git -C "$REPO" worktree remove --force "$wt"
-  rm -rf "$tmp"                    # drop the mktemp parent, leaving nothing behind
+  # Run inside a subshell whose EXIT trap always removes the worktree and temp
+  # dir, so a failure mid-generation leaves nothing behind for the next run.
+  (
+    trap 'git -C "$REPO" worktree remove --force "$wt" 2>/dev/null || true; rm -rf "$tmp"' EXIT
+    git -C "$REPO" worktree add --quiet --force "$wt" "$sha"
+    cp "$HERE/generate_snapshots.py" "$wt/tests/parsers/"
+    uv pip install -e "$wt" --no-deps >/dev/null
+    cd "$wt"
+    # shellcheck disable=SC2086  # word-splitting of $PARSERS is intended
+    python tests/parsers/generate_snapshots.py "$out" $PARSERS
+  )
 }
 
 generate "$TARGET_SHA" "$TARGET_JSON" target
