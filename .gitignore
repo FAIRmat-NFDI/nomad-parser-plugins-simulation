@@ -134,7 +134,7 @@ dmypy.json
 tests/data/**/*.lock
 tests/data/**/*.npz
 
-# Syrupy migration snapshots are generated in CI, never tracked
-tests/parsers/__snapshots__/
-*.ambr
+# Parser-output snapshots are generated in CI, never tracked
+target_snapshots.json
+source_snapshots.json
 PR170_MIGRATION_VERIFICATION_REPORT.md

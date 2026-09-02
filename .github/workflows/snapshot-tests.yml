@@ -1,17 +1,20 @@
 name: migration-snapshot-tests
 # Manually triggered additivity check. Runs tests/parsers/check_additivity.sh --
 # the same script developers run locally -- to snapshot two refs (a `target`
-# baseline and the `source` under test) and verify the source drops no archive
-# data present in the target. Snapshots are generated, never tracked; CI adds a
-# per-SHA cache so unchanged refs are reused.
+# baseline and the `source` under test) and verify the source only adds to the
+# target (no archive leaf removed or modified). Snapshots are generated as plain
+# JSON, never tracked; CI adds a per-SHA cache so unchanged refs are reused.
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Baseline ref whose data must not be lost'
+        description: 'Baseline ref whose data must not change'
         default: 'develop'
       source:
         description: 'Ref under test (default: the dispatched branch)'
+        default: ''
+      parsers:
+        description: 'Parsers to snapshot, space-separated (default: autodetect from the diff)'
         default: ''
 
 permissions:
@@ -57,24 +60,26 @@ jobs:
           echo "source_sha=$(resolve "$SOURCE")"
         } >> "$GITHUB_OUTPUT"
 
-    # Cache each ref's snapshot on its SHA; check_additivity.sh reuses any .ambr
-    # that already exists, so a cache hit skips that ref's regeneration.
+    # Cache each ref's snapshot on its SHA + the requested parser set;
+    # check_additivity.sh reuses any .json that already exists, so a cache hit
+    # skips that ref's regeneration.
     - name: Restore cached target snapshot
       uses: actions/cache@v4
       with:
-        path: target_snapshots.ambr
-        key: snapshot-${{ steps.refs.outputs.target_sha }}-py311-v1
+        path: target_snapshots.json
+        key: snapshot-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-v2
     - name: Restore cached source snapshot
       uses: actions/cache@v4
       with:
-        path: source_snapshots.ambr
-        key: snapshot-${{ steps.refs.outputs.source_sha }}-py311-v1
+        path: source_snapshots.json
+        key: snapshot-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-v2
 
     - name: Run additivity check
       run: |
         set -o pipefail
         bash tests/parsers/check_additivity.sh \
           '${{ steps.refs.outputs.target }}' '${{ steps.refs.outputs.source }}' \
+          ${{ inputs.parsers }} \
           | tee comparison_report.txt
 
     - name: Upload snapshots and diff for inspection
@@ -83,7 +88,7 @@ jobs:
       with:
         name: migration-snapshots
         path: |
-          target_snapshots.ambr
-          source_snapshots.ambr
+          target_snapshots.json
+          source_snapshots.json
           comparison_report.txt
         retention-days: 30

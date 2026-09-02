@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
-"""Structural additivity check between two syrupy ``.ambr`` snapshot files.
+"""Structural diff between two parser-output snapshot JSON files.
 
-The invariant guarded here is that parser output must never *lose* archive data.
-Compared against the target (baseline) ref, the source (current) ref may gain
-properties and may change how a value is represented, but every piece of data
-that existed in the target must still be present.
+Compared against the target (baseline) ref, the source (current) ref may only
+*add* to the archive: any leaf that existed in the target must still be present
+with the same value. Both removals and value modifications are flagged; only
+purely additive changes pass.
 
 The check works in four stages, mirrored by the sections below:
 
-1. **Parse** each ``.ambr`` file into ``{test_name: archive_dict}``.
+1. **Parse** each JSON file into ``{key: archive_dict}``.
 2. **Flatten** every archive to ``{path: scalar}`` leaves, so two nested
    structures can be compared leaf by leaf.
-3. **Diff** the baseline and current leaves per test into three buckets:
+3. **Diff** the baseline and current leaves per key into three buckets:
 
    =========  ====================================================  ===========
    bucket     meaning                                               verdict
    =========  ====================================================  ===========
-   ``added``   leaf only in current (the newly migrated properties)  fine
-   ``changed`` same path, different value (e.g. eV stored as J)       fine
-   ``removed`` leaf only in baseline                                  DATA LOSS
+   ``added``   leaf only in current                                  fine
+   ``changed`` same path, different value                            FLAGGED
+   ``removed`` leaf only in baseline                                 FLAGGED
    =========  ====================================================  ===========
 
-4. **Report** the buckets and exit non-zero iff anything was removed.
+4. **Report** the buckets and exit non-zero iff anything was removed or changed.
 
-Lists are aligned by index, so a genuine reordering shows up as ``changed``
-rather than ``removed``; this is acceptable because the gate only fails on
-removals. Deterministic section ordering (from the nomad-lab pre-releases used
-in CI) keeps that alignment stable.
+Lists are aligned by index, so a genuine reordering shows up as ``changed``.
+Deterministic section ordering (from the nomad-lab pre-releases used in CI)
+keeps that alignment stable. Float noise below ``_FLOAT_RTOL`` is ignored.
 
-Usage: ``compare_snapshots.py <baseline.ambr> <current.ambr>``
+Usage: ``compare_snapshots.py <target.json> <source.json>``
 """
 
 from __future__ import annotations
 
+import json
 import sys
 from typing import Any, NamedTuple
 
@@ -46,44 +46,10 @@ _FLOAT_RTOL = 1e-9
 # --------------------------------------------------------------------------- #
 # 1. Parsing
 # --------------------------------------------------------------------------- #
-def parse_ambr(path: str) -> dict[str, Any]:
-    """Parse a syrupy amber file into ``{test_name: value}``.
-
-    The amber format groups each snapshot under a ``# name: <test>`` header,
-    followed by an indented body such as ``dict({...})`` / ``list([...])``.
-    Those bodies are valid Python once ``dict`` and ``list`` are in scope, so
-    they are evaluated in a namespace restricted to those two builtins. The
-    files are self-generated CI artifacts, so this is trusted input.
-    """
+def parse_json(path: str) -> dict[str, Any]:
+    """Load a snapshot JSON file into ``{key: archive_dict}``."""
     with open(path) as handle:
-        text = handle.read()
-
-    # Split the file into the raw body lines belonging to each snapshot name.
-    sections: dict[str, list[str]] = {}
-    current: str | None = None
-    body: list[str] = []
-    for line in text.splitlines():
-        if line.startswith('# name:'):
-            if current is not None:
-                sections[current] = body
-            current = line.split(':', 1)[1].strip()
-            body = []
-        elif line.startswith('#'):
-            # '# ---' terminates a snapshot body; other '#' lines are metadata.
-            if line.strip() == '# ---' and current is not None:
-                sections[current] = body
-                current = None
-                body = []
-        elif current is not None:
-            body.append(line)
-    if current is not None:
-        sections[current] = body
-
-    namespace = {'dict': dict, 'list': list, '__builtins__': {}}
-    return {
-        name: (eval('\n'.join(lines).strip(), namespace) if lines else None)  # noqa: S307
-        for name, lines in sections.items()
-    }
+        return json.load(handle)
 
 
 # --------------------------------------------------------------------------- #
@@ -128,8 +94,10 @@ class LeafDiff(NamedTuple):
     @property
     def verdict(self) -> str:
         if self.removed:
-            return 'DATA LOSS'
-        if self.added or self.changed:
+            return 'REMOVED'
+        if self.changed:
+            return 'MODIFIED'
+        if self.added:
             return 'additive'
         return 'identical'
 
@@ -179,24 +147,26 @@ def report_test(name: str, baseline: Any, current: Any, diff: LeafDiff) -> None:
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print(f'usage: {sys.argv[0]} <target.ambr> <source.ambr>', file=sys.stderr)
+        print(f'usage: {sys.argv[0]} <target.json> <source.json>', file=sys.stderr)
         return 2
-    baseline = parse_ambr(sys.argv[1])
-    current = parse_ambr(sys.argv[2])
+    baseline = parse_json(sys.argv[1])
+    current = parse_json(sys.argv[2])
 
-    total_removed = 0
+    total_removed = total_changed = 0
     for name in sorted(set(baseline) | set(current)):
         diff = diff_leaves(baseline.get(name), current.get(name))
         total_removed += len(diff.removed)
+        total_changed += len(diff.changed)
         report_test(name, baseline.get(name), current.get(name), diff)
 
     print()
-    if total_removed:
+    if total_removed or total_changed:
         print(
-            f'FAIL: {total_removed} leaves removed relative to the target (data loss).'
+            f'FAIL: {total_removed} removed, {total_changed} modified relative to the '
+            'target. Only additive changes are allowed.'
         )
         return 1
-    print('PASS: no archive data removed relative to the target.')
+    print('PASS: source only adds to the target (no leaves removed or modified).')
     return 0
 
 
