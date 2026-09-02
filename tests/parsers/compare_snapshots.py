@@ -34,7 +34,8 @@ The check works in stages, mirrored by the sections below:
 
 Lists are aligned by index, so a genuine reordering shows up as ``changed``.
 Deterministic section ordering (from the nomad-lab pre-releases used in CI)
-keeps that alignment stable. Each list also carries a ``[len]`` leaf, and leaf
+keeps that alignment stable. Every container carries a ``[type]`` leaf and each
+list a ``[len]`` leaf (so an empty container is not invisible), and leaf
 comparison is type-sensitive: a value changing type (e.g. number to string) is
 flagged, while only int/float noise below ``_FLOAT_RTOL`` is tolerated.
 
@@ -84,18 +85,22 @@ def flatten(
     """Flatten a nested archive into ``{path: scalar}`` leaves.
 
     Dict keys become ``.key`` and list indices become ``[i]`` segments, e.g.
-    ``.outputs[0].total_energies[0].value``. Each list also contributes a
-    ``[len]`` leaf recording its length, so a resize or an empty-vs-absent list
-    is caught directly rather than only via missing indices. Only scalar leaves
-    (and these lengths) are stored, so two archives can be compared by set
+    ``.outputs[0].total_energies[0].value``. Every container also emits a
+    ``[type]`` leaf (``dict`` or ``list``) and each list a ``[len]`` leaf, so an
+    empty container -- otherwise invisible, as it yields no child leaves -- is
+    still distinguished from an absent one (``{'data': {}}`` vs ``{}``), and a
+    resize or a container changing type is caught directly. Only scalar leaves
+    (and these markers) are stored, so two archives can be compared by set
     operations on their leaf paths.
     """
     if out is None:
         out = {}
     if isinstance(obj, dict):
+        out[f'{path}[type]'] = 'dict'
         for key, value in obj.items():
             flatten(value, f'{path}.{key}', out)
     elif isinstance(obj, list):
+        out[f'{path}[type]'] = 'list'
         out[f'{path}[len]'] = len(obj)
         for index, value in enumerate(obj):
             flatten(value, f'{path}[{index}]', out)
