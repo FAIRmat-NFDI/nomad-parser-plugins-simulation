@@ -57,7 +57,7 @@ add_mapping_annotation(
 )
 add_mapping_annotations(
     (general.Simulation.program, INFO_KEY, '.@'),
-    (general.Simulation.outputs, INFO_KEY, '.@'),
+    (general.Simulation.outputs, INFO_KEY, ('get_configurations', ['.@'])),
     (general.Simulation.outputs, EIGVAL_KEY, '.@'),
     (general.Simulation.outputs, BANDSTRUCTURE_XML_KEY, '.@'),
     (general.Simulation.outputs, DOS_XML_KEY, '.@'),
@@ -72,7 +72,6 @@ add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
 add_mapping_annotations(
     (model_method.DFT.m_def, INFO_KEY, '.initialization.xc_functional'),
     (model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate'),
-    (model_method.DFT.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
     (model_method.DFT.xc, INFO_KEY, '.@'),
     (model_method.DFT.xc, INPUT_XML_KEY, '.@'),
     (model_method.XCFunctional.components, INFO_KEY, ('get_xc_functionals', ['.type'])),
@@ -125,7 +124,7 @@ add_mapping_annotations(
 
 # outputs
 add_mapping_annotations(
-    (outputs.Outputs.total_energies, INFO_KEY, ('get_energies', ['.@'])),
+    (outputs.Outputs.total_energies, INFO_KEY, '.@'),
     (outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])),
     (outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])),
     (outputs.Outputs.electronic_band_gaps, EIGVAL_KEY, ('get_band_gaps', ['.@'])),
@@ -218,7 +217,7 @@ add_mapping_annotations(
     (outputs.SCFSteps.energies_total, INFO_KEY, '.energies_total'),
     (outputs.SCFSteps.delta_energies_total, INFO_KEY, '.delta_energies_total'),
     (outputs.SCFSteps.delta_potential_rms, INFO_KEY, '.delta_potential_rms'),
-    (outputs.SCFSteps.delta_density_rms, INFO_KEY, '.delta_density_rms'),
+    (outputs.SCFSteps.delta_charge_abs, INFO_KEY, '.delta_charge_abs'),
     (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
 )
 

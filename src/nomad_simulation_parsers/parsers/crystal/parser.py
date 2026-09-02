@@ -9,9 +9,9 @@ from ase.data import chemical_symbols
 from nomad import atomutils
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
@@ -45,7 +45,7 @@ class CrystalOutputParser(TextParser):
         'LDA': ['LDA_X'],
         'PWGGA': ['GGA_X_PW91', 'GGA_C_PW91'],
         'PZ': ['LDA_C_PZ'],
-        'WFN': ['LDA_C_VWN'],
+        'VWN': ['LDA_C_VWN'],
     }
 
     @property

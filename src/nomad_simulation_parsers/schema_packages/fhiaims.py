@@ -91,20 +91,42 @@ class Program(general.Program):
     add_mapping_annotation(general.Program.version, TEXT_KEY, '.version')
 
 
+class SelfConsistency(numerical_settings.SelfConsistency):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.threshold_change,
+        TEXT_KEY,
+        '.threshold_change',
+    )
+    add_mapping_annotation(numerical_settings.SelfConsistency.name, TEXT_KEY, '.name')
+
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.n_max_iterations,
+        TEXT_KEY,
+        '.n_max_iterations',
+    )
+
+
 class DFT(model_method.DFT):
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        TEXT_KEY,
+        ('get_all_criteria', ['.@']),
+        update_mode='append',
+    )
     add_mapping_annotation(numerical_settings.KSpace.m_def, TEXT_KEY, '.@')
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, TEXT_KEY, '.@')
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper=('get_xc_functionals', ['.controlInOut_xc']))))
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(text=Mapper(mapper='.name')))
+class XCFunctional(model_method.XCFunctional):
+    # Set `functional_key` to the standard functional name from the FHI-aims XC
+    # control string; the schema expands the name into components (family/kind)
+    # and derives `jacobs_ladder`.
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        TEXT_KEY,
+        ('get_functional_key', ['.controlInOut_xc']),
+    )
 
 
 class GW(model_method.GW):
@@ -142,18 +164,6 @@ class AtomsState(model_system.AtomsState):
 class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.total_energies, TEXT_KEY, ('get_energies', ['.@'])
-    )
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper=('get_forces', ['.@']))))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            text=Mapper(
-                mapper=('get_eigenvalues', ['.eigenvalues', 'array_size_parameters'])
-            )
-        )
     )
     add_mapping_annotation(
         outputs.Outputs.total_forces, TEXT_KEY, ('get_forces', ['.@'])
@@ -197,7 +207,7 @@ class SCFSteps(outputs.SCFSteps):
         outputs.SCFSteps.delta_energies_total, TEXT_KEY, '.delta_energies_total'
     )
     add_mapping_annotation(
-        outputs.SCFSteps.delta_density_rms, TEXT_KEY, '.delta_density_rms'
+        outputs.SCFSteps.delta_charge_abs, TEXT_KEY, '.delta_charge_abs'
     )
     add_mapping_annotation(outputs.SCFSteps.durations, TEXT_KEY, '.durations')
     add_mapping_annotation(
@@ -220,19 +230,11 @@ class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, TEXT_KEY, '.forces')
 
 
-# TODO: check whether this section is k-dependent
-class ElectronicEigenvalues(properties.ElectronicEigenvalues):
-    # properties.ElectronicEigenvalues.n_bands.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(text=Mapper(mapper='.nbands')))
-    properties.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.eigenvalues')))
-    properties.ElectronicEigenvalues.occupation.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(text=Mapper(mapper='.occupations')))
-
-
+# `value`, `occupation` and `spin_channel` are inherited (shared Quantity objects)
+# from `ElectronicEigenvalues`, so annotating them here also drives the
+# `electronic_eigenvalues` sections. Both are populated from the same converged
+# Kohn-Sham eigenvalues (`get_eigenvalues` / `get_band_structures`), which emit
+# matching `value`/`occupation`/`spin_channel` keys.
 class ElectronicBandStructure(properties.ElectronicBandStructure):
     add_mapping_annotation(properties.ElectronicBandStructure.value, TEXT_KEY, '.value')
     add_mapping_annotation(

@@ -1,7 +1,7 @@
 import re
 
 import numpy as np
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
@@ -331,7 +331,7 @@ general_quantities = [
     Quantity('mixing_scheme', r'number of iterations used\s*=\s*(\d+)\s*(.*)mixing'),
     Quantity(
         'xc_functional',
-        r'Exchange\-correlation\s*=\s*(.+)\s*(\([\d ]+\))',
+        r'Exchange\-correlation\s*=\s*(.+)',
         convert=False,
         flatten=False,
     ),

@@ -96,6 +96,12 @@ octopus_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.octopus',
 )
 
+orca_schema_package = EntryPoint(
+    name='OrcaSchemaPackage',
+    description='Schema package for ORCA.',
+    module='nomad_simulation_parsers.schema_packages.orca',
+)
+
 phonopy_schema_package = EntryPoint(
     name='PhonopySchemaPackage',
     description='Schema package for Phonopy.',

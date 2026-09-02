@@ -3,8 +3,8 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_SYMBOL = re.compile(r'([A-Z][a-z]?)')
@@ -171,11 +171,13 @@ class InfoFileParser(TextParser):
         }
 
         for name, key_unit in self._system_keys_mapping.items():
+            value_pattern = RE_FLOAT if key_unit[1] is not None else r'[\s\S]*?'
             initialization_quantities.append(
                 Quantity(
                     name,
-                    rf'{key_unit[0]}\s*:\s*([\s\S]*?)\n',
+                    rf'{key_unit[0]}\s*:\s*({value_pattern})\s*\n',
                     unit=key_unit[1],
+                    dtype=float if key_unit[1] is not None else None,
                     repeats=False,
                 )
             )

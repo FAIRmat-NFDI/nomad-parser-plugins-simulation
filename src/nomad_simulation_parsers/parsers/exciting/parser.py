@@ -4,17 +4,17 @@ from typing import Any
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
+from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
     XMLParser,
 )
-from nomad.units import ureg
-from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import (
-    ChargeConvergenceTarget,
+    DensityConvergenceTarget,
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
     PotentialConvergenceTarget,
@@ -52,8 +52,9 @@ convergence_threshold_mapping = {
         'threshold_type': 'absolute',
     },
     'x_exciting_charge_convergence': {
-        'class': ChargeConvergenceTarget,
+        'class': DensityConvergenceTarget,
         'threshold_type': 'absolute',
+        'type': 'charge_abs',
     },
     'x_exciting_IBS_force_convergence': {
         'class': ForceConvergenceTarget,
@@ -76,15 +77,15 @@ class InfoParser(TextParser):
 
     def get_xc_functionals(self, xc_type: int) -> list[dict[str, Any]]:
         xc_functional_map = {
-            2: ['LDA_C_PZ', 'LDA_X_PZ'],
-            3: ['LDA_C_PW', 'LDA_X_PZ'],
+            2: ['LDA_C_PZ', 'LDA_X'],
+            3: ['LDA_C_PW', 'LDA_X'],
             4: ['LDA_C_XALPHA'],
             5: ['LDA_C_VBH'],
             20: ['GGA_C_PBE', 'GGA_X_PBE'],
             21: ['GGA_C_PBE', 'GGA_X_PBE_R'],
             22: ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
             26: ['GGA_C_PBE', 'GGA_X_WC'],
-            30: ['GGA_C_AM05', 'GGA_C_AM05'],
+            30: ['GGA_C_AM05', 'GGA_X_AM05'],
             300: ['GGA_C_BGCP', 'GGA_X_PBE'],
             406: ['HYB_GGA_XC_PBEH'],
             408: ['HYB_GGA_XC_HSE03'],
@@ -92,80 +93,53 @@ class InfoParser(TextParser):
         return [dict(libxc=name) for name in xc_functional_map.get(xc_type, [])]
 
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
-        strucopt = source.get('structure_optimization')
         return dict(
-            forces=strucopt.get('forces'),
-            n_points=len(strucopt.get('forces', [])),
+            forces=source.get('forces'),
+            n_points=len(source.get('forces', [])),
             rank=[3],
         )
 
-    def get_energies(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        """
-        Extract total energies from all configurations:
-        groundstate, hybrid, and optimization steps.
-        """
-        energies = []
-
-        # Get energies from groundstate and hybrid calculations
-        for key in ['groundstate', 'hybrid']:
-            config = source.get(key)
-            if config:
-                # Check if there's a final section with energy_total
-                final = config.get('final', {})
-                if final.get('energy_total'):
-                    energies.append({'energy_total': final['energy_total']})
-                # Otherwise check if energy_total is directly in the config
-                elif config.get('energy_total'):
-                    energies.append({'energy_total': config['energy_total']})
-
-        # Get energies from geometry optimization steps
-        optimization = source.get('structure_optimization')
-        if optimization:
-            opt_steps = optimization.get('optimization_step', [])
-            for step in opt_steps:
-                if step.get('energy_total'):
-                    energies.append({'energy_total': step['energy_total']})
-            # Add final optimization energy
-            if optimization.get('energy_total'):
-                energies.append({'energy_total': optimization['energy_total']})
-
-        return energies
-
     def get_configurations(self, root: dict[str, Any]) -> list[dict[str, Any]]:
         configurations = [
-            root[key] for key in ['groundstate', 'hybrid'] if root.get(key)
+            root[key] for key in ['groundstate', 'hybrids'] if root.get(key)
         ]
         optimization = root.get('structure_optimization')
         if optimization:
             configurations.extend(optimization.get('optimization_step', []))
             configurations.append(optimization)
-        mapped_configurations = [
-            self.get_atoms(config['atomic_positions'])
-            for config in configurations
-            if config.get('atomic_positions')
-        ]
-        if mapped_configurations:
-            return mapped_configurations
+        # set final to last scf iteration
+        for config in configurations:
+            if not config.get('final') and config.get('scf_iteration'):
+                config['final'] = config.get('scf_iteration')[-1]
 
-        # Fallback for minimal outputs where no explicit atomic_positions blocks
-        # are present in groundstate/hybrid sections.
-        if self.data.get('initialization'):
-            return [self.get_atoms({})]
-        return []
+        mapped_configurations = [
+            # TODO do we really want to assign the initial atomic positions?
+            self.get_atoms(config.get('atomic_positions', {}))
+            for config in configurations
+        ]
+        return [
+            {**config, **configurations[n]}
+            for n, config in enumerate(mapped_configurations)
+        ]
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
         initial = self.data.get('initialization', {})
         lattice_vectors = initial.get('lattice_vectors')
         if positions is not None and source.get('positions_format') == 'lattice':
-            positions = np.dot(positions, lattice_vectors.magnitude)
+            positions = (
+                np.dot(positions, lattice_vectors.magnitude) * lattice_vectors.units
+            )
         if positions is None:
             positions = []
             for species in initial.get('species', []):
                 positions_specie = species.get('positions')
                 if species.get('positions_format') == 'lattice':
-                    positions_specie = np.dot(positions_specie, lattice_vectors)
+                    positions_specie = np.dot(
+                        positions_specie, lattice_vectors.magnitude
+                    )
                 positions.extend(positions_specie)
+            positions = positions * lattice_vectors.units
         atoms = []
         exclude = ['positions', 'positions_format', 'radial_points']
         for species in initial.get('species', []):
@@ -174,7 +148,11 @@ class InfoParser(TextParser):
         if not atoms:
             atoms = [dict(symbol=s) for s in source.get('symbols')]
         return dict(
-            positions=np.array(positions, dtype=float),
+            positions=(
+                np.array(positions, dtype=np.float64) * ureg.bohr
+                if not hasattr(positions, 'magnitude')
+                else positions
+            ),
             atoms=atoms,
             lattice_vectors=lattice_vectors,
             periodic_boundary_conditions=[True, True, True]
@@ -219,10 +197,13 @@ class InfoParser(TextParser):
             # target Quantity units.
             threshold_value = quantity[1]
 
-            target = info_['class'](
-                threshold=threshold_value,
-                threshold_type=info_['threshold_type'],
-            )
+            target_kwargs = {
+                'threshold': threshold_value,
+                'threshold_type': info_['threshold_type'],
+            }
+            if 'type' in info_:
+                target_kwargs['type'] = info_['type']
+            target = info_['class'](**target_kwargs)
             convergence_targets.append(target)
         return convergence_targets
 
@@ -267,7 +248,7 @@ class InfoParser(TextParser):
             [
                 'delta_energies_total',
                 'delta_potential_rms',
-                'delta_density_rms',
+                'delta_charge_abs',
                 'delta_force_abs',
             ],
             [delta_energies, delta_potential, delta_charge, delta_force],
@@ -479,7 +460,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
         info_parser = InfoParser(text_parser=InfoFileParser())
         info_parser.filepath = self.mainfile
 
-        data_parser = ExcitingMetainfoParser(data_object=Simulation())
+        data_parser = ExcitingMetainfoParser(
+            data_object=Simulation(program=Program(name='exciting'))
+        )
         data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
@@ -493,12 +476,13 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 info_out
             ) != os.path.abspath(self.mainfile):
                 info_parser.filepath = info_out
-                info_parser.convert(data_parser)
+                info_parser.convert(data_parser, update_mode='merge')
 
-        # read xc functionals from input.xml
+        # read xc functionals from input.xml only if INFO.OUT did not already
+        # populate them
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
-            if not self.archive.m_xpath('data.model_method[0].xc_functionals')
+            if not self.archive.m_xpath('data.model_method[0].xc.components')
             else []
         )
         if input_xml_files:
@@ -514,7 +498,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=eigval_files[0], text_parser=EigvalFileParser()
             )
             data_parser.annotation_key = exciting.EIGVAL_KEY
-            eigval_parser.convert(data_parser, update_mode='merge@-1')
+            eigval_parser.convert(data_parser, update_mode='merge')
             eigval_parser.close()
 
         # bandstructure from bandstructure.xml
@@ -527,7 +511,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             )
             # TODO set n_spin from info
             data_parser.annotation_key = exciting.BANDSTRUCTURE_XML_KEY
-            bandstructure_parser.convert(data_parser, update_mode='merge@-1')
+            bandstructure_parser.convert(data_parser, update_mode='merge')
             bandstructure_parser.close()
 
         # dos from dos.xml
@@ -535,7 +519,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         if dos_files:
             dos_parser = DosXMLParser(filepath=dos_files[0])
             data_parser.annotation_key = exciting.DOS_XML_KEY
-            dos_parser.convert(data_parser, update_mode='merge@-1')
+            dos_parser.convert(data_parser, update_mode='merge')
             dos_parser.close()
 
         self.archive.data = data_parser.data_object
@@ -578,6 +562,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # - Modify mapper to detect and handle object instances
             # - Change parser methods to return dicts that mapper can transform
             # - Keep manual population (current approach - clearer and more explicit)
+            #
+            # Keep this after info_parser.convert(); see the
+            # `add_mapping_annotation` docstring for why the ordering matters.
             source_data = info_parser.data
             if source_data:
                 convergence_targets = info_parser.get_geometry_convergence(source_data)

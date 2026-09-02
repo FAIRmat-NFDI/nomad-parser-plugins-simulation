@@ -40,20 +40,17 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomsState.m_def, GPW_KEY, '.labels')
 
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, GPW_KEY, '.@')
+class DFT(model_method.DFT):
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(gpw=Mapper(mapper='.@')))
-
-
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(gpw=Mapper(mapper='.xcfunctional')))
+class XCFunctional(model_method.XCFunctional):
+    # GPAW stores the standard functional name directly; the schema expands it
+    # into components (family/kind) and derives `jacobs_ladder`.
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key, GPW_KEY, '.xcfunctional'
+    )
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -70,9 +67,7 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupation'
     )
-    add_mapping_annotation(
-        outputs.ElectronicEigenvalues.n_levels, GPW_KEY, '.n_levels'
-    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, GPW_KEY, '.n_levels')
     add_mapping_annotation(
         outputs.ElectronicEigenvalues.highest_occupied,
         GPW_KEY,

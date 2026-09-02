@@ -4,11 +4,11 @@ from typing import Any
 import numpy as np
 from ase.io import read
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
@@ -36,6 +36,7 @@ class OctopusMainfileParser(TextParser):
     # TODO resolve solely from the integer value
     _xc_functionals = {
         'Exchange': ('lda_x', 1),
+        'Slater exchange': ('lda_x', 1),
         'Wigner parametrization': ('lda_c_wigner', 2000),
         'Random Phase Approximation': ('lda_c_rpa', 3000),
         'Hedin & Lundqvist': ('lda_c_hl', 4000),
@@ -63,7 +64,7 @@ class OctopusMainfileParser(TextParser):
         'Lee and Parr Gaussian ansatz': ('lda_k_lp', 51),
         'Perdew, Burke & Ernzerhof exchange': ('gga_x_pbe', 101),
         'Perdew, Burke & Ernzerhof exchange (revised)': ('gga_x_pbe_r', 102),
-        'Becke 86 Xalfa,beta,gamma': ('gga_x_2d_b86', 128),
+        'Becke 86 Xalfa,beta,gamma': ('gga_x_b86', 103),
         'Herman et al original GGA': ('gga_x_herman', 104),
         'Becke 86 Xalfa,beta,gamma (with mod. grad. correction)': (
             'gga_x_b86_mgc',

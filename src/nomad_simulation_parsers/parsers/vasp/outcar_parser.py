@@ -3,15 +3,14 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-import os
 import re
 
 import numpy as np
-from nomad.parsing.file_parser import ArchiveWriter, Quantity, TextParser
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, Path
-from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter, Quantity, TextParser
+from nomad_file_parser.mapping_parser import MetainfoParser, Path
+from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
@@ -33,7 +32,8 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import vasp
 
 from .chgcar_parser import CHGCARParser
-from .common import get_xc_functionals
+from .common import functional_key_from_params
+from .doscar_parser import DOSCARParser
 
 RE_N = r'[\n\r]'
 LOGGER = get_logger(__name__)
@@ -421,86 +421,8 @@ class OutcarParser(MappingTextParser):
 
         return band_gaps
 
-    def get_total_dos(self) -> list[dict[str, Any]]:  # noqa: PLR0911
-        min_doscar_lines = 7
-        min_dos_header_columns = 4
-        spin_polarized_dos_columns = 5
-        min_dos_columns = 2
-        maindir = os.path.dirname(self.filepath)
-        outcar_suffix = os.path.basename(self.filepath).removeprefix('OUTCAR')
-        doscar_candidate = os.path.join(maindir, f'DOSCAR{outcar_suffix}')
-        doscar_path = (
-            doscar_candidate
-            if os.path.isfile(doscar_candidate)
-            else os.path.join(maindir, 'DOSCAR')
-        )
-        if not os.path.isfile(doscar_path):
-            return []
-
-        try:
-            with open(doscar_path) as f:
-                lines = f.readlines()
-        except Exception:
-            return []
-
-        if len(lines) < min_doscar_lines:
-            return []
-
-        header = lines[5].split()
-        if len(header) < min_dos_header_columns:
-            return []
-
-        try:
-            n_points = int(float(header[2]))
-            e_fermi = float(header[3])
-        except Exception:
-            return []
-
-        dos_rows = []
-        for line in lines[6 : 6 + n_points]:
-            vals = line.split()
-            if not vals:
-                continue
-            try:
-                dos_rows.append([float(v) for v in vals])
-            except Exception:
-                continue
-        if not dos_rows:
-            return []
-
-        dos_data = np.asarray(dos_rows, dtype=float)
-        n_cols = dos_data.shape[1]
-        energies = dos_data[:, 0]
-
-        if n_cols >= spin_polarized_dos_columns:
-            return [
-                dict(
-                    energies=energies,
-                    value=np.abs(dos_data[:, 1]),
-                    spin_channel=0,
-                    energy_fermi=e_fermi,
-                ),
-                dict(
-                    energies=energies,
-                    value=np.abs(dos_data[:, 2]),
-                    spin_channel=1,
-                    energy_fermi=e_fermi,
-                ),
-            ]
-
-        if n_cols >= min_dos_columns:
-            return [
-                dict(
-                    energies=energies,
-                    value=np.abs(dos_data[:, 1]),
-                    energy_fermi=e_fermi,
-                )
-            ]
-
-        return []
-
-    def get_xc_functionals(self, parameters: dict[str, Any]) -> list[dict[str, Any]]:
-        return get_xc_functionals(parameters)
+    def get_functional_key(self, parameters: dict[str, Any]) -> str | None:
+        return functional_key_from_params(parameters)
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         scf_iterations = source.get('scf_iteration', [])
@@ -644,11 +566,17 @@ class OutcarArchiveWriter(ArchiveWriter):
             source_parser.data.get('parameters', {})
         )
 
-        # parser CHGCAR
+        # parse CHGCAR
         archive_data_parser.annotation_key = vasp.CHGCAR_KEY
         chgcar_parser = CHGCARParser()
         chgcar_parser.filepath = self.mainfile
         chgcar_parser.convert(archive_data_parser)
+
+        # parse DOSCAR
+        archive_data_parser.annotation_key = vasp.DOSCAR_KEY
+        doscar_parser = DOSCARParser()
+        doscar_parser.filepath = self.mainfile
+        doscar_parser.convert(archive_data_parser)
 
         # close file handles
         archive_data_parser.close()

@@ -71,6 +71,10 @@ class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label, OUT_KEY, '.XC_functional_name'
     )
+    add_mapping_annotation(model_method.XCComponent.libxc_id, OUT_KEY, '.libxc_id')
+    add_mapping_annotation(
+        model_method.XCComponent.unidentified, OUT_KEY, '.unidentified'
+    )
 
 
 class XCFunctional(model_method.XCFunctional):

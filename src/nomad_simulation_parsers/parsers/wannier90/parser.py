@@ -7,12 +7,12 @@ import numpy as np
 from nomad.config import config
 from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import TaskReference
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
-from nomad.parsing.file_parser.text_parser import DataTextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
+from nomad_file_parser.text_parser import DataTextParser
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
@@ -135,7 +135,7 @@ class WOutTextParser(TextParser):
         return (niter or default) > 1
 
     def get_kpoints(self, points: np.ndarray) -> np.ndarray:
-        return np.complex128(points[::2])
+        return np.float64(points[::2])
 
     def get_k_line_path(self, k_line_path: dict[str, Any]):
         high_symm_names = k_line_path.get('high_symm_name')

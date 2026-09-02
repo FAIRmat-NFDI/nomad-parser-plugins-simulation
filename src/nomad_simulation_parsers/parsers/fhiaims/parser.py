@@ -8,11 +8,11 @@ from ase import Atoms
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser
-from nomad.parsing.file_parser.mapping_parser import TextParser as TextMappingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser
+from nomad_file_parser.mapping_parser import TextParser as TextMappingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -36,7 +36,9 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
-    FHIAimsOutFileParser,
+)
+from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
+    FHIAimsOutFileParserLine as FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -68,112 +70,39 @@ class FHIAimsOutMappingParser(TextMappingParser):
         'scgw': 'scGW',
     }
 
-    _xc_map = {
-        'Perdew-Wang parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PW'},
-            {'name': 'LDA_X'},
-        ],
-        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PZ'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN5 form': [
-            {'name': 'LDA_C_VWN'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN-RPA form': [
-            {'name': 'LDA_C_VWN_RPA'},
-            {'name': 'LDA_X'},
-        ],
-        'AM05 gradient-corrected functionals': [
-            {'name': 'GGA_C_AM05'},
-            {'name': 'GGA_X_AM05'},
-        ],
-        'BLYP functional': [{'name': 'GGA_C_LYP'}, {'name': 'GGA_X_B88'}],
-        'PBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE'},
-        ],
-        'PBEint gradient-corrected functional': [
-            {'name': 'GGA_C_PBEINT'},
-            {'name': 'GGA_X_PBEINT'},
-        ],
-        'PBEsol gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {'name': 'GGA_X_PBE_SOL'},
-        ],
-        'RPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_RPBE'},
-        ],
-        'revPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE_R'},
-        ],
-        'PW91 gradient-corrected functionals': [
-            {'name': 'GGA_C_PW91'},
-            {'name': 'GGA_X_PW91'},
-        ],
-        'M06-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_L'},
-            {'name': 'MGGA_X_M06_L'},
-        ],
-        'M11-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11_L'},
-            {'name': 'MGGA_X_M11_L'},
-        ],
-        'TPSS gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSS'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'TPSSloc gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSSLOC'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'hybrid B3LYP functional': [{'name': 'HYB_GGA_XC_B3LYP5'}],
-        'Hartree-Fock': [{'name': 'HF_X'}],
-        'HSE': [{'name': 'HYB_GGA_XC_HSE03'}],
-        'HSE-functional': [{'name': 'HYB_GGA_XC_HSE06'}],
-        'hybrid-PBE0 functionals': [
-            {'name': 'GGA_C_PBE'},
-            {
-                'name': 'GGA_X_PBE',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'hybrid-PBEsol0 functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {
-                'name': 'GGA_X_PBE_SOL',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'Hybrid M06 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-2X gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_2X'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-HF gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_HF'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M08-HX gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_HX'},
-            {'name': 'HYB_MGGA_X_M08_HX'},
-        ],
-        'Hybrid M08-SO gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_SO'},
-            {'name': 'HYB_MGGA_X_M08_SO'},
-        ],
-        'Hybrid M11 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11'},
-            {'name': 'HYB_MGGA_X_M11'},
-        ],
+    # FHI-aims XC control description -> standard functional name. The
+    # `nomad-simulations` schema expands the name into LibXC components
+    # (family/kind) and derives `jacobs_ladder`; the parser deliberately does
+    # not resolve LibXC labels itself. Names normalize case-insensitively, so
+    # the human-readable spelling used here resolves to the schema alias.
+    _xc_name_map = {
+        'Perdew-Wang parametrisation of Ceperley-Alder LDA': 'LDA',
+        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': 'PZ81',
+        'VWN-LDA parametrisation of VWN5 form': 'VWN',
+        'VWN-LDA parametrisation of VWN-RPA form': 'VWN-RPA',
+        'AM05 gradient-corrected functionals': 'AM05',
+        'BLYP functional': 'BLYP',
+        'PBE gradient-corrected functionals': 'PBE',
+        'PBEint gradient-corrected functional': 'PBEint',
+        'PBEsol gradient-corrected functionals': 'PBEsol',
+        'RPBE gradient-corrected functionals': 'RPBE',
+        'revPBE gradient-corrected functionals': 'revPBE',
+        'PW91 gradient-corrected functionals': 'PW91',
+        'M06-L gradient-corrected functionals': 'M06-L',
+        'M11-L gradient-corrected functionals': 'M11-L',
+        'TPSS gradient-corrected functionals': 'TPSS',
+        'TPSSloc gradient-corrected functionals': 'TPSSloc',
+        'hybrid B3LYP functional': 'B3LYP',
+        'HSE': 'HSE03',
+        'HSE-functional': 'HSE06',
+        'hybrid-PBE0 functionals': 'PBE0',
+        'hybrid-PBEsol0 functionals': 'PBEsol0',
+        'Hybrid M06 gradient-corrected functionals': 'M06',
+        'Hybrid M06-2X gradient-corrected functionals': 'M06-2X',
+        'Hybrid M06-HF gradient-corrected functionals': 'M06-HF',
+        'Hybrid M08-HX gradient-corrected functionals': 'M08-HX',
+        'Hybrid M08-SO gradient-corrected functionals': 'M08-SO',
+        'Hybrid M11 gradient-corrected functionals': 'M11',
     }
 
     _section_names = ['full_scf', 'geometry_optimization', 'molecular_dynamics']
@@ -193,10 +122,11 @@ class FHIAimsOutMappingParser(TextMappingParser):
         files.sort()
         return files
 
-    def get_xc_functionals(self, xc: str) -> list[dict[str, Any]]:
-        return [
-            dict(name=functional.get('name')) for functional in self._xc_map.get(xc, [])
-        ]
+    def get_functional_key(self, xc: str) -> str | None:
+        """Standard functional name for this FHI-aims XC control string. The
+        schema expands the name into LibXC components (family/kind) and derives
+        `jacobs_ladder`; returns `None` for an unmapped string."""
+        return self._xc_name_map.get(xc)
 
     def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool]:
         return [source.get('lattice_vectors') is not None] * 3
@@ -266,7 +196,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
     ) -> list[dict[str, Any]]:
         n_spin = params.get('Number of spin channels', 1)
         eigenvalues = []
-        for data in source:
+        # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
+        # eigenvalues; earlier blocks are intermediate SCF snapshots.
+        for data in (source or [])[-1:]:
             kpts = data.get('kpoints', [np.zeros(3)] * n_spin)
             kpts = np.reshape(kpts, (len(kpts) // n_spin, n_spin, 3))
             kpts = np.transpose(kpts, axes=(1, 0, 2))[0]
@@ -283,8 +215,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         nbands=n_eigs,
                         npoints=n_kpts,
                         points=kpts,
-                        occupations=occs_eigs[0][spin],
-                        eigenvalues=occs_eigs[1][spin],
+                        occupation=occs_eigs[0][spin],
+                        value=occs_eigs[1][spin] * ureg.hartree,
+                        spin_channel=spin if n_spin > 1 else None,
                     )
                 )
         return eigenvalues
@@ -293,15 +226,15 @@ class FHIAimsOutMappingParser(TextMappingParser):
         self, source: list[dict[str, Any]], params: dict[str, Any]
     ) -> list[dict[str, Any]]:
         band_structures = []
-        for spin_channel, eig in enumerate(self.get_eigenvalues(source, params)):
-            values = eig.get('eigenvalues')
+        for eig in self.get_eigenvalues(source, params):
+            values = eig.get('value')
             if values is None:
                 continue
             band_structures.append(
                 dict(
                     value=values,
-                    occupation=eig.get('occupations'),
-                    spin_channel=spin_channel,
+                    occupation=eig.get('occupation'),
+                    spin_channel=eig.get('spin_channel'),
                 )
             )
         return band_structures
@@ -338,6 +271,22 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if k_offset is None:
             return np.array([0.0, 0.0, 0.0])
         return k_offset
+
+    def get_all_criteria(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        criteria = []
+        for fcriteria in [
+            self.get_scf_energy_criterion,
+            self.get_scf_density_criterion,
+            self.get_scf_eigenvalues_criterion,
+        ]:
+            data = fcriteria(source)
+            if data:
+                criteria.append(data)
+        if not criteria:
+            max_iterations = source.get('max_scf_iterations')
+            if max_iterations is not None:
+                criteria.append({'n_max_iterations': max_iterations})
+        return criteria
 
     def get_scf_energy_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
         """
@@ -412,7 +361,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
             return {}
 
         delta_energies_total = []
-        delta_density_rms = []
+        delta_charge_abs = []
         durations = []
         delta_sum_eigenvalues = []
 
@@ -424,7 +373,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
             delta_density = convergence.get('Change of charge density')
             if delta_density is not None:
-                delta_density_rms.append(
+                delta_charge_abs.append(
                     abs(float(delta_density)) * ureg.elementary_charge
                 )
 
@@ -439,8 +388,8 @@ class FHIAimsOutMappingParser(TextMappingParser):
         scf_steps = {}
         if delta_energies_total:
             scf_steps['delta_energies_total'] = delta_energies_total
-        if delta_density_rms:
-            scf_steps['delta_density_rms'] = delta_density_rms
+        if delta_charge_abs:
+            scf_steps['delta_charge_abs'] = delta_charge_abs
         if len(durations) == len(scf_iterations):
             scf_steps['durations'] = durations
         if delta_sum_eigenvalues:
@@ -548,7 +497,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
         )
         phonopy_obj.generate_displacements(distance=displacement)
-        supercells = phonopy_obj.get_supercells_with_displacements()
+        supercells = phonopy_obj.supercells_with_displacements
 
         force_sets = []
         n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
@@ -576,7 +525,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             force_sets.append(forces)
 
         try:
-            phonopy_obj.set_forces(force_sets)
+            phonopy_obj.forces = force_sets
             phonopy_obj.produce_force_constants()
         except Exception:
             self.logger.error('Error producing force constants.')
@@ -588,6 +537,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     ) -> None:
         out_parser = FHIAimsOutMappingParser()
         out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser.text_parser.line_parsing = True
+        out_parser.text_parser.allow_overlap = True
         out_parser.filepath = self.mainfile
 
         archive_handler = FHIAimsMetainfoParser()
@@ -597,42 +548,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
-
-        # Manually create SelfConsistency instances for SCF convergence criteria
-        # (multi-mapper doesn't support function-returns-list pattern)
-        from nomad_simulations.schema_packages.numerical_settings import (  # noqa: PLC0415
-            SelfConsistency,
-        )
-
-        if self.archive.data.model_method:
-            dft = self.archive.data.model_method[0]
-
-            # Collect all criteria
-            criteria = []
-            scf_criteria = out_parser.get_scf_energy_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-            scf_criteria = out_parser.get_scf_density_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-            scf_criteria = out_parser.get_scf_eigenvalues_criterion(out_parser.data)
-            if scf_criteria:
-                criteria.append(scf_criteria)
-
-            # If no thresholds parsed but max_iterations present, preserve it
-            if not criteria:
-                max_iterations = out_parser.data.get('max_scf_iterations')
-                if max_iterations is not None:
-                    criteria.append({'n_max_iterations': max_iterations})
-
-            # Add all criteria to numerical_settings
-            for criterion in criteria:
-                # Extract name (must be set after instantiation due to __init__)
-                criterion_name = criterion.pop('name', None)
-                instance = SelfConsistency(**criterion)
-                if criterion_name:
-                    instance.name = criterion_name
-                dft.numerical_settings.append(instance)
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
@@ -680,7 +595,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             if energy_threshold is not None:
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=energy_threshold * ureg.eV,
+                        threshold=energy_threshold,
                         threshold_type='absolute',
                     )
                 ]

@@ -1,6 +1,6 @@
 from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
+from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -45,22 +45,20 @@ class ModelSystem(model_system.ModelSystem):
     ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
 
 
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(dict(out=Mapper(mapper='.@')))
+class DFT(model_method.DFT):
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             out=Mapper(
-#                 mapper=('get_xc_functionals', ['.model_parameters.dft_potential'])
-#             )
-#         )
-#     )
+class XCFunctional(model_method.XCFunctional):
+    # Set `functional_key` to the standard functional name from the AMS DFT
+    # potential block; the schema expands it into components (family/kind) and
+    # derives `jacobs_ladder`.
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        OUT_KEY,
+        ('get_functional_key', ['.model_parameters.dft_potential']),
+    )
 
 
 class TotalEnergy(outputs.TotalEnergy):

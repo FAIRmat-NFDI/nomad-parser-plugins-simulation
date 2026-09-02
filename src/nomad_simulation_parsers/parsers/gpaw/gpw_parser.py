@@ -4,8 +4,8 @@ import ase
 import numpy as np
 import pint
 from ase.io.ulm import Reader
-from nomad.parsing.file_parser import DataTextParser, FileParser, TarParser, XMLParser
 from nomad.units import ureg
+from nomad_file_parser import DataTextParser, FileParser, TarParser, XMLParser
 
 
 class GPWTarParser(TarParser):
@@ -304,22 +304,6 @@ class GPWFileParser(FileParser):
         'bohr': ureg.bohr,
         'femtosecond': ureg.fs,
     }
-    _xc_map = {
-        'LDA': ['LDA_X', 'LDA_C_PW'],
-        'PW91': ['GGA_X_PW91', 'GGA_C_PW91'],
-        'PBE': ['GGA_X_PBE', 'GGA_C_PBE'],
-        'PBEsol': ['GGA_X_PBE_SOL', 'GGA_C_PBE_SOL'],
-        'revPBE': ['GGA_X_PBE_R', 'GGA_C_PBE'],
-        'RPBE': ['GGA_X_RPBE', 'GGA_C_PBE'],
-        'BLYP': ['GGA_X_B88', 'GGA_C_LYP'],
-        'HCTH407': ['GGA_XC_HCTH_407'],
-        'WC': ['GGA_X_WC', 'GGA_C_PBE'],
-        'AM05': ['GGA_X_AM05', 'GGA_C_AM05'],
-        'M06-L': ['MGGA_X_M06_L', 'MGGA_C_M06_L'],
-        'TPSS': ['MGGA_X_TPSS', 'MGGA_C_TPSS'],
-        'revTPSS': ['MGGA_X_REVTPSS', 'MGGA_C_REVTPSS'],
-        'mBEEF': ['MGGA_X_MBEEF', 'GGA_C_PBE_SOL'],
-    }
     parser = GPWTarParser()
 
     def apply_unit(self, val: np.ndarray | float, unit: str) -> pint.Quantity:
@@ -363,7 +347,6 @@ class GPWFileParser(FileParser):
             bc.shape = [bc.size]
             pbc[: bc.size] = bc
         self._results['boundary_conditions'] = pbc
-        xc_functional = self.parser.get_parameter('xcfunctional')
-        self._results['xcfunctional'] = [
-            xc for xc in self._xc_map.get(xc_functional, [xc_functional])
-        ]
+        # GPAW records the standard functional name (e.g. 'PBE', 'revPBE');
+        # the schema expands it into LibXC components and derives `jacobs_ladder`.
+        self._results['xcfunctional'] = self.parser.get_parameter('xcfunctional')

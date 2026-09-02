@@ -24,12 +24,14 @@ XML_KEY = 'vasp_xml'
 XML2_KEY = 'vasp_xml2'
 OUTCAR_KEY = 'vasp_outcar'
 CHGCAR_KEY = 'vasp_chgcar'
+DOSCAR_KEY = 'vasp_doscar'
 
 
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, XML2_KEY, 'modeling')
 add_mapping_annotation(general.Simulation.m_def, OUTCAR_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, CHGCAR_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, DOSCAR_KEY, '@')
 
 
 class ChargeDensity(ArchiveSection):
@@ -59,6 +61,9 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
     # TODO: make update_mode merge@last when mapping parser is updated
     add_mapping_annotation(VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='append')
+    add_mapping_annotation(
+        general.Simulation.outputs, DOSCAR_KEY, '.@', update_mode='append'
+    )
 
 
 class Program(general.Program):
@@ -76,62 +81,38 @@ class Program(general.Program):
     )
 
 
-# class DFT(model_method.DFT):
-#     model_method.DFT.xc_functionals.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper='.separator[?"@name"==\'electronic exchange-correlation\']'
-#             ),
-#             outcar=MapperAnnotation(mapper=('get_xc_functionals', ['.@'])),
-#         )
-#     )
-#     model_method.DFT.exact_exchange_mixing_factor.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 mapper=(
-#                     'mix_alpha',
-#                     [
-#                         '.i[?"@name"==\'HFALPHA\'] | [0].__value',
-#                         '.i[?"@name"==\'LHFCALC\'] | [0].__value',
-#                     ],
-#                 )
-#             )
-#         )
-#     )  # TODO convert vasp bool
-
-
-# class XCFunctional(model_method.XCFunctional):
-#     model_method.XCFunctional.libxc_name.m_annotations.setdefault(
-#         MAPPING_ANNOTATION_KEY, {}
-#     ).update(
-#         dict(
-#             xml=MapperAnnotation(
-#                 # TODO add LDA & mGGA, convert_xc
-#                 mapper='.i[?"@name"==\'GGA\'] | [0].__value'
-#             ),
-#             outcar=MapperAnnotation(mapper='.name'),
-#         )
-#     )
+# TODO: map hybrid exact-exchange mixing into `XCFunctional.global_exact_exchange`
+# (formerly `DFT.exact_exchange_mixing_factor`). VASP exposes it via HFALPHA /
+# LHFCALC, and `VasprunParser.mix_alpha` is the intended transformer. Deferred:
+# needs a hybrid test fixture (AgAc_relax is PBE).
 class XCFunctional(model_method.XCFunctional):
+    # Set only the canonical functional name; `XCFunctional.normalize` expands it
+    # into complete LibXC `components` (exchange + correlation, with family/kind)
+    # from the shared alias/registry tables, and `DFT.normalize` derives
+    # `jacobs_ladder`. The parser therefore does not build components itself. The
+    # `get_functional_key` transformer gathers the VASP XC tags itself (flat
+    # OUTCAR parameters, or by walking the vasprun `<parameters>` tree).
     add_mapping_annotation(
-        model_method.XCFunctional.components,
+        model_method.XCFunctional.functional_key,
         XML_KEY,
-        ('get_xc_functionals', ['.@']),
+        ('get_functional_key', ['.@']),
     )
     add_mapping_annotation(
-        model_method.XCFunctional.components, OUTCAR_KEY, ('get_xc_functionals', ['.@'])
+        model_method.XCFunctional.functional_key,
+        OUTCAR_KEY,
+        ('get_functional_key', ['.@']),
     )
 
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, XML_KEY, '.name')
-    add_mapping_annotation(
-        model_method.XCComponent.canonical_label, OUTCAR_KEY, '.name'
-    )
+class DFT(model_method.DFT):
+    # The binding only needs to materialize the `xc` subsection so the child
+    # `functional_key` mapper runs -- `get_functional_key` ignores the bound node
+    # and gathers the XC tags itself (walking the full vasprun `<parameters>`
+    # tree, or the flat OUTCAR parameters). So bind to the current node (`.@`,
+    # always present) for both sources rather than a specific nested separator
+    # that some vasprun variants omit.
+    add_mapping_annotation(model_method.DFT.xc, XML_KEY, '.@')
+    add_mapping_annotation(model_method.DFT.xc, OUTCAR_KEY, '.@')
 
 
 class ModelMethod(model_method.ModelMethod):
@@ -327,8 +308,8 @@ class Outputs(outputs.Outputs):
     )
     add_mapping_annotation(
         outputs.Outputs.electronic_dos,
-        OUTCAR_KEY,
-        ('get_total_dos', []),
+        DOSCAR_KEY,
+        ('get_dos', ['.total_dos', '.projected_dos']),
     )
 
 
@@ -474,7 +455,7 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
 class Energy2(variables.Energy2):
     add_mapping_annotation(variables.Energy2.points, XML_KEY, '.energies', unit='eV')
     add_mapping_annotation(variables.Energy2.points, XML2_KEY, '.energies', unit='eV')
-    add_mapping_annotation(variables.Energy2.points, OUTCAR_KEY, '.energies', unit='eV')
+    add_mapping_annotation(variables.Energy2.points, DOSCAR_KEY, '.energies', unit='eV')
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
@@ -485,16 +466,13 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
         outputs.ElectronicDensityOfStates.value, XML2_KEY, '.value', unit='1/eV'
     )
     add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value, OUTCAR_KEY, '.value', unit='1/eV'
-    )
-    add_mapping_annotation(
         outputs.ElectronicDensityOfStates.spin_channel, XML_KEY, '.spin_channel'
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.spin_channel, XML2_KEY, '.spin_channel'
     )
     add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.spin_channel, OUTCAR_KEY, '.spin_channel'
+        outputs.ElectronicDensityOfStates.spin_channel, DOSCAR_KEY, '.spin'
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.energies_origin,
@@ -510,13 +488,19 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.energies_origin,
-        OUTCAR_KEY,
-        '.energy_fermi',
+        DOSCAR_KEY,
+        'e_fermi',
         unit='eV',
     )
     add_mapping_annotation(variables.Energy2.m_def, XML_KEY, '.@')
     add_mapping_annotation(variables.Energy2.m_def, XML2_KEY, '.@')
-    add_mapping_annotation(variables.Energy2.m_def, OUTCAR_KEY, '.@')
+    add_mapping_annotation(variables.Energy2.m_def, DOSCAR_KEY, '@')
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, DOSCAR_KEY, '.dos', unit='1/eV'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.projected_dos, DOSCAR_KEY, '.projected'
+    )
 
 
 try:
