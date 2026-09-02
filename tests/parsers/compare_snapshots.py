@@ -137,13 +137,15 @@ def diff_leaves(baseline: Any, current: Any) -> LeafDiff:
     """Compare one test's baseline and current archives leaf by leaf."""
     base = flatten(baseline)
     cur = flatten(current)
-    added = [path for path in cur if path not in base]
-    removed = [path for path in base if path not in cur]
-    changed = [
+    # Sort each bucket so the report ordering is stable across runs regardless of
+    # dict iteration order; this does not affect pass/fail semantics.
+    added = sorted(path for path in cur if path not in base)
+    removed = sorted(path for path in base if path not in cur)
+    changed = sorted(
         path
         for path in base
         if path in cur and not _values_equal(base[path], cur[path])
-    ]
+    )
     return LeafDiff(added=added, removed=removed, changed=changed)
 
 
