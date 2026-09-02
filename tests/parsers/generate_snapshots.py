@@ -18,7 +18,9 @@ Usage::
     generate_snapshots.py <out.json> [parser ...]
 
 With no parser names, every parser in ``PARSERS`` is snapshotted; otherwise only
-the named parser directories (e.g. ``orca vasp``) are.
+the named parser directories (e.g. ``orca vasp``) are. A registered parser whose
+fixture is not present in the checkout (yambo until one is added, or a large
+fixture) is skipped rather than failing.
 """
 
 from __future__ import annotations
@@ -51,6 +53,7 @@ from nomad_simulation_parsers.parsers.quantumespresso.parser import (
 )
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 from nomad_simulation_parsers.parsers.wannier90.parser import Wannier90Parser
+from nomad_simulation_parsers.parsers.yambo.parser import YamboParser
 
 LOGGER = get_logger(__name__)
 
@@ -83,9 +86,11 @@ PARSERS: dict[str, list[tuple[type, str]]] = {
     'wannier90': [(Wannier90Parser, 'tests/data/wannier90/lco_mlwf/lco.wout')],
     'orca': [(OrcaParser, 'tests/data/orca/RI_MP2_water.out')],
     'lobster': [(LobsterParser, 'tests/data/lobster/NaCl/lobsterout')],
-    # yambo is intentionally absent: it has no end-to-end fixture in the checkout
-    # (its tests are unit-only, there is no tests/data/yambo/), so there is
-    # nothing to snapshot. Add an entry once a small mainfile fixture exists.
+    # yambo is registered so a future fixture is picked up with no further wiring,
+    # but it has no end-to-end fixture in the checkout yet (its tests are
+    # unit-only). generate() skips any mainfile that is not present, so this stays
+    # dormant until tests/data/yambo/ exists -- replace the placeholder path then.
+    'yambo': [(YamboParser, 'tests/data/yambo/example/r-example')],
 }
 
 
@@ -137,6 +142,12 @@ def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
     mainfiles: list[str] = []
     for parser_dir in parser_dirs:
         for parser_class, mainfile in PARSERS[parser_dir]:
+            if not Path(mainfile).is_file():
+                # A registered parser whose fixture is absent from the checkout
+                # (yambo until one is added, or a large fixture) is skipped, not
+                # a failure -- it simply does not contribute a snapshot.
+                print(f'skip {parser_dir}: fixture not present ({mainfile})')
+                continue
             archive = EntryArchive()
             parser_class().parse(mainfile, archive, LOGGER)
             key = f'{parser_dir}:{Path(mainfile).name}'
