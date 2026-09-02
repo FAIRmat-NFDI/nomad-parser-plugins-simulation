@@ -3,25 +3,34 @@
 
 Compared against the target (baseline) ref, the source (current) ref may only
 *add* to the archive: any leaf that existed in the target must still be present
-with the same value. Both removals and value modifications are flagged; only
-purely additive changes pass.
+with the same value. This yields three tiers of signal per parser:
 
-The check works in four stages, mirrored by the sections below:
+===========  =====================================  ==========================
+verdict      meaning                                outcome
+===========  =====================================  ==========================
+``identical`` no leaf added, removed, or changed     pass, silent
+``additive``  only additions                         pass, surfaced as a
+                                                     non-failing GitHub warning
+``MODIFIED`` / a leaf changed value or was removed   hard fail (exit 1),
+``REMOVED``                                          printing ``old -> new``
+===========  =====================================  ==========================
 
-1. **Parse** each JSON file into ``{key: archive_dict}``.
+So additions stay visible without turning the check red, while any removal or
+value change blocks. This policy is intentional: a deliberate move or value
+change is meant to fail here, and is reviewed by running the check locally.
+
+The check works in stages, mirrored by the sections below:
+
+1. **Parse** each JSON file into its ``provenance`` block and ``{key: archive}``
+   snapshots. If the two snapshot sets are byte-identical the diff is skipped
+   entirely (a fast hash short-circuit). Provenance is reported for context but
+   never diffed -- two refs may legitimately differ there.
 2. **Flatten** every archive to ``{path: scalar}`` leaves, so two nested
    structures can be compared leaf by leaf.
-3. **Diff** the baseline and current leaves per key into three buckets:
-
-   =========  ====================================================  ===========
-   bucket     meaning                                               verdict
-   =========  ====================================================  ===========
-   ``added``   leaf only in current                                  fine
-   ``changed`` same path, different value                            FLAGGED
-   ``removed`` leaf only in baseline                                 FLAGGED
-   =========  ====================================================  ===========
-
-4. **Report** the buckets and exit non-zero iff anything was removed or changed.
+3. **Diff** the baseline and current leaves per key into added / changed /
+   removed buckets.
+4. **Report** the buckets (and emit warning annotations for additive parsers
+   under GitHub Actions) and exit non-zero iff anything was removed or changed.
 
 Lists are aligned by index, so a genuine reordering shows up as ``changed``.
 Deterministic section ordering (from the nomad-lab pre-releases used in CI)
@@ -33,23 +42,35 @@ Usage: ``compare_snapshots.py <target.json> <source.json>``
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, NamedTuple
 
 # How many example leaves to print per test before truncating.
+_MAX_ADDED_SHOWN = 5
 _MAX_REMOVED_SHOWN = 20
 _MAX_CHANGED_SHOWN = 5
 # Relative tolerance when comparing two numbers, to ignore float noise.
 _FLOAT_RTOL = 1e-9
+# True when running inside a GitHub Actions job, where ``::warning::`` lines
+# render as non-failing annotations in the checks UI.
+_ON_GITHUB = os.environ.get('GITHUB_ACTIONS') == 'true'
 
 
 # --------------------------------------------------------------------------- #
 # 1. Parsing
 # --------------------------------------------------------------------------- #
-def parse_json(path: str) -> dict[str, Any]:
-    """Load a snapshot JSON file into ``{key: archive_dict}``."""
+def parse_json(path: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load a snapshot JSON file into ``(snapshots, provenance)``.
+
+    Accepts the current ``{"provenance": ..., "snapshots": ...}`` layout and,
+    for robustness, a bare ``{key: archive}`` mapping (provenance then empty).
+    """
     with open(path) as handle:
-        return json.load(handle)
+        document = json.load(handle)
+    if isinstance(document, dict) and 'snapshots' in document:
+        return document['snapshots'], document.get('provenance', {})
+    return document, {}
 
 
 # --------------------------------------------------------------------------- #
@@ -130,13 +151,22 @@ def diff_leaves(baseline: Any, current: Any) -> LeafDiff:
 # 4. Reporting
 # --------------------------------------------------------------------------- #
 def report_test(name: str, baseline: Any, current: Any, diff: LeafDiff) -> None:
-    """Print one line per test plus a few example removed/changed leaves."""
+    """Print one line per test plus a few example added/removed/changed leaves.
+
+    Additive parsers (additions only, nothing removed or changed) also emit a
+    non-failing ``::warning::`` annotation under GitHub Actions, so growth is
+    visible in the checks UI without turning the job red.
+    """
     base = flatten(baseline)
     cur = flatten(current)
     print(
         f'  {diff.verdict:10} {name:34} '
         f'+{len(diff.added)} -{len(diff.removed)} ~{len(diff.changed)}'
     )
+    for path in diff.added[:_MAX_ADDED_SHOWN]:
+        print(f'      added:   {path} = {cur[path]!r}')
+    if len(diff.added) > _MAX_ADDED_SHOWN:
+        print(f'      added:   ... and {len(diff.added) - _MAX_ADDED_SHOWN} more')
     for path in diff.removed[:_MAX_REMOVED_SHOWN]:
         print(f'      removed: {path} = {base[path]!r}')
     for path in diff.changed[:_MAX_CHANGED_SHOWN]:
@@ -144,13 +174,41 @@ def report_test(name: str, baseline: Any, current: Any, diff: LeafDiff) -> None:
     if len(diff.changed) > _MAX_CHANGED_SHOWN:
         print(f'      changed: ... and {len(diff.changed) - _MAX_CHANGED_SHOWN} more')
 
+    if _ON_GITHUB and diff.verdict == 'additive':
+        sample = ', '.join(diff.added[:_MAX_ADDED_SHOWN])
+        print(
+            f'::warning title=additive-output-changes::{name}: '
+            f'{len(diff.added)} leaf(s) added (e.g. {sample})'
+        )
+
+
+def _print_provenance(label: str, prov: dict[str, Any]) -> None:
+    if not prov:
+        return
+    fixtures = prov.get('fixtures') or {}
+    print(
+        f'  {label}: python {prov.get("python")}, nomad-lab {prov.get("nomad_lab")}, '
+        f'uv.lock {str(prov.get("uv_lock_sha256"))[:12]}, {len(fixtures)} fixture(s)'
+    )
+
 
 def main() -> int:
     if len(sys.argv) != 3:
         print(f'usage: {sys.argv[0]} <target.json> <source.json>', file=sys.stderr)
         return 2
-    baseline = parse_json(sys.argv[1])
-    current = parse_json(sys.argv[2])
+    baseline, baseline_prov = parse_json(sys.argv[1])
+    current, current_prov = parse_json(sys.argv[2])
+
+    print('provenance:')
+    _print_provenance('target', baseline_prov)
+    _print_provenance('source', current_prov)
+    print()
+
+    # Fast hash short-circuit: if the two snapshot sets are byte-identical there
+    # is nothing to diff, so skip straight to a pass.
+    if json.dumps(baseline, sort_keys=True) == json.dumps(current, sort_keys=True):
+        print('PASS: source snapshots are identical to the target (hash match).')
+        return 0
 
     total_removed = total_changed = 0
     for name in sorted(set(baseline) | set(current)):

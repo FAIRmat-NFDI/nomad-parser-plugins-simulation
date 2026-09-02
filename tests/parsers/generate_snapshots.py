@@ -8,6 +8,11 @@ never committed -- they are regenerated from scratch for both the target and
 source refs and compared by ``compare_snapshots.py``. A JSON *dump* (not a
 hash) is used so the comparison can report *where* the archives differ.
 
+The output is ``{"provenance": {...}, "snapshots": {key: archive}}``. The
+provenance block records the interpreter, serializer, harness, ``uv.lock`` and
+fixture hashes (see ``provenance``) so a stale environment cannot masquerade as
+an identical run; ``compare_snapshots.py`` reports it but never diffs it.
+
 Usage::
 
     generate_snapshots.py <out.json> [parser ...]
@@ -18,8 +23,11 @@ the named parser directories (e.g. ``orca vasp``) are.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import platform
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from nomad.datamodel import EntryArchive
@@ -34,6 +42,7 @@ from nomad_simulation_parsers.parsers.gpaw.parser import GPAWParser
 from nomad_simulation_parsers.parsers.gromacs.parser import GromacsParser
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
+from nomad_simulation_parsers.parsers.lobster.parser import LobsterParser
 from nomad_simulation_parsers.parsers.octopus.parser import OctopusParser
 from nomad_simulation_parsers.parsers.orca.parser import OrcaParser
 from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyParser
@@ -73,6 +82,10 @@ PARSERS: dict[str, list[tuple[type, str]]] = {
     ],
     'wannier90': [(Wannier90Parser, 'tests/data/wannier90/lco_mlwf/lco.wout')],
     'orca': [(OrcaParser, 'tests/data/orca/RI_MP2_water.out')],
+    'lobster': [(LobsterParser, 'tests/data/lobster/NaCl/lobsterout')],
+    # yambo is intentionally absent: it has no end-to-end fixture in the checkout
+    # (its tests are unit-only, there is no tests/data/yambo/), so there is
+    # nothing to snapshot. Add an entry once a small mainfile fixture exists.
 }
 
 
@@ -83,15 +96,53 @@ def serialize_archive_data(archive: EntryArchive):
     return archive.data.m_to_dict(with_meta=False)
 
 
-def generate(parser_dirs: list[str]) -> dict:
+def _sha256(path: Path) -> str | None:
+    """SHA-256 of a file, or None if it does not exist."""
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _package_version(name: str) -> str | None:
+    try:
+        return version(name)
+    except PackageNotFoundError:
+        return None
+
+
+def provenance(mainfiles: list[str]) -> dict:
+    """Record what produced this snapshot, so a stale environment or a changed
+    fixture cannot masquerade as an identical run.
+
+    Includes the interpreter version, the serializer (``nomad-lab``) version, the
+    harness hash (this generator), the ``uv.lock`` hash when present, and a hash
+    per fixture that was snapshotted. ``compare_snapshots.py`` reports these for
+    context but never diffs them: two refs may legitimately differ here.
+    """
+    return {
+        'python': platform.python_version(),
+        'nomad_lab': _package_version('nomad-lab'),
+        'harness_sha256': _sha256(Path(__file__)),
+        'uv_lock_sha256': _sha256(Path('uv.lock')),
+        'fixtures': {mainfile: _sha256(Path(mainfile)) for mainfile in mainfiles},
+    }
+
+
+def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
     snapshots = {}
+    mainfiles: list[str] = []
     for parser_dir in parser_dirs:
         for parser_class, mainfile in PARSERS[parser_dir]:
             archive = EntryArchive()
             parser_class().parse(mainfile, archive, LOGGER)
             key = f'{parser_dir}:{Path(mainfile).name}'
             snapshots[key] = serialize_archive_data(archive)
-    return snapshots
+            mainfiles.append(mainfile)
+    return snapshots, mainfiles
 
 
 def main() -> int:
@@ -104,8 +155,9 @@ def main() -> int:
     if unknown:
         print(f'unknown parsers: {", ".join(unknown)}', file=sys.stderr)
         return 2
-    snapshots = generate(requested)
-    Path(out).write_text(json.dumps(snapshots, sort_keys=True, indent=1, default=str))
+    snapshots, mainfiles = generate(requested)
+    document = {'provenance': provenance(mainfiles), 'snapshots': snapshots}
+    Path(out).write_text(json.dumps(document, sort_keys=True, indent=1, default=str))
     print(f'wrote {len(snapshots)} snapshot(s) for {len(requested)} parser(s): {out}')
     return 0
 

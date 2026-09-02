@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# Snapshot additivity check, runnable locally and in CI.
+# Additive-output check, runnable locally and in CI (the additive-output-changes
+# workflow calls this same script).
 #
 # Verifies that a `source` ref does not modify or drop archive data present in a
 # `target` ref: it generates a parser-output JSON snapshot for each ref (from
-# scratch, never committed) and compares them with compare_snapshots.py. Only
-# purely additive changes pass.
+# scratch, never committed) and compares them with compare_snapshots.py.
+#
+# Policy (three tiers per parser): `identical` passes silently, `additive`
+# passes but is surfaced as a non-failing warning annotation under GitHub
+# Actions, and a removed or changed leaf is a hard failure (exit 1, printing
+# `old -> new`). A deliberate move or value change is meant to fail here; you
+# review it by reading this local diff and confirming it is intended.
 #
 #   Usage: tests/parsers/check_additivity.sh [target-ref] [source-ref] [parser ...]
 #          target-ref  baseline whose data must not change   (default: develop)
@@ -72,14 +78,16 @@ generate () {  # <sha> <out.json> <worktree-name>
     echo "reuse ${name} snapshot: ${out}"
     return
   fi
-  local wt
-  wt="$(mktemp -d)/snapshot-${name}"
+  local tmp wt
+  tmp="$(mktemp -d)"
+  wt="$tmp/snapshot-${name}"       # git worktree add needs a non-existent path
   git -C "$REPO" worktree add --quiet --force "$wt" "$sha"
   cp "$HERE/generate_snapshots.py" "$wt/tests/parsers/"
   uv pip install -e "$wt" --no-deps >/dev/null
   # shellcheck disable=SC2086  # word-splitting of $PARSERS is intended
   ( cd "$wt" && python tests/parsers/generate_snapshots.py "$out" $PARSERS )
   git -C "$REPO" worktree remove --force "$wt"
+  rm -rf "$tmp"                    # drop the mktemp parent, leaving nothing behind
 }
 
 generate "$TARGET_SHA" "$TARGET_JSON" target

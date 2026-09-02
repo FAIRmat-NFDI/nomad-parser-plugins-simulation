@@ -1,14 +1,19 @@
-name: migration-snapshot-tests
-# Manually triggered additivity check. Runs tests/parsers/check_additivity.sh --
-# the same script developers run locally -- to snapshot two refs (a `target`
-# baseline and the `source` under test) and verify the source only adds to the
-# target (no archive leaf removed or modified). Snapshots are generated as plain
-# JSON, never tracked; CI adds a per-SHA cache so unchanged refs are reused.
+name: additive-output-changes
+# Manually triggered additive-output check. Runs tests/parsers/check_additivity.sh
+# -- the same script developers run locally -- to snapshot two refs (a `target`
+# baseline and the `source` under test) and verify the source only *adds* to the
+# target's archive output. Three tiers of signal per parser: `identical` (passes
+# silently), `additive` (passes, surfaced as a non-failing warning annotation),
+# and removed-or-changed (hard fail, printing `old -> new`). A deliberate move or
+# value change is meant to fail here; you review it by running the check locally.
+# Snapshots are generated as plain JSON, never tracked; CI adds a per-SHA cache
+# (keyed on the ref, requested parsers, python version and uv.lock hash) so an
+# unchanged ref+environment is reused.
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Baseline ref whose data must not change'
+        description: 'Baseline ref whose output must not shrink or change'
         default: 'develop'
       source:
         description: 'Ref under test (default: the dispatched branch)'
@@ -24,7 +29,7 @@ env:
   UV_SYSTEM_PYTHON: true
 
 jobs:
-  snapshot-tests:
+  additive-output-changes:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -36,7 +41,7 @@ jobs:
       with:
         python-version: 3.11
     - name: Install uv
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      uses: astral-sh/setup-uv@v5
     - name: Install dependencies
       run: |
         pip install --upgrade pip
@@ -60,33 +65,35 @@ jobs:
           echo "source_sha=$(resolve "$SOURCE")"
         } >> "$GITHUB_OUTPUT"
 
-    # Cache each ref's snapshot on its SHA + the requested parser set;
-    # check_additivity.sh reuses any .json that already exists, so a cache hit
-    # skips that ref's regeneration.
+    # Cache each ref's snapshot on its SHA + the requested parser set + the
+    # environment (python version, uv.lock hash); check_additivity.sh reuses any
+    # .json that already exists, so a cache hit skips that ref's regeneration.
+    # A changed environment misses the cache and regenerates, matching the
+    # provenance recorded inside the snapshot.
     - name: Restore cached target snapshot
       uses: actions/cache@v4
       with:
         path: target_snapshots.json
-        key: snapshot-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-v2
+        key: snapshot-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock') }}-v3
     - name: Restore cached source snapshot
       uses: actions/cache@v4
       with:
         path: source_snapshots.json
-        key: snapshot-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-v2
+        key: snapshot-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock') }}-v3
 
-    - name: Run additivity check
+    - name: Run additive-output check
       run: |
         set -o pipefail
         bash tests/parsers/check_additivity.sh \
           '${{ steps.refs.outputs.target }}' '${{ steps.refs.outputs.source }}' \
-          ${{ inputs.parsers }} \
+          '${{ inputs.parsers }}' \
           | tee comparison_report.txt
 
     - name: Upload snapshots and diff for inspection
       if: always()  # also publish on failure so the diff can be reviewed
       uses: actions/upload-artifact@v4
       with:
-        name: migration-snapshots
+        name: additive-output-changes
         path: |
           target_snapshots.json
           source_snapshots.json
