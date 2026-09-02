@@ -140,6 +140,12 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
         ] == [('cc-pVTZ-DK', 'orbital'), ('cc-pVTZ/C', 'auxiliary_post_hf')]
 
         for method in (casci, nevpt):
+            # Regression guard (#220): a multireference method must not carry a
+            # spurious DFT contribution. The `scf_settings` subtree exists for
+            # every calculation, so a dotted DFT annotation path resolved
+            # universally and the mapper injected a hollow DFT here; DFT stays
+            # root-anchored to avoid it.
+            assert not any(isinstance(c, DFT) for c in method.contributions)
             relativity = next(
                 contribution
                 for contribution in method.contributions

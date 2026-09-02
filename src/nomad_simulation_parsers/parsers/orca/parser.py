@@ -322,8 +322,13 @@ class OutParser(MappingTextParser):
             method['reference_form'] = reference_form
         return method
 
-    def get_dft_methods(self, scf_settings: dict[str, Any]) -> list[dict[str, Any]]:
-        method = self.get_dft(scf_settings)
+    def get_dft_methods(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        # DFT stays root-anchored: `scf_settings` exists for every calculation, so a
+        # dotted subtree path resolves universally and the mapping parser then
+        # materializes a hollow DFT section inside e.g. a multireference method's
+        # `contributions`. Navigating from the root avoids that (verified by the
+        # old-vs-new archive snapshot diff on the CASSCF/CASCI fixtures).
+        method = self.get_dft(self._get_scf_settings(source))
         if method:
             self._method = 'DFT'
         return [method] if method else []

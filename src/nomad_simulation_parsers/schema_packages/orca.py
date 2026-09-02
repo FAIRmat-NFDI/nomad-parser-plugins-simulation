@@ -46,7 +46,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.DFT.m_def,
     OUT_KEY,
-    ('get_dft_methods', ['.single_point.self_consistent.scf_settings']),
+    ('get_dft_methods', ['.@']),
     update_mode='append',
 )
 
