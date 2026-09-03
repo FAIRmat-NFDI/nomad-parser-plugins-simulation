@@ -34,16 +34,20 @@ class TestDFTMapping:
 @pytest.mark.unit
 class TestCoupledClusterMapping:
     def test_maps_ccsd_t_with_dlpno(self):
+        # The reader captures `coupled_cluster_type` as [A-Z]+ (regex stops at the
+        # first paren), so a real CCSD(T) run yields base type `CCSD` plus the
+        # perturbative-triples flag. The (T) is represented separately, not folded
+        # into `type`/`excitation_order`.
         (method,) = OutParser().get_coupled_cluster_methods(
             {
-                'coupled_cluster_type': 'CCSD(T)',
+                'coupled_cluster_type': 'CCSD',
                 'perturbative_triple_excitations_on_off': 'ON',
                 'kc_formation': 'DLPNO',
             },
             'input',
         )
-        assert method['type'] == 'CCSD(T)'
-        assert method['excitation_order'] == [1, 2, 3]  # ordering matters
+        assert method['type'] == 'CCSD'
+        assert method['excitation_order'] == [1, 2]  # ordering matters
         assert method['perturbative_correction'] == '(T)'
         assert method['perturbative_correction_order'] == [3]
         assert method['local_correlation']['type'] == 'DLPNO'
