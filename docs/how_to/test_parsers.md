@@ -308,7 +308,7 @@ to the job log* and, together with both snapshots, **uploaded as a build
 artifact** (even on a failing run), so the diff can be inspected without
 re-running locally -- each change is reported by its *flattened leaf path* (e.g.
 `.outputs[0].total_energies[0].value`), not as a verbatim diff of the two JSON
-files. Reused state is guarded against staleness on two
+archive files. Reused state is guarded against staleness on two
 fronts: the CI **cache key** includes both the target and source SHAs (the
 autodetected parser set depends on their diff) *and* the generator's hash, so a
 changed environment or generator *cannot* restore a mismatched snapshot; and each

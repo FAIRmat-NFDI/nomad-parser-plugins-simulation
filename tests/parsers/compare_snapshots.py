@@ -34,7 +34,7 @@ The check works in stages, mirrored by the sections below:
 
 Because it works on the flattened form, the report identifies each difference by
 its **leaf path** -- e.g. ``changed: .outputs[0].total_energies[0].value: 1.0 ->
-2.0`` -- rather than as a verbatim line diff of the two ``archive.json`` files.
+2.0`` -- rather than as a verbatim line diff of the two JSON archive files.
 
 Lists are aligned by index, so a genuine reordering shows up as ``changed``.
 Deterministic section ordering (from the nomad-lab pre-releases used in CI)
