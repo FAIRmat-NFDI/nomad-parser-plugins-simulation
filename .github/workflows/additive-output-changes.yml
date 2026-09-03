@@ -65,21 +65,24 @@ jobs:
           echo "source_sha=$(resolve "$SOURCE")"
         } >> "$GITHUB_OUTPUT"
 
-    # Cache each ref's snapshot on its SHA + the requested parser set + the
-    # environment (python version, uv.lock hash); check_additivity.sh reuses any
-    # .json that already exists, so a cache hit skips that ref's regeneration.
-    # A changed environment misses the cache and regenerates, matching the
+    # Cache each snapshot on BOTH the target and source SHAs -- with autodetect
+    # (empty `parsers`), the actual parser set is derived from the target..source
+    # diff, so a snapshot is only reusable for the same ref pair -- plus the
+    # requested parser set and the environment (python version, and a combined
+    # hash of uv.lock and the generator script). check_additivity.sh reuses any
+    # .json that already exists, so a cache hit skips that ref's regeneration;
+    # any change to those inputs misses the cache and regenerates, matching the
     # provenance recorded inside the snapshot.
     - name: Restore cached target snapshot
       uses: actions/cache@v4
       with:
         path: target_snapshots.json
-        key: snapshot-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock') }}-v3
+        key: snapshot-target-${{ steps.refs.outputs.target_sha }}-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock', 'tests/parsers/generate_snapshots.py') }}-v4
     - name: Restore cached source snapshot
       uses: actions/cache@v4
       with:
         path: source_snapshots.json
-        key: snapshot-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock') }}-v3
+        key: snapshot-source-${{ steps.refs.outputs.source_sha }}-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock', 'tests/parsers/generate_snapshots.py') }}-v4
 
     - name: Run additive-output check
       run: |
