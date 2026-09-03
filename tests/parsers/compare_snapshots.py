@@ -82,16 +82,18 @@ def parse_json(path: str) -> tuple[dict[str, Any], dict[str, Any]]:
 def flatten(
     obj: Any, path: str = '', out: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Flatten a nested archive into ``{path: scalar}`` leaves.
+    """Flatten a nested archive into a flat ``{path: scalar}`` mapping.
 
-    Dict keys become ``.key`` and list indices become ``[i]`` segments, e.g.
-    ``.outputs[0].total_energies[0].value``. Every container also emits a
-    ``[type]`` leaf (``dict`` or ``list``) and each list a ``[len]`` leaf, so an
-    empty container -- otherwise invisible, as it yields no child leaves -- is
-    still distinguished from an absent one (``{'data': {}}`` vs ``{}``), and a
-    resize or a container changing type is caught directly. Only scalar leaves
-    (and these markers) are stored, so two archives can be compared by set
-    operations on their leaf paths.
+    This rewrites the nested JSON tree into a *by-line* form -- one entry per
+    leaf, each addressed by its fully-qualified path -- so the whole archive
+    becomes a set of ``path -> value`` lines that two snapshots can be compared
+    over with plain set operations. Dict keys become ``.key`` and list indices
+    become ``[i]`` segments, e.g. ``.outputs[0].total_energies[0].value``. Every
+    container also emits a ``[type]`` leaf (``dict`` or ``list``) and each list a
+    ``[len]`` leaf, so an empty container -- otherwise invisible, as it yields no
+    child leaves -- is still distinguished from an absent one (``{'data': {}}``
+    vs ``{}``), and a resize or a container changing type is caught directly.
+    Only scalar leaves (and these markers) are stored.
     """
     if out is None:
         out = {}
