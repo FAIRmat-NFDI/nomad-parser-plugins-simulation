@@ -1193,7 +1193,7 @@ class RKFParser(FileParser):
             if len(files) != 1:
                 self.logger.warning('Inconsistent number of rkf files found.')
             self._calc_type = 'single_point'
-            calc_results = RKFParser(mainfile=files[0] if files else None).parse()
+            calc_results.update(RKFParser(mainfile=files[0] if files else None).results)
 
         elif history:
             # pass

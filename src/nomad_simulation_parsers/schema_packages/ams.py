@@ -132,6 +132,9 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
     )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.spin_channel, OUT_KEY, '.spin_channel'
+    )
     add_mapping_annotation(variables.Energy2.m_def, OUT_KEY, '.@')
 
 
