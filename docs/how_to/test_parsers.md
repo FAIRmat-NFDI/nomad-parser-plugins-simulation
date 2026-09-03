@@ -294,3 +294,13 @@ gates, because judging whether a change is intended is a human decision. Each
 snapshot also carries a provenance block (interpreter, serializer, harness,
 `uv.lock`, and fixture hashes) that is reported for context but never diffed,
 since two refs may legitimately differ there.
+
+The details of the comparator exist to avoid *silent false passes* -- a harness
+reporting "identical" when output actually changed. Leaf comparison is
+type-sensitive (a value changing type is flagged, not just its value), and every
+container emits a `[type]` leaf and each list a `[len]` leaf so that an empty or
+absent container is not invisible. The cache key includes both the target and
+source SHAs (the autodetected parser set depends on their diff) and the
+generator's hash, so a stale environment or a changed generator cannot restore a
+mismatched snapshot. And each ref runs via `PYTHONPATH` rather than a per-ref
+install, so the caller's environment is never mutated.
