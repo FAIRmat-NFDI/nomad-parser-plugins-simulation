@@ -278,8 +278,12 @@ but a selected test with a missing fixture must fail.
 Refactors are expected to **preserve parser output**. The `additive-output-changes`
 workflow, and the `tests/parsers/check_additivity.sh` script it wraps, verify
 this by snapshotting a `target` baseline ref and a `source` ref under test and
-comparing their `archive.data` *leaf by leaf*. Snapshots are plain JSON generated
-from scratch on each run and **never committed**.
+comparing their `archive.data` *leaf by leaf*. Snapshots are plain JSON written to
+`target_snapshots.json` and `source_snapshots.json` at the repository root
+(override with the `TARGET_JSON` / `SOURCE_JSON` environment variables),
+generated from scratch on each run and **never committed** -- both paths are in
+`.gitignore`, so the check is a transient comparison rather than a stored
+baseline.
 
 The policy has **three tiers** per parser: **`identical`** (no leaf added,
 removed, or changed) passes silently; **`additive`** (only additions) passes but
