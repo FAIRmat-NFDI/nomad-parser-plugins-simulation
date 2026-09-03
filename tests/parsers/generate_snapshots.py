@@ -25,11 +25,11 @@ fixture) is skipped rather than failing.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib
 import json
 import platform
-import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -234,19 +234,27 @@ def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print(f'usage: {sys.argv[0]} <out.json> [parser ...]', file=sys.stderr)
-        return 2
-    out = sys.argv[1]
-    requested = sys.argv[2:] or sorted(PARSERS)
-    unknown = [name for name in requested if name not in PARSERS]
-    if unknown:
-        print(f'unknown parsers: {", ".join(unknown)}', file=sys.stderr)
-        return 2
+    argp = argparse.ArgumentParser(
+        description='Generate parser-output snapshots for the additive-output check.'
+    )
+    argp.add_argument('out', help='path to write the snapshot JSON')
+    argp.add_argument(
+        'parsers',
+        nargs='*',
+        choices=sorted(PARSERS),
+        metavar='parser',
+        help='parser directories to snapshot (default: all)',
+    )
+    args = argp.parse_args()
+    requested = args.parsers or sorted(PARSERS)
     snapshots, mainfiles = generate(requested)
     document = {'provenance': provenance(mainfiles), 'snapshots': snapshots}
-    Path(out).write_text(json.dumps(document, sort_keys=True, indent=1, default=str))
-    print(f'wrote {len(snapshots)} snapshot(s) for {len(requested)} parser(s): {out}')
+    Path(args.out).write_text(
+        json.dumps(document, sort_keys=True, indent=1, default=str)
+    )
+    print(
+        f'wrote {len(snapshots)} snapshot(s) for {len(requested)} parser(s): {args.out}'
+    )
     return 0
 
 

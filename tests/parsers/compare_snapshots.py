@@ -44,9 +44,9 @@ Usage: ``compare_snapshots.py <target.json> <source.json>``
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
-import sys
 from typing import Any, NamedTuple
 
 # How many example leaves to print per test before truncating.
@@ -215,11 +215,14 @@ def _print_provenance(label: str, prov: dict[str, Any]) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print(f'usage: {sys.argv[0]} <target.json> <source.json>', file=sys.stderr)
-        return 2
-    baseline, baseline_prov = parse_json(sys.argv[1])
-    current, current_prov = parse_json(sys.argv[2])
+    argp = argparse.ArgumentParser(
+        description='Compare two snapshot JSON files for the additive-output check.'
+    )
+    argp.add_argument('target', help='baseline snapshot whose data must not change')
+    argp.add_argument('source', help='snapshot under test')
+    args = argp.parse_args()
+    baseline, baseline_prov = parse_json(args.target)
+    current, current_prov = parse_json(args.source)
 
     print('provenance:')
     _print_provenance('target', baseline_prov)
