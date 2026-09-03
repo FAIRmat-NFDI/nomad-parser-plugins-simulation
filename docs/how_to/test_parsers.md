@@ -292,9 +292,13 @@ confirming the diff.
 
 The check is **manual only** (`workflow_dispatch`), *never* part of the
 pull-request gates, because judging whether a change is intended is a **human
-decision**. Each snapshot also carries a **provenance block** (interpreter,
-serializer, harness, `uv.lock`, and fixture hashes) that is reported for context
-but *never diffed*, since two refs may legitimately differ there.
+decision**. The same review holds in CI: the full comparison report is *printed
+to the job log* and, together with both snapshots, **uploaded as a build
+artifact** (even on a failing run), so the leaf-level diff can be inspected
+without re-running locally. Each snapshot also carries a **provenance block**
+(interpreter, serializer, harness, `uv.lock`, and fixture hashes) that is
+reported for context but *never diffed*, since two refs may legitimately differ
+there.
 
 The comparator's details exist to avoid **silent false passes** -- a harness
 reporting *"identical"* when output actually changed. Leaf comparison is
