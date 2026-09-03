@@ -32,6 +32,10 @@ The check works in stages, mirrored by the sections below:
 4. **Report** the buckets (and emit warning annotations for additive parsers
    under GitHub Actions) and exit non-zero iff anything was removed or changed.
 
+Because it works on the flattened form, the report identifies each difference by
+its **leaf path** -- e.g. ``changed: .outputs[0].total_energies[0].value: 1.0 ->
+2.0`` -- rather than as a verbatim line diff of the two ``archive.json`` files.
+
 Lists are aligned by index, so a genuine reordering shows up as ``changed``.
 Deterministic section ordering (from the nomad-lab pre-releases used in CI)
 keeps that alignment stable. Every container carries a ``[type]`` leaf and each
