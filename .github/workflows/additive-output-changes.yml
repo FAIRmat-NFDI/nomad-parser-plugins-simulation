@@ -101,4 +101,4 @@ jobs:
           target_snapshots.json
           source_snapshots.json
           comparison_report.txt
-        retention-days: 30
+        retention-days: 14
