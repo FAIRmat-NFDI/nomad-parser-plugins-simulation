@@ -183,6 +183,7 @@ def _sha256(path: Path) -> str | None:
 
 
 def _package_version(name: str) -> str | None:
+    """Installed version of a package, or None if it is not installed."""
     try:
         return version(name)
     except PackageNotFoundError:
@@ -208,6 +209,11 @@ def provenance(mainfiles: list[str]) -> dict:
 
 
 def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
+    """Snapshot the given parser directories, returning (snapshots, mainfiles used).
+
+    A parser whose fixture is absent from the checkout, or whose optional
+    dependencies are not installed, is skipped rather than failing the run.
+    """
     snapshots = {}
     mainfiles: list[str] = []
     for parser_dir in parser_dirs:
@@ -234,6 +240,7 @@ def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
 
 
 def main() -> int:
+    """Parse CLI args, write the requested snapshots, and return the exit code."""
     argp = argparse.ArgumentParser(
         description='Generate parser-output snapshots for the additive-output check.'
     )

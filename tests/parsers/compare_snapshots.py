@@ -125,6 +125,7 @@ class LeafDiff(NamedTuple):
 
     @property
     def verdict(self) -> str:
+        """Tier label for this diff: REMOVED/MODIFIED fail, additive/identical pass."""
         if self.removed:
             return 'REMOVED'
         if self.changed:
@@ -205,6 +206,7 @@ def report_test(name: str, baseline: Any, current: Any, diff: LeafDiff) -> None:
 
 
 def _print_provenance(label: str, prov: dict[str, Any]) -> None:
+    """Print a one-line summary of a snapshot's provenance block (skip if empty)."""
     if not prov:
         return
     fixtures = prov.get('fixtures') or {}
@@ -215,6 +217,7 @@ def _print_provenance(label: str, prov: dict[str, Any]) -> None:
 
 
 def main() -> int:
+    """Parse CLI args, compare the two snapshots, and return the process exit code."""
     argp = argparse.ArgumentParser(
         description='Compare two snapshot JSON files for the additive-output check.'
     )
