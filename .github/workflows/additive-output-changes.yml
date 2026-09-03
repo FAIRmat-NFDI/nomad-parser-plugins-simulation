@@ -1,0 +1,104 @@
+name: additive-output-changes
+# Manually triggered additive-output check. Runs tests/parsers/check_additivity.sh
+# -- the same script developers run locally -- to snapshot two refs (a `target`
+# baseline and the `source` under test) and verify the source only *adds* to the
+# target's archive output. Three tiers of signal per parser: `identical` (passes
+# silently), `additive` (passes, surfaced as a non-failing warning annotation),
+# and removed-or-changed (hard fail, printing `old -> new`). A deliberate move or
+# value change is meant to fail here; you review it by running the check locally.
+# Snapshots are generated as plain JSON, never tracked; CI adds a per-SHA cache
+# (keyed on the ref, requested parsers, python version and uv.lock hash) so an
+# unchanged ref+environment is reused.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Baseline ref whose output must not shrink or change'
+        default: 'develop'
+      source:
+        description: 'Ref under test (default: the dispatched branch)'
+        default: ''
+      parsers:
+        description: 'Parsers to snapshot, space-separated (default: autodetect from the diff)'
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  UV_SYSTEM_PYTHON: true
+
+jobs:
+  additive-output-changes:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # full history so arbitrary source/target refs resolve
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        uv pip install -e '.[dev,md]'
+
+    - name: Resolve source and target refs (for cache keys)
+      id: refs
+      run: |
+        set -euo pipefail
+        TARGET='${{ inputs.target }}'
+        SOURCE='${{ inputs.source }}'
+        [ -z "$SOURCE" ] && SOURCE='${{ github.ref_name }}'
+        resolve () {
+          git fetch --quiet origin "$1" 2>/dev/null || true
+          git rev-parse --verify --quiet "origin/$1" || git rev-parse --verify "$1"
+        }
+        {
+          echo "target=$TARGET"
+          echo "source=$SOURCE"
+          echo "target_sha=$(resolve "$TARGET")"
+          echo "source_sha=$(resolve "$SOURCE")"
+        } >> "$GITHUB_OUTPUT"
+
+    # Cache each snapshot on BOTH the target and source SHAs -- with autodetect
+    # (empty `parsers`), the actual parser set is derived from the target..source
+    # diff, so a snapshot is only reusable for the same ref pair -- plus the
+    # requested parser set and the environment (python version, and a combined
+    # hash of uv.lock and the generator script). check_additivity.sh reuses any
+    # .json that already exists, so a cache hit skips that ref's regeneration;
+    # any change to those inputs misses the cache and regenerates, matching the
+    # provenance recorded inside the snapshot.
+    - name: Restore cached target snapshot
+      uses: actions/cache@v4
+      with:
+        path: target_snapshots.json
+        key: snapshot-target-${{ steps.refs.outputs.target_sha }}-${{ steps.refs.outputs.source_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock', 'tests/parsers/generate_snapshots.py') }}-v4
+    - name: Restore cached source snapshot
+      uses: actions/cache@v4
+      with:
+        path: source_snapshots.json
+        key: snapshot-source-${{ steps.refs.outputs.source_sha }}-${{ steps.refs.outputs.target_sha }}-${{ inputs.parsers }}-py311-${{ hashFiles('uv.lock', 'tests/parsers/generate_snapshots.py') }}-v4
+
+    - name: Run additive-output check
+      run: |
+        set -o pipefail
+        bash tests/parsers/check_additivity.sh \
+          '${{ steps.refs.outputs.target }}' '${{ steps.refs.outputs.source }}' \
+          '${{ inputs.parsers }}' \
+          | tee comparison_report.txt
+
+    - name: Upload snapshots and diff for inspection
+      if: always()  # also publish on failure so the diff can be reviewed
+      uses: actions/upload-artifact@v4
+      with:
+        name: additive-output-changes
+        path: |
+          target_snapshots.json
+          source_snapshots.json
+          comparison_report.txt
+        retention-days: 14

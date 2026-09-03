@@ -133,3 +133,7 @@ dmypy.json
 # MDAnalysis temporary/cache artifacts under tests data
 tests/data/**/*.lock
 tests/data/**/*.npz
+
+# Parser-output snapshots are generated in CI, never tracked
+target_snapshots.json
+source_snapshots.json
