@@ -32,6 +32,7 @@ from structlog.stdlib import BoundLogger
 from nomad_simulation_parsers.parsers.utils.general import (
     link_outputs_to_model_systems,
     search_files,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages.quantumespresso import common
 
@@ -375,6 +376,10 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         self._link_modules()
         self._link_files()
 
+    def parsed_text_parsers(self) -> list[Any]:
+        """Return text-parser objects whose source ranges should be recorded."""
+        return [self.mainfile_parser.data_object]
+
     @property
     def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
         if self._mainfile_parser is None:
@@ -405,6 +410,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 self.logger.error('Archive not found for program.')
                 continue
             writer.parse_program(archive, n)
+            write_parsed_blocks(archive, writer.parsed_text_parsers())
             writer.mainfile_parser.close()
 
         self.mainfile_parser.close()

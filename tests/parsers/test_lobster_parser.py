@@ -5,7 +5,10 @@ from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from packaging.version import Version
 
-from nomad_simulation_parsers.parsers.lobster.parser import LobsterParser
+from nomad_simulation_parsers.parsers.lobster.parser import (
+    LobsterICOXPLISTParser,
+    LobsterParser,
+)
 
 logger = get_logger(__name__)
 
@@ -30,6 +33,34 @@ def test_Fe(parser):  # noqa: PLR0915
     data = archive.data
     assert data.program.version == '4.0.0'
     assert data.wall_start.magnitude == 1619687985.0
+
+
+def test_lobster_text_parser_retains_each_source_data_object():
+    parser = LobsterICOXPLISTParser(filepath='tests/data/lobster/Fe/lobsterout')
+
+    parser.data
+
+    assert [
+        data_object.mainfile.rsplit('/', maxsplit=1)[-1]
+        for data_object in parser.source_data_objects
+    ] == ['ICOHPLIST.lobster', 'ICOOPLIST.lobster']
+
+
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_Fe_records_parsed_blocks(parser):
+    archive = EntryArchive()
+    parser.parse('tests/data/lobster/Fe/lobsterout', archive, logger)
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
+def test_Fe_data(parser):  # noqa: PLR0915
+    archive = EntryArchive()
+    parser.parse('tests/data/lobster/Fe/lobsterout', archive, logger)
+
+    data = archive.data
 
     assert len(data.model_system) == 1
     model_system = data.model_system[0]

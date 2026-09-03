@@ -28,6 +28,17 @@ def test_parse_file():
     parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_parse_file_records_parsed_blocks():
+    parser = Wannier90Parser()
+    archive = EntryArchive()
+    parser.parse('tests/data/wannier90/lco_mlwf/lco.wout', archive, LOGGER)
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
 def test_electronic_outputs_mapping():
     parser = Wannier90Parser()
     archive = EntryArchive()

@@ -18,7 +18,10 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    search_files,
+    write_parsed_blocks,
+)
 from nomad_simulation_parsers.parsers.vasp.doscar_parser import (
     DOSCARFileParser,
     DOSCARParser,
@@ -113,20 +116,27 @@ class LobsterStructureParser(MappingParser):
 
 class LobsterTextParser(TextParser):
     _sources = []
+    source_data_objects: list[FileParser] = []
 
     def to_dict(self) -> dict[str, Any]:
         dct = {}
         if self.data_object is None:
             return dct
 
+        self.source_data_objects = []
         basedir = os.path.dirname(self.filepath)
         for source in self._sources:
             files = search_files(f'{source}.lobster*', basedir)
             if not files:
                 continue
-            self.data_object.mainfile = files[0]
-            self.data_object.parse()
-            dct[source] = self.data_object._results
+            parser_template = self.text_parser or self.data_object
+            if parser_template is None:
+                continue
+            source_data_object = type(parser_template)()
+            source_data_object.mainfile = files[0]
+            source_data_object.parse()
+            self.source_data_objects.append(source_data_object)
+            dct[source] = source_data_object._results
         return dct
 
 
@@ -372,6 +382,15 @@ class LobsterArchiveWriter(ArchiveWriter):
         self.metainfo_parser.annotation_key = lobster.DOSCAR_KEY
         self.doscar_parser.filepath = self.mainfile
         self.doscar_parser.convert(self.metainfo_parser)
+
+        write_parsed_blocks(
+            self.archive,
+            [
+                self.mainfile_parser.data_object,
+                *self.icoxplist_parser.source_data_objects,
+                *self.charge_parser.source_data_objects,
+            ],
+        )
 
 
 class LobsterParser(MatchingParser):

@@ -7,10 +7,16 @@ from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 LOGGER = get_logger(__name__)
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
 def test_parse_file():
     parser = FHIAimsParser()
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+
+    blocks = archive.metadata.auxiliary_files[0].parsed_blocks
+    assert blocks
+    assert {block.depth for block in blocks} >= {0, 1}
 
 
 def test_workflow_convergence_targets():

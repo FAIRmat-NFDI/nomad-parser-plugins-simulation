@@ -77,6 +77,33 @@ def test_unified_cli_dispatches_mapping_report(monkeypatch):
     assert called['arguments'] == ['--output', 'report.md']
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_unified_cli_visualizes_parsed_blocks(tmp_path: Path, capsys, monkeypatch):
+    mainfile = Path(__file__).parent / 'data' / 'exciting' / 'C_minimal' / 'INFO.OUT'
+    output = tmp_path / 'parsed-blocks.html'
+    opened = []
+    monkeypatch.setattr('webbrowser.open_new_tab', opened.append)
+
+    assert (
+        main(
+            [
+                'view-blocks',
+                'InfoFileParser',
+                str(mainfile),
+                '--output',
+                str(output),
+            ]
+        )
+        == 0
+    )
+
+    assert capsys.readouterr().out.strip() == str(output.resolve())
+    assert opened == [output.resolve().as_uri()]
+    html = output.read_text(encoding='utf-8')
+    assert '<mark' in html
+
+
 def test_unified_cli_requires_a_subcommand():
     assert main(['--help']) == 0
 

@@ -19,6 +19,7 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import write_parsed_blocks
 from nomad_simulation_parsers.schema_packages import yambo
 
 from .file_parsers import MainfileParser, NetCDFParser
@@ -347,6 +348,7 @@ class YamboArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)
 
+        write_parsed_blocks(self.archive, mainfile_parser.data_object)
         data_parser.close()
         if netcdf_parser is not None:
             netcdf_parser.close()

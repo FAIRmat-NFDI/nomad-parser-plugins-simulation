@@ -1,3 +1,4 @@
+import pytest
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad.utils import get_logger
@@ -17,6 +18,15 @@ def _parse(mainfile: str) -> EntryArchive:
 
 def test_parse_file():
     _parse('tests/data/abinit/Fe/Fe.out')
+
+
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_parse_file_records_parsed_blocks():
+    archive = _parse('tests/data/abinit/Fe/Fe.out')
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
 
 
 def test_parse_file_has_core_sections_and_outputs():

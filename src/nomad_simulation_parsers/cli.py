@@ -5,15 +5,21 @@ from __future__ import annotations
 import argparse
 import sys
 
-from nomad_simulation_parsers import mapping_report, parser_init
+from nomad_simulation_parsers import (
+    mapping_report,
+    parser_init,
+    visualize_parsed_blocks,
+)
 
 
 def _print_main_help() -> None:
     print(
-        'usage: nomad-sim-parser {init,mapping-report} [options]\\n\\n'
+        'usage: nomad-sim-parser '
+        '{init,mapping-report,view-blocks} [options]\\n\\n'
         'Commands:\\n'
         '  init             Initialize a parser from metadata YAML.\\n'
-        '  mapping-report   Generate the mapping report.\\n\\n'
+        '  mapping-report           Generate the mapping report.\\n'
+        '  view-blocks       Run a text parser and write its source view.\\n\\n'
         "Run 'nomad-sim-parser <command> --help' for command options."
     )
 
@@ -25,14 +31,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     command = arguments[0]
-    if command not in {'init', 'mapping-report'}:
-        parser = argparse.ArgumentParser(prog='nomad-sim-parser')
-        parser.error(f'unknown command: {command}')
-
     if command == 'mapping-report':
         return mapping_report.run(arguments[1:])
+    if command in {'view-blocks', 'visualize-parsed-blocks'}:
+        return visualize_parsed_blocks.run(arguments[1:])
+    if command == 'init':
+        return parser_init.run(arguments[1:])
 
-    return parser_init.run(arguments[1:])
+    parser = argparse.ArgumentParser(prog='nomad-sim-parser')
+    parser.error(f'unknown command: {command}')
 
 
 if __name__ == '__main__':

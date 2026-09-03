@@ -28,6 +28,7 @@ from nomad_simulations.schema_packages.workflow.single_point import SinglePointM
 
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
@@ -577,6 +578,8 @@ class OutcarArchiveWriter(ArchiveWriter):
         doscar_parser = DOSCARParser()
         doscar_parser.filepath = self.mainfile
         doscar_parser.convert(archive_data_parser)
+
+        write_parsed_blocks(self.archive, [source_parser.data_object])
 
         # close file handles
         archive_data_parser.close()

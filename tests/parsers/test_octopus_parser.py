@@ -24,6 +24,17 @@ def test_parse_file():
     assert outputs[-1].electronic_eigenvalues is not None
 
 
+# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
+@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
+def test_parse_file_records_parsed_blocks():
+    parser = OctopusParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/octopus/Fe_spinpol/stdout.txt', archive, LOGGER)
+
+    assert archive.metadata.auxiliary_files
+    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
+
+
 def test_system_fundamental_quantities_mapping():
     """System gate for core model_system quantities used by normalizer."""
     parser = OctopusParser()
