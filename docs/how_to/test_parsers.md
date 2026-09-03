@@ -285,14 +285,16 @@ generated from scratch on each run and **never committed** -- both paths are in
 `.gitignore`, so the check is a transient comparison rather than a stored
 baseline.
 
-The policy has **three tiers** per parser: **`identical`** (no leaf added,
-removed, or changed) passes silently; **`additive`** (only additions) passes but
-is surfaced as a *non-failing* warning annotation under GitHub Actions, so growth
-stays visible; and a **removed or changed** leaf is a *hard failure*, printing
-`old -> new`. So additions *never* block, while any removal or value change
-*always* does. This is deliberate: an intentional path move or value change is
-*meant* to fail here, and is reviewed by running the script locally and
-confirming the diff.
+The policy has **three tiers** per parser, in increasing severity:
+
+1. **`identical`** -- no leaf added, removed, or changed: passes *silently*.
+2. **`additive`** -- only additions: passes, but is surfaced as a *non-failing*
+   warning annotation under GitHub Actions, so growth stays visible.
+3. **removed or changed** -- a *hard failure* (exit 1), printing `old -> new`.
+
+So additions *never* block, while any removal or value change *always* does. This
+is deliberate: an intentional path move or value change is *meant* to fail here,
+and is reviewed by running the script locally and confirming the diff.
 
 The check is **manual only** (`workflow_dispatch`), *never* part of the
 pull-request gates, because judging whether a change is intended is a **human
