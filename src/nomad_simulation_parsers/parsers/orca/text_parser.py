@@ -1143,7 +1143,7 @@ class OutReader(TextParser):
                 sub_parser=TextParser(quantities=mp2_quantities),
             ),
             Quantity(
-                'ci',
+                'mdci',
                 r'ORCA\-MATRIX DRIVEN CI([\s\S]+?E\(CCSD\(T\)\).*)',
                 sub_parser=TextParser(quantities=mdci_quantities),
             ),
