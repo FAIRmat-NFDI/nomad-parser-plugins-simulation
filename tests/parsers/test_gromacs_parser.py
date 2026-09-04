@@ -85,11 +85,16 @@ def test_mdanalysis_get_configurations_returns_positions_and_labels(
 
     assert isinstance(configs, list)
     assert len(configs) == 2
+    # per-frame data present in every frame
     assert np.allclose(configs[0]['positions'], positions[0])
     assert np.allclose(configs[1]['positions'], positions[1])
+    # topology only on frame 0
     assert np.allclose(configs[0]['lattice_vectors'], lattices[0])
-    # labels are produced by get_atom_labels; ensure key exists
     assert 'labels' in configs[0]
+    assert 'n_particles' in configs[0]
+    assert 'lattice_vectors' not in configs[1]
+    assert 'labels' not in configs[1]
+    assert 'n_particles' not in configs[1]
 
 
 def test_metainfo_convert_populates_simulation_model_system(simple_mdanalysis_parser):
@@ -130,8 +135,10 @@ def test_logparser_get_configurations_pbc_and_sampling():
     configs = lp.get_configurations()
 
     assert len(configs) == 3
-    assert all('pbc' in c for c in configs)
+    assert 'pbc' in configs[0]
     assert configs[0]['pbc'] == [True, True, False]
+    assert configs[1] == {}
+    assert configs[2] == {}
 
 
 def test_edrparser_get_energies_from_data():

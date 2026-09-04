@@ -193,7 +193,8 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
         pbc = [
             k in self.data.get('input_parameters', {}).get('pbc', 'xyz') for k in 'xyz'
         ]
-        return [dict(pbc=pbc) for _ in self._trajectory_steps_sampled]
+        n = len(self._trajectory_steps_sampled)
+        return [dict(pbc=pbc)] + [{}] * (n - 1) if n > 0 else []
 
     def get_outputs(self) -> list[dict[str, Any]]:
         data = {}
@@ -858,24 +859,24 @@ class GromacsMDAnalysisParser(MappingParser):
         return result
 
     def get_configurations(self) -> list[dict[str, Any]]:
-        # Labels, n_particles and bond_list are frame-independent; compute once.
-        labels = self.get_particle_parameters()
         n_particles = self.data_object.get_n_atoms(0)
         bond_list = self.get_bond_list()
 
         configurations = []
         for n, _ in enumerate(self._trajectory_steps_sampled):
-            # get_frame_data performs a single trajectory seek for all per-frame data.
             frame_data = self.data_object.get_frame_data(n)
-            config = dict(
-                n_particles=n_particles,
-                labels=labels,
+            config: dict[str, Any] = dict(
                 positions=frame_data['positions'],
                 velocities=frame_data['velocities'],
-                lattice_vectors=frame_data['lattice_vectors'],
             )
-            if n == 0 and bond_list is not None:
-                config['bond_list'] = bond_list
+            if n == 0:
+                config['n_particles'] = n_particles
+                config['labels'] = self.get_particle_parameters()
+                lv = frame_data.get('lattice_vectors')
+                if lv is not None:
+                    config['lattice_vectors'] = lv
+                if bond_list is not None:
+                    config['bond_list'] = bond_list
             configurations.append(config)
         return configurations
 
