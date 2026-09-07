@@ -372,7 +372,18 @@ class VasprunParser(XMLParser):
             workflow.method.single_point_convergence_targets = sp_convergence
         return workflow
 
+    def get_configurations(self, calculations: Any = None) -> list[Any]:
+        # Reset the per-parse identity flag so `particle_states` is attached to the
+        # first (topology) frame only; later ionic steps carry positions/cell only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        self._identity_emitted = False
+        return as_list(calculations)
+
     def get_atoms(self, arrays: Any = None) -> list[dict[str, str]]:
+        # Particle identity is frame-independent (VASP sources it from the global
+        # `atominfo`); emit it once, on the first (topology) frame only.
+        if getattr(self, '_identity_emitted', False):
+            return []
         arrays = as_list(arrays)
         atoms_array = next(
             (
@@ -397,6 +408,7 @@ class VasprunParser(XMLParser):
             if symbol is None:
                 continue
             atoms.append({'label': str(symbol).strip()})
+        self._identity_emitted = True
         return atoms
 
     def get_positions(
