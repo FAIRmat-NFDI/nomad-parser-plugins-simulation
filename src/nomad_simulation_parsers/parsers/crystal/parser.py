@@ -59,10 +59,15 @@ class CrystalOutputParser(TextParser):
         date_time_obj = datetime.datetime.strptime(value, '%d %m %Y TIME %H:%M:%S.%f')
         return date_time_obj.timestamp()
 
-    def get_lattice_vectors(self, source: dict[str, Any]) -> pint.Quantity:
-        lattice_vectors = source.get(
-            'lattice_parameters', source.get('lattice_vectors_restart')
-        )
+    def get_lattice_vectors(self, source: dict[str, Any]) -> pint.Quantity | None:
+        def get_vectors(dct: dict[str, Any]) -> np.ndarray | None:
+            return dct.get('lattice_parameters', dct.get('lattice_vectors_restart'))
+
+        lattice_vectors = get_vectors(source)
+        if lattice_vectors is None:
+            lattice_vectors = get_vectors(self.data)
+        if lattice_vectors is None:
+            return None
         if lattice_vectors.shape == (6,):
             lattice_vectors = atomutils.cellpar_to_cell(lattice_vectors, degrees=True)
         return lattice_vectors * ureg.angstrom
@@ -300,7 +305,7 @@ class CrystalF25Parser(TextParser):
         return [
             dict(
                 energies=(start_energy + np.arange(rows) * de) * ureg.hartree,
-                values=dos_values[n],
+                values=np.absolute(dos_values[n]) * (1 / ureg.hartree),
             )
             for n in range(len(dos_values))
         ]
@@ -315,8 +320,12 @@ class CrystalF25Parser(TextParser):
 
             cols, rows = (int(first_row[n]) for n in range(2))
             values = self.to_array(cols, rows, energies)
-            band_structures.append(dict(value=values[None, :]))
-
+            band_structures.extend(
+                [
+                    dict(value=value, spin=spin)
+                    for spin, value in enumerate(values[None, :])
+                ]
+            )
         return band_structures
 
 
@@ -355,7 +364,6 @@ class CrystalArchiveWriter(ArchiveWriter):
             self.f25_parser.filepath = os.path.join(
                 os.path.dirname(self.mainfile), os.path.basename(f25_filepath)
             )
-
             self.f25_parser.convert(self.archive_parser)
 
 
