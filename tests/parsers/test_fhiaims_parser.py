@@ -3,6 +3,7 @@ from nomad.utils import get_logger
 from pytest import approx, mark
 
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
+from tests.parsers._assertions import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 
@@ -11,6 +12,9 @@ def test_parse_file():
     parser = FHIAimsParser()
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
 
 
 def test_workflow_convergence_targets():
