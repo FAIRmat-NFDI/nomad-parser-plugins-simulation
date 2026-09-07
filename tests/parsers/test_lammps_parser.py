@@ -36,6 +36,7 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     XYZTrajParser,
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
+from tests.parsers._assertions import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 
@@ -590,6 +591,9 @@ def test_systems(parser) -> None:
     normalize_all(archive, logger=LOGGER)
     sec_systems = archive.data.model_system
     assert len(sec_systems) == 4
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
     assert np.shape(sec_systems[0].positions) == (1134, 3)
     # TODO: Atomic test data does not have velocities, update testing!
     # assert np.shape(sec_systems[0].velocities) == (1134, 3)
