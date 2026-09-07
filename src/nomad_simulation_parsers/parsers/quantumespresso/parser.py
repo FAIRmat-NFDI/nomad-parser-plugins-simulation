@@ -260,6 +260,8 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     _mainfile_parser = None
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
+        if self.mainfile_parser is None:
+            return
         self.simulation_parser.logger = self.logger
         self.mainfile_parser.logger = self.logger
         self.simulation_parser.data_object = Simulation(
