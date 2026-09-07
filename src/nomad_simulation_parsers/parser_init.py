@@ -30,8 +30,8 @@ def _render_file_parser_template(parser_class_name: str) -> str:
 
 
 class {parser_class_name}OutParser(TextParser):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, logger=None):
+        super().__init__(logger=logger)
 
     def init_quantities(self):
         self._quantities = [
@@ -49,42 +49,33 @@ def _render_parser_template(
 from nomad.parsing import MatchingParser
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
-from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
 from .file_parser import {parser_class_name}OutParser
 
-LOGGER = get_logger(__name__)
-
 
 class {parser_class_name}MainfileParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
-    def __init__(self):
-        super().__init__(text_parser={parser_class_name}OutParser())
+    pass
 
 
 class {parser_class_name}MetainfoParser(MetainfoParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class {parser_class_name}ArchiveWriter(ArchiveWriter):
     code_name = '{code_name}'
-    mainfile_parser = {parser_class_name}MainfileParser()
-    metainfo_parser = {parser_class_name}MetainfoParser()
 
     def write_to_archive(self):
+        mainfile_parser = {parser_class_name}MainfileParser(
+            logger=self.logger,
+            text_parser={parser_class_name}OutParser(logger=self.logger),
+        )
+        metainfo_parser = {parser_class_name}MetainfoParser(logger=self.logger)
         self.archive.data = Simulation(program=Program(name=self.code_name))
-        self.metainfo_parser.data_object = self.archive.data
-        self.mainfile_parser.filepath = self.mainfile
-        self.mainfile_parser.convert(self.metainfo_parser)
+        metainfo_parser.data_object = self.archive.data
+        mainfile_parser.filepath = self.mainfile
+        mainfile_parser.convert(metainfo_parser)
         # TODO: Implement the archive writing logic.
 
 
@@ -105,13 +96,13 @@ from .file_parser import {parser_class_name}OutParser
 
 class {parser_class_name}ArchiveWriter(ArchiveWriter):
     code_name = '{code_name}'
-    mainfile_parser = {parser_class_name}OutParser()
 
     def write_to_archive(self):
+        mainfile_parser = {parser_class_name}OutParser(logger=self.logger)
         self.archive.data = Simulation(program=Program(name=self.code_name))
-        self.mainfile_parser.filepath = self.mainfile
-        self.mainfile_parser.parse()
-        # TODO: Map parsed mainfile data from self.mainfile_parser to self.archive.data.
+        mainfile_parser.filepath = self.mainfile
+        mainfile_parser.parse()
+        # TODO: Map parsed mainfile data from mainfile_parser to self.archive.data.
 
 
 class {parser_class_name}(MatchingParser):

@@ -6,7 +6,6 @@ from ase.symbols import symbols2numbers
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import (
     MappingParser,
     MetainfoParser,
@@ -33,15 +32,11 @@ from .mdanalysis_parser import GromacsMDAnalysisParser as GromacsMDAnalysisFileP
 from .mdp_parser import GromacsMdpParser as GromacsMDPTextParser
 from .xvg_parser import GromacsXvgParser as GromacsXVGTextParser
 
-LOGGER = get_logger(__name__)
 ENERGY_UNIT = ureg.kilojoule / ureg.avogadro_number
 
 
 class GromacsMetainfoParser(MetainfoParser):
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class GromacsThermodynamicsParser(MappingParser):
@@ -143,11 +138,6 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
             'temperature-lambdas': 'temperature',
         }
         super().__init__(**kwargs)
-
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def load_file(self):
         data_object = super().load_file()
@@ -533,11 +523,6 @@ class GromacsLogParser(TextParser, GromacsThermodynamicsParser):
 
 
 class GromacsMDPParser(TextParser):
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def load_file(self):
         data_object = super().load_file()
 
@@ -569,11 +554,6 @@ class GromacsMDPParser(TextParser):
 class GromacsEDRParser(GromacsThermodynamicsParser):
     # Fallback parser
     edr_parser: GromacsEDRFileParser = None
-
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
@@ -609,11 +589,6 @@ class GromacsXVGParser(TextParser):
             self.data_object.parse()
             return self.data_object._results
         return {}
-
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def get_results(self) -> dict[str, Any]:
         title = self.data.get('title', '')
@@ -685,11 +660,6 @@ class GromacsMDAnalysisParser(MappingParser):
         self._subsystems_hierarchy: list[dict[str, Any]] = []
         self._hierarchy_returned: bool = False
         super().__init__(**kwargs)
-
-    # TODO: temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
         if self.data_object is not None:
@@ -1146,6 +1116,12 @@ class GromacsArchiveWriter(MDParser):
                 self.archive.data.model_method[-1].numerical_settings.append(ppc)
 
     def write_to_archive(self):
+        self._simulation_parser.logger = self.logger
+        self._log_parser.logger = self.logger
+        self._mdp_parser.logger = self.logger
+        self._edr_parser.logger = self.logger
+        self._mdanalysis_parser.logger = self.logger
+        self._xvg_parser.logger = self.logger
         # intitialize variables
         self._maindir = os.path.dirname(self.mainfile)
         self._gromacs_files = os.listdir(self._maindir)

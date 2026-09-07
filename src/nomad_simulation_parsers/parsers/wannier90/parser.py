@@ -9,7 +9,6 @@ from nomad.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import TaskReference
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_file_parser.text_parser import DataTextParser
@@ -26,22 +25,13 @@ from .file_parsers import HrParser, WInParser, WOutParser
 configuration = config.get_plugin_entry_point(
     'nomad_simulation_parsers.parsers:wannier90_parser'
 )
-LOGGER = get_logger(__name__)
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class Wannier90MetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class WHrTextParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_hoppings(self, source: dict[str, Any], **kwargs) -> dict[str, Any]:
         degeneracy_factors = source.get('degeneracy_factors')[2:]
         full_hoppings = source.get('hoppings', [])
@@ -80,11 +70,6 @@ class WDosTextParser(TextParser):
     # aux data set by the archive writer; kept out of the parsed `data` payload
     _energies_origin = None
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_dos(self, source: np.ndarray) -> dict[str, Any]:
         data = np.transpose(source)
         result = dict(energies=data[0], value=data[1])
@@ -97,11 +82,6 @@ class WBandTextParser(TextParser):
     # aux data set by the archive writer; kept out of the parsed `data` payload
     _k_path = None
     _highest_occupied = None
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def get_data(self, data: np.ndarray) -> np.ndarray:
         return np.transpose(data)[1:].transpose()
@@ -120,11 +100,6 @@ class WBandTextParser(TextParser):
 
 
 class WOutTextParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_lattice_vectors(self, vectors: list[Any]) -> np.ndarray:
         return np.vstack(vectors[-3:])
 
@@ -225,11 +200,6 @@ class WInTextParser(TextParser):
         'fx(x2-3y2)': (3, 3),
         'fy(3x2-y2)': (3, -3),
     }
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def _get_quantum_numbers_from_symbol(self, symbol: str) -> tuple[int, int] | None:
         """
@@ -443,7 +413,7 @@ class WannierArchiveWriter(ArchiveWriter):
         if len(win_files) > 1:
             self.logger.warning('Multiple `*.win` files found, parsing only first.')
 
-        win_parser = WInTextParser(text_parser=WInParser())
+        win_parser = WInTextParser(logger=self.logger, text_parser=WInParser())
         win_parser.filepath = win_files[0]
         # need data from out
         for key in ['structure', 'lattice_vectors']:
@@ -462,7 +432,7 @@ class WannierArchiveWriter(ArchiveWriter):
         """
         Parse wannier hr files.
         """
-        whr_parser = WHrTextParser(text_parser=HrParser())
+        whr_parser = WHrTextParser(logger=self.logger, text_parser=HrParser())
         hr_files = search_files(
             pattern='*hr.dat', basedir=self.basedir, re_pattern=self.basename
         )
@@ -481,7 +451,7 @@ class WannierArchiveWriter(ArchiveWriter):
         """
         Parse dos files.
         """
-        wdos_parser = WDosTextParser(text_parser=DataTextParser())
+        wdos_parser = WDosTextParser(logger=self.logger, text_parser=DataTextParser())
         dos_files = search_files(
             pattern='*dos.dat', basedir=self.basedir, re_pattern=self.basename
         )
@@ -500,7 +470,7 @@ class WannierArchiveWriter(ArchiveWriter):
         """
         Parse band files.
         """
-        wband_parser = WBandTextParser(text_parser=DataTextParser())
+        wband_parser = WBandTextParser(logger=self.logger, text_parser=DataTextParser())
         k_path = self.wout_parser.get_k_line_path(
             self.wout_parser.data.get('k_line_path')
         )
@@ -522,12 +492,12 @@ class WannierArchiveWriter(ArchiveWriter):
         self.basename = os.path.basename(self.mainfile)
         self.basedir = os.path.dirname(self.mainfile)
         # define mapping parser interface to OutParser
-        self.wout_parser = WOutTextParser(text_parser=WOutParser())
+        self.wout_parser = WOutTextParser(logger=self.logger, text_parser=WOutParser())
         self.wout_parser.filepath = self.mainfile
 
         # construct metainfo parser
         data = Simulation()
-        self.data_parser = Wannier90MetainfoParser()
+        self.data_parser = Wannier90MetainfoParser(logger=self.logger)
         self.data_parser.annotation_key = wannier90.WOUT_KEY
         self.data_parser.data_object = data
         self.archive.data = data

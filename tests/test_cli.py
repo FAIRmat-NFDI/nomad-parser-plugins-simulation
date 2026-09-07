@@ -132,9 +132,14 @@ def test_initialize_from_metadata_creates_parser_and_schema(tmp_path: Path):
     assert 'class MyCodeParserMetainfoParser(MetainfoParser):' in parser_content
     assert 'Simulation(program=Program(name=self.code_name))' in parser_content
     assert 'from .file_parser import MyCodeParserOutParser' in parser_content
+    assert 'MyCodeParserMainfileParser(' in parser_content
+    assert 'logger=self.logger' in parser_content
+    assert 'MyCodeParserMetainfoParser(logger=self.logger)' in parser_content
 
     file_parser_content = file_parser_file.read_text(encoding='utf-8')
     assert 'class MyCodeParserOutParser(TextParser):' in file_parser_content
+    assert 'def __init__(self, logger=None):' in file_parser_content
+    assert 'super().__init__(logger=logger)' in file_parser_content
 
     schema_content = schema_file.read_text(encoding='utf-8')
     assert "OUT_KEY = 'my_code'" in schema_content
@@ -209,8 +214,11 @@ def test_initialize_from_metadata_without_mapping_parser(tmp_path: Path):
     assert (
         'class PlainParserParserMetainfoParser(MetainfoParser):' not in parser_content
     )
-    assert 'mainfile_parser = PlainParserParserOutParser()' in parser_content
-    assert 'self.mainfile_parser.parse()' in parser_content
+    assert (
+        'mainfile_parser = PlainParserParserOutParser(logger=self.logger)'
+        in parser_content
+    )
+    assert 'mainfile_parser.parse()' in parser_content
 
     schema_content = schema_file.read_text(encoding='utf-8')
     assert 'add_mapping_annotation' not in schema_content

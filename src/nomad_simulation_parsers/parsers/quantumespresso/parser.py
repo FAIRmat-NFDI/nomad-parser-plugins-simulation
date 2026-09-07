@@ -43,11 +43,8 @@ PROGRAM_NAME_RE = re.compile(
 )
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class QuantumEspressoMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 def get_program_name_version(header: str) -> tuple[str, tuple[int]]:
@@ -80,11 +77,6 @@ def load_writer(header: str) -> QuantumEspressoArchiveWriter:
 
 
 class MainfileTextParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_version(self, name_version: list[str]) -> str:
         return ' '.join(name_version[1:]).lstrip('v.')
 
@@ -216,11 +208,6 @@ class MainfileTextParser(TextParser):
 class MainfileXMLParser(XMLParser):
     _units_map = {'Hartree atomic units': dict(energy='hartree', length='bohr')}
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_datetime(self, date: str, time: str) -> datetime:
         return datetime.strptime(f'{date}{time}'.replace(' ', ''), '%d%b%Y%H:%M:%S')
 
@@ -273,6 +260,8 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     _mainfile_parser = None
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
+        self.simulation_parser.logger = self.logger
+        self.mainfile_parser.logger = self.logger
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
         )
@@ -392,7 +381,11 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         return self._mainfile_parser
 
     def write_to_archive(self) -> None:
+        self.simulation_parser.logger = self.logger
+        self.mainfile_parser.logger = self.logger
         for n, writer in enumerate(self.mainfile_parser.writers):
+            writer.logger = self.logger
+            writer.child_archives = self.child_archives
             # write the first program to the main archive, the rest to child archives
             archive = (
                 self.archive

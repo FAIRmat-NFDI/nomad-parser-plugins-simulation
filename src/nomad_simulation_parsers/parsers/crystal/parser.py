@@ -48,10 +48,6 @@ class CrystalOutputParser(TextParser):
         'VWN': ['LDA_C_VWN'],
     }
 
-    @property
-    def logger(self):
-        pass
-
     def to_unix_time(self, value: str) -> float | None:
         """Transforms the Crystal-specific float notation into a floating point
         number.
@@ -285,10 +281,6 @@ class CrystalOutputParser(TextParser):
 
 
 class CrystalF25Parser(TextParser):
-    @property
-    def logger(self):
-        pass
-
     @staticmethod
     def to_array(cols: int, rows: int, values: str) -> np.ndarray:
         """Transforms the Crystal-specific f25 array syntax into a numpy array."""
@@ -329,9 +321,7 @@ class CrystalF25Parser(TextParser):
 
 
 class CrystalMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        pass
+    pass
 
 
 class CrystalArchiveWriter(ArchiveWriter):
@@ -340,6 +330,9 @@ class CrystalArchiveWriter(ArchiveWriter):
     archive_parser = CrystalMetainfoParser()
 
     def write_to_archive(self):
+        self.output_parser.logger = self.logger
+        self.f25_parser.logger = self.logger
+        self.archive_parser.logger = self.logger
         # main output file
         self.archive_parser.annotation_key = crystal.OUT_KEY
         self.archive_parser.data_object = Simulation(program=Program(name='Crystal'))

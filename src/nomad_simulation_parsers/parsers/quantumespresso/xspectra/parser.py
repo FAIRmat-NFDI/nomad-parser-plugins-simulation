@@ -1,5 +1,4 @@
 from nomad.datamodel import EntryArchive
-from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoArchiveWriter,
@@ -9,14 +8,9 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common, xsp
 from ..parser import MainfileTextParser
 from .file_parser import XSpectraFileParser
 
-LOGGER = get_logger(__name__)
-
 
 class XspectraMainfileParser(MainfileTextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class XSpectraArchiveWriter(QuantumEspressoArchiveWriter):
