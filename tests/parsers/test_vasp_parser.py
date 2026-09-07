@@ -14,7 +14,7 @@ from pytest import approx
 from nomad_simulation_parsers.parsers.vasp.common import functional_key_from_params
 from nomad_simulation_parsers.parsers.vasp.doscar_parser import DOSCARParser
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
-from tests.parsers._assertions import assert_identity_populated_once
+from tests.parsers.common import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 

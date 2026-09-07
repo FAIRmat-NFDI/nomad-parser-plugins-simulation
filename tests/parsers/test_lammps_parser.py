@@ -36,7 +36,7 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     XYZTrajParser,
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
-from tests.parsers._assertions import assert_identity_populated_once
+from tests.parsers.common import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 

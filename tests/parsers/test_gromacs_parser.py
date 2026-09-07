@@ -7,7 +7,7 @@ from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.gromacs import parser as gromacs_parser
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
-from tests.parsers._assertions import assert_identity_populated_once
+from tests.parsers.common import assert_identity_populated_once
 
 
 class StubMDAnalysisDataObject:
