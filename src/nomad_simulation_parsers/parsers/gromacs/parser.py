@@ -869,13 +869,19 @@ class GromacsMDAnalysisParser(MappingParser):
             frame_data = self.data_object.get_frame_data(n)
             config = dict(
                 n_particles=n_particles,
-                labels=labels,
                 positions=frame_data['positions'],
                 velocities=frame_data['velocities'],
                 lattice_vectors=frame_data['lattice_vectors'],
             )
-            if n == 0 and bond_list is not None:
-                config['bond_list'] = bond_list
+            # Particle identity and bonds are frame-independent, so attach them only to
+            # the first (topology) frame; later frames carry positions/cell/velocities
+            # only. This avoids storing `n_particles` identity records per frame, which
+            # bloats the archive and the Elasticsearch index doc
+            # (FAIRmat-NFDI/nomad-simulations#474).
+            if n == 0:
+                config['labels'] = labels
+                if bond_list is not None:
+                    config['bond_list'] = bond_list
             configurations.append(config)
         return configurations
 
