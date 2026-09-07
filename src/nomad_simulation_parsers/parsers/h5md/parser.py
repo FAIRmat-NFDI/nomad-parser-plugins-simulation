@@ -124,6 +124,11 @@ class H5MDH5Parser(HDF5Parser):
             frame_data.update(cell_data)
             traj_data.append(frame_data)
 
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        for index, frame in enumerate(traj_data):
+            frame['frame_index'] = index
         return traj_data
 
     def get_step_data(self, data: dict[str, Any], step: int) -> dict[str, Any]:
@@ -168,6 +173,10 @@ class H5MDH5Parser(HDF5Parser):
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
         if source.get('step') is None:
+            return []
+        # Particle identity is frame-independent; attach it (-> `particle_states`)
+        # to the first (topology) frame only (FAIRmat-NFDI/nomad-simulations#474).
+        if source.get('frame_index', 0):
             return []
 
         source_data = self.get_source(self.data, kwargs['path'])
@@ -515,30 +524,19 @@ class H5MDArchiveWriter(MDParser):
             self.h5_parser.convert(self.simulation_parser)
             self.h5_parser.convert(self.workflow_parser)
 
-            # Particle identity is frame-independent, so keep it on the first
-            # (topology) system only and drop it from the remaining trajectory frames.
-            # Otherwise every frame stores `n_particles` identity records, which bloats
-            # the archive and the Elasticsearch index doc
-            # (FAIRmat-NFDI/nomad-simulations#474).
-            topology_seen = False
             for model_system in self.simulation_parser.data_object.model_system:
                 if not model_system.particle_states:
                     continue
-                if topology_seen:
-                    model_system.particle_states = []
-                    continue
-                topology_seen = True
-                # On the topology frame, upgrade generic `ParticleState`s to
-                # `AtomsState`/`CGBeadState` based on their labels.
-                if all(
+                if not all(
                     type(particle_state) is ParticleState
                     for particle_state in model_system.particle_states
                 ):
-                    labels = [
-                        particle_state.label
-                        for particle_state in model_system.particle_states
-                    ]
-                    model_system.particle_states = particle_states_from_labels(labels)
+                    continue
+                labels = [
+                    particle_state.label
+                    for particle_state in model_system.particle_states
+                ]
+                model_system.particle_states = particle_states_from_labels(labels)
 
             # assign simulation to archive data
             self.archive.data = self.simulation_parser.data_object

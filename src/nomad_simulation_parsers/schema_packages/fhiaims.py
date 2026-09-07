@@ -146,7 +146,7 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(
         model_system.AtomsState.m_def,
         TEXT_KEY,
-        ('get_topology_labels', ['.structure.labels']),
+        ('get_topology_labels', ['.structure.labels', '.frame_index']),
     )
 
 

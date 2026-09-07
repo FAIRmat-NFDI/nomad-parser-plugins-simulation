@@ -460,18 +460,26 @@ class OutcarParser(MappingTextParser):
         return scf_steps
 
     def get_configurations(self, calculations: Any = None) -> list[Any]:
-        # Reset the per-parse identity flag so `particle_states` is attached to the
-        # first (topology) frame only; later ionic steps carry positions/cell only
-        # (FAIRmat-NFDI/nomad-simulations#474).
-        self._identity_emitted = False
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only; later ionic steps
+        # carry positions/cell only (FAIRmat-NFDI/nomad-simulations#474).
         if calculations is None:
             return []
-        return calculations if isinstance(calculations, list) else [calculations]
+        calculations = (
+            calculations if isinstance(calculations, list) else [calculations]
+        )
+        for index, calculation in enumerate(calculations):
+            if hasattr(calculation, '__setitem__'):
+                calculation['frame_index'] = index
+        return calculations
 
-    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
+    def get_atoms(
+        self, ions: Any = None, species: Any = None, frame_index: int = 0
+    ) -> list[dict[str, str]]:
         # Particle identity is frame-independent (sourced from the global OUTCAR
-        # header); emit it once, on the first (topology) frame only.
-        if getattr(self, '_identity_emitted', False):
+        # header); attach it to the first (topology) frame only.
+        # `get_configurations` stamps `frame_index`.
+        if frame_index:
             return []
         if ions is None or species is None:
             return []
@@ -493,7 +501,6 @@ class OutcarParser(MappingTextParser):
                 symbol = species_info
             symbol = str(symbol).strip()
             atoms.extend({'label': symbol} for _ in range(int(n_ions)))
-        self._identity_emitted = True
         return atoms
 
     def get_periodic_boundary_conditions(self) -> list[bool]:
