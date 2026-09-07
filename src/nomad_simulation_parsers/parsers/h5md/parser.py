@@ -515,19 +515,30 @@ class H5MDArchiveWriter(MDParser):
             self.h5_parser.convert(self.simulation_parser)
             self.h5_parser.convert(self.workflow_parser)
 
+            # Particle identity is frame-independent, so keep it on the first
+            # (topology) system only and drop it from the remaining trajectory frames.
+            # Otherwise every frame stores `n_particles` identity records, which bloats
+            # the archive and the Elasticsearch index doc
+            # (FAIRmat-NFDI/nomad-simulations#474).
+            topology_seen = False
             for model_system in self.simulation_parser.data_object.model_system:
                 if not model_system.particle_states:
                     continue
-                if not all(
+                if topology_seen:
+                    model_system.particle_states = []
+                    continue
+                topology_seen = True
+                # On the topology frame, upgrade generic `ParticleState`s to
+                # `AtomsState`/`CGBeadState` based on their labels.
+                if all(
                     type(particle_state) is ParticleState
                     for particle_state in model_system.particle_states
                 ):
-                    continue
-                labels = [
-                    particle_state.label
-                    for particle_state in model_system.particle_states
-                ]
-                model_system.particle_states = particle_states_from_labels(labels)
+                    labels = [
+                        particle_state.label
+                        for particle_state in model_system.particle_states
+                    ]
+                    model_system.particle_states = particle_states_from_labels(labels)
 
             # assign simulation to archive data
             self.archive.data = self.simulation_parser.data_object
