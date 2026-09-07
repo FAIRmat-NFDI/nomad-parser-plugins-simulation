@@ -10,6 +10,7 @@ from pytest import approx
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     QuantumEspressoParser,
 )
+from tests.parsers._assertions import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 
@@ -24,6 +25,9 @@ def _parse(mainfile: str) -> EntryArchive:
 def test_pwscf():
     archive = _parse('tests/data/quantumespresso/pwscf/TiO2_opt/pw.out')
     assert archive is not None
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
 
 
 def test_pwscf_xml():

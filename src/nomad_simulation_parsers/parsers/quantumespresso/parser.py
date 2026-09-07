@@ -178,6 +178,21 @@ class MainfileTextParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    def get_topology_value(
+        self, source: dict[str, Any], key: str = '', units: str = 'units'
+    ):
+        # Frame-independent identity (e.g. particle labels) must be attached to the
+        # first (topology) frame only, so `particle_states` is not duplicated per
+        # trajectory / optimization frame (FAIRmat-NFDI/nomad-simulations#474). The
+        # per-parse flag is reset in `QuantumEspressoArchiveWriter.parse_program`
+        # (the mainfile parser is a reused class attribute).
+        if getattr(self, '_identity_emitted', False):
+            return None
+        value = self.get_value(source, key=key, units=units)
+        if value is not None:
+            self._identity_emitted = True
+        return value
+
     def get_periodic_boundary_conditions(
         self, source: dict[str, Any]
     ) -> list[bool] | None:
@@ -276,6 +291,9 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
         )
+        # Reset the per-parse topology flag (the mainfile parser is a reused class
+        # attribute) so particle identity is emitted once, on the first frame.
+        self.mainfile_parser._identity_emitted = False
         # convert
         self.mainfile_parser.convert(self.simulation_parser)
         # set the parsed data to archive
