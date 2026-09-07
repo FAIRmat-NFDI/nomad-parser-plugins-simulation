@@ -372,7 +372,9 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
                 out=self._text_parser, log=self._text_parser, xml=self._xml_parser
             ).get(ext)
             if self._mainfile_parser is None:
-                self.logger.error('Parser not found for mainfile extension.')
+                self.logger.error(
+                    'Parser not found for mainfile extension.', file_extension=ext
+                )
                 return None
             self._mainfile_parser.filepath = self.mainfile
             self.simulation_parser.annotation_key = dict(
@@ -381,6 +383,9 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         return self._mainfile_parser
 
     def write_to_archive(self) -> None:
+        if self.mainfile_parser is None:
+            return
+
         self.simulation_parser.logger = self.logger
         self.mainfile_parser.logger = self.logger
         for n, writer in enumerate(self.mainfile_parser.writers):
