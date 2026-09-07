@@ -365,7 +365,7 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
         self._link_files()
 
     @property
-    def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser:
+    def mainfile_parser(self) -> MainfileTextParser | MainfileXMLParser | None:
         if self._mainfile_parser is None:
             ext = self.mainfile.rsplit('.', 1)[-1].lower()
             self._mainfile_parser = dict(
