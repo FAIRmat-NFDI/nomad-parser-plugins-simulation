@@ -117,10 +117,18 @@ class InfoParser(TextParser):
             self.get_atoms(config.get('atomic_positions', {}))
             for config in configurations
         ]
-        return [
-            {**config, **configurations[n]}
-            for n, config in enumerate(mapped_configurations)
-        ]
+        merged = []
+        for n, config in enumerate(mapped_configurations):
+            entry = {**config, **configurations[n]}
+            # Particle identity is frame-independent, so keep `atoms`
+            # (-> particle_states) on the first (topology) frame only; later
+            # optimization steps carry positions only. This avoids duplicating
+            # per-atom identity per frame, which bloats the archive and the
+            # Elasticsearch index doc (FAIRmat-NFDI/nomad-simulations#474).
+            if n != 0:
+                entry.pop('atoms', None)
+            merged.append(entry)
+        return merged
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')

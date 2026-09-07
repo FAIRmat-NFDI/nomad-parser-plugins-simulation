@@ -10,6 +10,8 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
 
+from tests.parsers._assertions import assert_identity_populated_once
+
 
 class _SimulationParserSuite:
     """Configuration and fixtures shared by parser contract suites."""
@@ -96,6 +98,13 @@ class SimulationParserTestSuite(_SimulationParserSuite):
             representative.periodic_boundary_conditions
         ):
             assert representative.lattice_vectors is not None
+
+    @pytest.mark.integration
+    def test_identity_populated_once(self, archive):
+        # Per-particle identity must be stored on exactly one (topology) frame,
+        # not duplicated across a trajectory / optimization sequence (see
+        # FAIRmat-NFDI/nomad-simulations#474).
+        assert_identity_populated_once(archive)
 
     @pytest.mark.integration
     def test_model_system_serialization_round_trip(self, archive):
