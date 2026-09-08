@@ -18,23 +18,13 @@ from nomad_simulation_parsers.parsers.utils.mdparserutils import (
 )
 from nomad_simulation_parsers.schema_packages import h5md
 
-LOGGER = get_logger(__name__)
-
 
 class H5MDMetainfoParser(MetainfoParser):
-    # TODO: temporary fix until structlog propagation lands everywhere
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class H5MDH5Parser(HDF5Parser):
     trajectory_steps: list[int] = []
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def get_value(self, name: str, dct: dict[str, Any]) -> Any:
         value = dct.get(name, {})
@@ -490,6 +480,9 @@ class H5MDArchiveWriter(MDParser):
         super().__init__(**kwargs)
 
     def write_to_archive(self) -> None:
+        self.h5_parser.logger = self.logger
+        self.simulation_parser.logger = self.logger
+        self.workflow_parser.logger = self.logger
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 

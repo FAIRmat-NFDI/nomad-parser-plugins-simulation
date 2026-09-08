@@ -6,6 +6,7 @@ import numpy as np
 from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -167,8 +168,10 @@ def _coefficient_matrix(
 
 
 class OutParser(MappingTextParser):
-    def __init__(self) -> None:
-        super().__init__(text_parser=OutReader())
+    def __init__(self, logger=None, **kwargs) -> None:
+        super().__init__(
+            logger=logger or get_logger(__name__), text_parser=OutReader(), **kwargs
+        )
         self._method = None
 
     def load_file(self) -> OutReader:
@@ -797,10 +800,10 @@ class OrcaParser(MatchingParser):
     ) -> None:
         reload(orca)
 
-        reader = OutParser()
+        reader = OutParser(logger=logger)
         reader.filepath = mainfile
         archive.data = Simulation(program=Program(name='ORCA'))
-        metainfo_parser = MetainfoParser(data_object=archive.data)
+        metainfo_parser = MetainfoParser(logger=logger, data_object=archive.data)
         metainfo_parser.annotation_key = orca.OUT_KEY
         metainfo_parser.max_nested_level = 3
 

@@ -9,7 +9,6 @@ from nomad.datamodel.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as TextMappingParser
@@ -46,22 +45,12 @@ from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
 
-LOGGER = get_logger(__name__)
 
-
-# TODO temporary fix for structlog unable to propagate logger
 class FHIAimsMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     _gw_flag_map = {
         'gw': 'G0W0',
         'gw_expt': 'G0W0',
@@ -535,13 +524,13 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     def write_to_archive(  # noqa: PLR0915, PLR0912
         self,
     ) -> None:
-        out_parser = FHIAimsOutMappingParser()
-        out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser = FHIAimsOutMappingParser(logger=self.logger)
+        out_parser.text_parser = FHIAimsOutFileParser(logger=self.logger)
         out_parser.text_parser.line_parsing = True
         out_parser.text_parser.allow_overlap = True
         out_parser.filepath = self.mainfile
 
-        archive_handler = FHIAimsMetainfoParser()
+        archive_handler = FHIAimsMetainfoParser(logger=self.logger)
         archive_handler.annotation_key = self.annotation_key
 
         self.archive.data = Simulation(program=Program(name='FHI-aims'))

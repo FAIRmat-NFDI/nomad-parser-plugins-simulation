@@ -3,7 +3,6 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MappingParser, MetainfoParser
 from nomad_simulations.schema_packages.general import Simulation
@@ -21,15 +20,9 @@ from nomad_simulation_parsers.schema_packages import gpaw
 
 from .gpw_parser import GPWFileParser
 
-LOGGER = get_logger(__name__)
-
 
 class GPWParser(MappingParser):
     file_parser = GPWFileParser()
-
-    @property
-    def logger(self):
-        return LOGGER
 
     def to_dict(self):
         if self.data_object is None:
@@ -190,9 +183,7 @@ class GPWParser(MappingParser):
 
 
 class GPAWMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class GPAWArchiveWriter(ArchiveWriter):
@@ -200,6 +191,8 @@ class GPAWArchiveWriter(ArchiveWriter):
     archive_parser = GPAWMetainfoParser()
 
     def write_to_archive(self):
+        self.mainfile_parser.logger = self.logger
+        self.archive_parser.logger = self.logger
         self.mainfile_parser.filepath = self.mainfile
         self.archive_parser.annotation_key = gpaw.GPW_KEY
         self.archive_parser.data_object = Simulation()
