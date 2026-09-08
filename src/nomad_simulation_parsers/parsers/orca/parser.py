@@ -216,10 +216,26 @@ class OutParser(MappingTextParser):
             return value[0] if value else None
         return value
 
-    def _get_cartesian_system(self, source: dict[str, Any]) -> tuple[list[str], Any]:
+    def _get_cartesian_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
         single_point = self._navigate(source, 'single_point')
-        coordinates = single_point.get('cartesian_coordinates', [])
-        return str_to_cartesian_coordinates(coordinates) if coordinates else ([], None)
+        if single_point:
+            coordinates = single_point.get('cartesian_coordinates', [])
+            if coordinates:
+                coordinates = [coordinates]
+            else:
+                return []
+        else:
+            geometry_optimization = self._navigate(source, 'geometry_optimization')
+            cycles = geometry_optimization.get('cycle', [])
+            if len(cycles)>0:
+                coordinates = [cycle.get('cartesian_coordinates', []) for cycle in cycles]
+            else:
+                return []
+
+        return [
+            str_to_cartesian_coordinates(coord) if coord else [[], None]
+            for coord in coordinates
+            ]
 
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
@@ -235,20 +251,29 @@ class OutParser(MappingTextParser):
         return result
 
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        symbols, positions = self._get_cartesian_system(src)
-        if not symbols:
+        symbols_positions = self._get_cartesian_systems(src)
+        if not symbols_positions:
             return []
 
-        return [
+        atoms = [
             {
-                'is_representative': True,
+                'is_representative': False,
                 'positions': positions,
                 'particle_states': [
                     {'chemical_symbol': symbol} for symbol in symbols
                 ],
                 **self._get_charge_and_multiplicity(src),
             }
+            for symbols, positions in symbols_positions
         ]
+
+        # set the last valid structure representative, otherwise 1st
+        for i in range(len(atoms)-1, -1, -1):
+            if atoms[i]['positions'] is not None or i==0:
+                atoms[i]['is_representative'] = True
+                break
+
+        return atoms
 
     @staticmethod
     def _normalize_localization_method(value: Any) -> str | None:
