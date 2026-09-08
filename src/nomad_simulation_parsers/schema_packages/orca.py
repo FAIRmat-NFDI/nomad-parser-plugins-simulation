@@ -75,7 +75,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.HF.m_def,
     OUT_KEY,
-    ('get_hf_methods', ['.@']),
+    ('get_hf_methods', ['.single_point.mdci']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.HF.reference_form, OUT_KEY, '.reference_form')
@@ -85,7 +85,7 @@ add_mapping_annotation(model_method.HF.reference_form, OUT_KEY, '.reference_form
 add_mapping_annotation(
     model_method.MultireferenceSCF.m_def,
     OUT_KEY,
-    ('get_multireference_scf_methods', ['.@']),
+    ('get_multireference_scf_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceSCF.type, OUT_KEY, '.type')
@@ -130,7 +130,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.MultireferencePT.m_def,
     OUT_KEY,
-    ('get_multireference_pt_methods', ['.@']),
+    ('get_multireference_pt_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferencePT.type, OUT_KEY, '.type')
@@ -146,7 +146,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.MultireferenceCI.m_def,
     OUT_KEY,
-    ('get_multireference_ci_methods', ['.@']),
+    ('get_multireference_ci_methods', ['.single_point.casscf', '.input_file']),
     update_mode='append',
 )
 add_mapping_annotation(model_method.MultireferenceCI.type, OUT_KEY, '.type')
@@ -178,7 +178,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.OrbitalLocalization.m_def,
     OUT_KEY,
-    ('get_orbital_localization_methods', ['.@']),
+    ('get_orbital_localization_methods', ['.single_point.loc']),
 )
 add_mapping_annotation(model_method.OrbitalLocalization.method, OUT_KEY, '.method')
 add_mapping_annotation(
@@ -190,7 +190,7 @@ add_mapping_annotation(
 add_mapping_annotation(
     model_method.CC.m_def,
     OUT_KEY,
-    ('get_coupled_cluster_methods', ['.@']),
+    ('get_coupled_cluster_methods', ['.single_point.mdci', '.input_file']),
 )
 add_mapping_annotation(model_method.CC.type, OUT_KEY, '.type')
 add_mapping_annotation(model_method.CC.excitation_order, OUT_KEY, '.excitation_order')
@@ -257,7 +257,10 @@ add_mapping_annotation(model_method.PerturbationMethod.order, OUT_KEY, '.order')
 add_mapping_annotation(
     model_method.PerturbationMethod.m_def,
     OUT_KEY,
-    ('get_perturbation_methods', ['.@']),
+    (
+        'get_perturbation_methods',
+        ['.single_point.mdci', '.single_point.mp2', '.input_file'],
+    ),
     update_mode='append',
 )
 
