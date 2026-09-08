@@ -216,30 +216,13 @@ class OutParser(MappingTextParser):
             return value[0] if value else None
         return value
 
-    def _get_cartesian_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
-        single_point = self._navigate(source, 'single_point')
-        if single_point:
-            coordinates = single_point.get('cartesian_coordinates', [])
-            if coordinates:
-                coordinates = [coordinates]
-            else:
-                return []
-        else:
-            geometry_optimization = self._navigate(source, 'geometry_optimization')
-            cycles = geometry_optimization.get('cycle', [])
-            if len(cycles)>0:
-                coordinates = [cycle.get('cartesian_coordinates', []) for cycle in cycles]
-            else:
-                return []
-
-        return [
-            str_to_cartesian_coordinates(coord) if coord else [[], None]
-            for coord in coordinates
-            ]
+    def _get_cartesian_system(self, source: dict[str, Any]) -> tuple[list[str], Any]:
+        coordinates = source.get('cartesian_coordinates', [])
+        return str_to_cartesian_coordinates(coordinates) if coordinates else []
 
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
-            source, 'single_point', 'self_consistent', 'scf_settings'
+            source, 'self_consistent', 'scf_settings'
         )
         result = {}
         total_charge = self._to_scalar(scf_settings.get('total_charge'))
@@ -250,9 +233,29 @@ class OutParser(MappingTextParser):
             result['total_spin_multiplicity'] = int(multiplicity)
         return result
 
+    def _get_system(self, src):
+        coordinates = self._get_cartesian_system(src)
+        charge_mult = self._get_charge_and_multiplicity(src)
+        # TODO:xe empty in GO for Orca 6, filled for Orca 4
+        return (*coordinates, charge_mult) if (coordinates or charge_mult) else []
+
+    def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
+        single_point = self._navigate(source, 'single_point')
+        if single_point:
+            system = self._get_system(single_point)
+            return [system] if system else []
+        else:
+            geometry_optimization = self._navigate(source, 'geometry_optimization')
+            final = self._navigate(geometry_optimization, 'final_energy_evaluation')
+            cycles = geometry_optimization.get('cycle', [])
+            if len(cycles)==0:
+                return []
+            return [system if (system:=self._get_system(cycle)) else ([], None, {}) for cycle in cycles + [final]]
+
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        symbols_positions = self._get_cartesian_systems(src)
-        if not symbols_positions:
+        systems = self._get_systems(src)
+
+        if not systems:
             return []
 
         atoms = [
@@ -262,9 +265,9 @@ class OutParser(MappingTextParser):
                 'particle_states': [
                     {'chemical_symbol': symbol} for symbol in symbols
                 ],
-                **self._get_charge_and_multiplicity(src),
+                **spin_mult,
             }
-            for symbols, positions in symbols_positions
+            for symbols, positions, spin_mult in systems
         ]
 
         # set the last valid structure representative, otherwise 1st
@@ -715,8 +718,10 @@ class OutParser(MappingTextParser):
 
         return components
 
-    def get_molecular_orbitals(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        self_consistent = self._navigate(src, 'single_point', 'self_consistent')
+    def get_molecular_orbitals(
+        self, single_point, src: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        self_consistent = self._navigate(single_point, 'self_consistent')
         basis_set_total = self._parser_results(src.get('basis_set_total'))
 
         orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
@@ -757,18 +762,29 @@ class OutParser(MappingTextParser):
         if coefficients is not None:
             molecular_orbitals['coefficients'] = coefficients
 
-        return [molecular_orbitals]
+        return [molecular_orbitals]  # TODO:xe why is this a list?
 
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        molecular_orbitals = self.get_molecular_orbitals(src)
-        if not molecular_orbitals:
-            return []
 
+        single_point = self._navigate(src, 'single_point')
+        if single_point:
+            molecular_orbitals = [self.get_molecular_orbitals(single_point, src)]
+
+        else:
+            # TODO:xe will this work?
+            geometry_optimization = self._navigate(src, 'geometry_optimization')
+            cycles = geometry_optimization.get('cycle', [])
+            final = self._navigate(geometry_optimization, 'final_energy_evaluation')
+            molecular_orbitals = [self.get_molecular_orbitals(cycle, src) for cycle in cycles+[final]]
+
+        if not any(molecular_orbitals):
+            return []
         return [
             {
-                'model_system_ref': '/data/model_system/0',
-                'molecular_orbitals': molecular_orbitals,
+                'model_system_ref': f'/data/model_system/{i}',
+                'molecular_orbitals': molecular_orbitals_i,
             }
+            for i, molecular_orbitals_i in enumerate(molecular_orbitals)
         ]
 
     def build_workflow(
