@@ -5,7 +5,6 @@ import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import (
     MetainfoParser,
@@ -40,8 +39,6 @@ from nomad_simulation_parsers.schema_packages import exciting
 from .eigval_parser import EigvalFileParser
 from .info_parser import InfoFileParser
 
-LOGGER = get_logger(__name__)
-
 convergence_threshold_mapping = {
     'x_exciting_effective_potential_convergence': {
         'class': PotentialConvergenceTarget,
@@ -64,17 +61,10 @@ convergence_threshold_mapping = {
 
 
 class ExcitingMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class InfoParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_xc_functionals(self, xc_type: int) -> list[dict[str, Any]]:
         xc_functional_map = {
             2: ['LDA_C_PZ', 'LDA_X'],
@@ -117,10 +107,18 @@ class InfoParser(TextParser):
             self.get_atoms(config.get('atomic_positions', {}))
             for config in configurations
         ]
-        return [
-            {**config, **configurations[n]}
-            for n, config in enumerate(mapped_configurations)
-        ]
+        merged = []
+        for n, config in enumerate(mapped_configurations):
+            entry = {**config, **configurations[n]}
+            # Particle identity is frame-independent, so keep `atoms`
+            # (-> particle_states) on the first (topology) frame only; later
+            # optimization steps carry positions only. This avoids duplicating
+            # per-atom identity per frame, which bloats the archive and the
+            # Elasticsearch index doc (FAIRmat-NFDI/nomad-simulations#474).
+            if n != 0:
+                entry.pop('atoms', None)
+            merged.append(entry)
+        return merged
 
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
@@ -279,21 +277,11 @@ class InfoParser(TextParser):
 
 
 class InputXMLParser(XMLParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
 
 
 class BandstructureXMLParser(XMLParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     n_spin = 1
 
     def get_k_path(self, source: dict[str, Any]) -> dict[str, Any]:
@@ -376,11 +364,6 @@ class BandstructureXMLParser(XMLParser):
 
 
 class DosXMLParser(XMLParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def to_float(self, source: list[str]) -> np.ndarray:
         return np.array(source, dtype=float)
 
@@ -392,11 +375,6 @@ class DosXMLParser(XMLParser):
 
 
 class EigvalParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_eigenvalues(self, source: dict[str, Any]):
         eigs_occs = source.get('eigenvalues_occupancies')
         eigs = np.array([v.get('eigenvalues') for v in eigs_occs])
@@ -457,11 +435,11 @@ class ExcitingArchiveWriter(ArchiveWriter):
         mainbase = os.path.basename(self.mainfile)
 
         # mainfile INFO.OUT parser
-        info_parser = InfoParser(text_parser=InfoFileParser())
+        info_parser = InfoParser(logger=self.logger, text_parser=InfoFileParser())
         info_parser.filepath = self.mainfile
 
         data_parser = ExcitingMetainfoParser(
-            data_object=Simulation(program=Program(name='exciting'))
+            logger=self.logger, data_object=Simulation(program=Program(name='exciting'))
         )
         data_parser.annotation_key = exciting.INFO_KEY
 
@@ -486,7 +464,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
             else []
         )
         if input_xml_files:
-            input_xml_parser = InputXMLParser(filepath=input_xml_files[0])
+            input_xml_parser = InputXMLParser(
+                filepath=input_xml_files[0], logger=self.logger
+            )
             data_parser.annotation_key = exciting.INPUT_XML_KEY
             input_xml_parser.convert(data_parser)
             input_xml_parser.close()
@@ -495,7 +475,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
         eigval_files = search_files('EIGVAL.OUT', maindir, re_pattern=mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
-                filepath=eigval_files[0], text_parser=EigvalFileParser()
+                filepath=eigval_files[0],
+                logger=self.logger,
+                text_parser=EigvalFileParser(),
             )
             data_parser.annotation_key = exciting.EIGVAL_KEY
             eigval_parser.convert(data_parser, update_mode='merge')
@@ -507,7 +489,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         )
         if bandstructure_files:
             bandstructure_parser = BandstructureXMLParser(
-                filepath=bandstructure_files[0]
+                filepath=bandstructure_files[0], logger=self.logger
             )
             # TODO set n_spin from info
             data_parser.annotation_key = exciting.BANDSTRUCTURE_XML_KEY
@@ -517,7 +499,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         # dos from dos.xml
         dos_files = search_files('dos.xml', maindir, re_pattern=mainbase)
         if dos_files:
-            dos_parser = DosXMLParser(filepath=dos_files[0])
+            dos_parser = DosXMLParser(filepath=dos_files[0], logger=self.logger)
             data_parser.annotation_key = exciting.DOS_XML_KEY
             dos_parser.convert(data_parser, update_mode='merge')
             dos_parser.close()

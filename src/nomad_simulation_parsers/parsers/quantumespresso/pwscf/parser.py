@@ -4,7 +4,6 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import TextParser
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
@@ -29,17 +28,11 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common, pws
 from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFDOSTextParser, PWSCFFileParser
 
-LOGGER = get_logger(__name__)
 MIN_DOS_COLUMNS = 2
 DOS_ARRAY_NDIM = 2
 
 
 class PWSCFMainfileTextParser(MainfileTextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_force_contributions(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         keys = ['dispersion']
         return [
@@ -110,6 +103,12 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             sc_config = config.get('self_consistent', config)
             sec_config = sc_config if isinstance(sc_config, list) else [sc_config]
             configurations.extend(sec_config)
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only, without global
+        # state (FAIRmat-NFDI/nomad-simulations#474).
+        for index, config in enumerate(configurations):
+            if hasattr(config, '__setitem__'):
+                config['frame_index'] = index
         return configurations
 
     def get_configuration_forces(self, source: dict[str, Any]) -> list[list[Any]]:
@@ -412,11 +411,6 @@ class PWSCFMainfileXMLParser(MainfileXMLParser):
 
 
 class DOSParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     # TODO: fix to prevent creation of contributions sections.
     # clarify the purpose of ElectronicDensityOfStates.contributions
     # and projected_dos
@@ -442,6 +436,7 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)
+        self.dos_parser.logger = self.logger
         archive.workflow2 = self.mainfile_parser.build_workflow()
 
         if not archive.data:

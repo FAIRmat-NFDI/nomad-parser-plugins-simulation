@@ -54,8 +54,16 @@ class Simulation(general.Simulation):
         '.parameters.separator[?"@name"==\'electronic\']',
     )
     add_mapping_annotation(model_method.DFT.m_def, OUTCAR_KEY, 'parameters')
-    add_mapping_annotation(general.Simulation.model_system, XML_KEY, '.calculation')
-    add_mapping_annotation(general.Simulation.model_system, OUTCAR_KEY, '.calculation')
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        XML_KEY,
+        ('get_configurations', ['.calculation']),
+    )
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        OUTCAR_KEY,
+        ('get_configurations', ['.calculation']),
+    )
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
@@ -186,12 +194,12 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(
         model_system.AtomsState.m_def,
         XML_KEY,
-        ('get_atoms', ['modeling.atominfo.array']),
+        ('get_atoms', ['modeling.atominfo.array', '.frame_index']),
     )
     add_mapping_annotation(
         model_system.AtomsState.m_def,
         OUTCAR_KEY,
-        ('get_atoms', ['ions_per_type', 'species']),
+        ('get_atoms', ['ions_per_type', 'species', '.frame_index']),
     )
     add_mapping_annotation(
         model_system.ModelSystem.positions,

@@ -7,7 +7,6 @@ import re
 
 import numpy as np
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter, Quantity, TextParser
 from nomad_file_parser.mapping_parser import MetainfoParser, Path
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
@@ -36,7 +35,6 @@ from .common import functional_key_from_params
 from .doscar_parser import DOSCARParser
 
 RE_N = r'[\n\r]'
-LOGGER = get_logger(__name__)
 
 
 def get_key_values(val_in: str) -> dict[str, Any]:
@@ -72,11 +70,8 @@ def get_key_values(val_in: str) -> dict[str, Any]:
     return data
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class VASPMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class OutcarTextParser(TextParser):
@@ -342,11 +337,6 @@ class OutcarTextParser(TextParser):
 
 
 class OutcarParser(MappingTextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_version(self, source: dict[str, Any]) -> str:
         return ' '.join(
             [
@@ -459,7 +449,28 @@ class OutcarParser(MappingTextParser):
             scf_steps['durations'] = durations
         return scf_steps
 
-    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
+    def get_configurations(self, calculations: Any = None) -> list[Any]:
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only; later ionic steps
+        # carry positions/cell only (FAIRmat-NFDI/nomad-simulations#474).
+        if calculations is None:
+            return []
+        calculations = (
+            calculations if isinstance(calculations, list) else [calculations]
+        )
+        for index, calculation in enumerate(calculations):
+            if hasattr(calculation, '__setitem__'):
+                calculation['frame_index'] = index
+        return calculations
+
+    def get_atoms(
+        self, ions: Any = None, species: Any = None, frame_index: int = 0
+    ) -> list[dict[str, str]]:
+        # Particle identity is frame-independent (sourced from the global OUTCAR
+        # header); attach it to the first (topology) frame only.
+        # `get_configurations` stamps `frame_index`.
+        if frame_index:
+            return []
         if ions is None or species is None:
             return []
         if hasattr(ions, 'tolist'):
@@ -543,7 +554,7 @@ class OutcarArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         # set up archive parser
-        archive_data_parser = VASPMetainfoParser()
+        archive_data_parser = VASPMetainfoParser(logger=self.logger)
         archive_data = Simulation()
 
         # assign simulation section to archive data
@@ -553,7 +564,7 @@ class OutcarArchiveWriter(ArchiveWriter):
         archive_data_parser.annotation_key = vasp.OUTCAR_KEY
 
         # set up outcar parser
-        source_parser = OutcarParser()
+        source_parser = OutcarParser(logger=self.logger)
         source_parser.text_parser = OutcarTextParser()
         source_parser.filepath = self.mainfile
 
@@ -568,13 +579,13 @@ class OutcarArchiveWriter(ArchiveWriter):
 
         # parse CHGCAR
         archive_data_parser.annotation_key = vasp.CHGCAR_KEY
-        chgcar_parser = CHGCARParser()
+        chgcar_parser = CHGCARParser(logger=self.logger)
         chgcar_parser.filepath = self.mainfile
         chgcar_parser.convert(archive_data_parser)
 
         # parse DOSCAR
         archive_data_parser.annotation_key = vasp.DOSCAR_KEY
-        doscar_parser = DOSCARParser()
+        doscar_parser = DOSCARParser(logger=self.logger)
         doscar_parser.filepath = self.mainfile
         doscar_parser.convert(archive_data_parser)
 

@@ -5,7 +5,6 @@ import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
-from nomad.utils import get_logger
 
 from nomad_simulation_parsers.schema_packages.quantumespresso import common, gipaw
 
@@ -16,15 +15,8 @@ from ..parser import (
 )
 from .file_parser import GIPAWFileParser
 
-LOGGER = get_logger(__name__)
-
 
 class GIPAWMainfileTextParser(MainfileTextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_gipaw_text(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         out = {}
         # magnetic shieldings
@@ -93,11 +85,6 @@ class GIPAWMainfileTextParser(MainfileTextParser):
 
 class GIPAWMainfileXMLParser(MainfileXMLParser):
     _job: str | None = None
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     @property
     def job(self) -> str | None:

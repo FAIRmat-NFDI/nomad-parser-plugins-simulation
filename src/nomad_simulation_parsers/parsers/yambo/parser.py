@@ -9,7 +9,6 @@ from netCDF4 import Dataset
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import (
     MappingParser,
@@ -23,24 +22,15 @@ from nomad_simulation_parsers.schema_packages import yambo
 
 from .file_parsers import MainfileParser, NetCDFParser
 
-LOGGER = get_logger(__name__)
 
-
-# TODO temporary fix for structlog unable to propagate logger
 class YamboMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class YamboNetCDFParser(MappingParser):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.netcdf_parser = NetCDFParser(mainfile=self.filepath)
-
-    @property
-    def logger(self):
-        return LOGGER
 
     def load_file(self) -> Dataset:
         self.netcdf_parser.mainfile = self.filepath
@@ -173,10 +163,6 @@ class YamboNetCDFParser(MappingParser):
 
 
 class YamboMainfileParser(TextParser):
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_wallstart(self, parsed: str) -> float:
         return datetime.strptime(parsed, '%d/%m/%Y %H:%M').timestamp()
 
@@ -322,11 +308,13 @@ class YamboArchiveWriter(ArchiveWriter):
         self.archive.data = data
 
         # set up parser for simulation data
-        data_parser = YamboMetainfoParser()
+        data_parser = YamboMetainfoParser(logger=self.logger)
         data_parser.data_object = data
 
         # set up parser for yambo main file
-        mainfile_parser = YamboMainfileParser(text_parser=MainfileParser())
+        mainfile_parser = YamboMainfileParser(
+            logger=self.logger, text_parser=MainfileParser()
+        )
         mainfile_parser.filepath = self.mainfile
 
         # map mainfile data to simulation
@@ -342,7 +330,8 @@ class YamboArchiveWriter(ArchiveWriter):
         if netcdf_file:
             # set up parser for yambo netcdf file
             netcdf_parser = YamboNetCDFParser(
-                filepath=os.path.join(os.path.dirname(self.mainfile), netcdf_file)
+                filepath=os.path.join(os.path.dirname(self.mainfile), netcdf_file),
+                logger=self.logger,
             )
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)

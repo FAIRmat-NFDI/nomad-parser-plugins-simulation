@@ -8,7 +8,6 @@ from ase.data import chemical_symbols
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter, DataTextParser
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -34,9 +33,6 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import abinit
 
 from .file_parser import AbinitOutParser
-
-LOGGER = get_logger(__name__)
-
 
 ABINIT_NATIVE_IXC = {
     0: [{}],
@@ -452,19 +448,11 @@ ABINIT_LIBXC_IXC = {
 }
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class AbinitMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class MainfileParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def __init__(self):
         super().__init__()
         self.text_parser = AbinitOutParser()
@@ -703,11 +691,6 @@ class MainfileParser(TextParser):
 
 
 class DosParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def __init__(self):
         super().__init__()
         self.text_parser = DataTextParser()
@@ -768,6 +751,9 @@ class AbinitArchiveWriter(ArchiveWriter):
             self.archive.workflow2.method.convergence_targets = convergence
 
     def write_to_archive(self):
+        self.mainfile_parser.logger = self.logger
+        self.metainfo_parser.logger = self.logger
+        self.dos_parser.logger = self.logger
         self.archive.data = Simulation(program=Program(name=self.code_name))
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.data

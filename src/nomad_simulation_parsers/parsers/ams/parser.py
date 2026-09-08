@@ -5,7 +5,6 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -36,16 +35,10 @@ from nomad_simulation_parsers.schema_packages import ams
 from .file_parser import OutParser
 from .file_parser import RKFParser as RKFTextParser
 
-LOGGER = get_logger(__name__)
 MIN_TUPLE_FIELDS = 3
 
 
 class MainfileParser(TextParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     # AMS reports the active functional per rung ('LDA:', 'Gradient Corrections:',
     # 'Meta-GGA:'); the highest present rung is the functional in effect. Map the
     # AMS spelling to a standard functional name; the schema expands the name into
@@ -289,17 +282,11 @@ class MainfileParser(TextParser):
 
 
 class RKFParser(MainfileParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class AMSMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class AMSArchiveWriter(ArchiveWriter):
@@ -308,6 +295,9 @@ class AMSArchiveWriter(ArchiveWriter):
     rkf_parser = RKFParser(text_parser=RKFTextParser())
 
     def write_to_archive(self):
+        self.mainfile_parser.logger = self.logger
+        self.metainfo_parser.logger = self.logger
+        self.rkf_parser.logger = self.logger
         self.metainfo_parser.annotation_key = ams.OUT_KEY
         self.archive.data = Simulation(program=Program(name='AMS'))
         self.metainfo_parser.data_object = self.archive.data

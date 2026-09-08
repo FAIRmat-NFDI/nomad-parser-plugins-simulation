@@ -231,7 +231,13 @@ class MDParser(ArchiveWriter):
 
         lattice_vectors = data.pop('lattice_vectors')
         periodic_boundary_conditions = data.pop('periodic_boundary_conditions')
-        particle_labels = data.pop('labels')
+        # Particle identity is frame-independent, so the caller passes `labels` only
+        # for the topology frame; other trajectory frames get no `particle_states`.
+        # This avoids storing `n_particles` identity records per frame, which
+        # otherwise bloats the archive and the Elasticsearch index doc (see
+        # FAIRmat-NFDI/nomad-simulations#474). `particle_states_from_labels` returns
+        # [] for missing/empty labels, so no guard is needed.
+        particle_labels = data.pop('labels', [])
         dimensions = data.pop('dimensions')
 
         for particle_state in particle_states_from_labels(particle_labels):

@@ -143,7 +143,11 @@ class ModelSystem(model_system.ModelSystem):
         '.structure.positions',
         unit='angstrom',
     )
-    add_mapping_annotation(model_system.AtomsState.m_def, TEXT_KEY, '.structure.labels')
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        TEXT_KEY,
+        ('get_topology_labels', ['.structure.labels', '.frame_index']),
+    )
 
 
 class Representation(model_system.Representation):

@@ -6,6 +6,7 @@ import numpy as np
 from nomad.datamodel.metainfo.workflow import Link, Task
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
@@ -185,8 +186,10 @@ class OutParser(MappingTextParser):
         ),
     }
 
-    def __init__(self) -> None:
-        super().__init__(text_parser=OutReader())
+    def __init__(self, logger=None, **kwargs) -> None:
+        super().__init__(
+            logger=logger or get_logger(__name__), text_parser=OutReader(), **kwargs
+        )
         self._method = None
 
     def load_file(self) -> OutReader:
@@ -776,10 +779,12 @@ class OrcaArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
         reload(orca)
 
-        reader = OutParser()
+        reader = OutParser(logger=self.logger)
         reader.filepath = self.mainfile
         self.archive.data = Simulation(program=Program(name='ORCA'))
-        metainfo_parser = MetainfoParser(data_object=self.archive.data)
+        metainfo_parser = MetainfoParser(
+            logger=self.logger, data_object=self.archive.data
+        )
         metainfo_parser.annotation_key = orca.OUT_KEY
         metainfo_parser.max_nested_level = 3
 

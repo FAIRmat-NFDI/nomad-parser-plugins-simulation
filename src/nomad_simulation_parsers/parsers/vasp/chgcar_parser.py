@@ -4,11 +4,8 @@ import re
 import numpy as np
 from nomad.parsing.file_parser.file_parser import FileParser
 from nomad.parsing.file_parser.mapping_parser import MappingParser
-from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
-
-LOGGER = get_logger(__name__)
 
 
 class CHGCARFileParser(FileParser):
@@ -47,11 +44,6 @@ class CHGCARFileParser(FileParser):
 
 
 class CHGCARParser(MappingParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def to_dict(self, **kwargs) -> dict:
         if self.data_object:
             self.data_object.parse()

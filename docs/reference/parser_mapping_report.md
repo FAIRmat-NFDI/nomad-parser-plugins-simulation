@@ -963,7 +963,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## FHI-aims / output
 
-**Summary:** 85 mapped, 134 unmapped quantities (38.81% coverage).
+**Summary:** 78 mapped, 141 unmapped quantities (35.62% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
@@ -1026,8 +1026,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `gw_self_consistency` | Unmapped | — |
 | `gw_eigenvalues` | Unmapped | — |
 | `lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
-| `structure` | Mapped | `structure.labels`<br>`structure.positions` |
-| `structure.labels` | Mapped | `structure.labels` |
+| `structure` | Mapped | `structure.positions` |
+| `structure.labels` | Unmapped | — |
 | `structure.positions` | Mapped | `structure.positions` |
 | `structure.positions` | Mapped | `structure.positions` |
 | `structure.velocities` | Unmapped | — |
@@ -1051,12 +1051,12 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `full_scf.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `full_scf.self_consistency.scf_convergence` | Mapped | `get_scf_steps(scf_convergence)` |
 | `full_scf.structure` | Unmapped | — |
-| `full_scf.structure.labels` | Mapped | `structure.labels` |
+| `full_scf.structure.labels` | Unmapped | — |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.velocities` | Unmapped | — |
 | `full_scf.structure` | Unmapped | — |
-| `full_scf.structure.labels` | Mapped | `structure.labels` |
+| `full_scf.structure.labels` | Unmapped | — |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.velocities` | Unmapped | — |
@@ -1098,12 +1098,12 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `geometry_optimization.self_consistency.scf_convergence` | Mapped | `get_scf_steps(scf_convergence)` |
 | `geometry_optimization.structure` | Unmapped | — |
-| `geometry_optimization.structure.labels` | Mapped | `structure.labels` |
+| `geometry_optimization.structure.labels` | Unmapped | — |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.velocities` | Unmapped | — |
 | `geometry_optimization.structure` | Unmapped | — |
-| `geometry_optimization.structure.labels` | Mapped | `structure.labels` |
+| `geometry_optimization.structure.labels` | Unmapped | — |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.velocities` | Unmapped | — |
@@ -1145,12 +1145,12 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `molecular_dynamics.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `molecular_dynamics.self_consistency.scf_convergence` | Mapped | `get_scf_steps(scf_convergence)` |
 | `molecular_dynamics.structure` | Unmapped | — |
-| `molecular_dynamics.structure.labels` | Mapped | `structure.labels` |
+| `molecular_dynamics.structure.labels` | Unmapped | — |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.velocities` | Unmapped | — |
 | `molecular_dynamics.structure` | Unmapped | — |
-| `molecular_dynamics.structure.labels` | Mapped | `structure.labels` |
+| `molecular_dynamics.structure.labels` | Unmapped | — |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.velocities` | Unmapped | — |

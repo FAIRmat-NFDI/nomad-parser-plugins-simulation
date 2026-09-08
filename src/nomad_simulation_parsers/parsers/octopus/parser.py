@@ -6,7 +6,6 @@ from ase.io import read
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -18,8 +17,6 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import octopus
 
 from .file_parser import EigenvalueParser, InfoParser, InpParser, LogParser, OutParser
-
-LOGGER = get_logger(__name__)
 
 
 class OctopusMainfileParser(TextParser):
@@ -212,11 +209,6 @@ class OctopusMainfileParser(TextParser):
     )
     _info = None
     _initial_system = None
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def init_parser(self):
         self._info = None
@@ -432,19 +424,11 @@ class OctopusMainfileParser(TextParser):
 
 
 class OctopusMetainfoParser(MetainfoParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class OctopusEigenvalueParser(TextParser):
     unit = ureg.hartree
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def get_eigenvalues(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
         eigen_section = self.data.get('eigenvalues') if hasattr(self, 'data') else None
@@ -495,10 +479,7 @@ class OctopusEigenvalueParser(TextParser):
 
 
 class OctopusInfoParser(OctopusEigenvalueParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class OctopusArchiveWriter(ArchiveWriter):
@@ -508,6 +489,10 @@ class OctopusArchiveWriter(ArchiveWriter):
     eigenvalues_parser = OctopusEigenvalueParser(text_parser=EigenvalueParser())
 
     def write_to_archive(self) -> None:
+        self.mainfile_parser.logger = self.logger
+        self.archive_parser.logger = self.logger
+        self.info_parser.logger = self.logger
+        self.eigenvalues_parser.logger = self.logger
         self.mainfile_parser.filepath = self.mainfile
         # initialize auxiliary file parsers
         self.mainfile_parser.init_parser()

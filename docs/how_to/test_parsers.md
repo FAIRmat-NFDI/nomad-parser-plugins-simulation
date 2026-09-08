@@ -272,3 +272,48 @@ to all integration tests.
 Tests must not pass merely because a fixture is unavailable. A required fixture is
 a repository or CI setup error. Optional large fixtures may be deselected by marker,
 but a selected test with a missing fixture must fail.
+
+## Additive-output check
+
+Refactors are expected to **preserve parser output**. The `additive-output-changes`
+workflow, and the `tests/parsers/check_additivity.sh` script it wraps, verify
+this by snapshotting a `target` baseline ref and a `source` ref under test and
+comparing their `archive.data` *leaf by leaf*. Each ref is snapshotted by running
+*its own* parser code via `PYTHONPATH`, so the caller's environment is *never*
+mutated. Snapshots are plain JSON written to `target_snapshots.json` and
+`source_snapshots.json` at the repository root (override with the `TARGET_JSON` /
+`SOURCE_JSON` environment variables), generated from scratch on each run and
+**never committed** -- both paths are in `.gitignore`, so the check is a transient
+comparison rather than a stored baseline.
+
+Each parser falls into one of **three tiers**, in increasing severity:
+
+1. **`identical`** -- no leaf added, removed, or changed: passes *silently*.
+2. **`additive`** -- only additions: passes, but is surfaced as a *non-failing*
+   warning annotation under GitHub Actions, so growth stays visible.
+3. **removed or changed** -- a *hard failure* (exit 1), printing `old -> new`.
+
+So additions *never* block, while any removal or value change *always* does -- an
+intentional path move or value change is *meant* to fail here, and is reviewed by
+running the script locally and confirming the diff. The comparison is made hard to
+fool so that an `identical` verdict is trustworthy: leaf comparison is
+**type-sensitive** (a value changing type is flagged, not just its value), and
+every container emits a **`[type]`** leaf and each list a **`[len]`** leaf, so an
+*empty or absent* container is not invisible.
+
+The check is **manual only** (`workflow_dispatch`), *never* part of the
+pull-request gates, because judging whether a change is intended is a **human
+decision**. The same review holds in CI: the full comparison report is *printed
+to the job log* and, together with both snapshots, **uploaded as a build
+artifact** (even on a failing run), so the diff can be inspected without
+re-running locally -- each change is reported by its *flattened leaf path* (e.g.
+`.outputs[0].total_energies[0].value`), not as a verbatim diff of the two JSON
+archive files.
+
+Reused state is guarded against staleness on two fronts: the CI **cache key**
+includes both the target and source SHAs (the autodetected parser set depends on
+their diff) *and* the generator's hash, so a changed environment or generator
+*cannot* restore a mismatched snapshot; and each snapshot carries a **provenance
+block** (interpreter, serializer, harness, `uv.lock`, and fixture hashes),
+reported for context but *never diffed*, since two refs may legitimately differ
+there.

@@ -7,7 +7,6 @@ import ase.io
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.file_parser import FileParser
 from nomad_file_parser.mapping_parser import (
@@ -32,16 +31,9 @@ from .file_parser import (
     OutParser,
 )
 
-LOGGER = get_logger(__name__)
-
 
 class LobsterMainfileParser(TextParser):
     text_parser = OutParser()
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def to_unix_time(self, datetime_str: str):
         return (
@@ -73,11 +65,6 @@ class LobsterMainfileParser(TextParser):
 
 class LobsterStructureParser(MappingParser):
     code_name: str = ''
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def load_file(self) -> ase.Atoms:
         code_name = self.code_name.lower()
@@ -134,11 +121,6 @@ class LobsterICOXPLISTParser(LobsterTextParser):
     text_parser = ICOXPLISTParser()
     _sources = ['ICOHPLIST', 'ICOOPLIST', 'ICOBILIST']
     _atom_indices = []
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def to_dict(self):
         self._atom_indices = []
@@ -218,11 +200,6 @@ class LobsterCOXPCARParser(LobsterTextParser):
     _sources = ['COHPCAR', 'COOPCAR', 'COBICAR']
     _nspin = 0
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def load_file(self) -> FileParser:
         return COXPCARParser()
 
@@ -262,11 +239,6 @@ class LobsterCHARGEParser(LobsterTextParser):
     text_parser = CHARGEParser()
     _sources = ['CHARGE']
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def load_file(self) -> TextParser:
         charge_files = search_files('CHARGE.lobster*', os.path.dirname(self.filepath))
         if not charge_files:
@@ -302,11 +274,6 @@ class LobsterCHARGEParser(LobsterTextParser):
 class LobsterDOSCARParser(LobsterTextParser, DOSCARParser):
     _sources = ['DOSCAR']
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def load_file(self) -> FileParser:
         return DOSCARFileParser()
 
@@ -320,10 +287,7 @@ class LobsterDOSCARParser(LobsterTextParser, DOSCARParser):
 
 
 class LobsterMetainfoParser(MetainfoParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class LobsterArchiveWriter(ArchiveWriter):
@@ -337,6 +301,16 @@ class LobsterArchiveWriter(ArchiveWriter):
     doscar_parser = LobsterDOSCARParser()
 
     def write_to_archive(self):
+        for parser in (
+            self.mainfile_parser,
+            self.metainfo_parser,
+            self.structure_parser,
+            self.icoxplist_parser,
+            self.coxpcar_parser,
+            self.charge_parser,
+            self.doscar_parser,
+        ):
+            parser.logger = self.logger
         self.archive.data = Simulation(program=Program(name=self.code_name))
         self.metainfo_parser.data_object = self.archive.data
 

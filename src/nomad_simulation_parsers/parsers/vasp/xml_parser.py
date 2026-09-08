@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad_simulations.schema_packages.general import Simulation
@@ -35,24 +34,15 @@ from nomad_simulation_parsers.schema_packages import vasp
 from .common import functional_key_from_params
 from .outcar_parser import OutcarArchiveWriter
 
-LOGGER = get_logger(__name__)
 N_SPIN_CHANNELS = 2
 EIGENVALUE_COMPONENTS = 2
 
 
-# TODO temporary fix for structlog unable to propagate logger
 class VASPMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class VasprunParser(XMLParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def mix_alpha(self, mix: float, cond: bool) -> float:
         return mix if cond else 0
 
@@ -372,7 +362,24 @@ class VasprunParser(XMLParser):
             workflow.method.single_point_convergence_targets = sp_convergence
         return workflow
 
-    def get_atoms(self, arrays: Any = None) -> list[dict[str, str]]:
+    def get_configurations(self, calculations: Any = None) -> list[Any]:
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only; later ionic steps
+        # carry positions/cell only (FAIRmat-NFDI/nomad-simulations#474).
+        calculations = as_list(calculations)
+        for index, calculation in enumerate(calculations):
+            if hasattr(calculation, '__setitem__'):
+                calculation['frame_index'] = index
+        return calculations
+
+    def get_atoms(
+        self, arrays: Any = None, frame_index: int = 0
+    ) -> list[dict[str, str]]:
+        # Particle identity is frame-independent (VASP sources it from the global
+        # `atominfo`); attach it to the first (topology) frame only.
+        # `get_configurations` stamps `frame_index`.
+        if frame_index:
+            return []
         arrays = as_list(arrays)
         atoms_array = next(
             (
@@ -532,10 +539,10 @@ class XMLArchiveWriter(ArchiveWriter):
                 setattr(target_output, quantity_name, value)
 
     def write_to_archive(self) -> None:
-        data_parser = VASPMetainfoParser()
+        data_parser = VASPMetainfoParser(logger=self.logger)
         data_parser.data_object = Simulation()
 
-        xml_parser = VasprunParser(filepath=self.mainfile)
+        xml_parser = VasprunParser(filepath=self.mainfile, logger=self.logger)
 
         data_parser.annotation_key = vasp.XML_KEY
         xml_parser.convert(data_parser)
