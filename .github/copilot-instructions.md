@@ -1,31 +1,18 @@
 # Copilot / AI agent instructions
 
-## Store per-particle identity once, not per frame
+Follow the parser authoring conventions in
+`docs/how_to/contribute_to_this_plugin.md` ("Parser authoring conventions"). In
+particular:
 
-When a parser emits a multi-frame `model_system` sequence — an MD trajectory or a
-geometry-optimization / ionic-step series — the per-particle identity
-(`particle_states`: `chemical_symbol`, `atomic_number`, `label`, `mass`, ...) is
-frame-independent. Populate it on the **first (topology) frame only**; the
-remaining frames must carry only what varies in time (positions, cell,
-velocities).
-
-Do not attach `particle_states` to every frame. Every scalar under
-`archive.data` is auto-registered as an Elasticsearch `search_quantity`, so
-duplicating identity scales both the archive and the index document as
-`n_frames × n_particles × fields`. For long trajectories this exceeds the
-Elasticsearch payload limit and fails the whole upload (see
-FAIRmat-NFDI/nomad-simulations#474; the LAMMPS methane example produced a 127 MB
-index document before the fix). Prefer withholding identity at the source
-(e.g. attach labels only for the first frame in the parser's configuration
-builder) over removing it afterwards.
-
-Deviate — populating identity on more than one frame — only when it genuinely
-changes between frames (reactive or alchemical simulations where species are
-created, destroyed, or transmuted), and only for the frames that change. When in
-doubt, store it once.
-
-The invariant is enforced by
-`tests/parsers/_assertions.py::assert_identity_populated_once`, which asserts that
-exactly one `model_system` frame carries `particle_states`. Wire it into a
-parser's multi-frame test (or rely on `SimulationParserTestSuite`, which includes
-it) whenever you add or change trajectory / optimization handling.
+- Prefer stateless transformers; pass the context a transformer needs (for
+  example a frame index) as an explicit mapping-annotation argument rather than
+  mutable parser state.
+- Keep transform logic in the transformer functions, not in post-conversion
+  loops in the `ArchiveWriter`.
+- Store per-particle identity (`particle_states`) once, on the first (topology)
+  frame of a multi-frame `model_system`; never per frame. Per-frame duplication
+  bloats the archive and the Elasticsearch index document and can fail an upload
+  (FAIRmat-NFDI/nomad-simulations#474). Deviate only for genuinely frame-varying
+  identity (reactive / alchemical simulations). Enforced by
+  `tests/parsers/common.py::assert_identity_populated_once`.
+- Put shared test assertions in `tests/parsers/common.py`, not in new files.
