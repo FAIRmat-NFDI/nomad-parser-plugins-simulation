@@ -138,8 +138,12 @@ def test_initialize_from_metadata_creates_parser_and_schema(tmp_path: Path):
 
     file_parser_content = file_parser_file.read_text(encoding='utf-8')
     assert 'class MyCodeParserOutParser(TextParser):' in file_parser_content
-    assert 'def __init__(self, logger=None):' in file_parser_content
-    assert 'super().__init__(logger=logger)' in file_parser_content
+    assert 'def __init__(self, logger=None, **kwargs):' in file_parser_content
+    assert 'from nomad.utils import get_logger' in file_parser_content
+    assert (
+        'super().__init__(logger=logger or get_logger(__name__), **kwargs)'
+        in file_parser_content
+    )
 
     schema_content = schema_file.read_text(encoding='utf-8')
     assert "OUT_KEY = 'my_code'" in schema_content

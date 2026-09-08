@@ -27,11 +27,12 @@ def _read_yaml(path: Path) -> dict[str, Any]:
 
 def _render_file_parser_template(parser_class_name: str) -> str:
     return f"""from nomad_file_parser import Quantity, TextParser
+from nomad.utils import get_logger
 
 
 class {parser_class_name}OutParser(TextParser):
-    def __init__(self, logger=None):
-        super().__init__(logger=logger)
+    def __init__(self, logger=None, **kwargs):
+        super().__init__(logger=logger or get_logger(__name__), **kwargs)
 
     def init_quantities(self):
         self._quantities = [
