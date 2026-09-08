@@ -103,6 +103,12 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             sc_config = config.get('self_consistent', config)
             sec_config = sc_config if isinstance(sc_config, list) else [sc_config]
             configurations.extend(sec_config)
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only, without global
+        # state (FAIRmat-NFDI/nomad-simulations#474).
+        for index, config in enumerate(configurations):
+            if hasattr(config, '__setitem__'):
+                config['frame_index'] = index
         return configurations
 
     def get_configuration_forces(self, source: dict[str, Any]) -> list[list[Any]]:

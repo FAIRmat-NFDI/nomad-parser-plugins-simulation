@@ -170,6 +170,18 @@ class MainfileTextParser(TextParser):
                 ) * getattr(cell, 'units', 1.0)
         return value
 
+    def get_topology_value(
+        self, source: dict[str, Any], key: str = '', units: str = 'units'
+    ):
+        # Frame-independent identity (e.g. particle labels) is attached to the
+        # first (topology) frame only, so `particle_states` is not duplicated per
+        # trajectory / optimization frame (FAIRmat-NFDI/nomad-simulations#474).
+        # `get_configurations` stamps `frame_index` on each frame; no global state.
+        index = source.get('frame_index', 0) if hasattr(source, 'get') else 0
+        if index:
+            return None
+        return self.get_value(source, key=key, units=units)
+
     def get_periodic_boundary_conditions(
         self, source: dict[str, Any]
     ) -> list[bool] | None:

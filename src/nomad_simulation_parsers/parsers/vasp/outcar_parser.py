@@ -449,7 +449,28 @@ class OutcarParser(MappingTextParser):
             scf_steps['durations'] = durations
         return scf_steps
 
-    def get_atoms(self, ions: Any = None, species: Any = None) -> list[dict[str, str]]:
+    def get_configurations(self, calculations: Any = None) -> list[Any]:
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only; later ionic steps
+        # carry positions/cell only (FAIRmat-NFDI/nomad-simulations#474).
+        if calculations is None:
+            return []
+        calculations = (
+            calculations if isinstance(calculations, list) else [calculations]
+        )
+        for index, calculation in enumerate(calculations):
+            if hasattr(calculation, '__setitem__'):
+                calculation['frame_index'] = index
+        return calculations
+
+    def get_atoms(
+        self, ions: Any = None, species: Any = None, frame_index: int = 0
+    ) -> list[dict[str, str]]:
+        # Particle identity is frame-independent (sourced from the global OUTCAR
+        # header); attach it to the first (topology) frame only.
+        # `get_configurations` stamps `frame_index`.
+        if frame_index:
+            return []
         if ions is None or species is None:
             return []
         if hasattr(ions, 'tolist'):

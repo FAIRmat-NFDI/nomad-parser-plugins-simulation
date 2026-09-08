@@ -14,6 +14,7 @@ from pytest import approx
 from nomad_simulation_parsers.parsers.vasp.common import functional_key_from_params
 from nomad_simulation_parsers.parsers.vasp.doscar_parser import DOSCARParser
 from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
+from tests.parsers.common import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 
@@ -45,6 +46,9 @@ def _parse(mainfile: str) -> EntryArchive:
 def test_vasprun():
     archive = _parse('tests/data/vasp/AgAc_relax/vasprun.xml.relax')
     assert archive is not None
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
 
 
 def test_vasprun_system_and_electronic_outputs():
@@ -82,6 +86,9 @@ def test_vasprun_system_and_electronic_outputs():
 def test_outcar():
     archive = _parse('tests/data/vasp/AgAc_relax/OUTCAR')
     assert archive is not None
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
 
     sec_system = archive.data.model_system[0]
     assert sec_system.positions is not None

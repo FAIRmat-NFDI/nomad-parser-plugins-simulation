@@ -7,6 +7,7 @@ from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.gromacs import parser as gromacs_parser
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
+from tests.parsers.common import assert_identity_populated_once
 
 
 class StubMDAnalysisDataObject:
@@ -634,6 +635,9 @@ def test_system_hierarchy_water():
 
     assert archive.data is not None
     assert len(archive.data.model_system) > 0
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
 
     system = archive.data.model_system[0]
 

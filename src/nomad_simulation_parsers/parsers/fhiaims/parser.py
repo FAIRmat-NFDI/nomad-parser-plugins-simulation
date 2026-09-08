@@ -120,6 +120,15 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool]:
         return [source.get('lattice_vectors') is not None] * 3
 
+    def get_topology_labels(self, labels: Any = None, frame_index: int = 0) -> Any:
+        # Particle identity is frame-independent; attach it (-> `particle_states`)
+        # to the first (topology) frame only, so it is not duplicated across the
+        # geometry-optimization / trajectory frames. `get_sections` stamps
+        # `frame_index` on each frame (FAIRmat-NFDI/nomad-simulations#474).
+        if frame_index:
+            return None
+        return labels
+
     def get_dos(
         self,
         total_dos_files: list[list[str]],
@@ -401,6 +410,11 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         res[key] = val
                 if res:
                     result.append(res)
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        for index, res in enumerate(result):
+            res['frame_index'] = index
         return result
 
 

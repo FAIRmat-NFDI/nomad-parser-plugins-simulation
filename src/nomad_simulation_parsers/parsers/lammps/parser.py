@@ -161,7 +161,12 @@ class LammpsArchiveWriter(MDParser):
                 'periodic_boundary_conditions': self.traj_parsers.eval(
                     'get_pbc', traj_n
                 ),
-                'labels': self.traj_parsers.eval('get_atom_labels', traj_n),
+                # Particle identity is identical in every frame; attach labels only to
+                # the first (topology) frame so `particle_states` is stored and indexed
+                # once, not per frame (FAIRmat-NFDI/nomad-simulations#474).
+                'labels': self.traj_parsers.eval('get_atom_labels', traj_n)
+                if traj_n == 0
+                else None,
                 'n_particles': self.traj_parsers.eval('get_n_atoms', traj_n),
                 'positions': self.apply_unit(
                     self.traj_parsers.eval('get_positions', traj_n), 'distance'

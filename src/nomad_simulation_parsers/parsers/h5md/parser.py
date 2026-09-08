@@ -114,6 +114,11 @@ class H5MDH5Parser(HDF5Parser):
             frame_data.update(cell_data)
             traj_data.append(frame_data)
 
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        for index, frame in enumerate(traj_data):
+            frame['frame_index'] = index
         return traj_data
 
     def get_step_data(self, data: dict[str, Any], step: int) -> dict[str, Any]:
@@ -158,6 +163,10 @@ class H5MDH5Parser(HDF5Parser):
         self, source: dict[str, Any], **kwargs
     ) -> list[dict[str, Any]]:
         if source.get('step') is None:
+            return []
+        # Particle identity is frame-independent; attach it (-> `particle_states`)
+        # to the first (topology) frame only (FAIRmat-NFDI/nomad-simulations#474).
+        if source.get('frame_index', 0):
             return []
 
         source_data = self.get_source(self.data, kwargs['path'])

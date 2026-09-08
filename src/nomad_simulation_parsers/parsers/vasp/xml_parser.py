@@ -362,7 +362,24 @@ class VasprunParser(XMLParser):
             workflow.method.single_point_convergence_targets = sp_convergence
         return workflow
 
-    def get_atoms(self, arrays: Any = None) -> list[dict[str, str]]:
+    def get_configurations(self, calculations: Any = None) -> list[Any]:
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only; later ionic steps
+        # carry positions/cell only (FAIRmat-NFDI/nomad-simulations#474).
+        calculations = as_list(calculations)
+        for index, calculation in enumerate(calculations):
+            if hasattr(calculation, '__setitem__'):
+                calculation['frame_index'] = index
+        return calculations
+
+    def get_atoms(
+        self, arrays: Any = None, frame_index: int = 0
+    ) -> list[dict[str, str]]:
+        # Particle identity is frame-independent (VASP sources it from the global
+        # `atominfo`); attach it to the first (topology) frame only.
+        # `get_configurations` stamps `frame_index`.
+        if frame_index:
+            return []
         arrays = as_list(arrays)
         atoms_array = next(
             (

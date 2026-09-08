@@ -27,6 +27,7 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
+from tests.parsers.common import assert_identity_populated_once
 
 logger = utils.get_logger(__name__)
 
@@ -405,6 +406,9 @@ def test_md(parser):
     assert archive.workflow2.tasks == []
     normalize_all(archive, logger=logger)
 
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
     assert_h5md_header(archive)
     assert_systems(archive)
     assert_system_hierarchy(archive)

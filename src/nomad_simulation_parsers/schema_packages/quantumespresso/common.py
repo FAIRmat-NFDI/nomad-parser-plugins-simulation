@@ -101,7 +101,7 @@ class ModelSystem(model_system.ModelSystem):
         model_system.AtomsState.m_def,
         OUT_KEY,
         (
-            'get_value',
+            'get_topology_value',
             ['.@'],
             dict(key='labels_positions.labels', units=''),
         ),
