@@ -744,6 +744,15 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
+        # Workflow conversion can leave the polymorphic ``method`` section
+        # unset when the output does not contain mapped workflow fields. Keep
+        # the method object created above so convergence targets can still be
+        # attached and the resulting workflow remains schema-valid.
+        if convergence and self.archive.workflow2.method is None:
+            if isinstance(self.archive.workflow2, GeometryOptimization):
+                self.archive.workflow2.method = GeometryOptimizationMethod()
+            elif isinstance(self.archive.workflow2, SinglePoint):
+                self.archive.workflow2.method = SinglePointMethod()
         # Assign convergence targets only after convert() to preserve the
         # polymorphic EnergyConvergenceTarget/ForceConvergenceTarget subclasses;
         # see the `add_mapping_annotation` docstring for why the ordering matters.
