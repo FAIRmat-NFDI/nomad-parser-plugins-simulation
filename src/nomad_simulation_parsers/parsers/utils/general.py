@@ -480,17 +480,11 @@ def write_legacy_and_new(  # noqa: PLR0913, PLR0917
 
     legacy_parser.parse(mainfile, archive, logger)
     parsed_text_parser = getattr(legacy_parser, text_parser_attr, None)
-
-    if (
-        hasattr(writer, 'write')
-        and 'parsed_text_parser' in inspect.signature(writer.write).parameters
-    ):
-        writer.write(
-            mainfile,
-            archive,
-            logger,
-            child_archives=child_archives,
-            parsed_text_parser=parsed_text_parser,
-        )
-    else:
-        writer.write(mainfile, archive, logger, child_archives=child_archives)
+    reuse_parser = hasattr(writer, 'parsed_text_parser')
+    if reuse_parser:
+        writer.parsed_text_parser = parsed_text_parser
+    try:
+        writer.write(mainfile, archive, logger, child_archives)
+    finally:
+        if reuse_parser:
+            writer.parsed_text_parser = None

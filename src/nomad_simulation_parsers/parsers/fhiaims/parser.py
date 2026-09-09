@@ -493,17 +493,6 @@ class FHIAimsArchiveWriter(ArchiveWriter):
     control_parser = ControlParser()
     parsed_text_parser: Any | None = None
 
-    def write(
-        self,
-        mainfile: str,
-        archive: Any,
-        logger=None,
-        child_archives=None,
-        parsed_text_parser=None,
-    ) -> None:
-        self.parsed_text_parser = parsed_text_parser
-        super().write(mainfile, archive, logger, child_archives)
-
     def build_phonopy_object(
         self, tolerance=1e-6
     ) -> tuple[Phonopy, dict[str, EntryArchive]]:
@@ -643,10 +632,16 @@ class FHIAimsArchiveWriter(ArchiveWriter):
 
         # separate parsing of dos due to a problem with mapping physical
         # property variables
-        has_dos = bool(
-            out_parser.data.get('total_dos_files')
-            or out_parser.data.get('species_projected_dos_files')
-            or out_parser.data.get('atom_projected_dos_files')
+        dos_keys = (
+            'total_dos_files',
+            'species_projected_dos_files',
+            'atom_projected_dos_files',
+        )
+        has_dos = any(
+            section.get(key)
+            for name in FHIAimsOutMappingParser._section_names
+            for section in (out_parser.data.get(name) or [])
+            for key in dos_keys
         )
         if has_dos:
             archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
@@ -709,12 +704,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             # GW single point
             parser = FHIAimsArchiveWriter()
             parser.annotation_key = fhiaims.TEXT_GW_KEY
-            parser.write(
-                self.mainfile,
-                gw_archive,
-                self.logger,
-                parsed_text_parser=out_parser.text_parser,
-            )
+            parser.parsed_text_parser = out_parser.text_parser
+            parser.write(self.mainfile, gw_archive, self.logger)
             gw_archive.workflow2.name = 'GW'
 
             # DFT-GW workflow
