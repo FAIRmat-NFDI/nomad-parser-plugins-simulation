@@ -52,6 +52,15 @@ class Simulation(general.Simulation):
             dict(include=['lattice_vectors', 'structure', 'sub_structure']),
         ),
     )
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        TEXT_GW_KEY,
+        (
+            'get_sections',
+            ['.@'],
+            dict(include=['lattice_vectors', 'structure', 'sub_structure']),
+        ),
+    )
     # DFT method - only annotate DFT.m_def, not ModelMethod base class
     add_mapping_annotation(model_method.DFT.m_def, TEXT_KEY, '.@')
     # gw method
@@ -137,6 +146,7 @@ class GW(model_method.GW):
 
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.Representation.m_def, TEXT_KEY, '.@')
+    add_mapping_annotation(model_system.Representation.m_def, TEXT_GW_KEY, '.@')
     add_mapping_annotation(
         model_system.ModelSystem.positions,
         TEXT_KEY,
@@ -144,8 +154,25 @@ class ModelSystem(model_system.ModelSystem):
         unit='angstrom',
     )
     add_mapping_annotation(
+        model_system.ModelSystem.positions,
+        TEXT_GW_KEY,
+        '.structure.positions',
+        unit='angstrom',
+    )
+    add_mapping_annotation(
+        model_system.ModelSystem.velocities,
+        TEXT_KEY,
+        '.structure.velocities',
+        unit='angstrom / femtosecond',
+    )
+    add_mapping_annotation(
         model_system.AtomsState.m_def,
         TEXT_KEY,
+        ('get_topology_labels', ['.structure.labels', '.frame_index']),
+    )
+    add_mapping_annotation(
+        model_system.AtomsState.m_def,
+        TEXT_GW_KEY,
         ('get_topology_labels', ['.structure.labels', '.frame_index']),
     )
 
@@ -155,14 +182,25 @@ class Representation(model_system.Representation):
         model_system.Representation.lattice_vectors, TEXT_KEY, '.lattice_vectors'
     )
     add_mapping_annotation(
+        model_system.Representation.lattice_vectors,
+        TEXT_GW_KEY,
+        '.lattice_vectors',
+    )
+    add_mapping_annotation(
         model_system.Representation.periodic_boundary_conditions,
         TEXT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        TEXT_GW_KEY,
         ('get_periodic_boundary_conditions', ['.@']),
     )
 
 
 class AtomsState(model_system.AtomsState):
     add_mapping_annotation(model_system.AtomsState.chemical_symbol, TEXT_KEY, '.@')
+    add_mapping_annotation(model_system.AtomsState.chemical_symbol, TEXT_GW_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
@@ -197,7 +235,7 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_band_gaps,
         TEXT_KEY,
-        ('get_band_gaps', ['.@']),
+        ('get_band_gaps', ['.eigenvalues', 'array_size_parameters']),
     )
     add_mapping_annotation(
         outputs.Outputs.scf_steps,
@@ -341,6 +379,11 @@ class KSpace(numerical_settings.KSpace):
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(numerical_settings.KMesh.grid, TEXT_KEY, '.k_grid')
+    add_mapping_annotation(
+        numerical_settings.KMesh.points,
+        TEXT_KEY,
+        ('get_kpoints', ['.@']),
+    )
     add_mapping_annotation(
         numerical_settings.KMesh.offset,
         TEXT_KEY,
