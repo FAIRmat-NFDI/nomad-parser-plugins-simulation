@@ -28,6 +28,10 @@ from nomad_simulations.schema_packages.workflow.general import (
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimizationMethod,
 )
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamicsMethod,
+    MolecularDynamicsResults,
+)
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
@@ -40,7 +44,10 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParserLine as FHIAimsOutFileParser,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
-from nomad_simulation_parsers.parsers.utils.general import search_files
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+    search_files,
+)
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser
@@ -135,6 +142,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
         atom_dos_files: list[list[str]],
         species_dos_files: list[list[str]],
     ) -> list[dict[str, Any]]:
+        # TODO implement separate dos parser
         def load_dos(dos_file: str) -> list[dict[str, Any]]:
             dos_files = self.get_fhiaims_file(dos_file)
             if not dos_files:
@@ -146,7 +154,11 @@ class FHIAimsOutMappingParser(TextMappingParser):
             if not np.size(data):
                 return []
             return [
-                dict(energies=data[0], values=value, nenergies=len(data[0]))
+                dict(
+                    energies=data[0] * ureg.eV,
+                    values=value * 1 / ureg.eV,
+                    nenergies=len(data[0]),
+                )
                 for value in data[1:]
             ]
 
@@ -192,7 +204,10 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_eigenvalues(
         self, source: list[dict[str, Any]], params: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        n_spin = params.get('Number of spin channels', 1)
+        n_spin = 1
+        for p in params.get('parameter', []):
+            if n_spin := p.get('Number of spin channels'):
+                break
         eigenvalues = []
         # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
         # eigenvalues; earlier blocks are intermediate SCF snapshots.
@@ -237,16 +252,40 @@ class FHIAimsOutMappingParser(TextMappingParser):
             )
         return band_structures
 
+    def get_band_gaps(
+        self, source: list[dict[str, Any]], params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Calculate band gaps from the mapped eigenvalues and occupations."""
+        band_gaps = []
+        eigenvalues = self.get_eigenvalues(source or [], params or {})
+        n_spin = len(eigenvalues)
+        for eigenvalue_data in eigenvalues:
+            gap = calculate_band_gap_from_occupations(
+                eigenvalue_data.get('value'),
+                eigenvalue_data.get('occupation'),
+                spin_channel=(
+                    eigenvalue_data.get('spin_channel') if n_spin > 1 else None
+                ),
+            )
+            if gap is not None:
+                band_gaps.append(gap)
+        return band_gaps
+
     def get_energies(self, source: dict[str, Any]) -> dict[str, Any]:
         total_keys = ['Total energy uncorrected', 'Total energy']
         energies = {}
         components = []
+        if source is None:
+            return energies
         for key, val in source.get('energy', {}).items():
             if key in total_keys:
                 energies.setdefault('value', val)
             else:
                 components.append({'name': key, 'value': val})
-        for key, val in source.get('energy_components', [{}])[-1].items():
+        energy_components = source.get('energy_components', {})
+        if isinstance(energy_components, list):
+            energy_components = energy_components[-1] if energy_components else {}
+        for key, val in energy_components.items():
             components.append({'name': key, 'value': val})
         energies['components'] = components
         return energies
@@ -269,6 +308,21 @@ class FHIAimsOutMappingParser(TextMappingParser):
         if k_offset is None:
             return np.array([0.0, 0.0, 0.0])
         return k_offset
+
+    def get_kpoints(self, source: dict[str, Any]) -> np.ndarray | None:
+        """Return the unique k-points used for the converged eigenvalues."""
+        for section_name in self._section_names:
+            sections = source.get(section_name, [])
+            if isinstance(sections, dict):
+                sections = [sections]
+            for section in sections:
+                eigenvalues = self.get_eigenvalues(
+                    section.get('eigenvalues', []),
+                    source.get('array_size_parameters', {}),
+                )
+                if eigenvalues:
+                    return eigenvalues[0].get('points')
+        return None
 
     def get_all_criteria(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         criteria = []
@@ -606,6 +660,17 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             archive_handler.data_object = self.archive.workflow2
             archive_handler.annotation_key = workflow_key
             out_parser.convert(archive_handler)
+            if workflow_key == 'md_workflow':
+                md_sections = out_parser.data.get('molecular_dynamics', [])
+                timestep = out_parser.data.get('controlInOut_MD_time_step')
+                self.archive.workflow2.method = MolecularDynamicsMethod(
+                    integration_timestep=timestep,
+                    n_steps=len(md_sections),
+                )
+                self.archive.workflow2.results = MolecularDynamicsResults(
+                    n_steps=len(md_sections),
+                    finished_normally=True,
+                )
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:

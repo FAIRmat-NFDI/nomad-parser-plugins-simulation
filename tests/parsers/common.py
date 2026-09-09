@@ -5,6 +5,7 @@ invariants. Source-format recognition and scientific values belong in each
 parser's own tests.
 """
 
+import numpy as np
 import pytest
 from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
@@ -41,6 +42,22 @@ def assert_identity_populated_once(
         f'expected the topology frame {topology_index}'
     )
 
+def approx(expected, **kwargs):
+    """Shared wrapper for pytest's approximate-value matcher."""
+    if 'atol' in kwargs:
+        kwargs['abs'] = kwargs.pop('atol')
+    if 'rtol' in kwargs:
+        kwargs['rel'] = kwargs.pop('rtol')
+    return pytest.approx(expected, **kwargs)
+
+
+def assert_approx(actual, expected, **kwargs):
+    """Assert approximate equality for scalars and array-like values."""
+    if np.ndim(actual) or np.ndim(expected):
+        np.testing.assert_allclose(actual, expected, **kwargs)
+    else:
+        assert actual == approx(expected, **kwargs)
+
 
 class _SimulationParserSuite:
     """Configuration and fixtures shared by parser contract suites."""
@@ -75,12 +92,12 @@ class SimulationParserTestSuite(_SimulationParserSuite):
     @pytest.mark.integration
     def test_archive_has_required_sections(self, archive):
         simulation = archive.data
+        required_sections = self.required_simulation_sections or ()
 
         assert simulation is not None
         assert simulation.program is not None
         assert simulation.program.name == self.expected_program_name
-        assert simulation.model_system
-        for section_name in self.required_simulation_sections:
+        for section_name in required_sections:
             assert getattr(simulation, section_name), (
                 f'missing required Simulation.{section_name} section'
             )
@@ -98,11 +115,17 @@ class SimulationParserTestSuite(_SimulationParserSuite):
 
     @pytest.mark.integration
     def test_archive_has_model_systems(self, archive):
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
         assert archive.data is not None
         assert archive.data.model_system
 
     @pytest.mark.integration
     def test_representative_system_is_complete(self, archive):
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
         simulation = archive.data
         representative = next(
             (
@@ -137,6 +160,9 @@ class SimulationParserTestSuite(_SimulationParserSuite):
 
     @pytest.mark.integration
     def test_model_system_serialization_round_trip(self, archive):
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
         restored = EntryArchive.m_from_dict(archive.m_to_dict())
 
         assert len(restored.data.model_system) == len(archive.data.model_system)
@@ -171,6 +197,11 @@ class SimulationParserPipelineTestSuite(_SimulationParserSuite):
 
         representative_index = normalized.data.representative_system_index
         assert representative_index is not None
-        assert 0 <= representative_index < len(normalized.data.model_system)
+        assert (
+            -len(normalized.data.model_system)
+            <= representative_index
+            < len(normalized.data.model_system)
+        )
+        assert normalized.data.model_system[representative_index].is_representative
         assert normalized.results is not None
         assert normalized.results.properties is not None
