@@ -7,6 +7,7 @@ from nomad_simulations.schema_packages import (
     model_system,
     numerical_settings,
     outputs,
+    workflow,
 )
 from nomad_simulations.schema_packages.properties import molecular_orbitals
 
@@ -15,6 +16,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 m_package = SchemaPackage()
 
 OUT_KEY = 'orca_out'
+GEOM_OPT_KEY = 'orca_out_geom_opt'
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 
@@ -40,6 +42,57 @@ add_mapping_annotation(
     OUT_KEY,
     '.chemical_symbol',
 )
+
+# geometry optimization
+
+# taken from fhiaims (PR #237):
+# >>> Map `tasks` to a `.tasks` source that does not exist in the parsed data so it
+# >>> resolves to empty. This is deliberate: the workflow root `.@` mappers below
+# >>> would otherwise recurse into the inherited `tasks` subsection and nest the
+# >>> workflow inside its own task list. The real task list is built later by the
+# >>> workflow normalizer from the outputs.
+add_mapping_annotation(workflow.GeometryOptimization.tasks, GEOM_OPT_KEY, '.tasks')
+
+add_mapping_annotation(workflow.GeometryOptimization.m_def, GEOM_OPT_KEY, '.@')
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
+    GEOM_OPT_KEY,
+    ('get_geometry_optimization_method', ['@'])
+)
+add_mapping_annotation(
+workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
+    GEOM_OPT_KEY,
+    '.optimization_method'
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_type,
+    GEOM_OPT_KEY,
+    '.optimization_type'
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationMethod.sampling_frequency,
+    GEOM_OPT_KEY,
+    '.sampling_frequency'
+)
+
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.m_def,
+    GEOM_OPT_KEY,
+    ('get_geometry_optimization_results', ['@']),
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.is_converged,
+    GEOM_OPT_KEY,
+    '.is_converged',
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.steps,
+    GEOM_OPT_KEY,
+    '.steps',
+)
+add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.energies, GEOM_OPT_KEY, '.energies',)
+add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.steps, GEOM_OPT_KEY, '.steps',)
+add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.final_energy_difference, GEOM_OPT_KEY, '.final_energy_difference',)
 
 ############# DFT ###################
 
