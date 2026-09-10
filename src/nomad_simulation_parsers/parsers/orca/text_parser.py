@@ -1104,6 +1104,12 @@ class OutReader(TextParser):
 
         calculation_quantities = [
             Quantity(
+                'energy_total',
+                rf'FINAL SINGLE POINT ENERGY\s+({re_float})',
+                dtype=float,
+                unit=ureg.hartree,
+            ),
+            Quantity(
                 'cartesian_coordinates',
                 rf'CARTESIAN COORDINATES \(ANGSTROEM\)\s*\-+\s*([\s\S]+?){re_n}{re_n}',
                 # str_operation=str_to_cartesian_coordinates,
@@ -1267,6 +1273,11 @@ class OutReader(TextParser):
             Quantity('update_method', r'Update method\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('coords_choice', r'Choice of coordinates\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('initial_hessian', r'Initial Hessian\s*(\w+)\s*\.+\s*(.+)'),
+            Quantity(
+                'is_converged',
+                r'(THE OPTIMIZATION HAS CONVERGED)',
+                convert=False
+            ),
         ]
 
         geometry_optimization_quantities += [

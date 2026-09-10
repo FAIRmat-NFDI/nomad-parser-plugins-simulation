@@ -17,7 +17,11 @@ from nomad_simulations.schema_packages.model_method import (
     OrbitalLocalization,
     PerturbationMethod,
 )
-from nomad_simulations.schema_packages.workflow.general import SerialWorkflow
+from nomad_simulations.schema_packages.workflow import (
+    GeometryOptimization,
+    SerialWorkflow,
+    SimulationWorkflow,
+)
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -191,6 +195,7 @@ class OutParser(MappingTextParser):
             logger=logger or get_logger(__name__), text_parser=OutReader(), **kwargs
         )
         self._method = None
+        self._geometry_optimization: bool | None = None
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
@@ -240,8 +245,8 @@ class OutParser(MappingTextParser):
         return (*coordinates, charge_mult) if (coordinates or charge_mult) else []
 
     def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
-        single_point = self._navigate(source, 'single_point')
-        if single_point:
+        if not self._is_geometry_optimization:
+            single_point = self._navigate(source, 'single_point')
             system = self._get_system(single_point)
             return [system] if system else []
         else:
@@ -766,8 +771,8 @@ class OutParser(MappingTextParser):
 
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
 
-        single_point = self._navigate(src, 'single_point')
-        if single_point:
+        if not self._is_geometry_optimization:
+            single_point = self._navigate(src, 'single_point')
             molecular_orbitals = [self.get_molecular_orbitals(single_point, src)]
 
         else:
@@ -787,9 +792,52 @@ class OutParser(MappingTextParser):
             for i, molecular_orbitals_i in enumerate(molecular_orbitals)
         ]
 
+    @property
+    def _is_geometry_optimization(self) -> bool:
+        if self._geometry_optimization is None:
+            self._geometry_optimization = (self.text_parser.geometry_optimization is not None)
+        return self._geometry_optimization
+
+    def get_geometry_optimization_method(self, source: dict[str, Any]) -> dict[str, Any]:
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        update_method = geometry_optimization.get('update_method')
+        result = {'optimization_type': 'atomic', 'sampling_frequency': 1}
+        if isinstance(update_method, (list, tuple)) and len(update_method) > 1:
+            result['optimization_method'] = update_method[1]
+        elif isinstance(update_method, str):
+            result['optimization_method'] = update_method
+        return result
+
+    def get_geometry_optimization_results(self, source: dict[str, Any]) -> dict[str, Any]:
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        cycles = geometry_optimization.get('cycle', []) + [geometry_optimization.get('final_energy_evaluation')]
+        energies = [cycle.get('energy_total') if cycle else None for cycle in cycles]
+        n_steps = len(cycles)
+        result = {
+            'n_steps': n_steps,
+            'is_converged': geometry_optimization.get('is_converged') is not None,
+            'energies': energies,
+            'steps': list(range(n_steps)),
+        }
+        if energies and len(energies) > 1:
+            result['final_energy_difference'] = energies[-1] - energies[-2]
+        return result
+
     def build_workflow(
-        self, archive: 'EntryArchive', logger: 'BoundLogger'
-    ) -> SerialWorkflow | None:
+        self,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        metainfo_parser: MetainfoParser,
+    ) -> SimulationWorkflow | None:
+
+        if self._is_geometry_optimization:
+            archive.workflow2 = GeometryOptimization()
+            metainfo_parser.data_object = archive.workflow2
+            metainfo_parser.annotation_key = orca.GEOM_OPT_KEY
+            self.convert(metainfo_parser)
+            archive.workflow2.normalize(archive, logger)
+            return archive.workflow2
+
         simulation = archive.data
         methods = simulation.model_method or []
         if not any(isinstance(method, HF) for method in methods) or not any(
@@ -831,7 +879,7 @@ class OrcaArchiveWriter(ArchiveWriter):
 
         try:
             reader.convert(metainfo_parser)
-            reader.build_workflow(self.archive, self.logger)
+            reader.build_workflow(self.archive, self.logger, metainfo_parser)
         finally:
             metainfo_parser.close()
             reader.close()
