@@ -35,9 +35,8 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
-)
-from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
-    FHIAimsOutFileParserLine as FHIAimsOutFileParser,
+    FHIAimsOutFileParser,
+    FHIAimsOutFileParserLine,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import search_files
@@ -420,6 +419,7 @@ class FHIAimsOutMappingParser(TextMappingParser):
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = fhiaims.TEXT_KEY
+    line_parsing: bool = False
     geometry_parser = GeometryParser()
     control_parser = ControlParser()
 
@@ -539,9 +539,12 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         self,
     ) -> None:
         out_parser = FHIAimsOutMappingParser(logger=self.logger)
-        out_parser.text_parser = FHIAimsOutFileParser(logger=self.logger)
-        out_parser.text_parser.line_parsing = True
-        out_parser.text_parser.allow_overlap = True
+        parser_class = (
+            FHIAimsOutFileParserLine if self.line_parsing else FHIAimsOutFileParser
+        )
+        out_parser.text_parser = parser_class(logger=self.logger)
+        out_parser.text_parser.line_parsing = self.line_parsing
+        out_parser.text_parser.allow_overlap = self.line_parsing
         out_parser.filepath = self.mainfile
 
         archive_handler = FHIAimsMetainfoParser(logger=self.logger)
@@ -680,7 +683,11 @@ class FHIAimsParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = FHIAimsArchiveWriter()
+    def __init__(self, **kwargs) -> None:
+        line_parsing = kwargs.pop('line_parsing', False)
+        super().__init__(**kwargs)
+        self.archive_writer = FHIAimsArchiveWriter()
+        self.archive_writer.line_parsing = line_parsing
 
     def is_mainfile(
         self,

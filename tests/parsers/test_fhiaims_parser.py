@@ -2,14 +2,24 @@ from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx, mark
 
+from nomad_simulation_parsers.parsers import fhiaims_parser
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 from tests.parsers.common import assert_identity_populated_once
 
 LOGGER = get_logger(__name__)
 
 
-def test_parse_file():
-    parser = FHIAimsParser()
+def test_line_parsing_configuration():
+    assert fhiaims_parser.line_parsing is False
+    assert fhiaims_parser.load().archive_writer.line_parsing is False
+
+    parser = fhiaims_parser.model_copy(update={'line_parsing': True}).load()
+    assert parser.archive_writer.line_parsing is True
+
+
+@mark.parametrize('line_parsing', [True, False], ids=['line', 'whole-file'])
+def test_parse_file(line_parsing):
+    parser = FHIAimsParser(line_parsing=line_parsing)
     archive = EntryArchive()
     parser.parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
     # Per-particle identity must live on the topology frame only, not per frame

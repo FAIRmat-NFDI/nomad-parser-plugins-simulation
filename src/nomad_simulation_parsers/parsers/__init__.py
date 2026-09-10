@@ -35,6 +35,13 @@ class Wannier90ParserEntryPoint(EntryPoint):
     )
 
 
+class FHIAimsParserEntryPoint(EntryPoint):
+    line_parsing: bool = Field(
+        False,
+        description='Parse FHI-aims output incrementally, one line at a time.',
+    )
+
+
 abinit_parser = EntryPoint(
     name='parsers/abinit',
     aliases=['parsers/abinit'],
@@ -82,7 +89,7 @@ exciting_parser = EntryPoint(
     code_homepage='http://exciting-code.org/',
 )
 
-fhiaims_parser = EntryPoint(
+fhiaims_parser = FHIAimsParserEntryPoint(
     name='parsers/fhiaims',
     aliases=['parsers/fhi-aims', 'parsers/fhiaims'],
     description='NOMAD parser for FHIAIMS.',
