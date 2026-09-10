@@ -835,20 +835,16 @@ class FHIAimsParser(MatchingParser):
             FHIAimsParser as LegacyFHIAimsParser,
         )
 
-        from nomad_simulation_parsers.parsers.utils.general import (  # noqa: PLC0415
-            write_legacy_and_new,
-        )
-
         legacy_parser = LegacyFHIAimsParser()
         if hasattr(legacy_parser, 'out_parser'):
             _extend_legacy_out_parser(legacy_parser.out_parser)
+        if child_archives is not None:
+            legacy_parser._child_archives = child_archives
 
-        write_legacy_and_new(
-            legacy_parser=legacy_parser,
-            writer=self.archive_writer,
-            mainfile=mainfile,
-            archive=archive,
-            logger=logger,
-            child_archives=child_archives,
-            text_parser_attr='out_parser',
-        )
+        writer = self.archive_writer
+        legacy_parser.parse(mainfile, archive, logger)
+        writer.parsed_text_parser = getattr(legacy_parser, 'out_parser', None)
+        try:
+            writer.write(mainfile, archive, logger, child_archives)
+        finally:
+            writer.parsed_text_parser = None
