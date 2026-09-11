@@ -8,6 +8,7 @@ from nomad.units import ureg
 
 from nomad_simulation_parsers.parsers.utils.general import (
     OCCUPATION_THRESHOLD,
+    SourceFile,
     calculate_band_gap_from_occupations,
     create_mapping_table,
     write_parsed_blocks,
@@ -22,6 +23,10 @@ class TestOccupationThreshold:
         assert OCCUPATION_THRESHOLD == 0.5
 
 
+@pytest.mark.skipif(
+    SourceFile is None,
+    reason='requires SourceFile in nomad.datamodel',
+)
 def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
     parser = SimpleNamespace(
         mainfile='/raw/calculations/auxiliary.out',
