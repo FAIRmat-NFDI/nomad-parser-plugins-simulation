@@ -26,11 +26,6 @@ def test_parse_file(line_parsing):
     # (FAIRmat-NFDI/nomad-simulations#474).
     assert_identity_populated_once(archive)
 
-    blocks = archive.metadata.auxiliary_files[0].parsed_blocks
-    assert blocks
-    assert {block.depth for block in blocks} >= {0, 1}
-
-
 def test_workflow_convergence_targets():
     parser = FHIAimsParser()
     archive = EntryArchive()

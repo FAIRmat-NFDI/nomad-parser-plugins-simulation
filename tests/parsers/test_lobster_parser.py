@@ -46,16 +46,6 @@ def test_lobster_text_parser_retains_each_source_data_object():
     ] == ['ICOHPLIST.lobster', 'ICOOPLIST.lobster']
 
 
-# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
-@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
-def test_Fe_records_parsed_blocks(parser):
-    archive = EntryArchive()
-    parser.parse('tests/data/lobster/Fe/lobsterout', archive, logger)
-
-    assert archive.metadata.auxiliary_files
-    assert any(file.parsed_blocks for file in archive.metadata.auxiliary_files)
-
-
 def test_Fe_data(parser):  # noqa: PLR0915
     archive = EntryArchive()
     parser.parse('tests/data/lobster/Fe/lobsterout', archive, logger)

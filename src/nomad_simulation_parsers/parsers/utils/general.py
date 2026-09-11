@@ -12,10 +12,10 @@ import numpy as np
 from nomad.datamodel.datamodel import EntryMetadata
 
 try:
-    from nomad.datamodel.datamodel import AuxiliaryFile, ParsedBlock
+    from nomad.datamodel.datamodel import ParsedBlock, SourceFile
 except ImportError:  # Compatibility with NOMAD versions without parsed-block metadata.
-    AuxiliaryFile = None
     ParsedBlock = None
+    SourceFile = None
 
 if TYPE_CHECKING:
     from nomad.datamodel import EntryArchive
@@ -35,7 +35,7 @@ OCCUPATION_THRESHOLD = 0.5  # Threshold for occupied vs unoccupied states
 def write_parsed_blocks(
     archive: 'EntryArchive', text_parsers: 'Iterable[TextParser]'
 ) -> None:
-    """Write parsed text ranges to ``archive.metadata.auxiliary_files``.
+    """Write parsed text ranges to ``archive.metadata.source_files``.
 
     Call this after the supplied ``TextParser`` instances have parsed their files.
     The visualizer's blocks provide the parser ranges and labels for the archive.
@@ -45,11 +45,11 @@ def write_parsed_blocks(
         metadata = EntryMetadata()
         archive.metadata = metadata
     if (
-        AuxiliaryFile is None
+        SourceFile is None
         or ParsedBlock is None
-        or not hasattr(metadata, 'auxiliary_files')
+        or not hasattr(metadata, 'source_files')
     ):
-        DEFAULT_LOGGER.debug('archive metadata does not support auxiliary files')
+        DEFAULT_LOGGER.debug('archive metadata does not support source files')
         return
 
     context = getattr(archive, 'm_context', None)
@@ -92,7 +92,7 @@ def write_parsed_blocks(
             )
             file_blocks.append(parsed_block)
 
-    auxiliary_files = []
+    source_files = []
     for file_name, file_info in files.items():
         file_path = file_info['source_path']
         file_kwargs = {
@@ -102,10 +102,10 @@ def write_parsed_blocks(
         }
         if archive_mainfile is not None:
             file_kwargs['is_mainfile'] = str(archive_mainfile) == file_path
-        auxiliary_file = AuxiliaryFile(**file_kwargs)
-        auxiliary_files.append(auxiliary_file)
+        source_file = SourceFile(**file_kwargs)
+        source_files.append(source_file)
 
-    metadata.auxiliary_files = auxiliary_files
+    metadata.source_files = source_files
 
 
 def create_mapping_table(  # noqa: PLR0915
