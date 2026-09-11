@@ -1,13 +1,17 @@
 """Tests for common parser utilities in parsers/utils/general.py"""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 from nomad.units import ureg
 
 from nomad_simulation_parsers.parsers.utils.general import (
     OCCUPATION_THRESHOLD,
+    SourceFile,
     calculate_band_gap_from_occupations,
     create_mapping_table,
+    write_parsed_blocks,
 )
 
 
@@ -17,6 +21,41 @@ class TestOccupationThreshold:
     def test_threshold_value(self):
         """Verify occupation threshold is 0.5 as per DFT convention."""
         assert OCCUPATION_THRESHOLD == 0.5
+
+
+@pytest.mark.skipif(
+    SourceFile is None,
+    reason='requires SourceFile in nomad.datamodel',
+)
+def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
+    parser = SimpleNamespace(
+        mainfile='/raw/calculations/auxiliary.out',
+        visualize=lambda **kwargs: SimpleNamespace(
+            blocks=[
+                SimpleNamespace(start=12, end=28),
+                SimpleNamespace(start=40, end=46),
+            ]
+        ),
+    )
+    archive = SimpleNamespace(
+        metadata=SimpleNamespace(source_files=[]),
+        m_context=SimpleNamespace(
+            get_relative_path=lambda path: path.removeprefix('/raw/')
+        ),
+    )
+
+    write_parsed_blocks(archive, parser)
+
+    assert [file.m_to_dict() for file in archive.metadata.source_files] == [
+        {
+            'file_name': 'calculations/auxiliary.out',
+            'parser': 'SimpleNamespace',
+            'parsed_blocks': [
+                {'start': 12, 'end': 28},
+                {'start': 40, 'end': 46},
+            ],
+        }
+    ]
 
 
 class _Quantity:
@@ -176,9 +215,7 @@ def test_create_mapping_table_reports_shared_helper_for_each_mapper_function():
     file_parser = _FileParser([_Quantity('shared_value')])
     archive_parser = _FileParser([])
     archive_parser.mapper = _Mapper([], function_name='second_transform')
-    archive_parser.mapper.mappers.append(
-        _Mapper([], function_name='first_transform')
-    )
+    archive_parser.mapper.mappers.append(_Mapper([], function_name='first_transform'))
 
     assert create_mapping_table(
         file_parser,
