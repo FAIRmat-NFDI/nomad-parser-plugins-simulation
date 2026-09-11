@@ -22,12 +22,10 @@ class TestOccupationThreshold:
         assert OCCUPATION_THRESHOLD == 0.5
 
 
-# TODO: Remove this skip once EntryMetadata.auxiliary_files is available.
-@pytest.mark.skip(reason='requires EntryMetadata.auxiliary_files in nomad.datamodel')
 def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
     parser = SimpleNamespace(
         mainfile='/raw/calculations/auxiliary.out',
-        visualize=lambda: SimpleNamespace(
+        visualize=lambda **kwargs: SimpleNamespace(
             blocks=[
                 SimpleNamespace(start=12, end=28),
                 SimpleNamespace(start=40, end=46),
@@ -35,7 +33,7 @@ def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
         ),
     )
     archive = SimpleNamespace(
-        metadata=SimpleNamespace(auxiliary_files=[]),
+        metadata=SimpleNamespace(source_files=[]),
         m_context=SimpleNamespace(
             get_relative_path=lambda path: path.removeprefix('/raw/')
         ),
@@ -43,7 +41,7 @@ def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
 
     write_parsed_blocks(archive, parser)
 
-    assert [file.m_to_dict() for file in archive.metadata.auxiliary_files] == [
+    assert [file.m_to_dict() for file in archive.metadata.source_files] == [
         {
             'file_name': 'calculations/auxiliary.out',
             'parser': 'SimpleNamespace',
