@@ -26,6 +26,7 @@ def test_parse_file(line_parsing):
     # (FAIRmat-NFDI/nomad-simulations#474).
     assert_identity_populated_once(archive)
 
+
 def test_workflow_convergence_targets():
     parser = FHIAimsParser()
     archive = EntryArchive()
