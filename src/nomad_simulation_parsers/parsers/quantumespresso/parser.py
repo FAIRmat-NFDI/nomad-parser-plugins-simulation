@@ -540,6 +540,31 @@ class QuantumEspressoParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
         self.level = len(child_archives)
+        # run the old parser
+        # TODO remove
+        from electronicparsers.quantumespresso.parser import QuantumEspressoParser  # noqa
+        from workflowparsers.quantum_espresso_epw.parser import QuantumEspressoEPWParser  # noqa
+        from workflowparsers.quantum_espresso_phonon.parser import (  # noqa
+            QuantumEspressoPhononParser,
+        )
+        from workflowparsers.quantum_espresso_xspectra.parser import (  # noqa
+            QuantumEspressoXSpectraParser,
+        )
+
+        program_name = get_program_types(mainfile)
+        if not program_name:
+            return
+
+        parser = {
+            'pwscf': QuantumEspressoParser,
+            'epw': QuantumEspressoEPWParser,
+            'phonon': QuantumEspressoPhononParser,
+            'xspectra': QuantumEspressoXSpectraParser,
+        }.get(program_name[0].lower())
+
+        if parser is not None:
+            parser().parse(mainfile, archive, logger)
+
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 

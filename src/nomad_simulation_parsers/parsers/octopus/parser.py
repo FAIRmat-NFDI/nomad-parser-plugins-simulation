@@ -542,4 +542,11 @@ class OctopusParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.octopus.parser import OctopusParser  # noqa
+
+        OctopusParser().parse(mainfile, archive, logger)
+
         self.archive_writer.write(mainfile, archive, logger, child_archives)

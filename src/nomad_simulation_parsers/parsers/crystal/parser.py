@@ -369,4 +369,10 @@ class CrystalParser(MatchingParser):
         logger: BoundLogger,
         child_arhives: dict[str, EntryArchive] = {},
     ):
+
+        # run the old parser
+        # TODO remove
+        from electronicparsers.crystal.parser import CrystalParser  # noqa
+
+        CrystalParser().parse(mainfile, archive, logger)
         self.archive_writer.write(mainfile, archive, logger, child_arhives)
