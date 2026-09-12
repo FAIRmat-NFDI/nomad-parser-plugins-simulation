@@ -25,9 +25,6 @@ from nomad_simulations.schema_packages.workflow.general import (
     ForceConvergenceTarget,
     SimulationTaskReference,
 )
-from nomad_simulations.schema_packages.workflow.geometry_optimization import (
-    GeometryOptimizationMethod,
-)
 from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
@@ -560,55 +557,63 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
         out_parser.convert(archive_handler, remove=False)
 
-        # workflow
+        # workflow. Convergence targets stay imperative (shared polymorphic
+        # `convergence_targets` def), built here and assigned after convert().
+        force_threshold = out_parser.data.get('convergence_forces')
+        energy_threshold = out_parser.data.get('convergence_energy')
+        if energy_threshold is not None and not hasattr(energy_threshold, 'units'):
+            energy_threshold = energy_threshold * ureg.eV
+
+        workflow_key = None
+        convergence_targets = None
+        single_point_convergence_targets = None
         if out_parser.data.get('geometry_optimization'):
-            workflow_key = 'geo_opt_workflow'
+            workflow_key = fhiaims.GEO_OPT_WORKFLOW_KEY
             self.archive.workflow2 = GeometryOptimization()
-            self.archive.workflow2.method = GeometryOptimizationMethod()
-            self.archive.workflow2.method.optimization_method = out_parser.data.get(
-                'geometry_relaxation_method'
-            )
-            force_threshold = out_parser.data.get('convergence_forces')
+            # `method` is created + filled by convert() via the geo_opt_workflow
+            # annotations (subsection edge + optimization_method).
             if force_threshold is not None:
-                self.archive.workflow2.method.convergence_targets = [
+                convergence_targets = [
                     ForceConvergenceTarget(
-                        threshold=force_threshold,
-                        threshold_type='maximum',
+                        threshold=force_threshold, threshold_type='maximum'
                     )
                 ]
-            energy_threshold = out_parser.data.get('convergence_energy')
             if energy_threshold is not None:
-                # Handle both pint Quantity (with units) and plain float
-                if hasattr(energy_threshold, 'units'):
-                    threshold_value = energy_threshold
-                else:
-                    threshold_value = energy_threshold * ureg.eV
-
-                self.archive.workflow2.method.single_point_convergence_targets = [
+                single_point_convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=threshold_value,
-                        threshold_type='absolute',
+                        threshold=energy_threshold, threshold_type='absolute'
                     )
                 ]
         elif out_parser.data.get('molecular_dynamics'):
-            workflow_key = 'md_workflow'
+            workflow_key = fhiaims.MD_WORKFLOW_KEY
             self.archive.workflow2 = MolecularDynamics()
         else:
-            workflow_key = None
+            # Single point: no declarative mapping applies, so it is populated
+            # manually and not passed through convert() (the SinglePoint `.@`
+            # root mapper would clear the un-annotated `method`).
             self.archive.workflow2 = SinglePoint()
             self.archive.workflow2.method = SinglePointMethod()
-            energy_threshold = out_parser.data.get('convergence_energy')
             if energy_threshold is not None:
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
-                        threshold=energy_threshold,
-                        threshold_type='absolute',
+                        threshold=energy_threshold, threshold_type='absolute'
                     )
                 ]
+
         if workflow_key:
             archive_handler.data_object = self.archive.workflow2
             archive_handler.annotation_key = workflow_key
             out_parser.convert(archive_handler)
+
+            # Polymorphic convergence targets must be assigned after convert() so
+            # the concrete subclass survives (convert rebuilds subsections as
+            # their declared base type).
+            if convergence_targets is not None:
+                self.archive.workflow2.method.convergence_targets = convergence_targets
+            if single_point_convergence_targets is not None:
+                self.archive.workflow2.method.single_point_convergence_targets = (
+                    single_point_convergence_targets
+                )
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:
