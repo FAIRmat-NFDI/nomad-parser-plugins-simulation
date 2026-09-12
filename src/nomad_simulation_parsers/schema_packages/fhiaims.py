@@ -4,9 +4,7 @@ if TYPE_CHECKING:
     pass
 
 
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
@@ -284,55 +282,55 @@ class Energy2(variables.Energy2):
     )
 
 
-class SimulationWorkflow(workflow.general.SimulationWorkflow):
-    # TODO find a more elegant fix to not parse tasks recursively, this will be filled
-    # in by workflow normalizer from outputs
-    add_mapping_annotation(
-        workflow.general.SimulationWorkflow.tasks, GEO_OPT_WORKFLOW_KEY, '.tasks'
-    )
-    add_mapping_annotation(
-        workflow.general.SimulationWorkflow.tasks, MD_WORKFLOW_KEY, '.tasks'
-    )
-
-
 # workflow
+# Map `tasks` to a `.tasks` source that does not exist in the parsed data so it
+# resolves to empty. This is deliberate: the workflow root `.@` mappers below
+# would otherwise recurse into the inherited `tasks` subsection and nest the
+# workflow inside its own task list. The real task list is built later by the
+# workflow normalizer from the outputs.
+add_mapping_annotation(
+    workflow.general.SimulationWorkflow.tasks, GEO_OPT_WORKFLOW_KEY, '.tasks'
+)
+add_mapping_annotation(
+    workflow.general.SimulationWorkflow.tasks, MD_WORKFLOW_KEY, '.tasks'
+)
+
+# single point
 add_mapping_annotation(workflow.single_point.SinglePoint.m_def, SINGLE_POINT_KEY, '.@')
-# geometry optimization workflow
+
+# geometry optimization — activate `method` via its subsection edge (ORCA idiom);
+# `optimization_method` is the only mapped quantity. `results` carries no mapped
+# quantities, so it needs no annotation (the workflow normalizer fills it).
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimization.m_def,
     GEO_OPT_WORKFLOW_KEY,
     '.@',
 )
-# molecular dynamics workflow
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimization.method,
+    GEO_OPT_WORKFLOW_KEY,
+    '.@',
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
+    GEO_OPT_WORKFLOW_KEY,
+    '.geometry_relaxation_method',
+)
+
+# molecular dynamics
 add_mapping_annotation(
     workflow.molecular_dynamics.MolecularDynamics.m_def, MD_WORKFLOW_KEY, '.@'
 )
 
 
-class MolecularDynamics(workflow.MolecularDynamics):
-    # workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(md_workflow=Mapper(mapper='.@')))
-    workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(md_workflow=Mapper(mapper='.@')))
-
-
-class GeometryOptimization(workflow.GeometryOptimization):
-    workflow.geometry_optimization.GeometryOptimizationMethod.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
-    workflow.geometry_optimization.GeometryOptimizationResults.m_def.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.@')))
-
-
-class GeometryOptimizationMethod(
-    workflow.geometry_optimization.GeometryOptimizationMethod
-):
-    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(geo_opt_workflow=Mapper(mapper='.geometry_relaxation_method')))
+# NOTE: `convergence_targets` / `single_point_convergence_targets` are repeating
+# *polymorphic* subsections. They are NOT mapped via annotations here: the
+# concrete subclass (`ForceConvergenceTarget` / `EnergyConvergenceTarget`) is
+# selected through the shared, inherited `convergence_targets` SubSection def,
+# whose `mapper_m_def` slot is global — so geo-opt (force) and single-point
+# (energy) cannot both be expressed. They are assigned manually *after*
+# `convert()` in the parser, mirroring the abinit/exciting workflow parsers and
+# the `add_mapping_annotation` docstring caveat.
 
 
 class KSpace(numerical_settings.KSpace):
