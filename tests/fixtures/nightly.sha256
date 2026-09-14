@@ -1,0 +1,3 @@
+# SHA-256  repository-relative fixture path
+# Update this manifest in the same change as a nightly or large-fixture update.
+aec1173a0b4d530d19909542038dab4343e5f65f9b127235017e7573e29e223c tests/data/exciting/C_minimal/INFO.OUT

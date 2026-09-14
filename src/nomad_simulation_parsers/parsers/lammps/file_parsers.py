@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 from nomad_simulation_parsers.parsers.utils.constants import (
     MOLE,
@@ -435,7 +435,7 @@ class LogParser(TextParser):
 
     def init_quantities(self) -> None:
         def str_op(val: str) -> str | list[str]:
-            val = val.split('#')[0]
+            val = val.split('#', maxsplit=1)[0]
             val = re.sub(f'&{RE_N}+', ' ', val)
             val = val.split()
             val = val if len(val) > 1 else val[0]

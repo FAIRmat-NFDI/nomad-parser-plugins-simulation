@@ -1,7 +1,6 @@
 import os
 import re
 from collections.abc import Iterable
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -9,14 +8,10 @@ from ase import Atoms
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.datamodel.metainfo.workflow import Link, TaskReference
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import (
-    MetainfoParser,
-)
-from nomad.parsing.file_parser.mapping_parser import (
-    TextParser as TextMappingParser,
-)
-from nomad.utils import get_logger
+from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser
+from nomad_file_parser.mapping_parser import TextParser as TextMappingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
@@ -26,8 +21,14 @@ from nomad_simulations.schema_packages.workflow import (
     SinglePoint,
 )
 from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
     SimulationTaskReference,
 )
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.single_point import SinglePointMethod
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from structlog.stdlib import BoundLogger
@@ -35,32 +36,20 @@ from structlog.stdlib import BoundLogger
 from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     RE_GW_FLAG,
     FHIAimsOutFileParser,
+    FHIAimsOutFileParserLine,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
-from nomad_simulation_parsers.parsers.utils.general import (
-    search_files,
-)
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import fhiaims
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .common import ControlParser, GeometryParser
 
-LOGGER = get_logger(__name__)
 
-
-# TODO temporary fix for structlog unable to propagate logger
 class FHIAimsMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class FHIAimsOutMappingParser(TextMappingParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     _gw_flag_map = {
         'gw': 'G0W0',
         'gw_expt': 'G0W0',
@@ -69,112 +58,39 @@ class FHIAimsOutMappingParser(TextMappingParser):
         'scgw': 'scGW',
     }
 
-    _xc_map = {
-        'Perdew-Wang parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PW'},
-            {'name': 'LDA_X'},
-        ],
-        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': [
-            {'name': 'LDA_C_PZ'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN5 form': [
-            {'name': 'LDA_C_VWN'},
-            {'name': 'LDA_X'},
-        ],
-        'VWN-LDA parametrisation of VWN-RPA form': [
-            {'name': 'LDA_C_VWN_RPA'},
-            {'name': 'LDA_X'},
-        ],
-        'AM05 gradient-corrected functionals': [
-            {'name': 'GGA_C_AM05'},
-            {'name': 'GGA_X_AM05'},
-        ],
-        'BLYP functional': [{'name': 'GGA_C_LYP'}, {'name': 'GGA_X_B88'}],
-        'PBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE'},
-        ],
-        'PBEint gradient-corrected functional': [
-            {'name': 'GGA_C_PBEINT'},
-            {'name': 'GGA_X_PBEINT'},
-        ],
-        'PBEsol gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {'name': 'GGA_X_PBE_SOL'},
-        ],
-        'RPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_RPBE'},
-        ],
-        'revPBE gradient-corrected functionals': [
-            {'name': 'GGA_C_PBE'},
-            {'name': 'GGA_X_PBE_R'},
-        ],
-        'PW91 gradient-corrected functionals': [
-            {'name': 'GGA_C_PW91'},
-            {'name': 'GGA_X_PW91'},
-        ],
-        'M06-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_L'},
-            {'name': 'MGGA_X_M06_L'},
-        ],
-        'M11-L gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11_L'},
-            {'name': 'MGGA_X_M11_L'},
-        ],
-        'TPSS gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSS'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'TPSSloc gradient-corrected functionals': [
-            {'name': 'MGGA_C_TPSSLOC'},
-            {'name': 'MGGA_X_TPSS'},
-        ],
-        'hybrid B3LYP functional': [{'name': 'HYB_GGA_XC_B3LYP5'}],
-        'Hartree-Fock': [{'name': 'HF_X'}],
-        'HSE': [{'name': 'HYB_GGA_XC_HSE03'}],
-        'HSE-functional': [{'name': 'HYB_GGA_XC_HSE06'}],
-        'hybrid-PBE0 functionals': [
-            {'name': 'GGA_C_PBE'},
-            {
-                'name': 'GGA_X_PBE',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'hybrid-PBEsol0 functionals': [
-            {'name': 'GGA_C_PBE_SOL'},
-            {
-                'name': 'GGA_X_PBE_SOL',
-                'weight': lambda x: 0.75 if x is None else 1.0 - x,
-            },
-            {'name': 'HF_X', 'weight': lambda x: 0.25 if x is None else x},
-        ],
-        'Hybrid M06 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-2X gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_2X'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M06-HF gradient-corrected functionals': [
-            {'name': 'MGGA_C_M06_HF'},
-            {'name': 'HYB_MGGA_X_M06'},
-        ],
-        'Hybrid M08-HX gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_HX'},
-            {'name': 'HYB_MGGA_X_M08_HX'},
-        ],
-        'Hybrid M08-SO gradient-corrected functionals': [
-            {'name': 'MGGA_C_M08_SO'},
-            {'name': 'HYB_MGGA_X_M08_SO'},
-        ],
-        'Hybrid M11 gradient-corrected functionals': [
-            {'name': 'MGGA_C_M11'},
-            {'name': 'HYB_MGGA_X_M11'},
-        ],
+    # FHI-aims XC control description -> standard functional name. The
+    # `nomad-simulations` schema expands the name into LibXC components
+    # (family/kind) and derives `jacobs_ladder`; the parser deliberately does
+    # not resolve LibXC labels itself. Names normalize case-insensitively, so
+    # the human-readable spelling used here resolves to the schema alias.
+    _xc_name_map = {
+        'Perdew-Wang parametrisation of Ceperley-Alder LDA': 'LDA',
+        'Perdew-Zunger parametrisation of Ceperley-Alder LDA': 'PZ81',
+        'VWN-LDA parametrisation of VWN5 form': 'VWN',
+        'VWN-LDA parametrisation of VWN-RPA form': 'VWN-RPA',
+        'AM05 gradient-corrected functionals': 'AM05',
+        'BLYP functional': 'BLYP',
+        'PBE gradient-corrected functionals': 'PBE',
+        'PBEint gradient-corrected functional': 'PBEint',
+        'PBEsol gradient-corrected functionals': 'PBEsol',
+        'RPBE gradient-corrected functionals': 'RPBE',
+        'revPBE gradient-corrected functionals': 'revPBE',
+        'PW91 gradient-corrected functionals': 'PW91',
+        'M06-L gradient-corrected functionals': 'M06-L',
+        'M11-L gradient-corrected functionals': 'M11-L',
+        'TPSS gradient-corrected functionals': 'TPSS',
+        'TPSSloc gradient-corrected functionals': 'TPSSloc',
+        'hybrid B3LYP functional': 'B3LYP',
+        'HSE': 'HSE03',
+        'HSE-functional': 'HSE06',
+        'hybrid-PBE0 functionals': 'PBE0',
+        'hybrid-PBEsol0 functionals': 'PBEsol0',
+        'Hybrid M06 gradient-corrected functionals': 'M06',
+        'Hybrid M06-2X gradient-corrected functionals': 'M06-2X',
+        'Hybrid M06-HF gradient-corrected functionals': 'M06-HF',
+        'Hybrid M08-HX gradient-corrected functionals': 'M08-HX',
+        'Hybrid M08-SO gradient-corrected functionals': 'M08-SO',
+        'Hybrid M11 gradient-corrected functionals': 'M11',
     }
 
     _section_names = ['full_scf', 'geometry_optimization', 'molecular_dynamics']
@@ -194,10 +110,23 @@ class FHIAimsOutMappingParser(TextMappingParser):
         files.sort()
         return files
 
-    def get_xc_functionals(self, xc: str) -> list[dict[str, Any]]:
-        return [
-            dict(name=functional.get('name')) for functional in self._xc_map.get(xc, [])
-        ]
+    def get_functional_key(self, xc: str) -> str | None:
+        """Standard functional name for this FHI-aims XC control string. The
+        schema expands the name into LibXC components (family/kind) and derives
+        `jacobs_ladder`; returns `None` for an unmapped string."""
+        return self._xc_name_map.get(xc)
+
+    def get_periodic_boundary_conditions(self, source: dict[str, Any]) -> list[bool]:
+        return [source.get('lattice_vectors') is not None] * 3
+
+    def get_topology_labels(self, labels: Any = None, frame_index: int = 0) -> Any:
+        # Particle identity is frame-independent; attach it (-> `particle_states`)
+        # to the first (topology) frame only, so it is not duplicated across the
+        # geometry-optimization / trajectory frames. `get_sections` stamps
+        # `frame_index` on each frame (FAIRmat-NFDI/nomad-simulations#474).
+        if frame_index:
+            return None
+        return labels
 
     def get_dos(
         self,
@@ -264,7 +193,9 @@ class FHIAimsOutMappingParser(TextMappingParser):
     ) -> list[dict[str, Any]]:
         n_spin = params.get('Number of spin channels', 1)
         eigenvalues = []
-        for data in source:
+        # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
+        # eigenvalues; earlier blocks are intermediate SCF snapshots.
+        for data in (source or [])[-1:]:
             kpts = data.get('kpoints', [np.zeros(3)] * n_spin)
             kpts = np.reshape(kpts, (len(kpts) // n_spin, n_spin, 3))
             kpts = np.transpose(kpts, axes=(1, 0, 2))[0]
@@ -281,11 +212,29 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         nbands=n_eigs,
                         npoints=n_kpts,
                         points=kpts,
-                        occupations=occs_eigs[0][spin],
-                        eigenvalues=occs_eigs[1][spin],
+                        occupation=occs_eigs[0][spin],
+                        value=occs_eigs[1][spin] * ureg.hartree,
+                        spin_channel=spin if n_spin > 1 else None,
                     )
                 )
         return eigenvalues
+
+    def get_band_structures(
+        self, source: list[dict[str, Any]], params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        band_structures = []
+        for eig in self.get_eigenvalues(source, params):
+            values = eig.get('value')
+            if values is None:
+                continue
+            band_structures.append(
+                dict(
+                    value=values,
+                    occupation=eig.get('occupation'),
+                    spin_channel=eig.get('spin_channel'),
+                )
+            )
+        return band_structures
 
     def get_energies(self, source: dict[str, Any]) -> dict[str, Any]:
         total_keys = ['Total energy uncorrected', 'Total energy']
@@ -309,6 +258,143 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_gw_flag(self, gw_flag: str):
         return self._gw_flag_map.get(gw_flag)
 
+    def get_k_offset_with_default(self, k_offset: np.ndarray | None) -> np.ndarray:
+        """
+        Return k_offset or FHI-aims default [0,0,0] (Gamma-centered).
+
+        FHI-aims uses Gamma-centered grids by default when k_offset
+        is not specified in control.in.
+        """
+        if k_offset is None:
+            return np.array([0.0, 0.0, 0.0])
+        return k_offset
+
+    def get_all_criteria(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        criteria = []
+        for fcriteria in [
+            self.get_scf_energy_criterion,
+            self.get_scf_density_criterion,
+            self.get_scf_eigenvalues_criterion,
+        ]:
+            data = fcriteria(source)
+            if data:
+                criteria.append(data)
+        if not criteria:
+            max_iterations = source.get('max_scf_iterations')
+            if max_iterations is not None:
+                criteria.append({'n_max_iterations': max_iterations})
+        return criteria
+
+    def get_scf_energy_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract energy convergence criterion for SCF.
+
+        Returns:
+            Dictionary representing energy SelfConsistency section, or empty dict.
+        """
+        conv_energy = source.get('convergence_energy')
+        if conv_energy is None:
+            return {}
+
+        result = {
+            'name': 'total_energy_change',
+            'threshold_change': conv_energy,
+        }
+
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
+
+    def get_scf_density_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract density convergence criterion for SCF.
+
+        Returns:
+            Dictionary representing density SelfConsistency section, or empty dict.
+        """
+        conv_density = source.get('convergence_density')
+        if conv_density is None:
+            return {}
+
+        result = {
+            'name': 'charge_density_change',
+            'threshold_change': conv_density,
+            'threshold_change_unit': 'dimensionless',
+        }
+
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
+
+    def get_scf_eigenvalues_criterion(self, source: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract eigenvalues convergence criterion for SCF.
+
+        Returns:
+            Dictionary representing eigenvalues SelfConsistency section, or empty dict.
+        """
+        conv_eigenvalues = source.get('convergence_eigenvalues')
+        if conv_eigenvalues is None:
+            return {}
+
+        result = {
+            'name': 'sum_eigenvalues_change',
+            'threshold_change': conv_eigenvalues,
+        }
+
+        max_iterations = source.get('max_scf_iterations')
+        if max_iterations is not None:
+            result['n_max_iterations'] = max_iterations
+
+        return result
+
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('self_consistency', [])
+        if not scf_iterations:
+            return {}
+
+        delta_energies_total = []
+        delta_charge_abs = []
+        durations = []
+        delta_sum_eigenvalues = []
+
+        for iteration in scf_iterations:
+            convergence = iteration.get('scf_convergence', {})
+            delta_energy = convergence.get('Change of total energy')
+            if delta_energy is not None:
+                delta_energies_total.append(abs(delta_energy))
+
+            delta_density = convergence.get('Change of charge density')
+            if delta_density is not None:
+                delta_charge_abs.append(
+                    abs(float(delta_density)) * ureg.elementary_charge
+                )
+
+            delta_eig = convergence.get('Change of sum of eigenvalues')
+            if delta_eig is not None:
+                delta_sum_eigenvalues.append(delta_eig)
+
+            duration = iteration.get('time_calculation')
+            if duration is not None:
+                durations.append(float(duration))
+
+        scf_steps = {}
+        if delta_energies_total:
+            scf_steps['delta_energies_total'] = delta_energies_total
+        if delta_charge_abs:
+            scf_steps['delta_charge_abs'] = delta_charge_abs
+        if len(durations) == len(scf_iterations):
+            scf_steps['durations'] = durations
+        if delta_sum_eigenvalues:
+            scf_steps['code_specific_quantities'] = {
+                'delta_sum_eigenvalues': delta_sum_eigenvalues
+            }
+        return scf_steps
+
     def get_sections(self, source: dict[str, Any], **kwargs) -> list[dict[str, Any]]:
         result = []
         include = kwargs.get('include')
@@ -323,11 +409,17 @@ class FHIAimsOutMappingParser(TextMappingParser):
                         res[key] = val
                 if res:
                     result.append(res)
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        for index, res in enumerate(result):
+            res['frame_index'] = index
         return result
 
 
 class FHIAimsArchiveWriter(ArchiveWriter):
     annotation_key: str = fhiaims.TEXT_KEY
+    line_parsing: bool = False
     geometry_parser = GeometryParser()
     control_parser = ControlParser()
 
@@ -372,8 +464,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     f'../upload/archive/mainfile/{mainfile}'
                 )
             # check if supercell match calculation cell
-            calc_cell: Atoms = (
-                archive.data.model_system[-1].to_ase_atoms(logger=self.logger)
+            calc_cell: Atoms = archive.data.model_system[-1].to_ase_atoms(
+                logger=self.logger
             )
             supercell_atoms = Atoms(
                 positions=supercell.positions,
@@ -408,7 +500,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
         )
         phonopy_obj.generate_displacements(distance=displacement)
-        supercells = phonopy_obj.get_supercells_with_displacements()
+        supercells = phonopy_obj.supercells_with_displacements
 
         force_sets = []
         n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
@@ -436,27 +528,29 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             force_sets.append(forces)
 
         try:
-            phonopy_obj.set_forces(force_sets)
+            phonopy_obj.forces = force_sets
             phonopy_obj.produce_force_constants()
         except Exception:
             self.logger.error('Error producing force constants.')
 
         return phonopy_obj, force_archives
 
-    def write_to_archive(
+    def write_to_archive(  # noqa: PLR0915, PLR0912
         self,
     ) -> None:
-        # reload module to refresh annotations
-        reload(fhiaims)
-
-        out_parser = FHIAimsOutMappingParser()
-        out_parser.text_parser = FHIAimsOutFileParser()
+        out_parser = FHIAimsOutMappingParser(logger=self.logger)
+        parser_class = (
+            FHIAimsOutFileParserLine if self.line_parsing else FHIAimsOutFileParser
+        )
+        out_parser.text_parser = parser_class(logger=self.logger)
+        out_parser.text_parser.line_parsing = self.line_parsing
+        out_parser.text_parser.allow_overlap = self.line_parsing
         out_parser.filepath = self.mainfile
 
-        archive_handler = FHIAimsMetainfoParser()
+        archive_handler = FHIAimsMetainfoParser(logger=self.logger)
         archive_handler.annotation_key = self.annotation_key
-        self.archive.data = Simulation(program=Program(name='FHI-aims'))
 
+        self.archive.data = Simulation(program=Program(name='FHI-aims'))
         archive_handler.data_object = self.archive.data
 
         out_parser.convert(archive_handler, remove=False)
@@ -470,12 +564,47 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         if out_parser.data.get('geometry_optimization'):
             workflow_key = 'geo_opt_workflow'
             self.archive.workflow2 = GeometryOptimization()
+            self.archive.workflow2.method = GeometryOptimizationMethod()
+            self.archive.workflow2.method.optimization_method = out_parser.data.get(
+                'geometry_relaxation_method'
+            )
+            force_threshold = out_parser.data.get('convergence_forces')
+            if force_threshold is not None:
+                self.archive.workflow2.method.convergence_targets = [
+                    ForceConvergenceTarget(
+                        threshold=force_threshold,
+                        threshold_type='maximum',
+                    )
+                ]
+            energy_threshold = out_parser.data.get('convergence_energy')
+            if energy_threshold is not None:
+                # Handle both pint Quantity (with units) and plain float
+                if hasattr(energy_threshold, 'units'):
+                    threshold_value = energy_threshold
+                else:
+                    threshold_value = energy_threshold * ureg.eV
+
+                self.archive.workflow2.method.single_point_convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=threshold_value,
+                        threshold_type='absolute',
+                    )
+                ]
         elif out_parser.data.get('molecular_dynamics'):
             workflow_key = 'md_workflow'
             self.archive.workflow2 = MolecularDynamics()
         else:
             workflow_key = None
             self.archive.workflow2 = SinglePoint()
+            self.archive.workflow2.method = SinglePointMethod()
+            energy_threshold = out_parser.data.get('convergence_energy')
+            if energy_threshold is not None:
+                self.archive.workflow2.method.convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=energy_threshold,
+                        threshold_type='absolute',
+                    )
+                ]
         if workflow_key:
             archive_handler.data_object = self.archive.workflow2
             archive_handler.annotation_key = workflow_key
@@ -545,13 +674,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                 )
 
         # close file contexts
-        self.out_parser = out_parser
-        self.archive_handler = archive_handler
-        # out_parser.close()
-        # archive_handler.close()
-
-        # remove annotations
-        remove_mapping_annotations(fhiaims.general.Simulation.m_def)
+        out_parser.close()
+        archive_handler.close()
 
 
 class FHIAimsParser(MatchingParser):
@@ -559,7 +683,11 @@ class FHIAimsParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = FHIAimsArchiveWriter()
+    def __init__(self, **kwargs) -> None:
+        line_parsing = kwargs.pop('line_parsing', False)
+        super().__init__(**kwargs)
+        self.archive_writer = FHIAimsArchiveWriter()
+        self.archive_writer.line_parsing = line_parsing
 
     def is_mainfile(
         self,

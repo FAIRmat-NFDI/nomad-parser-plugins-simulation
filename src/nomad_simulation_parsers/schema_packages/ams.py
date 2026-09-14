@@ -1,16 +1,19 @@
+from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
+from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
     outputs,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
+OUT_KEY = 'ams_out'
 
 
 class Program(general.Program):
@@ -23,34 +26,39 @@ class AtomsState(model_system.AtomsState):
 
 class Representation(model_system.Representation):
     add_mapping_annotation(model_system.Representation.lattice_vectors, OUT_KEY, '.@')
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['.@']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
-    add_mapping_annotation(
-        model_system.ModelSystem.positions, OUT_KEY, '.labels_positions[1]'
-    )
-    add_mapping_annotation(
-        model_system.AtomsState.m_def, OUT_KEY, '.labels_positions[0]'
-    )
-    add_mapping_annotation(
-        model_system.Representation.m_def, OUT_KEY, '.lattice_vectors'
-    )
-
-
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, OUT_KEY, '.@')
-
-
-class XCFunctional(model_method.XCFunctional):
-    add_mapping_annotation(
-        model_method.XCFunctional.components,
-        OUT_KEY,
-        ('get_xc_functionals', ['.model_parameters.dft_potential']),
-    )
+    model_system.ModelSystem.positions.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[1]')))
+    model_system.AtomsState.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.labels_positions[0]')))
+    model_system.Representation.m_def.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
 
 
 class DFT(model_method.DFT):
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
     add_mapping_annotation(model_method.DFT.xc, OUT_KEY, '.@')
+
+
+class XCFunctional(model_method.XCFunctional):
+    # Set `functional_key` to the standard functional name from the AMS DFT
+    # potential block; the schema expands it into components (family/kind) and
+    # derives `jacobs_ladder`.
+    add_mapping_annotation(
+        model_method.XCFunctional.functional_key,
+        OUT_KEY,
+        ('get_functional_key', ['.model_parameters.dft_potential']),
+    )
 
 
 class TotalEnergy(outputs.TotalEnergy):
@@ -60,7 +68,7 @@ class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(
         outputs.TotalEnergy.contributions,
         OUT_KEY,
-        ('get_energy_contributions', ['.energies']),
+        ('get_contributions', ['.energies']),
     )
 
 
@@ -77,14 +85,59 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
         outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
     )
 
+    # class Outputs(outputs.Outputs):
+    outputs.Outputs.total_energies.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.@')))
+    outputs.Outputs.total_forces.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper='.@')))
+    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=('get_eigenvalues', ['.eigenvalues || .band_energy_ranges'])
+            )
+        )
+    )
+    outputs.Outputs.scf_steps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_scf_steps', ['.@']))))
+    outputs.Outputs.electronic_band_gaps.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=(
+                    'get_band_gaps',
+                    ['.band_gap || .band_gap_info || .band_energy_ranges'],
+                )
+            )
+        )
+    )
+    outputs.Outputs.electronic_dos.m_annotations.setdefault(
+        MAPPING_ANNOTATION_KEY, {}
+    ).update(dict(ams_out=Mapper(mapper=('get_dos', ['.total_dos']))))
 
-class Outputs(outputs.Outputs):
-    add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
-    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, OUT_KEY, '.value')
     add_mapping_annotation(
-        outputs.Outputs.electronic_eigenvalues,
-        OUT_KEY,
-        ('get_eigenvalues', ['.eigenvalues || .band_energy_ranges']),
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
+class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
+    )
+    add_mapping_annotation(variables.Energy2.m_def, OUT_KEY, '.@')
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(
+        variables.Energy2.points, OUT_KEY, '.energies', unit='hartree'
     )
 
 
@@ -104,6 +157,15 @@ class Simulation(general.Simulation):
         general.Simulation.outputs,
         OUT_KEY,
         '.geometry_optimization.step|| molecular_dynamics.step || .single_point',
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
     )
 
 

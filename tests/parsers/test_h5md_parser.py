@@ -18,6 +18,8 @@
 
 # tests/parsers/test_h5md_parser.py
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from nomad import utils
@@ -25,6 +27,7 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDParser
+from tests.parsers.common import assert_identity_populated_once
 
 logger = utils.get_logger(__name__)
 
@@ -61,9 +64,9 @@ def assert_systems(archive: EntryArchive) -> None:
 
     assert sec_systems[2].positions[80][1].to('angstrom').magnitude == approx(28.748762)
     assert sec_systems[2].velocities[50][2].to('angstrom/ps').magnitude == approx(400.0)
-    assert sec_systems[3].lattice_vectors[2][2].to(
-        'angstrom'
-    ).magnitude == approx(68.22318)
+    assert sec_systems[3].lattice_vectors[2][2].to('angstrom').magnitude == approx(
+        68.22318
+    )
     assert sec_systems[3].periodic_boundary_conditions == [True, True, True]
     assert sec_systems[0].bond_list[200][0] == 198
     assert sec_systems[0].dimensionality == 3
@@ -368,6 +371,14 @@ def assert_workflow(archive: EntryArchive) -> None:
     sec_workflow = archive.workflow2
     sec_workflow_results = sec_workflow.results
 
+    # TODO: Adjust after permanent recursion bug fix.
+    # Regression: after normalization tasks must be shallow (no nested tasks).
+    # Recursive parsing would produce MolecularDynamics nested inside each task.
+    for task in sec_workflow.tasks:
+        assert not any(
+            hasattr(inp, 'tasks') and inp.tasks for inp in (task.inputs or [])
+        )
+
     assert_md_method(sec_workflow)
     assert_thermostats_barostats_shear(sec_workflow)
     assert_radial_distribution_functions(sec_workflow_results)
@@ -379,13 +390,25 @@ def assert_workflow(archive: EntryArchive) -> None:
 
 def test_md(parser):
     archive = EntryArchive()
+    mainfile = (
+        Path(__file__).resolve().parents[1]
+        / 'data'
+        / 'h5md'
+        / 'test_traj_openmm_reduced-SOL_5frames_07-10-25.h5'
+    )
     parser.parse(
-        'tests/data/h5md/test_traj_openmm_reduced-SOL_5frames_07-10-25.h5',
+        str(mainfile),
         archive,
         None,
     )
+    # Regression: parser must not populate tasks (would cause infinite recursion).
+    # Tasks are filled post-parse by the workflow normalizer from outputs.
+    assert archive.workflow2.tasks == []
     normalize_all(archive, logger=logger)
 
+    # Per-particle identity must live on the topology frame only, not per frame
+    # (FAIRmat-NFDI/nomad-simulations#474).
+    assert_identity_populated_once(archive)
     assert_h5md_header(archive)
     assert_systems(archive)
     assert_system_hierarchy(archive)

@@ -3,8 +3,8 @@ from datetime import datetime
 
 import numpy as np
 from ase.data import chemical_symbols
-from nomad.parsing.file_parser import FileParser, Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import FileParser, Quantity, TextParser
 
 from nomad_simulation_parsers.parsers.utils.general import search_files
 
@@ -305,12 +305,14 @@ class OutParser(TextParser):
                         Quantity(
                             'points',
                             rf'No\. +Sym\..+\s+\-+((?:\d+ +\d+ +{RE_FLOAT}.+\s+)+)',
-                            str_operation=lambda x: np.transpose(
-                                np.array(
-                                    [v.split() for v in x.strip().splitlines()],
-                                    np.float64,
-                                )
-                            )[2:5].T,
+                            str_operation=lambda x: (
+                                np.transpose(
+                                    np.array(
+                                        [v.split() for v in x.strip().splitlines()],
+                                        np.float64,
+                                    )
+                                )[2:5].T
+                            ),
                         ),
                     ]
                 ),
@@ -823,11 +825,16 @@ class OutParser(TextParser):
                     'dipole_moment',
                     rf'direction +dipole.+\s+\=+\s+((?:\w+ +{RE_FLOAT}.+\s+)+)',
                     str_operation=lambda x: (
-                        [float(v.strip().split()[2]) for v in x.strip().splitlines()]
-                        * ureg.debye
-                    )
-                    .to('C * m')
-                    .magnitude,
+                        (
+                            [
+                                float(v.strip().split()[2])
+                                for v in x.strip().splitlines()
+                            ]
+                            * ureg.debye
+                        )
+                        .to('C * m')
+                        .magnitude
+                    ),
                 ),
                 Quantity(
                     'band_energy_ranges',

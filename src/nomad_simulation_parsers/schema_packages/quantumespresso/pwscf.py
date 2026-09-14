@@ -1,46 +1,146 @@
-from nomad.datamodel.metainfo.annotations import Mapper
 from nomad.metainfo import SchemaPackage
-from nomad.parsing.file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
-from nomad_simulations.schema_packages import general, outputs
+from nomad_simulations.schema_packages import general, outputs, variables
+
+from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
+
+from .common import DOS_KEY, DOS_OUT_KEY, OUT_KEY, XML_KEY
 
 m_package = SchemaPackage()
 
 
 class TotalForce(outputs.TotalForce):
-    outputs.TotalForce.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.value || .forces', unit='rydberg/bohr')))
-    outputs.TotalForce.contributions.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(
-        dict(
-            out=Mapper(mapper=('get_force_contributions', ['.@']), unit='rydberg/bohr')
-        )
+    add_mapping_annotation(
+        outputs.TotalForce.value, OUT_KEY, '.value || .forces', unit='rydberg/bohr'
+    )
+    add_mapping_annotation(
+        outputs.TotalForce.value, XML_KEY, ('get_forces', ['.__value'])
+    )
+    add_mapping_annotation(
+        outputs.TotalForce.contributions,
+        OUT_KEY,
+        ('get_force_contributions', ['.@']),
+        unit='rydberg/bohr',
     )
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    outputs.ElectronicEigenvalues.value.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.eigenvalues')))
+    add_mapping_annotation(outputs.ElectronicEigenvalues.value, OUT_KEY, '.eigenvalues')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.occupation, OUT_KEY, '.occupations'
+    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, OUT_KEY, '.n_levels')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.value, OUT_KEY, '.eigenvalues'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, OUT_KEY, '.occupations'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.n_levels, OUT_KEY, '.n_levels'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, OUT_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        OUT_KEY,
+        ('get_reference_energy', ['@']),
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, OUT_KEY, '.points')
+    add_mapping_annotation(variables.Energy2.points, DOS_KEY, '.energies')
+
+
+class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
+    add_mapping_annotation(outputs.ElectronicDensityOfStates.value, DOS_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.energies_origin,
+        DOS_OUT_KEY,
+        ('get_reference_energy', ['.bandstructure']),
+    )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.contributions,
+        DOS_OUT_KEY,
+        ('get_dos_contributions', ['.@']),
+    )
+    add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 class Outputs(outputs.Outputs):
-    outputs.Outputs.total_forces.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper='.@')))
-    outputs.Outputs.electronic_eigenvalues.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_eigenvalues', ['.@']))))
+    add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.total_forces, XML_KEY, '.forces')
+    add_mapping_annotation(
+        outputs.Outputs.electronic_eigenvalues,
+        OUT_KEY,
+        ('get_eigenvalues', ['.@']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        OUT_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.scf_steps,
+        XML_KEY,
+        ('get_scf_steps', ['.@']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        OUT_KEY,
+        ('get_eigenvalues', ['.@']),
+    )
+    add_mapping_annotation(outputs.Outputs.electronic_dos, DOS_KEY, '.@')
+    add_mapping_annotation(outputs.ElectronicDensityOfStates.m_def, DOS_OUT_KEY, '@')
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+    add_mapping_annotation(outputs.SCFSteps.energies_total, XML_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, XML_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(outputs.SCFSteps.durations, OUT_KEY, '.durations')
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, XML_KEY, '.code_specific_quantities'
+    )
 
 
 class Simulation(general.Simulation):
-    general.Simulation.model_system.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_configurations', ['.@']), cache=True)))
-    general.Simulation.outputs.m_annotations.setdefault(
-        MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(out=Mapper(mapper=('get_configurations', ['.@']), cache=True)))
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        OUT_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        XML_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, OUT_KEY, ('get_configurations', ['.@']), cache=True
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, XML_KEY, ('get_configurations', ['.@']), cache=True
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, DOS_KEY, '.@', update_mode='merge@last'
+    )
 
 
 try:

@@ -1,40 +1,30 @@
 from collections.abc import Sequence
-from importlib import reload
 from typing import Any
 
 import numpy as np
 import pint
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
-
-# from nomad_simulations.schema_packages.workflow import molecular_dynamics
+from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad_simulation_parsers.parsers.utils.mdparserutils import (
+    MDParser,
+    particle_state_payloads_from_labels,
+    particle_states_from_labels,
+)
 from nomad_simulation_parsers.schema_packages import h5md
-from nomad_simulation_parsers.schema_packages.h5md import MolecularDynamics, Simulation
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
-
-LOGGER = get_logger(__name__)
 
 
 class H5MDMetainfoParser(MetainfoParser):
-    # TODO: temporary fix until structlog propagation lands everywhere
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class H5MDH5Parser(HDF5Parser):
     trajectory_steps: list[int] = []
-
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
 
     def get_value(self, name: str, dct: dict[str, Any]) -> Any:
         value = dct.get(name, {})
@@ -124,6 +114,11 @@ class H5MDH5Parser(HDF5Parser):
             frame_data.update(cell_data)
             traj_data.append(frame_data)
 
+        # Stamp each frame with its index so the identity transformer attaches
+        # `particle_states` to the first (topology) frame only
+        # (FAIRmat-NFDI/nomad-simulations#474).
+        for index, frame in enumerate(traj_data):
+            frame['frame_index'] = index
         return traj_data
 
     def get_step_data(self, data: dict[str, Any], step: int) -> dict[str, Any]:
@@ -169,10 +164,14 @@ class H5MDH5Parser(HDF5Parser):
     ) -> list[dict[str, Any]]:
         if source.get('step') is None:
             return []
+        # Particle identity is frame-independent; attach it (-> `particle_states`)
+        # to the first (topology) frame only (FAIRmat-NFDI/nomad-simulations#474).
+        if source.get('frame_index', 0):
+            return []
 
         source_data = self.get_source(self.data, kwargs['path'])
 
-        return [{'chemical_symbol': s, 'label': s} for s in source_data]
+        return particle_state_payloads_from_labels(source_data)
 
     def get_top_system_quantity(
         self, source: dict[str, Any], **kwargs
@@ -408,7 +407,7 @@ class H5MDH5Parser(HDF5Parser):
         if hasattr(self, 'h5_parser') and hasattr(self.h5_parser, 'h5_archive'):
             try:
                 # Access h5_archive directly (already opened by h5_parser)
-                # Will be closed via h5_parser.close()
+                # It is closed once at the end of archive writing via h5_parser.close().
                 h5_file = self.h5_parser.h5_archive
                 if h5_file and 'observables' in h5_file:
                     obs_path = f'observables/{label}'
@@ -418,8 +417,6 @@ class H5MDH5Parser(HDF5Parser):
                             return obs_group.attrs['type']
             except Exception:
                 pass
-            finally:
-                self.h5_parser.h5_archive.close()
 
         # Fallback to parsed data structure
         return data_dict.get('@type') or data_dict.get('attrs', {}).get('type')
@@ -492,9 +489,9 @@ class H5MDArchiveWriter(MDParser):
         super().__init__(**kwargs)
 
     def write_to_archive(self) -> None:
-        # reload schema annotations
-        reload(h5md)
-
+        self.h5_parser.logger = self.logger
+        self.simulation_parser.logger = self.logger
+        self.workflow_parser.logger = self.logger
         # create h5 parser
         self.h5_parser.filepath = self.mainfile
 
@@ -509,27 +506,40 @@ class H5MDArchiveWriter(MDParser):
         # TODO consider using a single parser for the whole archive
         # create metainfo parsers
         self.simulation_parser.annotation_key = h5md.HDF5_KEY
-        simulation_data = Simulation()
+        simulation_data = h5md.Simulation()
         self.simulation_parser.data_object = simulation_data
         self.workflow_parser.annotation_key = h5md.HDF5_KEY
-        workflow_data = MolecularDynamics()
+        workflow_data = h5md.MolecularDynamics()
         self.workflow_parser.data_object = workflow_data
 
-        # map from h5 source to metainfo target
-        self.h5_parser.convert(self.simulation_parser)
-        self.h5_parser.convert(self.workflow_parser)
+        try:
+            # map from h5 source to metainfo target
+            self.h5_parser.convert(self.simulation_parser)
+            self.h5_parser.convert(self.workflow_parser)
 
-        # assign simulation to archive data
-        self.archive.data = self.simulation_parser.data_object
-        self.archive.workflow2 = self.workflow_parser.data_object
+            for model_system in self.simulation_parser.data_object.model_system:
+                if not model_system.particle_states:
+                    continue
+                if not all(
+                    type(particle_state) is ParticleState
+                    for particle_state in model_system.particle_states
+                ):
+                    continue
+                labels = [
+                    particle_state.label
+                    for particle_state in model_system.particle_states
+                ]
+                model_system.particle_states = particle_states_from_labels(labels)
 
-        # close parsers
-        self.h5_parser.close()
-        self.simulation_parser.close()
-        self.workflow_parser.close()
-
-        # remove mapping annotations
-        remove_mapping_annotations(self.archive.data.m_def)
+            # assign simulation to archive data
+            self.archive.data = self.simulation_parser.data_object
+            self.archive.workflow2 = self.workflow_parser.data_object
+        finally:
+            # the h5 archive handle is shared across transformer calls; close
+            # it exactly once, also when conversion fails
+            self.h5_parser.close()
+            self.simulation_parser.close()
+            self.workflow_parser.close()
 
 
 class H5MDParser(MatchingParser):

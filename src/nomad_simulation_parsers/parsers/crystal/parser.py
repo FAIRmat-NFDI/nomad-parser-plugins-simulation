@@ -1,7 +1,6 @@
 import datetime
 import os
 import re
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -10,10 +9,19 @@ from ase.data import chemical_symbols
 from nomad import atomutils
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
+from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
+from nomad_simulations.schema_packages.workflow.geometry_optimization import (
+    GeometryOptimization,
+    GeometryOptimizationMethod,
+)
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointMethod,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import crystal
@@ -22,6 +30,7 @@ from .file_parser import F25Parser, OutputParser
 
 
 class CrystalOutputParser(TextParser):
+    re_label = re.compile(r'([a-z][a-z]?).*')
     libxc_map = {
         'PBEXC': ['GGA_C_PBE', 'GGA_X_PBE'],
         'PBE0': ['HYB_GGA_XC_PBEH'],
@@ -36,12 +45,8 @@ class CrystalOutputParser(TextParser):
         'LDA': ['LDA_X'],
         'PWGGA': ['GGA_X_PW91', 'GGA_C_PW91'],
         'PZ': ['LDA_C_PZ'],
-        'WFN': ['LDA_C_VWN'],
+        'VWN': ['LDA_C_VWN'],
     }
-
-    @property
-    def logger(self):
-        pass
 
     def to_unix_time(self, value: str) -> float | None:
         """Transforms the Crystal-specific float notation into a floating point
@@ -104,7 +109,7 @@ class CrystalOutputParser(TextParser):
                 numbers = labels_positions[:, 1]
 
         def normalize_label(label: str) -> str:
-            norm = re.match(r'([a-z][a-z]?).*', label.lower())
+            norm = self.re_label.match(label.lower())
             # unknown specie
             # TODO not possible to define ghost atom
             unknown = None
@@ -113,10 +118,34 @@ class CrystalOutputParser(TextParser):
                 return label if label in chemical_symbols[1:] else unknown
             return unknown
 
-        return [
-            dict(label=normalize_label(label), number=numbers[n])
-            for n, label in enumerate(labels)
-        ] or None
+        def normalize_number(number: Any, normalized_label: str | None) -> int | None:
+            try:
+                raw = int(float(number))
+            except Exception:
+                return None
+
+            # Legacy CRYSTAL parser semantics: NAT atomic numbers are mapped
+            # with modulo 100.
+            # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
+            normalized = raw % 100
+            if normalized == 0:
+                return 0
+
+            if 0 < normalized < len(chemical_symbols):
+                return normalized
+
+            return raw
+
+        atoms = []
+        for n, label in enumerate(labels):
+            normalized_label = normalize_label(label)
+            normalized_number = normalize_number(numbers[n], normalized_label)
+            if normalized_label is None and normalized_number is not None:
+                if 0 < normalized_number < len(chemical_symbols):
+                    normalized_label = chemical_symbols[normalized_number]
+            atoms.append(dict(label=normalized_label, number=normalized_number))
+
+        return atoms or None
 
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         xc_functionals = set()
@@ -136,8 +165,98 @@ class CrystalOutputParser(TextParser):
             output0.setdefault(
                 'forces', forces[:, 2:].astype(float) * ureg.hartree / ureg.bohr
             )
+        scf_steps = self.get_scf_steps(source)
+        if scf_steps:
+            output0.setdefault('scf_steps', scf_steps)
+        if not outputs and output0:
+            outputs.append(output0)
 
         return outputs
+
+    def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
+        scf_iterations = source.get('scf_block', {}).get('scf_iterations', [])
+        if not scf_iterations:
+            return {}
+
+        energies_total = []
+        delta_energies_total = []
+        charge_normalization_factor = []
+        for scf_step in scf_iterations:
+            energies = scf_step.get('energies')
+            if energies is not None and len(energies) > 0:
+                energies_total.append(energies[0])
+                if len(energies) > 1:
+                    delta_energies_total.append(abs(energies[1]))
+
+            charge_norm = scf_step.get('charge_normalization_factor')
+            if charge_norm is not None:
+                charge_normalization_factor.append(float(charge_norm))
+
+        if not energies_total:
+            return {}
+
+        scf_steps = {'energies_total': energies_total}
+        if delta_energies_total:
+            scf_steps['delta_energies_total'] = delta_energies_total
+
+        code_specific_quantities = {}
+        n_scf_steps = source.get('number_of_scf_iterations')
+        n_scf_steps_max = source.get('scf_max_iteration')
+        if n_scf_steps is not None:
+            code_specific_quantities['n_scf_steps'] = int(n_scf_steps)
+        if n_scf_steps_max is not None:
+            code_specific_quantities['n_scf_steps_max'] = int(n_scf_steps_max)
+        if len(charge_normalization_factor) == len(energies_total):
+            code_specific_quantities['charge_normalization_factor'] = (
+                charge_normalization_factor
+            )
+        if code_specific_quantities:
+            scf_steps['code_specific_quantities'] = code_specific_quantities
+        return scf_steps
+
+    def build_workflow(self, source: dict[str, Any]):
+        scf_threshold = source.get('scf_threshold_energy_change')
+        if source.get('geo_opt') is not None:
+            workflow = GeometryOptimization()
+            workflow.method = GeometryOptimizationMethod()
+
+            energy_change = source.get('energy_change')
+            if energy_change is not None:
+                workflow.method.convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=energy_change,
+                        threshold_type='absolute',
+                    )
+                ]
+
+            if scf_threshold is not None:
+                workflow.method.single_point_convergence_targets = [
+                    EnergyConvergenceTarget(
+                        threshold=scf_threshold,
+                        threshold_type='absolute',
+                    )
+                ]
+            return workflow
+
+        workflow = SinglePoint()
+        workflow.method = SinglePointMethod()
+        if scf_threshold is not None:
+            workflow.method.convergence_targets = [
+                EnergyConvergenceTarget(
+                    threshold=scf_threshold,
+                    threshold_type='absolute',
+                )
+            ]
+        return workflow
+
+    def get_periodic_boundary_conditions(
+        self, lattice_vectors: Any = None
+    ) -> list[bool] | None:
+        if lattice_vectors is None:
+            return None
+        dimensionality = int(self.data.get('dimensionality', 3) or 3)
+        dimensionality = max(0, min(3, dimensionality))
+        return [axis < dimensionality for axis in range(3)]
 
     def get_systems(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         initial = source.get('system_edited', source)
@@ -160,15 +279,8 @@ class CrystalOutputParser(TextParser):
             )
         return systems
 
-    def get_band_structures(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        pass
-
 
 class CrystalF25Parser(TextParser):
-    @property
-    def logger(self):
-        pass
-
     @staticmethod
     def to_array(cols: int, rows: int, values: str) -> np.ndarray:
         """Transforms the Crystal-specific f25 array syntax into a numpy array."""
@@ -182,7 +294,6 @@ class CrystalF25Parser(TextParser):
         first_row = source['first_row']
         cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
-        # fermi_energy = first_row[4]
         second_row = source['second_row']
         start_energy = second_row[1]
         dos_values = self.to_array(cols, rows, source['values']).T
@@ -194,11 +305,23 @@ class CrystalF25Parser(TextParser):
             for n in range(len(dos_values))
         ]
 
+    def get_band_structures(self, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        band_structures = []
+        for segment in source or []:
+            first_row = segment.get('first_row')
+            energies = segment.get('energies')
+            if first_row is None or energies is None:
+                continue
+
+            cols, rows = (int(first_row[n]) for n in range(2))
+            values = self.to_array(cols, rows, energies)
+            band_structures.append(dict(value=values[None, :]))
+
+        return band_structures
+
 
 class CrystalMetainfoParser(MetainfoParser):
-    @property
-    def logger(self):
-        pass
+    pass
 
 
 class CrystalArchiveWriter(ArchiveWriter):
@@ -207,9 +330,9 @@ class CrystalArchiveWriter(ArchiveWriter):
     archive_parser = CrystalMetainfoParser()
 
     def write_to_archive(self):
-        # reload schema to update annotations
-        reload(crystal)
-
+        self.output_parser.logger = self.logger
+        self.f25_parser.logger = self.logger
+        self.archive_parser.logger = self.logger
         # main output file
         self.archive_parser.annotation_key = crystal.OUT_KEY
         self.archive_parser.data_object = Simulation(program=Program(name='Crystal'))
@@ -218,6 +341,9 @@ class CrystalArchiveWriter(ArchiveWriter):
         self.output_parser.convert(self.archive_parser)
 
         self.archive.data = self.archive_parser.data_object
+        self.archive.workflow2 = self.output_parser.build_workflow(
+            self.output_parser.data
+        )
 
         f25_filepath = self.output_parser.data.get(
             'f25_filepath1', self.output_parser.data.get('f25_filepath2')

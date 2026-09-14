@@ -28,8 +28,12 @@ nav:
       - VASP:
           - About: parsers/vasp/vasp_about.md
 
-  - Explanation: explanation/explanation.md
-  - Reference: reference/references.md
+  - Explanation:
+      - Overview: explanation/explanation.md
+      - Exchange-correlation functionals: explanation/xc-functionals.md
+  - Reference:
+      - General: reference/references.md
+      - Parser file-mapping report: reference/parser_mapping_report.md
 plugins:
   - search
 theme:
@@ -71,5 +75,4 @@ extra_css:
   - stylesheets/extra.css
 extra_javascript:
   - javascript.js
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

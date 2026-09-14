@@ -1,6 +1,6 @@
 import numpy as np
 import panedr
-from nomad.parsing.file_parser import FileParser
+from nomad_file_parser import FileParser
 
 
 class GromacsEDRParser(FileParser):

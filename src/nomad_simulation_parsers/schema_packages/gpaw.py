@@ -10,7 +10,7 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-GPW_KEY = 'gpw'
+GPW_KEY = 'gpaw_gpw'
 
 
 class Program(general.Program):
@@ -40,23 +40,21 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.AtomsState.m_def, GPW_KEY, '.labels')
 
 
-class XCComponent(model_method.XCComponent):
-    add_mapping_annotation(model_method.XCComponent.canonical_label, GPW_KEY, '.@')
+class DFT(model_method.DFT):
+    # Materialize the `xc` subsection so its child `functional_key` mapper runs.
+    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
 
 
 class XCFunctional(model_method.XCFunctional):
+    # GPAW stores the standard functional name directly; the schema expands it
+    # into components (family/kind) and derives `jacobs_ladder`.
     add_mapping_annotation(
-        model_method.XCFunctional.components, GPW_KEY, '.xcfunctional'
+        model_method.XCFunctional.functional_key, GPW_KEY, '.xcfunctional'
     )
-
-
-class DFT(model_method.DFT):
-    add_mapping_annotation(model_method.DFT.xc, GPW_KEY, '.@')
 
 
 class TotalEnergy(outputs.TotalEnergy):
     add_mapping_annotation(outputs.TotalEnergy.value, GPW_KEY, '.total || .value')
-    add_mapping_annotation(outputs.TotalEnergy.name, GPW_KEY, '.name')
     add_mapping_annotation(outputs.TotalEnergy.contributions, GPW_KEY, '.contributions')
 
 
@@ -65,20 +63,53 @@ class TotalForce(outputs.TotalForce):
 
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
-    add_mapping_annotation(outputs.ElectronicEigenvalues.value, GPW_KEY, '.eigenvalues')
+    add_mapping_annotation(outputs.ElectronicEigenvalues.value, GPW_KEY, '.value')
     add_mapping_annotation(
-        outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupations'
+        outputs.ElectronicEigenvalues.occupation, GPW_KEY, '.occupation'
+    )
+    add_mapping_annotation(outputs.ElectronicEigenvalues.n_levels, GPW_KEY, '.n_levels')
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.highest_occupied,
+        GPW_KEY,
+        '.highest_occupied',
+    )
+
+
+class ElectronicBandStructure(outputs.ElectronicBandStructure):
+    add_mapping_annotation(outputs.ElectronicBandStructure.value, GPW_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.highest_occupied,
+        GPW_KEY,
+        '.highest_occupied',
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(outputs.ElectronicBandGap.value, GPW_KEY, '.value')
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, GPW_KEY, '.spin_channel'
     )
 
 
 class Outputs(outputs.Outputs):
-    add_mapping_annotation(
-        outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])
-    )
     add_mapping_annotation(outputs.Outputs.total_forces, GPW_KEY, ('get_forces', []))
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues, GPW_KEY, ('get_eigenvalues', [])
     )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_structures,
+        GPW_KEY,
+        ('get_band_structures', []),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        GPW_KEY,
+        ('get_band_gaps', []),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.total_energies, GPW_KEY, ('get_energies', [])
+    )
+    add_mapping_annotation(outputs.Outputs.scf_steps, GPW_KEY, ('get_scf_steps', []))
 
 
 class Simulation(general.Simulation):
@@ -86,6 +117,12 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.model_system, GPW_KEY, '.@')
     add_mapping_annotation(model_method.DFT.m_def, GPW_KEY, '.@')
     add_mapping_annotation(general.Simulation.outputs, GPW_KEY, '.@')
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, GPW_KEY, '.code_specific_quantities'
+    )
 
 
 add_mapping_annotation(general.Simulation.m_def, GPW_KEY, '.@')

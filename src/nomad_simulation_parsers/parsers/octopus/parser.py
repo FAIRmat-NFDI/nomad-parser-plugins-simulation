@@ -1,23 +1,22 @@
 import os
-from importlib import reload
 from typing import Any
 
 import numpy as np
 from ase.io import read
 from nomad.datamodel import EntryArchive
-from nomad.parsing.file_parser import ArchiveWriter
-from nomad.parsing.file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import (
+    calculate_band_gap_from_occupations,
+)
 from nomad_simulation_parsers.schema_packages import octopus
 
 from .file_parser import EigenvalueParser, InfoParser, InpParser, LogParser, OutParser
-
-LOGGER = get_logger(__name__)
 
 
 class OctopusMainfileParser(TextParser):
@@ -34,6 +33,7 @@ class OctopusMainfileParser(TextParser):
     # TODO resolve solely from the integer value
     _xc_functionals = {
         'Exchange': ('lda_x', 1),
+        'Slater exchange': ('lda_x', 1),
         'Wigner parametrization': ('lda_c_wigner', 2000),
         'Random Phase Approximation': ('lda_c_rpa', 3000),
         'Hedin & Lundqvist': ('lda_c_hl', 4000),
@@ -61,7 +61,7 @@ class OctopusMainfileParser(TextParser):
         'Lee and Parr Gaussian ansatz': ('lda_k_lp', 51),
         'Perdew, Burke & Ernzerhof exchange': ('gga_x_pbe', 101),
         'Perdew, Burke & Ernzerhof exchange (revised)': ('gga_x_pbe_r', 102),
-        'Becke 86 Xalfa,beta,gamma': ('gga_x_2d_b86', 128),
+        'Becke 86 Xalfa,beta,gamma': ('gga_x_b86', 103),
         'Herman et al original GGA': ('gga_x_herman', 104),
         'Becke 86 Xalfa,beta,gamma (with mod. grad. correction)': (
             'gga_x_b86_mgc',
@@ -210,11 +210,6 @@ class OctopusMainfileParser(TextParser):
     _info = None
     _initial_system = None
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def init_parser(self):
         self._info = None
         self._initial_system = None
@@ -287,37 +282,47 @@ class OctopusMainfileParser(TextParser):
         return xc_functionals
 
     @property
-    def initial_system(self) -> dict[str, Any]:
+    def initial_system(self) -> dict[str, Any]:  # noqa: PLR0912
         if self._initial_system is not None:
             return self._initial_system
 
         self._initial_system = {}
+        atoms = None  # Initialize atoms to None for all paths
         symbols, coordinates = self.log_parser.get_coordinates()
         if len(coordinates) == 0:
             # get if from inp
             symbols, coordinates = self.inp_parser.get_coordinates()
         if len(coordinates) == 0:
             # try to read from file
-            atoms = None
             file_types = {
-                'PDBCoordinates': 'proteindatabank',
-                'XYZCoordinates': 'xyz',
-                'XSFCoordinates': 'xsf',
+                'PDBCoordinates': ['proteindatabank'],
+                'XYZCoordinates': ['extxyz', 'xyz'],
+                'XSFCoordinates': ['xsf'],
             }
-            for ftype, fformat in file_types.items():
+            filenames = []
+            for ftype, fformats in file_types.items():
                 filename = self.info.get(ftype)
                 if filename is None:
                     continue
-                try:
-                    atoms = read(os.path.join(self.maindir, filename), format=fformat)
-                except Exception:
-                    self.logger.error(
-                        'Error reading coordinates file', data=dict(filename=filename)
-                    )
+                filenames.append(filename)
+                filepath = os.path.join(self._maindir, filename)
+                if not os.path.isfile(filepath):
+                    continue
+                for fformat in fformats:
+                    try:
+                        atoms = read(filepath, format=fformat)
+                    except Exception:
+                        continue
+                    if atoms is not None:
+                        break
                 if atoms is not None:
                     symbols = atoms.get_chemical_symbols()
                     coordinates = atoms.get_positions()
                     break
+            if atoms is None and filenames:
+                self.logger.error(
+                    'Error reading coordinates files', data=dict(filenames=filenames)
+                )
 
         if len(coordinates) == 0:
             self.logger.error('Error parsing atom positions and labels.')
@@ -327,6 +332,17 @@ class OctopusMainfileParser(TextParser):
         if cell is not None:
             npbc = self.data.get('grid', {}).get('npbc', 3)
             self._initial_system['pbc'] = [True for _ in range(npbc)]
+            self._initial_system['lattice_vectors'] = cell
+        elif atoms is not None:
+            ase_cell = atoms.get_cell()
+            if ase_cell is not None and np.asarray(ase_cell).size > 0:
+                self._initial_system['lattice_vectors'] = (
+                    np.asarray(ase_cell) * self._units_mapping['angstrom']
+                )
+            if atoms.pbc is not None:
+                self._initial_system['pbc'] = [
+                    bool(val) for val in np.asarray(atoms.pbc)
+                ]
 
         if self.info.get('ReducedCoordinates', None) is not None and cell is not None:
             coordinates = np.dot(coordinates, cell.magnitude)
@@ -343,20 +359,49 @@ class OctopusMainfileParser(TextParser):
         self._initial_system['labels'] = symbols
         return self._initial_system
 
-    def get_systems(self, minimization: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        systems = [self.initial_system]
+    def get_systems(
+        self, source: dict[str, Any] | list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
+        # Always include initial system, even for static calculations
+        initial = self.initial_system
+        if not initial:
+            return []
+
+        systems = [initial]
+
+        # Extract minimization data from source (dict or list)
+        minimization = None
+        if isinstance(source, dict):
+            minimization = source.get('minimization')
+        elif isinstance(source, list):
+            minimization = source
+
+        # Add geometry optimization steps if present
+        unreadable_paths = []
         for mini in minimization or []:
             number = mini.get('numbr')
             if number is None:
                 continue
             path = os.path.join(self._maindir, f'geom/go.{number:04d}.xyz')
-            atoms = read(path, format='xyz')
+            if not os.path.isfile(path):
+                unreadable_paths.append(path)
+                continue
+            try:
+                atoms = read(path, format='xyz')
+            except Exception:
+                unreadable_paths.append(path)
+                continue
             systems.append(
                 dict(
                     positions=atoms.get_positions() * ureg.angstrom,
                     labels=atoms.get_chemical_symbols(),
                     pbc=systems[0].get('pbc'),
                 )
+            )
+        if unreadable_paths:
+            self.logger.warning(
+                'Could not read geometry optimization steps',
+                data=dict(paths=unreadable_paths),
             )
         return systems
 
@@ -379,35 +424,62 @@ class OctopusMainfileParser(TextParser):
 
 
 class OctopusMetainfoParser(MetainfoParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class OctopusEigenvalueParser(TextParser):
     unit = ureg.hartree
 
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
-
     def get_eigenvalues(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        eigen_section = self.data.get('eigenvalues') if hasattr(self, 'data') else None
+        fermi = (
+            eigen_section.get('fermi_energy')
+            if isinstance(eigen_section, dict)
+            else None
+        )
+        reference_energy = fermi.to(self.unit) if fermi is not None else None
         kpts, eigs, occs = list(zip(*[e for e in source if e is not None]))
         eigs = np.transpose(eigs, axes=(2, 0, 1))
         occs = np.transpose(occs, axes=(2, 0, 1))
         return [
-            dict(eigenvalues=eig * self.unit, occupations=occs[n], kpoints=kpts)
+            dict(
+                eigenvalues=eig * self.unit,
+                occupations=occs[n],
+                kpoints=kpts,
+                highest_occupied=reference_energy,
+            )
             for n, eig in enumerate(eigs)
         ]
 
+    def get_band_structures(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        return [
+            dict(
+                value=eigenvalue_data['eigenvalues'],
+                highest_occupied=eigenvalue_data.get('highest_occupied'),
+            )
+            for eigenvalue_data in self.get_eigenvalues(source)
+            if eigenvalue_data.get('kpoints') is not None
+        ]
+
+    def get_band_gaps(self, source: list[np.ndarray]) -> list[dict[str, Any]]:
+        """Calculate band gaps from eigenvalues using common utility."""
+        band_gaps = []
+        for spin_channel, eigenvalue_data in enumerate(self.get_eigenvalues(source)):
+            energies = eigenvalue_data.get('eigenvalues')
+            occupations = eigenvalue_data.get('occupations')
+
+            # Use common utility for band gap calculation (handles units automatically)
+            gap_result = calculate_band_gap_from_occupations(
+                energies, occupations, spin_channel=spin_channel
+            )
+            if gap_result is not None:
+                band_gaps.append(gap_result)
+
+        return band_gaps
+
 
 class OctopusInfoParser(OctopusEigenvalueParser):
-    # TODO temporary fix for structlog unable to propagate logger
-    @property
-    def logger(self):
-        return LOGGER
+    pass
 
 
 class OctopusArchiveWriter(ArchiveWriter):
@@ -417,9 +489,10 @@ class OctopusArchiveWriter(ArchiveWriter):
     eigenvalues_parser = OctopusEigenvalueParser(text_parser=EigenvalueParser())
 
     def write_to_archive(self) -> None:
-        # Reload the octopus package to update the mapping annotations
-        reload(octopus)
-
+        self.mainfile_parser.logger = self.logger
+        self.archive_parser.logger = self.logger
+        self.info_parser.logger = self.logger
+        self.eigenvalues_parser.logger = self.logger
         self.mainfile_parser.filepath = self.mainfile
         # initialize auxiliary file parsers
         self.mainfile_parser.init_parser()
@@ -448,6 +521,11 @@ class OctopusArchiveWriter(ArchiveWriter):
         self.eigenvalues_parser.unit = energy_unit
         self.archive_parser.annotation_key = octopus.EIGENVALUES_KEY
         self.eigenvalues_parser.convert(self.archive_parser, update_mode='merge@-1')
+
+        self.eigenvalues_parser.close()
+        self.archive_parser.close()
+        self.mainfile_parser.close()
+        self.info_parser.close()
 
 
 class OctopusParser(MatchingParser):

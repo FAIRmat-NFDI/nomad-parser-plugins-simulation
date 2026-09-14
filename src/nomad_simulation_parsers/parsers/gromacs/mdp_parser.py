@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 from .common import to_float
 

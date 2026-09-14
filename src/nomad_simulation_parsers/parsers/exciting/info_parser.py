@@ -3,8 +3,8 @@ from typing import Any
 
 import numpy as np
 import pint
-from nomad.parsing.file_parser import Quantity, TextParser
 from nomad.units import ureg
+from nomad_file_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_SYMBOL = re.compile(r'([A-Z][a-z]?)')
@@ -171,11 +171,13 @@ class InfoFileParser(TextParser):
         }
 
         for name, key_unit in self._system_keys_mapping.items():
+            value_pattern = RE_FLOAT if key_unit[1] is not None else r'[\s\S]*?'
             initialization_quantities.append(
                 Quantity(
                     name,
-                    rf'{key_unit[0]}\s*:\s*([\s\S]*?)\n',
+                    rf'{key_unit[0]}\s*:\s*({value_pattern})\s*\n',
                     unit=key_unit[1],
+                    dtype=float if key_unit[1] is not None else None,
                     repeats=False,
                 )
             )
@@ -329,6 +331,7 @@ class InfoFileParser(TextParser):
 
         self._miscellaneous_keys_mapping = {
             'x_exciting_gap': (r'Estimated fundamental gap', ureg.hartree),
+            'x_exciting_fermi_energy': (r'Fermi energy', ureg.hartree),
             'time_physical': (r'Wall time \(seconds\)', ureg.s),
         }
 
@@ -353,7 +356,7 @@ class InfoFileParser(TextParser):
             ),
             'x_exciting_charge_convergence': (
                 r'Charge distance\s*\(target\)',
-                ureg.elementary_charge,
+                ureg.coulomb,
             ),
             'x_exciting_IBS_force_convergence': (
                 r'Abs\. change in max\-nonIBS\-force\s*\(target\)',
@@ -543,6 +546,13 @@ class InfoFileParser(TextParser):
                             dtype=float,
                             unit=ureg.hartree / ureg.bohr,
                         ),
+                        Quantity(
+                            'force_target',
+                            r'Maximum\sforce\smagnitude\s*\(target\)\s*:\s*[.\d]+\s*\(\s*([.\d]+)\)',
+                            repeats=False,
+                            dtype=float,
+                            unit=ureg.hartree / ureg.bohr,
+                        ),
                     ]
                 ),
                 repeats=False,
@@ -677,3 +687,8 @@ class InfoFileParser(TextParser):
 
     def get_initialization_parameter(self, key, default=None):
         return self.get('initialization', {}).get(key, default)
+
+    def has_geometry_optimization(self) -> bool:
+        if self.get('structure_optimization', None) is not None:
+            return True
+        return False

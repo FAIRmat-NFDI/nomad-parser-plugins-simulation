@@ -35,6 +35,13 @@ class Wannier90ParserEntryPoint(EntryPoint):
     )
 
 
+class FHIAimsParserEntryPoint(EntryPoint):
+    line_parsing: bool = Field(
+        False,
+        description='Parse FHI-aims output incrementally, one line at a time.',
+    )
+
+
 abinit_parser = EntryPoint(
     name='parsers/abinit',
     aliases=['parsers/abinit'],
@@ -82,7 +89,7 @@ exciting_parser = EntryPoint(
     code_homepage='http://exciting-code.org/',
 )
 
-fhiaims_parser = EntryPoint(
+fhiaims_parser = FHIAimsParserEntryPoint(
     name='parsers/fhiaims',
     aliases=['parsers/fhi-aims', 'parsers/fhiaims'],
     description='NOMAD parser for FHIAIMS.',
@@ -91,18 +98,6 @@ fhiaims_parser = EntryPoint(
     code_name='fhiaims',
     code_homepage='https://aimsclub.fhi-berlin.mpg.de/',
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
-)
-
-lammps_parser = EntryPoint(
-    name='parsers/lammps',
-    aliases=['parsers/lammps'],
-    description='NOMAD parser for LAMMPS.',
-    python_package='nomad_simulation_parsers',
-    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
-    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
-    code_name='LAMMPS',
-    code_homepage='https://lammps.sandia.gov/',
-    code_category='Atomistic code',
 )
 
 gpaw_parser = EntryPoint(
@@ -157,6 +152,32 @@ h5md_parser = EntryPoint(
     # },
 )
 
+lammps_parser = EntryPoint(
+    name='parsers/lammps',
+    aliases=['parsers/lammps'],
+    description='NOMAD parser for LAMMPS.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'^LAMMPS\s+\(.+\)',
+    parser_class_name='nomad_simulation_parsers.parsers.lammps.parser.LammpsParser',
+    code_name='LAMMPS',
+    code_homepage='https://lammps.sandia.gov/',
+    code_category='Atomistic code',
+)
+
+
+lobster_parser = EntryPoint(
+    name='parsers/lobster',
+    aliases=['parsers/lobster'],
+    description='NOMAD parser for LOBSTER.',
+    python_package='nomad_simulation_parsers',
+    parser_class_name='nomad_simulation_parsers.parsers.lobster.parser.LobsterParser',
+    code_name='Lobster',
+    code_homepage='http://schmeling.ac.rwth-aachen.de/cohp/',
+    mainfile_contents_re=r'^LOBSTER\s*v[\d\.]+.*',
+    mainfile_name_re='.*lobsterout.*',
+    supported_compressions=['gz', 'bz2', 'xz'],
+)
+
 octopus_parser = EntryPoint(
     name='parsers/octopus',
     aliases=['parsers/octopus'],
@@ -168,11 +189,23 @@ octopus_parser = EntryPoint(
     code_homepage='https://octopus-code.org/',
 )
 
+orca_parser = EntryPoint(
+    name='parsers/orca',
+    aliases=['parsers/orca'],
+    description='NOMAD parser for ORCA.',
+    parser_class_name='nomad_simulation_parsers.parsers.orca.parser.OrcaParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'\*+ *O +R +C +A *\*+',
+    code_name='ORCA',
+    code_homepage='https://www.faccts.de/orca/',
+    code_category='Atomistic code',
+)
+
 phonopy_parser = EntryPoint(
     name='parsers/phonopy',
     aliases=['parsers/phonopy'],
     description='NOMAD parser for PHONOPY.',
-    mainfile_name_re='.*/phon[^/]+yaml',
+    mainfile_name_re=r'.*/phon[^/]+yaml',
     parser_class_name='nomad_simulation_parsers.parsers.phonopy.parser.PhonopyParser',
     code_name='phonopy',
     python_package='nomad_simulation_parsers',
@@ -185,8 +218,12 @@ quantumespresso_parser = EntryPoint(
     description='NOMAD parser for QUANTUMESPRESSO.',
     python_package='nomad_simulation_parsers',
     mainfile_contents_re=(
-        r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)'
+        r'(Program [A-Z]+.*starts)|(Current dimensions of program [A-Z]+ are)|'
+        r'(^\s*<\?xml version="1\.0" encoding="UTF\-8"\?>\s*?\s*.+?quantum\-espresso)'
     ),
+    mainfile_mime_re='(application/.*)|(text/.*)',
+    mainfile_name_re=r'.*[^/]*\.out[^/]*',
+    mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
     parser_class_name='nomad_simulation_parsers.parsers.quantumespresso.parser.QuantumEspressoParser',
     code_name='QuantumESPRESSO',
@@ -206,7 +243,7 @@ vasp_parser = EntryPoint(
         r'^\svasp[\.\d]+.+?(?:\(build|complex)[\s\S]+?executed on'
     ),
     mainfile_mime_re='(application/.*)|(text/.*)',
-    mainfile_name_re='.*[^/]*xml[^/]*',
+    mainfile_name_re=r'.*[^/]*xml[^/]*',
     mainfile_alternative=True,
     supported_compressions=['gz', 'bz2', 'xz'],
 )
@@ -220,5 +257,17 @@ wannier90_parser = Wannier90ParserEntryPoint(
     mainfile_contents_re=r'\|\s*WANNIER90\s*\|',
     code_name='Wannier90',
     code_homepage='http://www.wannier.org/',
+    code_category='Atomistic code',
+)
+
+yambo_parser = EntryPoint(
+    name='parsers/yambo',
+    aliases=['parsers/yambo'],
+    description='NOMAD parser for YAMBO.',
+    parser_class_name='nomad_simulation_parsers.parsers.yambo.parser.YamboParser',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=r'Build[\s\S]+?http://www\.yambo-code\.org',
+    code_name='YAMBO',
+    code_homepage='http://www.yambo-code.org/',
     code_category='Atomistic code',
 )

@@ -1,5 +1,5 @@
 import numpy as np
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 
 class GromacsXvgParser(TextParser):

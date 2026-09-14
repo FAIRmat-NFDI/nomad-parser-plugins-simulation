@@ -1,7 +1,7 @@
 import re
 
 import numpy as np
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 RE_FLOAT = r'[-+]?\d+\.\d*(?:[Ee][-+]\d+)?'
 RE_N = r'[\n\r]'
@@ -331,7 +331,7 @@ general_quantities = [
     Quantity('mixing_scheme', r'number of iterations used\s*=\s*(\d+)\s*(.*)mixing'),
     Quantity(
         'xc_functional',
-        r'Exchange\-correlation\s*=\s*(.+)\s*(\([\d ]+\))',
+        r'Exchange\-correlation\s*=\s*(.+)',
         convert=False,
         flatten=False,
     ),
@@ -758,7 +758,7 @@ _exchange_map = [
             },
             {
                 'XC_functional_name': 'LDA_X',
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
                 'XC_functional_weight': 0.75,
             },
         ],
@@ -777,7 +777,7 @@ _exchange_map = [
             },
             {
                 'XC_functional_name': 'LDA_X',
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
                 'XC_functional_weight': 0.8,
             },
         ],
@@ -810,7 +810,7 @@ _exchange_map = [
             },
             {
                 'XC_functional_name': 'LDA_X',
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
                 'XC_functional_weight': 0.782,
             },
         ],
@@ -1145,14 +1145,14 @@ _exchange_gradient_correction_map = [
             {
                 'XC_functional_name': 'GGA_X_PBE',
                 'XC_functional_weight': 0.75,
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
             }
         ],
         'xc_terms_remove': [
             {
                 'XC_functional_name': 'LDA_X',
                 'XC_functional_weight': 0.75,
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
             }
         ],
         'xc_section_method': {
@@ -1173,7 +1173,7 @@ _exchange_gradient_correction_map = [
             {
                 'XC_functional_name': 'LDA_X',
                 'XC_functional_weight': 0.8,
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
             }
         ],
         'xc_section_method': {
@@ -1759,7 +1759,7 @@ _exchange_gradient_correction_map = [
             {
                 'XC_functional_name': 'LDA_X',
                 'XC_functional_weight': 0.75,
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
             }
         ],
         'xc_section_method': {
@@ -1780,7 +1780,7 @@ _exchange_gradient_correction_map = [
             {
                 'XC_functional_name': 'LDA_X',
                 'XC_functional_weight': 0.50,
-                'exx_compute_weight': lambda exx: (1.0 - exx),
+                'exx_compute_weight': lambda exx: 1.0 - exx,
             }
         ],
         'xc_section_method': {

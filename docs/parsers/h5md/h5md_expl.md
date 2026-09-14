@@ -122,9 +122,9 @@ depending on the dataset layout of `step`.
 
     <element>
      \-- step: Integer[]
-	     +-- (offset: type[])
+      +-- (offset: type[])
      \-- (time: type[])
-	     +-- (offset: type[])
+      +-- (offset: type[])
      \-- value: <type>[variable][...]
 
 `step`
@@ -132,7 +132,7 @@ depending on the dataset layout of `step`.
     time step between two successive rows of data in `value`.
 
     `offset`
-	: A scalar attribute of type `Integer` corresponding to the first sampled
+ : A scalar attribute of type `Integer` corresponding to the first sampled
     value of `step`.
 
 `time`
@@ -141,7 +141,7 @@ depending on the dataset layout of `step`.
     time, in physical units.
 
 `offset`
-	: A scalar attribute of the same type as `time` corresponding to the first
+ : A scalar attribute of the same type as `time` corresponding to the first
     sampled value of `time`.
 
 For this storage mode, the explicit value $s(i)$ of the step corresponding to
@@ -219,8 +219,6 @@ As an example, a time-dependent list of pairs is stored as:
 
 The dimension denoted by `N` may be variable.
 
-
-
 ## The root level
 
 The root level of H5MD-NOMAD structure is organized as follows (identical to the original H5MD specification):
@@ -251,8 +249,6 @@ The root level of H5MD-NOMAD structure is organized as follows (identical to the
 `parameters`
 :   An optional group that contains application-specific (meta)data such as
     control parameters or simulation scripts.
-
-
 
 ## The H5MD Group
 
@@ -324,7 +320,6 @@ As the *z* component has no impact on the content of an H5MD file, the
 :   An attribute, of fixed-length string datatype and of scalar
     dataspace, that yields the version of the program.
 
-
 #### Modules **(currently unused in H5MD-NOMAD)**
 
 The original H5MD specification allowed the definition of modules under the h5md group.
@@ -360,9 +355,6 @@ attribute, further module-specific information may be stored:
     stored, see `h5md/version` in "[H5MD metadata]."
 
 [semver]: http://semver.org/spec/v2.0.0.html -->
-
-
-
 
 ## The particles group
 
@@ -416,10 +408,11 @@ absolute position in space of an *arbitrary* periodic image of that particle. --
 :   An element that holds the mass for each particle as a scalar of `Float`
     type.
 
-- `image`
+* `image`
 :   <a id="image_anchor"></a>**(currently unused in H5MD-NOMAD)**
 
 # TODO can we make these admonitions indented somehow or more obviously connected with the members of this list?
+
 ??? details
 
     An element that represents periodic images of the box as coordinate vectors
@@ -498,7 +491,6 @@ attribute `type` may be omitted. -->
 
 **All non-standard elements within the particles group are currently ignored by the NOMAD H5MD parser.** In principle, one can store additional custom attributes as configuration-specific observables (see [The observables group](#the-observables-group)).
 
-
 ### The simulation box subgroup
 
 Information about the simulation box is stored in a subgroup named `box`, within the relevant particles group (`all` in our case).
@@ -563,9 +555,6 @@ appear as:
 where `dimension` is equal to `D`.
 
 <!-- TODO - double check that both shapes are supported in the parser! -->
-
-
-
 
 ## The observables group
 
@@ -756,9 +745,6 @@ The following observable types are supported:
 
 A list of standardized observables can be found in [Reference - H5MD-NOMAD > Standardized observables in H5MD-NOMAD](h5md_ref.md#standardized-observables-in-h5md-nomad).
 
-
-
-
 ## The connectivity group
 
 The initial H5MD proposed a simple and flexible schema for the storage of "connectivity" information, e.g., to be used in conjunction with a molecular mechanics force field.
@@ -837,12 +823,9 @@ The initial `particles_group` subgroup, directly under `connectivity`, is a cont
 * `custom_dataset`
 : arbitrary additional metadata for this particle group may be given.
 
-
 Each subgroup may also contain a (nested) `particles_group` subgroup, in order to subdivide the group of particles into an organizational hierarchy. As with the overall `particles_group` container, the groups contained within `particles_group` must not *partition* the particles within this group (i.e., overlapping or non-complete groupings are allowed). However, particle groups *must* contain particles already contained within the parent `particles_group` (i.e., subgroups must be a subset of the grouping at the previous level of the hierarchy).
 
 Note that typically the `particles_group` hierarchy ends at the level of individual particles (i.e., individual particles are not stored, since this information is already contained within the `particles` group).
-
-
 
 ## The parameters group
 
@@ -873,7 +856,6 @@ The subgroups `force_calculations` and `workflow` are supported. The following d
 1. Quantities with `type=MEnum()` are restricted to the provided allowed values.
 
 2. The unit given in the MetaInfo definition does not have to be used within the H5MD-NOMAD file, however, the dimensionality of the unit should match.
-
 
 ### Force calculations
 
@@ -943,7 +925,6 @@ In the following, we provide the NOMAD definitions for each of these quantities:
             [Mol. Phys. **26**, 789 (1973)](https://doi.org/10.1080/00268977300102101)|
             ''')
 
-
 * `coulomb_cutoff`
 :
 
@@ -979,7 +960,6 @@ Section containing the parameters for neighbor searching/lists during a molecula
             description='''
             The distance cutoff for determining the neighbor list.
             ''')
-
 
 ### The molecular dynamics workflow
 
@@ -1045,7 +1025,7 @@ In the following, we provide the NOMAD definitions for each of these quantities:
 :
         Quantity(
             type=MEnum(
-                'brownian', 'conjugant_gradient', 'langevin_goga',
+                'brownian', 'conjugate_gradient', 'langevin_goga',
                 'langevin_schneider', 'leap_frog', 'rRESPA_multitimescale', 'velocity_verlet'
             ),
             shape=[],
@@ -1313,8 +1293,6 @@ In the following, we provide the NOMAD definitions for each of these quantities:
             are incorporated into the coupling_constant, or simply that the software used uses a fixed value that is not available in
             the input/output files.
             ''')
-
-
 
 ## Units
 

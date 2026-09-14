@@ -4,6 +4,7 @@ from nomad_simulations.schema_packages import (
     model_method,
     model_system,
     outputs,
+    variables,
     workflow,
 )
 
@@ -11,8 +12,8 @@ from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotatio
 
 m_package = SchemaPackage()
 
-OUT_KEY = 'out'
-DOS_KEY = 'dos'
+OUT_KEY = 'abinit_out'
+DOS_KEY = 'abinit_dos'
 
 
 class GeometryOptimizationMethod(
@@ -22,18 +23,6 @@ class GeometryOptimizationMethod(
         workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
         OUT_KEY,
         ('get_workflow_method', []),
-    )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_energy_difference,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxde', n_dataset=1, default=0.0)),
-        unit='hartree',
-    )
-    add_mapping_annotation(
-        workflow.geometry_optimization.GeometryOptimizationMethod.convergence_tolerance_force_maximum,
-        OUT_KEY,
-        ('get_input_var', [], dict(name='tolmxf', n_dataset=1, default=0.0)),
-        unit='hartree/bohr',
     )
 
 
@@ -58,6 +47,11 @@ class Representation(model_system.Representation):
         'dataset[0].x_abinit_vprim',
         unit='bohr',
     )
+    add_mapping_annotation(
+        model_system.Representation.periodic_boundary_conditions,
+        OUT_KEY,
+        ('get_periodic_boundary_conditions', ['dataset[0].x_abinit_vprim']),
+    )
 
 
 class ModelSystem(model_system.ModelSystem):
@@ -76,6 +70,10 @@ class ModelSystem(model_system.ModelSystem):
 class XCComponent(model_method.XCComponent):
     add_mapping_annotation(
         model_method.XCComponent.canonical_label, OUT_KEY, '.XC_functional_name'
+    )
+    add_mapping_annotation(model_method.XCComponent.libxc_id, OUT_KEY, '.libxc_id')
+    add_mapping_annotation(
+        model_method.XCComponent.unidentified, OUT_KEY, '.unidentified'
     )
 
 
@@ -107,17 +105,42 @@ class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.value, OUT_KEY, '.value', unit='1 / hartree'
     )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value, DOS_KEY, '.value', unit='1 / hartree'
+    )
+
+
+class Energy2(variables.Energy2):
+    add_mapping_annotation(
+        variables.Energy2.points, DOS_KEY, '.energies', unit='hartree'
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotation(
         outputs.ElectronicBandStructure.value, OUT_KEY, '.energies', unit='hartree'
     )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.occupation, OUT_KEY, '.occupations'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandStructure.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
+
+class ElectronicBandGap(outputs.ElectronicBandGap):
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, OUT_KEY, '.value', unit='hartree'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
 
 
 class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
+    add_mapping_annotation(outputs.Outputs.scf_steps, OUT_KEY, '.scf_steps')
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, DOS_KEY, ('get_dos', ['.data'])
     )
@@ -125,6 +148,21 @@ class Outputs(outputs.Outputs):
         outputs.Outputs.electronic_band_structures,
         OUT_KEY,
         ('get_bandstructures', ['.eigenvalues', '.occupation_numbers']),
+    )
+    add_mapping_annotation(
+        outputs.Outputs.electronic_band_gaps,
+        OUT_KEY,
+        ('get_band_gaps', ['.eigenvalues', '.occupation_numbers']),
+    )
+
+
+class SCFSteps(outputs.SCFSteps):
+    add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+    add_mapping_annotation(
+        outputs.SCFSteps.delta_energies_total, OUT_KEY, '.delta_energies_total'
+    )
+    add_mapping_annotation(
+        outputs.SCFSteps.code_specific_quantities, OUT_KEY, '.code_specific_quantities'
     )
 
 
@@ -145,6 +183,7 @@ class Simulation(general.Simulation):
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '.@')
+add_mapping_annotation(variables.Energy2.m_def, DOS_KEY, '.@')
 
 
 try:

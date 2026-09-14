@@ -5,9 +5,9 @@ import numpy as np
 import phonopy
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
-from nomad.parsing.file_parser import ArchiveWriter
 from nomad.units import ureg
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_system import (
     AlternativeRepresentation,
@@ -15,10 +15,12 @@ from nomad_simulations.schema_packages.model_system import (
     ModelSystem,
 )
 from nomad_simulations.schema_packages.outputs import Outputs
-from phonopy.units import THzToEv
+from phonopy.physical_units import get_physical_units
 from structlog.stdlib import BoundLogger
 
 from .calculator import PhononProperties
+
+THzToEv = get_physical_units().THzToEv
 
 
 def get_bandstructures(properties: PhononProperties) -> list[dict[str, Any]]:
@@ -108,13 +110,13 @@ def phonopy_obj_to_archive(
     logger = logger if logger is not None else get_logger(__name__)
     archive = archive if archive is not None else EntryArchive()
 
-    unit_cell = phonopy_obj.unitcell.get_cell()
-    unit_pos = phonopy_obj.unitcell.get_positions()
-    unit_sym = phonopy_obj.unitcell.get_chemical_symbols()
+    unit_cell = phonopy_obj.unitcell.cell
+    unit_pos = phonopy_obj.unitcell.positions
+    unit_sym = phonopy_obj.unitcell.symbols
 
-    super_cell = phonopy_obj.supercell.get_cell()
-    super_pos = phonopy_obj.supercell.get_positions()
-    super_sym = phonopy_obj.supercell.get_chemical_symbols()
+    super_cell = phonopy_obj.supercell.cell
+    super_pos = phonopy_obj.supercell.positions
+    super_sym = phonopy_obj.supercell.symbols
 
     try:
         displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
@@ -137,7 +139,7 @@ def phonopy_obj_to_archive(
     data.model_system.append(sec_system)
 
     try:
-        force_constants = phonopy_obj.get_force_constants()
+        force_constants = phonopy_obj.force_constants
         force_constants = (
             (force_constants * ureg.eV / ureg.angstrom**2).to('J/(m**2)').magnitude
         )
@@ -166,11 +168,9 @@ def phonopy_obj_to_dict(
     for atoms in [phonopy_obj.unitcell, phonopy_obj.supercell]:
         system.append(
             dict(
-                positions=atoms.get_positions() * ureg.angstrom,
-                cell=atoms.get_cell() * ureg.angstrom,
-                particle_states=[
-                    dict(chemical_symbol=sym) for sym in atoms.get_chemical_symbols()
-                ],
+                positions=atoms.positions * ureg.angstrom,
+                cell=atoms.cell * ureg.angstrom,
+                particle_states=[dict(chemical_symbol=sym) for sym in atoms.symbols],
             )
         )
     if system:

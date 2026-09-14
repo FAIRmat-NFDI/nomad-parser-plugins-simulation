@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from nomad.parsing.file_parser.text_parser import Quantity, TextParser
+from nomad_file_parser.text_parser import Quantity, TextParser
 
 from .common import RE_N, to_float
 
@@ -115,7 +115,7 @@ class GromacsLogParser(TextParser):
             ),
             Quantity(
                 'step_info',
-                rf'{RE_N}\s*(Step.+\n[\d\.\- ]+)',
+                rf'{RE_N}\s*(Step\s+Time\s*\n[\d\.\- ]+)',
                 str_operation=str_to_step_info,
                 convert=False,
             ),
@@ -129,7 +129,8 @@ class GromacsLogParser(TextParser):
                 r'rank ID:\s*(\d+)\s*number of ranks:\s*(\d*)',
             ),
             Quantity(
-                'module_version', r'GROMACS:\s*(.+?),\s*VERSION\s*(\S+)', flatten=False
+                'version',
+                r'GROMACS(?:\s+version[:\s]+|:\s*.+?,\s*[Vv]ersion\s+)(\S+)',
             ),
             Quantity('execution_path', r'Executable:\s*(.+)'),
             Quantity('working_path', r'Data prefix:\s*(.+)'),
@@ -149,7 +150,7 @@ class GromacsLogParser(TextParser):
                 r'Input Parameters:\s*\n([\s\S]+?)\n\n',
                 str_operation=str_to_input_parameters,
             ),
-            Quantity('maximum_force', r'Norm of force\s*([\s\S]+?)\n\n', flatten=False),
+            Quantity('maximum_force', r'Maximum force\s*=\s*([\d.eE+\-]+)'),
             Quantity(
                 'step',
                 r'(Step\s*Time[\s\S]+?Energies[\s\S]+?\n\n)',

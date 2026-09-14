@@ -84,10 +84,22 @@ h5md_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.h5md',
 )
 
+lobster_schema_package = EntryPoint(
+    name='LobsterSchemaPackage',
+    description='Schema package for LOBSTER.',
+    module='nomad_simulation_parsers.schema_packages.lobster',
+)
+
 octopus_schema_package = EntryPoint(
     name='OctopusSchemaPackage',
     description='Schema package for Octopus.',
     module='nomad_simulation_parsers.schema_packages.octopus',
+)
+
+orca_schema_package = EntryPoint(
+    name='OrcaSchemaPackage',
+    description='Schema package for ORCA.',
+    module='nomad_simulation_parsers.schema_packages.orca',
 )
 
 phonopy_schema_package = EntryPoint(
@@ -112,4 +124,10 @@ wannier90_schema_package = EntryPoint(
     name='Wannier90SchemaPackage',
     description='Schema package for Wannier90.',
     module='nomad_simulation_parsers.schema_packages.wannier90',
+)
+
+yambo_schema_package = EntryPoint(
+    name='YamboSchemaPackage',
+    description='Schema package for Yambo.',
+    module='nomad_simulation_parsers.schema_packages.yambo',
 )
