@@ -1,6 +1,12 @@
 ## Fundamentals
 
-### Different test types serve different purposes and catch different categories of bugs
+> This document is conceptual background: why the different kinds of parser test exist and what each is good at. The concrete, NOMAD-specific protocol that puts these ideas into practice — layer layout, fixtures, markers, and CI stages — lives in [`how_to/test_parsers.md`](how_to/test_parsers.md). Prefer that document when actually writing tests; this one explains the reasoning behind it.
+
+Tests vary along several independent dimensions. This document develops one of them in depth — the **scope** of code each test exercises, running from a single function up to the complete parser pipeline. This axis is the most immediately useful to us today: we currently write almost exclusively unit tests, so laying out the full scope ladder makes the missing higher tiers explicit and helps surface parser behaviour that is currently going untested. The protocol refines the generic unit/integration/E2E pyramid into five parser-specific layers — recognition, source extraction, mapping contract, parser integration, and NOMAD-pipeline compatibility — so that a failure points at the specific contract that broke.
+
+Scope is not the only axis. A second is how inputs are chosen: the examples below are all *example-based* (hand-picked inputs with known outputs). Asserting invariants over inputs rather than fixed cases is already part of the protocol as *metamorphic* tests (for example, changing whitespace or the source unit rescales the result predictably); generalising these with *property-based* testing (e.g. Hypothesis, over generated inputs) is a natural next step. Treat the scope ladder below as one well-developed dimension of the strategy, not the whole of it.
+
+### Scope: different test types serve different purposes and catch different categories of bugs
 
 1. **Unit Tests** catch logic errors early and cheaply  
 2. **Integration Tests** catch interface mismatches and coordination issues  
@@ -40,33 +46,18 @@ Definition: A **unit test** verifies a single function, method, or class in isol
 * Use **mocks/stubs** instead of actual dependencies  
 * Should be **60-90% of the test suite**
 
-**Example:** Testing a pattern extraction function
+**Example:** Testing a value-parsing function we own
 
 ````python
-def test_pattern_extraction_from_text():
-    """Test regex pattern matching for key-value extraction"""
-    pattern = r"(\\w\+)\\s\*\=\\s\*([-\\d.]\+)"
-    test_line = "temperature = 300.5"
-    match = re.match(pattern, test_line)
+def test_parse_key_value_line():
+    """The parser splits a raw output line into a key and a typed value."""
+    key, value = parse_key_value("total energy = -1.5")
 
-    assert match.group(1) == "temperature"
-    assert float(match.group(2)) == 300.5
+    assert key == "total energy"
+    assert value == -1.5  # coerced to float, not left as the string "-1.5"
 ````
 
-**Example:** Testing unit conversion logic  
-
-````python
-def test_value_conversion_with_units():
-    """Test that numerical values are correctly converted with unit objects"""
-    converter = UnitConverter()
-    converter.set_unit_system("metric")
-
-    raw_value = 100.0
-    converted = converter.apply_unit(raw_value, "length")
-
-    assert converted.magnitude == 100.0
-    assert converted.units == ureg.meter
-````
+The assertions target the behaviour our own function implements: extracting the key and coercing the value to a float. They deliberately avoid re-asserting properties that belong to a library — for example that a `pint` quantity carries `ureg.meter`, or that `re.match` splits a string. Asserting a framework's own guarantees tests the framework, not our code; it is a common anti-pattern, listed at the end of this document.
 
 ### Integration Tests
 
@@ -472,6 +463,8 @@ markers = [
 ]
 ````
 
+The marker names above are illustrative. This repository's protocol defines a fixed set — `unit`, `integration`, `pipeline`, and `large_fixture` — mapped to the CI stages described in [`how_to/test_parsers.md`](how_to/test_parsers.md). Use those, not the generic names shown here.
+
 #### Execution strategies
 
 ````bash
@@ -810,4 +803,18 @@ def test_new_feature_x():
    def test_output_field1_value():
       result = process()
       assert result.field1 == expected_value1
+````
+
+5. **Testing the framework instead of your code**
+
+````python
+   # BAD: asserts a guarantee owned by the library, not our logic
+   def test_unit_conversion():
+      q = 100.0 * ureg.meter
+      assert q.units == ureg.meter  # this is pint's behaviour, not ours
+
+   # GOOD: asserts what our code computes from a raw input
+   def test_energy_is_parsed_as_float():
+      key, value = parse_key_value("total energy = -1.5")
+      assert value == -1.5
 ````
