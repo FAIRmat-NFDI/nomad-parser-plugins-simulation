@@ -9,7 +9,7 @@ from nomad_simulations.schema_packages import (
     outputs,
     workflow,
 )
-from nomad_simulations.schema_packages.properties import molecular_orbitals
+from nomad_simulations.schema_packages.properties import TotalEnergy, molecular_orbitals
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
@@ -90,9 +90,6 @@ add_mapping_annotation(
     GEOM_OPT_KEY,
     '.steps',
 )
-add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.energies, GEOM_OPT_KEY, '.energies',)
-add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.steps, GEOM_OPT_KEY, '.steps',)
-add_mapping_annotation( workflow.geometry_optimization.GeometryOptimizationResults.final_energy_difference, GEOM_OPT_KEY, '.final_energy_difference',)
 
 ############# DFT ###################
 
@@ -340,9 +337,15 @@ add_mapping_annotation(
     basis_set.BasisSetContainer.native_tier, OUT_KEY, '.main_basis_set'
 )
 
+# outputs
 
 add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@']))
+
 add_mapping_annotation(outputs.Outputs.model_system_ref, OUT_KEY, '.model_system_ref')
+
+add_mapping_annotation(TotalEnergy.m_def, OUT_KEY, '.total_energy')
+add_mapping_annotation(TotalEnergy.m_def.all_quantities['value'], OUT_KEY, '.value')
+
 add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.m_def,
     OUT_KEY,
