@@ -245,17 +245,13 @@ class OutParser(MappingTextParser):
         return (*coordinates, charge_mult) if (coordinates or charge_mult) else []
 
     def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
-        if not self._is_geometry_optimization:
-            single_point = self._navigate(source, 'single_point')
-            system = self._get_system(single_point)
-            return [system] if system else []
-        else:
-            geometry_optimization = self._navigate(source, 'geometry_optimization')
-            final = self._navigate(geometry_optimization, 'final_energy_evaluation')
-            cycles = geometry_optimization.get('cycle', [])
-            if len(cycles)==0:
-                return []
-            return [system if (system:=self._get_system(cycle)) else ([], None, {}) for cycle in cycles + [final]]
+        points = self._get_single_points(source)
+        if not any(points):
+            return []
+        return [
+            system if (system:=self._get_system(point)) else ([], None, {})
+            for point in points
+        ]
 
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
         systems = self._get_systems(src)
@@ -769,36 +765,42 @@ class OutParser(MappingTextParser):
 
         return [molecular_orbitals]  # TODO:xe why is this a list?
 
-    def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
 
-        if not self._is_geometry_optimization:
-            single_point = self._navigate(src, 'single_point')
-            molecular_orbitals = [self.get_molecular_orbitals(single_point, src)]
-
-        else:
-            # TODO:xe will this work?
+    def _get_single_points(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        if self._is_geometry_optimization:
             geometry_optimization = self._navigate(src, 'geometry_optimization')
             cycles = geometry_optimization.get('cycle', [])
             final = self._navigate(geometry_optimization, 'final_energy_evaluation')
-            molecular_orbitals = [self.get_molecular_orbitals(cycle, src) for cycle in cycles+[final]]
+            return cycles + [final]
+        else:
+            single_point = self._navigate(src, 'single_point')
+            return [single_point]
 
-        if not any(molecular_orbitals):
+    def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        points = self._get_single_points(src)
+        energies = [point.get('energy_total') if point else None for point in points]
+        molecular_orbitals = [self.get_molecular_orbitals(point, src) if point else [] for point in points]
+        if not any(molecular_orbitals) and not any(energies):
             return []
         return [
             {
                 'model_system_ref': f'/data/model_system/{i}',
                 'molecular_orbitals': molecular_orbitals_i,
+                'total_energy': [{'value': energy}] if energy is not None else [],
             }
-            for i, molecular_orbitals_i in enumerate(molecular_orbitals)
+            for i, (energy, molecular_orbitals_i) in enumerate(zip(energies, molecular_orbitals, strict=True))
         ]
 
     @property
     def _is_geometry_optimization(self) -> bool:
         if self._geometry_optimization is None:
-            self._geometry_optimization = (self.text_parser.geometry_optimization is not None)
+            geometry_optimization = self.text_parser.geometry_optimization
+            self._geometry_optimization = geometry_optimization is not None
         return self._geometry_optimization
 
-    def get_geometry_optimization_method(self, source: dict[str, Any]) -> dict[str, Any]:
+    def get_geometry_optimization_method(
+        self, source: dict[str, Any]
+    ) -> dict[str, Any]:
         geometry_optimization = self._navigate(source, 'geometry_optimization')
         update_method = geometry_optimization.get('update_method')
         result = {'optimization_type': 'atomic', 'sampling_frequency': 1}
@@ -808,20 +810,15 @@ class OutParser(MappingTextParser):
             result['optimization_method'] = update_method
         return result
 
-    def get_geometry_optimization_results(self, source: dict[str, Any]) -> dict[str, Any]:
-        geometry_optimization = self._navigate(source, 'geometry_optimization')
-        cycles = geometry_optimization.get('cycle', []) + [geometry_optimization.get('final_energy_evaluation')]
-        energies = [cycle.get('energy_total') if cycle else None for cycle in cycles]
-        n_steps = len(cycles)
-        result = {
-            'n_steps': n_steps,
-            'is_converged': geometry_optimization.get('is_converged') is not None,
-            'energies': energies,
+    def get_geometry_optimization_results(
+            self, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        n_steps = len(self._get_single_points(source))
+        converged = self._navigate(source, 'geometry_optimization').get('is_converged')
+        return {
+            'is_converged': converged is not None,
             'steps': list(range(n_steps)),
         }
-        if energies and len(energies) > 1:
-            result['final_energy_difference'] = energies[-1] - energies[-2]
-        return result
 
     def build_workflow(
         self,
