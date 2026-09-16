@@ -279,7 +279,6 @@ class YamboSpectraParser(MappingParser):  # EM
     #start HB
     def get_spectra(self) -> dict[str, Any]:
 		self.spectra_parser.mainfile = self.filepath #HB Aug 3rd 2026
-    	self.spectra_parser.filepath = self.filepath #HB Aug 3rd 2026
         data = []
         names = []
 
