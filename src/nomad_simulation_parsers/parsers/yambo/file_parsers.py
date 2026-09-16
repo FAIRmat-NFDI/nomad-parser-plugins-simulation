@@ -7,8 +7,30 @@ from nomad.units import ureg
 RE_FLOAT = r'[-+]*\d*\.\d+[Ee]*[-+]*\d*'
 
 
-class SpectraParser(DataTextParser):
-    pass
+class SpectraParser(DataTextParser):  # EM: moved sp_type here (from MainfileParser),  Jul 1st, 2026
+    def init_quantities(self) -> None:
+        self._quantities = [        
+            Quantity(
+                'sp_type',
+                r'(EELS|Polarizability|Absorption)',
+                repeats=False,
+            ),
+            #HB, Aug 3rd, 2026
+            Quantity(
+                'n_energies',
+                r'(?:BEnSteps|ETStpsXd)\s*=\s*(\d+)',
+                dtype=np.int32,
+            ),
+           # end HB
+            # EM, Jul 23rd, 2026
+          #  Quantity(
+           #     'n_energies',
+            #    r'BEnSteps=|ETStpsXd=|\s+(\d+)',
+             #   dtype=np.int32,
+            # ),
+            # end EM
+        ]    
+#    pass
 
 
 class InputParser(TextParser):
@@ -475,11 +497,11 @@ class MainfileParser(TextParser):
                     ]
                 ),
             ),
-            Quantity(
-                'sp_type',
-                r'(EELS|Polarizability|Absorption)',
-                repeats=False,
-            ),
+#            Quantity(
+#                'sp_type',
+#                r'(EELS|Polarizability|Absorption)',
+#                repeats=False,
+#            ),
             Quantity(
                 'transferred_momenta',
                 r'Transferred momenta grid([\s\S]+?)\n *\[\d+\]',
