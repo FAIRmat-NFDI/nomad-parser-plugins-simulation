@@ -73,6 +73,9 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
         GPW_KEY,
         '.highest_occupied',
     )
+    add_mapping_annotation(
+        outputs.ElectronicEigenvalues.spin_channel, GPW_KEY, '.spin_channel'
+    )
 
 
 class ElectronicBandStructure(outputs.ElectronicBandStructure):

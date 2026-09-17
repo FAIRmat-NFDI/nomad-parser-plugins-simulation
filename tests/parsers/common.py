@@ -66,8 +66,9 @@ class _SimulationParserSuite:
     expected_program_name: str
 
     @pytest.fixture(scope='class')
-    def archive(self, request) -> EntryArchive:
-        return request.getfixturevalue(self.archive_fixture)
+    @classmethod
+    def archive(cls, request) -> EntryArchive:
+        return request.getfixturevalue(cls.archive_fixture)
 
 
 class SimulationParserTestSuite(_SimulationParserSuite):
