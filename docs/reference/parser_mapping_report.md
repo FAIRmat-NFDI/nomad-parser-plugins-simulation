@@ -3310,7 +3310,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `calculation.convergence` | Mapped | `calculation` |
 | `calculation.time` | Mapped | `calculation` |
 | `header` | Mapped | `header` |
-| `parameters` | Mapped | `parameters`<br>`parameters.EDIFF` |
+| `parameters` | Mapped | `parameters` |
 | `ions_per_type` | Unmapped | — |
 | `species` | Unmapped | — |
 | `kpoints` | Unmapped | — |
