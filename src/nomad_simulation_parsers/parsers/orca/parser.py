@@ -763,7 +763,7 @@ class OutParser(MappingTextParser):
         if coefficients is not None:
             molecular_orbitals['coefficients'] = coefficients
 
-        return [molecular_orbitals]  # TODO:xe why is this a list?
+        return [molecular_orbitals]
 
 
     def _get_single_points(self, src: dict[str, Any]) -> list[dict[str, Any]]:
@@ -779,7 +779,9 @@ class OutParser(MappingTextParser):
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
         points = self._get_single_points(src)
         energies = [point.get('energy_total') if point else None for point in points]
-        molecular_orbitals = [self.get_molecular_orbitals(point, src) if point else [] for point in points]
+        molecular_orbitals = [
+                self.get_molecular_orbitals(point, src) if point else []
+            for point in points]
         if not any(molecular_orbitals) and not any(energies):
             return []
         return [
@@ -788,7 +790,9 @@ class OutParser(MappingTextParser):
                 'molecular_orbitals': molecular_orbitals_i,
                 'total_energy': [{'value': energy}] if energy is not None else [],
             }
-            for i, (energy, molecular_orbitals_i) in enumerate(zip(energies, molecular_orbitals, strict=True))
+            for i, (energy, molecular_orbitals_i) in enumerate(
+                zip(energies, molecular_orbitals, strict=True)
+            )
         ]
 
     @property
