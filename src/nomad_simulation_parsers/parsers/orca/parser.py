@@ -17,7 +17,11 @@ from nomad_simulations.schema_packages.model_method import (
     OrbitalLocalization,
     PerturbationMethod,
 )
-from nomad_simulations.schema_packages.workflow.general import SerialWorkflow
+from nomad_simulations.schema_packages.workflow import (
+    GeometryOptimization,
+    SerialWorkflow,
+    SimulationWorkflow,
+)
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -191,6 +195,7 @@ class OutParser(MappingTextParser):
             logger=logger or get_logger(__name__), text_parser=OutReader(), **kwargs
         )
         self._method = None
+        self._geometry_optimization: bool | None = None
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
@@ -217,13 +222,12 @@ class OutParser(MappingTextParser):
         return value
 
     def _get_cartesian_system(self, source: dict[str, Any]) -> tuple[list[str], Any]:
-        single_point = self._navigate(source, 'single_point')
-        coordinates = single_point.get('cartesian_coordinates', [])
-        return str_to_cartesian_coordinates(coordinates) if coordinates else ([], None)
+        coordinates = source.get('cartesian_coordinates', [])
+        return str_to_cartesian_coordinates(coordinates) if coordinates else []
 
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
-            source, 'single_point', 'self_consistent', 'scf_settings'
+            source, 'self_consistent', 'scf_settings'
         )
         result = {}
         total_charge = self._to_scalar(scf_settings.get('total_charge'))
@@ -234,21 +238,46 @@ class OutParser(MappingTextParser):
             result['total_spin_multiplicity'] = int(multiplicity)
         return result
 
+    def _get_system(self, src):
+        coordinates = self._get_cartesian_system(src)
+        charge_mult = self._get_charge_and_multiplicity(src)
+        # TODO:xe empty in GO for Orca 6, filled for Orca 4
+        return (*coordinates, charge_mult) if (coordinates or charge_mult) else []
+
+    def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
+        points = self._get_single_points(source)
+        if not any(points):
+            return []
+        return [
+            system if (system:=self._get_system(point)) else ([], None, {})
+            for point in points
+        ]
+
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        symbols, positions = self._get_cartesian_system(src)
-        if not symbols:
+        systems = self._get_systems(src)
+
+        if not systems:
             return []
 
-        return [
+        atoms = [
             {
-                'is_representative': True,
+                'is_representative': False,
                 'positions': positions,
                 'particle_states': [
                     {'chemical_symbol': symbol} for symbol in symbols
                 ],
-                **self._get_charge_and_multiplicity(src),
+                **spin_mult,
             }
+            for symbols, positions, spin_mult in systems
         ]
+
+        # set the last valid structure representative, otherwise 1st
+        for i in range(len(atoms)-1, -1, -1):
+            if atoms[i]['positions'] is not None or i==0:
+                atoms[i]['is_representative'] = True
+                break
+
+        return atoms
 
     @staticmethod
     def _normalize_localization_method(value: Any) -> str | None:
@@ -690,8 +719,10 @@ class OutParser(MappingTextParser):
 
         return components
 
-    def get_molecular_orbitals(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        self_consistent = self._navigate(src, 'single_point', 'self_consistent')
+    def get_molecular_orbitals(
+        self, single_point, src: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        self_consistent = self._navigate(single_point, 'self_consistent')
         basis_set_total = self._parser_results(src.get('basis_set_total'))
 
         orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
@@ -734,21 +765,80 @@ class OutParser(MappingTextParser):
 
         return [molecular_orbitals]
 
-    def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        molecular_orbitals = self.get_molecular_orbitals(src)
-        if not molecular_orbitals:
-            return []
 
+    def _get_single_points(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        if self._is_geometry_optimization:
+            geometry_optimization = self._navigate(src, 'geometry_optimization')
+            cycles = geometry_optimization.get('cycle', [])
+            final = self._navigate(geometry_optimization, 'final_energy_evaluation')
+            return cycles + [final]
+        else:
+            single_point = self._navigate(src, 'single_point')
+            return [single_point]
+
+    def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        points = self._get_single_points(src)
+        energies = [point.get('energy_total') if point else None for point in points]
+        molecular_orbitals = [
+                self.get_molecular_orbitals(point, src) if point else []
+            for point in points]
+        if not any(molecular_orbitals) and not any(energies):
+            return []
         return [
             {
-                'model_system_ref': '/data/model_system/0',
-                'molecular_orbitals': molecular_orbitals,
+                'model_system_ref': f'/data/model_system/{i}',
+                'molecular_orbitals': molecular_orbitals_i,
+                'total_energy': [{'value': energy}] if energy is not None else [],
             }
+            for i, (energy, molecular_orbitals_i) in enumerate(
+                zip(energies, molecular_orbitals, strict=True)
+            )
         ]
 
+    @property
+    def _is_geometry_optimization(self) -> bool:
+        if self._geometry_optimization is None:
+            geometry_optimization = self.text_parser.geometry_optimization
+            self._geometry_optimization = geometry_optimization is not None
+        return self._geometry_optimization
+
+    def get_geometry_optimization_method(
+        self, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        update_method = geometry_optimization.get('update_method')
+        result = {'optimization_type': 'atomic', 'sampling_frequency': 1}
+        if isinstance(update_method, (list, tuple)) and len(update_method) > 1:
+            result['optimization_method'] = update_method[1]
+        elif isinstance(update_method, str):
+            result['optimization_method'] = update_method
+        return result
+
+    def get_geometry_optimization_results(
+            self, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        n_steps = len(self._get_single_points(source))
+        converged = self._navigate(source, 'geometry_optimization').get('is_converged')
+        return {
+            'is_converged': converged is not None,
+            'steps': list(range(n_steps)),
+        }
+
     def build_workflow(
-        self, archive: 'EntryArchive', logger: 'BoundLogger'
-    ) -> SerialWorkflow | None:
+        self,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        metainfo_parser: MetainfoParser,
+    ) -> SimulationWorkflow | None:
+
+        if self._is_geometry_optimization:
+            archive.workflow2 = GeometryOptimization()
+            metainfo_parser.data_object = archive.workflow2
+            metainfo_parser.annotation_key = orca.GEOM_OPT_KEY
+            self.convert(metainfo_parser)
+            archive.workflow2.normalize(archive, logger)
+            return archive.workflow2
+
         simulation = archive.data
         methods = simulation.model_method or []
         if not any(isinstance(method, HF) for method in methods) or not any(
@@ -790,7 +880,7 @@ class OrcaArchiveWriter(ArchiveWriter):
 
         try:
             reader.convert(metainfo_parser)
-            reader.build_workflow(self.archive, self.logger)
+            reader.build_workflow(self.archive, self.logger, metainfo_parser)
         finally:
             metainfo_parser.close()
             reader.close()
