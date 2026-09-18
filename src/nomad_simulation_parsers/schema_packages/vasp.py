@@ -126,9 +126,6 @@ class DFT(model_method.DFT):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
-    # `SelfConsistency` is deprecated (nomad-simulations#488). The SCF energy
-    # threshold (EDIFF) is written as an `EnergyConvergenceTarget` on the workflow
-    # method instead; see `build_workflow` in the OUTCAR/XML parsers.
 
 
 class KSpace(numerical_settings.KSpace):
