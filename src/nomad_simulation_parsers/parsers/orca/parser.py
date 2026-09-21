@@ -784,16 +784,27 @@ class OutParser(MappingTextParser):
         molecular_orbitals = [
                 self.get_molecular_orbitals(point, src) if point else []
             for point in points]
-        if not any(molecular_orbitals) and not any(energies):
+
+        scf_steps = [
+            self._navigate(
+                    point,
+                    'self_consistent',
+                    'scf_iterations'
+                    ).get('energy', [])
+            for point in points]
+
+        if not any(molecular_orbitals) and not any(energies) and not any(scf_steps):
             return []
+
         return [
             {
                 'model_system_ref': f'/data/model_system/{i}',
                 'molecular_orbitals': molecular_orbitals_i,
                 'total_energy': [{'value': energy}] if energy is not None else [],
+                'scf_steps': {'energies_total': scf_steps_i},
             }
-            for i, (energy, molecular_orbitals_i) in enumerate(
-                zip(energies, molecular_orbitals, strict=True)
+            for i, (energy, molecular_orbitals_i, scf_steps_i) in enumerate(
+                zip(energies, molecular_orbitals, scf_steps, strict=True)
             )
         ]
 

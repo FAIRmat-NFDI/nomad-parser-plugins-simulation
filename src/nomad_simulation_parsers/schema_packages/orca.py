@@ -353,6 +353,9 @@ add_mapping_annotation(general.Simulation.outputs, OUT_KEY, ('get_outputs', ['.@
 
 add_mapping_annotation(outputs.Outputs.model_system_ref, OUT_KEY, '.model_system_ref')
 
+add_mapping_annotation(outputs.SCFSteps.m_def, OUT_KEY, '.scf_steps')
+add_mapping_annotation(outputs.SCFSteps.energies_total, OUT_KEY, '.energies_total')
+
 add_mapping_annotation(TotalEnergy.m_def, OUT_KEY, '.total_energy')
 add_mapping_annotation(TotalEnergy.m_def.all_quantities['value'], OUT_KEY, '.value')
 
