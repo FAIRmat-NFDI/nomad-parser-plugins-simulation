@@ -1303,18 +1303,35 @@ class OutReader(TextParser):
             ),
         ]
 
+        calculation_quantities += [  # for geometry optimization
+            Quantity(
+                f'{key.lower().replace(" ", "_")}',
+                rf'{key}\s+({re_float})\s+{re_float}\s+(?:YES|NO)',
+                dtype=float,
+                unit=unit,
+            )
+            for key, unit in [
+                ('Energy change', 'hartree'),
+                ('RMS gradient', 'hartree/bohr'),
+                ('MAX gradient', 'hartree/bohr'),
+                ('RMS step', 'bohr'),
+                ('MAX step', 'bohr'),
+            ]
+        ]
+
         geometry_optimization_quantities = [
             Quantity(
                 f'{key.lower().replace(" ", "_").replace(".", "")}_tol',
                 rf'{key}\s*(\w+)\s*\.+\s*({re_float})',
                 dtype=float,
+                unit=unit,
             )
-            for key in [
-                'Energy Change',
-                'Max. Gradient',
-                'RMS Gradient',
-                'Max. Displacement',
-                'RMS Displacement',
+            for key, unit in [
+                ('Energy Change', 'hartree'),
+                ('Max. Gradient', 'hartree/bohr'),
+                ('RMS Gradient', 'hartree/bohr'),
+                ('Max. Displacement', 'bohr'),
+                ('RMS Displacement', 'bohr'),
             ]
         ]
 

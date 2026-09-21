@@ -22,6 +22,7 @@ from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
     SimulationWorkflow,
 )
+from nomad_simulations.schema_packages.workflow.general import ForceConvergenceTarget
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -321,7 +322,8 @@ class OutParser(MappingTextParser):
         }.get(reference.upper())
 
     def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
-        return self._navigate(source, 'single_point', 'self_consistent', 'scf_settings')
+        points = self._get_single_points(source)
+        return self._navigate(points[0], 'self_consistent', 'scf_settings')
 
     def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = {}
@@ -817,12 +819,32 @@ class OutParser(MappingTextParser):
     def get_geometry_optimization_results(
             self, source: dict[str, Any]
     ) -> dict[str, Any]:
-        n_steps = len(self._get_single_points(source))
-        converged = self._navigate(source, 'geometry_optimization').get('is_converged')
+        points = self._get_single_points(source)
+        n_steps = len(points)
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        converged = geometry_optimization.get('is_converged')
+        last_cycle = geometry_optimization.get('cycle', [{}])[-1]
         return {
             'is_converged': converged is not None,
             'steps': list(range(n_steps)),
+            'final_force_maximum': last_cycle.get('max_gradient'),
+            'final_displacement_maximum': last_cycle.get('max_step'),
         }
+
+    def _get_geometry_convergence_targets(self):
+        geometry_optimization = self.text_parser.geometry_optimization
+        threshold = geometry_optimization.get('max_gradient_tol')
+        if threshold is None:
+            return None
+        return [
+            ForceConvergenceTarget(
+                threshold=threshold[1],
+                threshold_type='maximum'
+            )
+            # The normalizer checks against this.
+            # We do not add `rms_gradient_tol` since the check will be wrong:
+            # it will try to take RMS of `final_force_maximum` and complain.
+        ]
 
     def build_workflow(
         self,
@@ -836,6 +858,8 @@ class OutParser(MappingTextParser):
             metainfo_parser.data_object = archive.workflow2
             metainfo_parser.annotation_key = orca.GEOM_OPT_KEY
             self.convert(metainfo_parser)
+            convergence_targets = self._get_geometry_convergence_targets()
+            archive.workflow2.method.convergence_targets = convergence_targets
             archive.workflow2.normalize(archive, logger)
             return archive.workflow2
 
