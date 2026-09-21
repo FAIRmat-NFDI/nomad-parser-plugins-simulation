@@ -90,6 +90,16 @@ add_mapping_annotation(
     GEOM_OPT_KEY,
     '.steps',
 )
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.final_force_maximum,
+    GEOM_OPT_KEY,
+    '.final_force_maximum',
+)
+add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.final_displacement_maximum,
+    GEOM_OPT_KEY,
+    '.final_displacement_maximum',
+)
 
 ############# DFT ###################
 
