@@ -476,6 +476,7 @@ class QuantumEspressoParser(MatchingParser):
     """
 
     _supported_exts = ['out', 'log', 'xml']
+    _supported_programs = {'pwscf', 'phonon', 'epw', 'xspectra', 'gipaw'}
 
     def is_mainfile(
         self,
@@ -493,6 +494,8 @@ class QuantumEspressoParser(MatchingParser):
             programs = get_program_types(filename, multiple=True)
             if not programs:
                 return True
+            if programs[0].lower() not in self._supported_programs:
+                return False
             if 'pwscf' in programs[0].lower():
                 # search all qe mainfiles in the directory and sub directories
                 qe_files = []
