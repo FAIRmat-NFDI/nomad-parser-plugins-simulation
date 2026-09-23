@@ -10,7 +10,7 @@ from nomad.units import ureg
 from nomad_file_parser import ArchiveWriter, Quantity, TextParser
 from nomad_file_parser.mapping_parser import MetainfoParser, Path
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -266,7 +266,7 @@ class OutcarTextParser(TextParser):
             ),
             Quantity(
                 'header',
-                r'vasp\.([\d\.]+)\s*(\w+)\s*[\s\S]+?\)\s*(\w+)\s*'
+                r'vasp\.([\d\.]+)\s*(\w+)\s*[\s\S]+?\)\s*([\w-]+)\s*'
                 r'executed on\s*(\w+)\s*date\s*([\d\.]+)\s*([\d\:]+)\s*(\w+)',
                 repeats=False,
                 str_operation=str_to_header,
@@ -337,6 +337,29 @@ class OutcarTextParser(TextParser):
 
 
 class OutcarParser(MappingTextParser):
+    def get_k_mesh(self, source: np.ndarray | None) -> dict[str, Any]:
+        if source is None:
+            header = self.data.get('header')
+            if header is not None and 'gamma' in header.get('subversion', ''):
+                return {
+                    'points': [[0.0, 0.0, 0.0]],
+                    'multiplicities': [1],
+                    'weights': [1.0],
+                }
+            return {}
+
+        if not isinstance(source, np.ndarray):
+            return {}
+
+        if source.ndim == 1:
+            source = np.expand_dims(source, axis=0)
+        k_mults = source[:, 3]
+        return {
+            'points': source[:, 0:3],
+            'multiplicities': k_mults,
+            'weights': k_mults / np.sum(k_mults),
+        }
+
     def get_version(self, source: dict[str, Any]) -> str:
         return ' '.join(
             [
@@ -555,7 +578,7 @@ class OutcarArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
         # set up archive parser
         archive_data_parser = VASPMetainfoParser(logger=self.logger)
-        archive_data = Simulation()
+        archive_data = Simulation(program=Program(name='vasp'))
 
         # assign simulation section to archive data
         self.archive.data = archive_data
