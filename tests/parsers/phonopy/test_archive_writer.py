@@ -81,16 +81,16 @@ def test_cp2k_fixture_band_segments_for_archive_writer(cp2k_phonopy_object):
     properties = PhononProperties(cp2k_phonopy_object, get_logger(__name__), k_mesh=2)
     frequencies, bands, labels = properties.get_bandstructure()
 
+    # The cell is only approximately hexagonal: at the structure's own symmetry
+    # tolerance (1e-5) spglib finds P1, so SeeKpath returns the triclinic path.
     assert labels.tolist() == [
-        ['Γ', 'M'],
-        ['M', 'K'],
-        ['K', 'Γ'],
-        ['Γ', 'A'],
-        ['A', 'L'],
-        ['L', 'H'],
-        ['H', 'A'],
-        ['L', 'M'],
-        ['K', 'H'],
+        ['Γ', 'X'],
+        ['Y', 'Γ'],
+        ['Γ', 'Z'],
+        ['R_2', 'Γ'],
+        ['Γ', 'T_2'],
+        ['U_2', 'Γ'],
+        ['Γ', 'V_2'],
     ]
-    assert frequencies.shape == (9, 100, 54)
-    assert bands.shape == (9, 100, 3)
+    assert frequencies.shape == (7, 100, 54)
+    assert bands.shape == (7, 100, 3)
