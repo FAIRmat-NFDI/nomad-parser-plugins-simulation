@@ -126,36 +126,10 @@ class DFT(model_method.DFT):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.m_def,
-        XML_KEY,
-        'modeling.parameters.separator[?"@name"==\'electronic\'] | [0]',
-    )
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.m_def, OUTCAR_KEY, 'parameters'
-    )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
-
-
-class SelfConsistency(numerical_settings.SelfConsistency):
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.threshold_change,
-        XML_KEY,
-        (
-            'modeling.parameters.separator[?"@name"==\'electronic\'] '
-            '| [0].i[?"@name"==\'EDIFF\'] | [0].__value'
-        ),
-        unit='eV',
-    )
-    add_mapping_annotation(
-        numerical_settings.SelfConsistency.threshold_change,
-        OUTCAR_KEY,
-        'parameters.EDIFF',
-        unit='eV',
-    )
 
 
 class KMesh(numerical_settings.KMesh):
