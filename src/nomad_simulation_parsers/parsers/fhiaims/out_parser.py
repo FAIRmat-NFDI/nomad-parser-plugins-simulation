@@ -1094,7 +1094,7 @@ class FHIAimsOutFileParserLine(TextParser):
                 r'\s+\| Atomic structure\:',
                 r'\s*\|\s*Atom\s*x \[A\]\s*y \[A\]\s*z \[A\]',
                 r'\s*\|\s*\d+\: Species [A-Z][a-z]*.+',
-                r'\s*\|',
+                rf'\s*\|\s*{RE_N}',
             ],
             repeats=False,
             convert=False,
