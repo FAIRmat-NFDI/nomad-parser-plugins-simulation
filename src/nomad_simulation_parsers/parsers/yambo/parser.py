@@ -15,7 +15,7 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
 )
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.schema_packages import yambo
@@ -47,7 +47,7 @@ class YamboNetCDFParser(MappingParser):
         positions = self.data.get('ATOM_POS', [])
         max_n_atoms = self.data.get('MAX_ATOMS', [0])[0]
         n_atoms = self.data.get('N_ATOMS', [])
-        if not max_n_atoms or not n_atoms or len(positions) == 0:
+        if not max_n_atoms or len(n_atoms) == 0 or len(positions) == 0:
             return None
         # We split the positions array into blocks, each corresponding
         # to a chemical species, we extract the first n_atoms only
@@ -76,7 +76,7 @@ class YamboNetCDFParser(MappingParser):
     def get_labels(self) -> list[str]:
         n_atoms = self.data.get('N_ATOMS', [])
         atomic_numbers = self.data.get('atomic_numbers', [])
-        if not n_atoms or not atomic_numbers:
+        if len(n_atoms) == 0 or len(atomic_numbers) == 0:
             return []
         atom_numbers = np.hstack(
             [
@@ -164,6 +164,8 @@ class YamboNetCDFParser(MappingParser):
 
 class YamboMainfileParser(TextParser):
     def get_wallstart(self, parsed: str) -> float:
+        if parsed is None:
+            return None
         return datetime.strptime(parsed, '%d/%m/%Y %H:%M').timestamp()
 
     def get_outputs(
@@ -182,16 +184,23 @@ class YamboMainfileParser(TextParser):
                 valence_conduction is not None
                 and len(valence_conduction) >= required_levels
             ):
-                return float(valence_conduction[0]) * ureg.eV
+                value = valence_conduction[0]
+                return value if hasattr(value, 'units') else float(value) * ureg.eV
 
             valence = source.get('valence')
             if valence is not None:
-                return float(valence) * ureg.eV
+                return (
+                    valence
+                    if hasattr(valence, 'units')
+                    else float(valence) * ureg.eV
+                )
 
             return None
 
         for key, val in energies_occupations.items():
             if key == 'eigenenergies':
+                if val is None:
+                    continue
                 kpoints = val.get('kpoints')
                 energies = val.get('energies')
                 if kpoints is None or energies is None:
@@ -284,6 +293,7 @@ class YamboMainfileParser(TextParser):
         required_levels = 2
         if (
             valence_conduction is not None
+            and not hasattr(valence_conduction, 'units')
             and len(valence_conduction) >= required_levels
         ):
             valence, conduction = valence_conduction[0], valence_conduction[1]
@@ -303,7 +313,7 @@ class YamboMainfileParser(TextParser):
 
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
-        data = Simulation()
+        data = Simulation(program=Program(name='YAMBO'))
 
         self.archive.data = data
 
