@@ -12,7 +12,7 @@ from nomad.units import ureg
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_file_parser.text_parser import DataTextParser
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
@@ -34,9 +34,15 @@ class Wannier90MetainfoParser(MetainfoParser):
 class WHrTextParser(TextParser):
     def get_hoppings(self, source: dict[str, Any], **kwargs) -> dict[str, Any]:
         degeneracy_factors = source.get('degeneracy_factors')[2:]
-        full_hoppings = source.get('hoppings', [])
+        full_hoppings = np.asarray(source.get('hoppings', []), dtype=float)
         n_wigner_seitz_points = source.get('degeneracy_factors')[1]
         n_orbitals = source.get('n_orbitals')
+
+        expected_size = n_wigner_seitz_points * n_orbitals * n_orbitals * 7
+        if full_hoppings.size > expected_size:
+            # The first seven-number line can be part of the degeneracy block
+            # when the two blocks share a line-oriented text parser.
+            full_hoppings = full_hoppings.reshape(-1)[-expected_size:]
 
         hops = np.reshape(
             full_hoppings,
@@ -237,7 +243,7 @@ class WInTextParser(TextParser):
         return -ll + position
 
     def get_projections(self, source: list[Any]) -> list[dict[str, Any]]:
-        return [dict(projection=val) for val in source]
+        return [dict(projection=val) for val in (source or [])]
 
     def get_branch_label_indices(
         self,
@@ -324,7 +330,7 @@ class WInTextParser(TextParser):
         states = []
 
         # Try parsing l-based format: l=2,mr=1
-        orbitals = re.findall(r'l=(\d+)(?:,mr=(\d+)=)?', orbital)
+        orbitals = re.findall(r'l=(\d+)(?:,mr=(\d+))?', orbital)
         for orb in orbitals:
             nl = int(orb[0])
             state = {'spin_orbit_state': {'l_quantum_number': nl}}
@@ -496,11 +502,13 @@ class WannierArchiveWriter(ArchiveWriter):
         self.wout_parser.filepath = self.mainfile
 
         # construct metainfo parser
-        data = Simulation()
+        data = Simulation(program=Program(name='Wannier90'))
         self.data_parser = Wannier90MetainfoParser(logger=self.logger)
         self.data_parser.annotation_key = wannier90.WOUT_KEY
         self.data_parser.data_object = data
         self.archive.data = data
+        # The .wout mapping supplies the version, but the source format does
+        # not contain a separate metainfo field for the program name.
         self.reference_energy = None
 
         self.wout_parser.convert(self.data_parser)

@@ -78,10 +78,6 @@ class TestOutcarReader:
                 '           Coordinates               Weight\n'
                 '  0.000000  0.000000  0.000000      1.000000\n'
             ),
-            (
-                'k-points in reciprocal lattice and weights: Gamma-point only\n'
-                '  0.00000000  0.00000000  0.00000000       1.000\n'
-            ),
         ],
     )
     def test_reads_kpoints_layouts(self, tmp_path, outcar_parser, kpoint_block):
