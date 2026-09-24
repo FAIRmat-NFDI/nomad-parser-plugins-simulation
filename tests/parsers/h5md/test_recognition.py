@@ -14,9 +14,12 @@ class TestH5MDRecognition:
         parser = h5md_parser.load()
         with mainfile.open('rb') as stream:
             contents = stream.read()
-        assert parser.is_mainfile(
-            str(mainfile), 'application/x-hdf', contents, contents.decode('latin1')
-        ) is True
+        assert (
+            parser.is_mainfile(
+                str(mainfile), 'application/x-hdf', contents, contents.decode('latin1')
+            )
+            is True
+        )
 
     @pytest.mark.parametrize('name', ['trajectory.txt', 'trajectory.h5.bak'])
     def test_rejects_non_h5md_filename(self, tmp_path, name):

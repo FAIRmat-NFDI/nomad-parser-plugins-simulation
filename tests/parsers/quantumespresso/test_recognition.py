@@ -11,9 +11,10 @@ class TestQuantumEspressoRecognition:
         mainfile.write_text(contents)
         parser = quantumespresso_parser.load()
 
-        assert parser.is_mainfile(
-            str(mainfile), 'text/plain', contents.encode(), contents
-        ) is True
+        assert (
+            parser.is_mainfile(str(mainfile), 'text/plain', contents.encode(), contents)
+            is True
+        )
 
     @pytest.mark.parametrize('compression', ['gz', 'bz2', 'xz'])
     def test_recognizes_supported_compressions(self, tmp_path, compression):
@@ -22,13 +23,16 @@ class TestQuantumEspressoRecognition:
         mainfile.write_text(contents)
         parser = quantumespresso_parser.load()
 
-        assert parser.is_mainfile(
-            str(mainfile),
-            'text/plain',
-            contents.encode(),
-            contents,
-            compression=compression,
-        ) is True
+        assert (
+            parser.is_mainfile(
+                str(mainfile),
+                'text/plain',
+                contents.encode(),
+                contents,
+                compression=compression,
+            )
+            is True
+        )
 
     def test_rejects_unsupported_compression(self, tmp_path):
         contents = 'Program PWSCF v.7.3 starts\n'
@@ -62,7 +66,7 @@ class TestQuantumEspressoRecognition:
         contents = 'Program PWSCF v.7.3 starts\n'
         mainfile = tmp_path / 'pw.out'
         mainfile.write_text(contents)
-        (tmp_path / 'pw.in').write_text('&CONTROL\n calculation = \'scf\'\n')
+        (tmp_path / 'pw.in').write_text("&CONTROL\n calculation = 'scf'\n")
         save_dir = tmp_path / 'pw.save'
         save_dir.mkdir()
         (save_dir / 'data-file-schema.xml').write_text(
@@ -80,10 +84,7 @@ class TestQuantumEspressoRecognition:
         assert parser.creates_children is True
 
     def test_creates_children_for_multiple_programs_in_one_file(self, tmp_path):
-        contents = (
-            'Program PWSCF v.7.3 starts\n'
-            'Program PHONON v.7.3 starts\n'
-        )
+        contents = 'Program PWSCF v.7.3 starts\nProgram PHONON v.7.3 starts\n'
         mainfile = tmp_path / 'combined.out'
         mainfile.write_text(contents)
         parser = quantumespresso_parser.load()

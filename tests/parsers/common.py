@@ -42,6 +42,7 @@ def assert_identity_populated_once(
         f'expected the topology frame {topology_index}'
     )
 
+
 def approx(expected, **kwargs):
     """Shared wrapper for pytest's approximate-value matcher."""
     if 'atol' in kwargs:

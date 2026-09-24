@@ -54,9 +54,9 @@ class TestOutReader:
 @pytest.mark.unit
 class TestRKFReader:
     def test_extracts_adf_single_point_results(self):
-        source = read_rkf_source(
-            DATA_DIR / 'adf_SP' / 'adf_SP.results' / 'ams.rkf'
-        )['single_point']
+        source = read_rkf_source(DATA_DIR / 'adf_SP' / 'adf_SP.results' / 'ams.rkf')[
+            'single_point'
+        ]
 
         assert source['program_version'] == '98925 2021-11-25'
         assert source['program_x_ams_name'] == 'ADF'

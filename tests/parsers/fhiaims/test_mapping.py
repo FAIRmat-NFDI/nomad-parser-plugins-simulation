@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from nomad.units import ureg
 
-from tests.parsers.common import approx
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsOutMappingParser
+from tests.parsers.common import approx
 
 
 @pytest.mark.unit
@@ -55,9 +55,7 @@ class TestFHIAimsMapping:
     def test_maps_unique_kpoints_from_spin_resolved_eigenvalues(self):
         parser = FHIAimsOutMappingParser()
         source = {
-            'array_size_parameters': {
-                'parameter': [{'Number of spin channels': 2}]
-            },
+            'array_size_parameters': {'parameter': [{'Number of spin channels': 2}]},
             'geometry_optimization': [
                 {
                     'eigenvalues': [
@@ -80,9 +78,7 @@ class TestFHIAimsMapping:
             ],
         }
 
-        np.testing.assert_allclose(
-            parser.get_kpoints(source), [[0, 0, 0], [0, 0, 0.5]]
-        )
+        np.testing.assert_allclose(parser.get_kpoints(source), [[0, 0, 0], [0, 0, 0.5]])
 
     def test_maps_band_gap_from_eigenvalues_and_occupations(self):
         parser = FHIAimsOutMappingParser()

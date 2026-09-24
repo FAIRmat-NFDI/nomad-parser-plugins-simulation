@@ -21,9 +21,7 @@ class TestOctopusMainfileMapping:
     def test_maps_outputs_to_energy_values(self):
         parser = OctopusMainfileParser()
         parser._info = {'energyunit': 'hartree'}
-        outputs = parser.get_outputs(
-            [{'energy': -1.5}, {'energy_total': -1.25}]
-        )
+        outputs = parser.get_outputs([{'energy': -1.5}, {'energy_total': -1.25}])
 
         assert [value['energy'] for value in outputs] == [
             -1.5 * ureg.hartree,

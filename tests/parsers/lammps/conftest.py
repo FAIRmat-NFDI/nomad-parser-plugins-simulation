@@ -58,6 +58,4 @@ def methane_xyz_archive() -> EntryArchive:
 
 @pytest.fixture(scope='class')
 def polymer_melt_minimization_archive() -> EntryArchive:
-    return parse_lammps(
-        DATA_DIR / 'polymer_melt' / 'Emin' / 'log.step4.0_minimization'
-    )
+    return parse_lammps(DATA_DIR / 'polymer_melt' / 'Emin' / 'log.step4.0_minimization')

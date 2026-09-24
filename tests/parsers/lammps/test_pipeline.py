@@ -34,12 +34,10 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert systems[0].particle_states[100].chemical_symbol == 'H'
         assert systems[0].particle_states[100].label == 'H'
         assert_identity_populated_once(normalized)
-        assert systems[2].positions[567][1].to('angstrom').magnitude == approx(
-            -5.88475
+        assert systems[2].positions[567][1].to('angstrom').magnitude == approx(-5.88475)
+        assert systems[3].lattice_vectors[2][2].to('angstrom').magnitude == approx(
+            21.468
         )
-        assert systems[3].lattice_vectors[2][2].to(
-            'angstrom'
-        ).magnitude == approx(21.468)
         assert systems[3].periodic_boundary_conditions == [True, True, True]
         assert_approx(systems[0].bond_list[200], np.array([189, 192]))
         assert systems[0].dimensionality == 3
@@ -75,6 +73,6 @@ class TestLammpsXyzPipeline(SimulationParserPipelineTestSuite):
         systems = normalized.data.model_system
 
         assert np.shape(systems[0].velocities) == (500, 3)
-        assert systems[100].velocities[250][2].to(
-            'angstrom/ps'
-        ).magnitude == approx(0.0256726)
+        assert systems[100].velocities[250][2].to('angstrom/ps').magnitude == approx(
+            0.0256726
+        )

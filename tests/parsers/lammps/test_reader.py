@@ -33,21 +33,18 @@ class TestLogParser:
 
     def test_maps_sampling_and_thermostat_settings(self, parser):
         parser._results = {
-                'units': ['real'],
-                'fix': [['1', 'all', 'nvt', 'temp', '300', '300', '100']],
-            }
-        
+            'units': ['real'],
+            'fix': [['1', 'all', 'nvt', 'temp', '300', '300', '100']],
+        }
 
         assert parser.get_sampling_method() == ('molecular_dynamics', 'nvt')
         settings = parser.get_thermostat_settings()
         assert settings['target_T'].to('K').magnitude == approx(300)
         assert settings['thermostat_tau'].to('fs').magnitude == approx(100)
 
-
     def test_reads_workflow(self, parser):
         parser.mainfile = (
-            'tests/data/lammps/hexane_cyclohexane/'
-            'log.hexane_cyclohexane_nvt'
+            'tests/data/lammps/hexane_cyclohexane/log.hexane_cyclohexane_nvt'
         )
         parser.parse('units')
         parser.parse('fix')
@@ -76,9 +73,7 @@ class TestLogParser:
 
         assert len(thermo_data['Step']) == 201
         assert thermo_data['Temp'][103].to('K').magnitude == approx(291.4591)
-        assert thermo_data['Press'][56].to('Pa').magnitude == approx(
-            -77642135.4975
-        )
+        assert thermo_data['Press'][56].to('Pa').magnitude == approx(-77642135.4975)
         assert thermo_data['TotEng'][21].to('J').magnitude == approx(
             8.866891968814006e-18
         )
@@ -109,17 +104,13 @@ class TestLogParser:
         thermo_data = parser.get_thermodynamic_data()
 
         assert thermo_data['Step'] == [0, 10]
-        assert_approx(
-            thermo_data['Temp'].to('K').magnitude, [300.0, 310.0]
-        )
+        assert_approx(thermo_data['Temp'].to('K').magnitude, [300.0, 310.0])
         assert_approx(
             thermo_data['TotEng'].to('J').magnitude,
             [-3.47384767e-20, -2.77907814e-20],
             rtol=1e-7,
         )
-        assert_approx(
-            thermo_data['Press'].to('atm').magnitude, [1.0, 2.0]
-        )
+        assert_approx(thermo_data['Press'].to('atm').magnitude, [1.0, 2.0])
 
     @pytest.mark.parametrize(
         ('mainfile', 'traj_files', 'expected_match'),
@@ -252,9 +243,7 @@ class TestLogParser:
         ('read_data', 'expected_files'),
         [([], []), (['structure.data'], ['structure.data'])],
     )
-    def test_get_data_files(
-        self, parser, tmp_dir, read_data, expected_files
-    ):
+    def test_get_data_files(self, parser, tmp_dir, read_data, expected_files):
         mainfile = os.path.join(tmp_dir, 'log.test')
         open(mainfile, 'w').close()
         for filename in read_data:
@@ -272,8 +261,7 @@ class TestLogParser:
         ('content', 'pattern', 'expected', 'binary'),
         [
             (
-                'LAMMPS data file via write_data, version 12 Dec 2018\n'
-                '\n1000 atoms\n',
+                'LAMMPS data file via write_data, version 12 Dec 2018\n\n1000 atoms\n',
                 'LAMMPS data file',
                 True,
                 False,
@@ -357,10 +345,9 @@ class TestLogParser:
 
     def test_extracts_interaction_styles_and_coefficients(self, parser):
         parser._results = {
-                'pair_style': [['lj/cut', '2.5']],
-                'pair_coeff': [[1, 1, 1.0, 1.0, 2.5]],
-            }
-        
+            'pair_style': [['lj/cut', '2.5']],
+            'pair_coeff': [[1, 1, 1.0, 1.0, 2.5]],
+        }
 
         assert parser.get_interactions() == [('lj/cut 2.5', [[1, 1, 1.0, 1.0, 2.5]])]
 
@@ -401,9 +388,7 @@ class TestDataParser:
 
         assert parser.get('atoms') == [2]
         assert parser.get('bonds') == [1]
-        assert_approx(
-            parser.get('Masses')[0][1], [[1, 12.011], [2, 1.008]]
-        )
+        assert_approx(parser.get('Masses')[0][1], [[1, 12.011], [2, 1.008]])
         assert parser.get('Atoms')[0][0] == 'full'
         assert_approx(parser.get('Bonds')[0][1], [[1, 1, 1, 2]])
         assert_approx(parser.get_interactions()[0][1], [[1, 300.0, 1.0]])
@@ -432,9 +417,7 @@ class TestTrajParser:
         assert parser.get_step(0) == 0
         assert parser.get_n_atoms(0) == 2
         assert_approx(parser.get_positions(0), [[1, 2, 3], [2, 3, 4]])
-        assert_approx(
-            parser.get_velocities(0), [[0.1, 0.2, 0.3], [0.2, 0.3, 0.4]]
-        )
+        assert_approx(parser.get_velocities(0), [[0.1, 0.2, 0.3], [0.2, 0.3, 0.4]])
         assert_approx(parser.get_forces(0), [[1, 2, 3], [2, 3, 4]])
         assert_approx(parser.get_lattice_vectors(0), np.diag([10, 20, 30]))
         assert parser.get_pbc(0) == [True, True, True]
@@ -659,7 +642,6 @@ class TestTrajParser:
         assert velocities[457][-2] == approx(-0.928553)
 
 
-
 @pytest.mark.unit
 class TestXYZTrajParser:
     def test_traj_xyz(self):
@@ -790,5 +772,3 @@ ITEM: BOX BOUNDS pp pp pp
 
         assert parsers.eval('n_frames') == 2
         assert parser.get_positions(1)[2][1] == approx(-0.845205)
-
-

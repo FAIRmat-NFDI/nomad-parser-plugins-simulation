@@ -76,7 +76,6 @@ class TestAbinitReader:
             [[-1.0, 1.0e-2], [-1.1, 1.0e-3]],
         )
 
-
     def test_compression_does_not_change_extracted_values(self, tmp_path):
         plain = tmp_path / 'minimal.out'
         compressed = tmp_path / 'minimal.out.gz'
@@ -92,11 +91,8 @@ class TestAbinitReader:
             compressed_source['dataset'][0]['self_consistent'][
                 'energy_total_scf_iteration'
             ],
-            plain_source['dataset'][0]['self_consistent'][
-                'energy_total_scf_iteration'
-            ],
+            plain_source['dataset'][0]['self_consistent']['energy_total_scf_iteration'],
         )
-
 
     def test_truncated_output_is_returned_as_partial_source(self, tmp_path):
         mainfile = tmp_path / 'truncated.out'
@@ -106,7 +102,6 @@ class TestAbinitReader:
 
         assert source['program_version'] == '9.10.4'
         assert source.get('dataset') is None
-
 
     def test_extracts_eigenvalues_and_occupations_from_results_block(self, tmp_path):
         mainfile = tmp_path / 'bands.out'
@@ -131,7 +126,6 @@ class TestAbinitReader:
         )
         np.testing.assert_allclose(results['occupation_numbers'], [[2.0, 0.0]])
 
-
     def test_extracts_numeric_dos_table(self, tmp_path):
         dos_file = tmp_path / 'calculation_o_DS2_DOS'
         dos_file.write_text(
@@ -143,7 +137,6 @@ class TestAbinitReader:
         np.testing.assert_allclose(
             parser.data['data'], [[-1.0, 10.0, 0.0], [0.0, 20.0, 1.0]]
         )
-
 
     def test_extracts_runtime_and_results(self, tmp_path):
         mainfile = tmp_path / 'minimal-results.out'

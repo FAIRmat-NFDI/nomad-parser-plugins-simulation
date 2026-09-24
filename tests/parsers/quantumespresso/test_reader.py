@@ -5,6 +5,9 @@ import pytest
 from nomad_simulation_parsers.parsers.quantumespresso.epw.file_parser import (
     EPWFileParser,
 )
+from nomad_simulation_parsers.parsers.quantumespresso.file_parser import (
+    QuantumEspressoFileParser,
+)
 from nomad_simulation_parsers.parsers.quantumespresso.gipaw.file_parser import (
     GIPAWFileParser,
 )
@@ -17,12 +20,7 @@ from nomad_simulation_parsers.parsers.quantumespresso.pwscf.file_parser import (
 from nomad_simulation_parsers.parsers.quantumespresso.xspectra.file_parser import (
     XSpectraFileParser,
 )
-
-from nomad_simulation_parsers.parsers.quantumespresso.file_parser import (
-    QuantumEspressoFileParser,
-)
 from tests.parsers.common import approx, assert_approx
-
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'quantumespresso'
 
@@ -37,11 +35,7 @@ def read(parser_class, path):
 class TestQuantumEspressoFileReader:
     def test_reads_program_blocks(self, tmp_path):
         mainfile = tmp_path / 'pw.out'
-        mainfile.write_text(
-            'Program PWSCF v.7.3 starts\n'
-            'some output\n'
-            'JOB DONE.\n'
-        )
+        mainfile.write_text('Program PWSCF v.7.3 starts\nsome output\nJOB DONE.\n')
 
         parser = QuantumEspressoFileParser()
         parser.mainfile = str(mainfile)
@@ -145,7 +139,6 @@ class TestXSpectraReader:
         assert source['xanes']['algorithm'] == ['Lanczos', 'recursion']
         assert source['xanes']['step_1']['k_calculation'][0]['converged'] is True
         assert source['xanes']['step_2']['xnepoint'] == 400
-        assert (
-            source['xanes']['step_2']['energy_zero'].to('eV').magnitude
-            == approx(15.157)
+        assert source['xanes']['step_2']['energy_zero'].to('eV').magnitude == approx(
+            15.157
         )

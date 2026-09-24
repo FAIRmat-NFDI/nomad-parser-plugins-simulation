@@ -32,9 +32,9 @@ class TestYamboMainfileMapping:
 
         assert len(outputs) == 1
         assert outputs[0]['eigenvalues'][0]['energies'].shape == (2, 2)
-        assert outputs[0]['eigenvalues'][0][
-            'highest_occupied'
-        ].to('eV').magnitude == pytest.approx(1.2)
+        assert outputs[0]['eigenvalues'][0]['highest_occupied'].to(
+            'eV'
+        ).magnitude == pytest.approx(1.2)
 
     def test_maps_band_gap_from_valence_and_conduction(self, parser):
         result = parser.get_band_gaps(None, 1.0 * ureg.eV, 3.5 * ureg.eV)
@@ -43,9 +43,10 @@ class TestYamboMainfileMapping:
         assert result[0]['value'].to('eV').magnitude == pytest.approx(2.5)
 
     def test_maps_program_name_and_start_time(self, parser):
-        assert parser.get_wallstart('29/11/2021 20:57') == datetime.strptime(
-            '29/11/2021 20:57', '%d/%m/%Y %H:%M'
-        ).timestamp()
+        assert (
+            parser.get_wallstart('29/11/2021 20:57')
+            == datetime.strptime('29/11/2021 20:57', '%d/%m/%Y %H:%M').timestamp()
+        )
 
 
 @pytest.mark.unit

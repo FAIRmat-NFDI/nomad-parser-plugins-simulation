@@ -3,13 +3,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-import nomad_simulation_parsers.parsers.phonopy.calculator as calculator
+from nomad_simulation_parsers.parsers.phonopy import calculator
 from nomad_simulation_parsers.parsers.phonopy.calculator import (
     EvTokJmol,
     PhononProperties,
     generate_kpath_parameters,
     read_kpath,
 )
+
 
 @pytest.mark.unit
 def test_generates_kpath_parameters_for_each_segment():
@@ -28,11 +29,7 @@ def test_generates_kpath_parameters_for_each_segment():
 @pytest.mark.unit
 def test_reads_fractional_band_path_file(tmp_path):
     band_conf = tmp_path / 'band.conf'
-    band_conf.write_text(
-        'BAND = 0 0 0 1/2 0 0\n'
-        'BAND_LABELS = G X\n'
-        'BAND_POINTS = 25\n'
-    )
+    band_conf.write_text('BAND = 0 0 0 1/2 0 0\nBAND_LABELS = G X\nBAND_POINTS = 25\n')
 
     parameters = read_kpath(str(band_conf))
 

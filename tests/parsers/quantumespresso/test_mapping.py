@@ -2,10 +2,17 @@ import numpy as np
 import pytest
 from nomad.units import ureg
 
+from nomad_simulation_parsers.parsers.quantumespresso.gipaw.parser import (
+    GIPAWMainfileTextParser,
+    GIPAWMainfileXMLParser,
+)
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     MainfileTextParser,
     MainfileXMLParser,
     get_program_name_version,
+)
+from nomad_simulation_parsers.parsers.quantumespresso.pwscf.parser import (
+    PWSCFMainfileTextParser,
 )
 from tests.parsers.common import approx, assert_approx
 
@@ -22,28 +29,16 @@ def xml_parser():
 
 @pytest.fixture
 def gipaw_text_parser():
-    from nomad_simulation_parsers.parsers.quantumespresso.gipaw.parser import (
-        GIPAWMainfileTextParser,
-    )
-
     return GIPAWMainfileTextParser()
 
 
 @pytest.fixture
 def gipaw_xml_parser():
-    from nomad_simulation_parsers.parsers.quantumespresso.gipaw.parser import (
-        GIPAWMainfileXMLParser,
-    )
-
     return GIPAWMainfileXMLParser()
 
 
 @pytest.fixture
 def pwscf_text_parser():
-    from nomad_simulation_parsers.parsers.quantumespresso.pwscf.parser import (
-        PWSCFMainfileTextParser,
-    )
-
     return PWSCFMainfileTextParser()
 
 
@@ -116,9 +111,8 @@ class TestQuantumEspressoXMLMapping:
         parser._data = {'@Units': 'Hartree atomic units'}
 
         assert parser.get_datetime('21Feb2024', '16:33:02').year == 2024
-        assert (
-            parser.apply_unit(1.0, name='energy').to('hartree').magnitude
-            == approx(1)
+        assert parser.apply_unit(1.0, name='energy').to('hartree').magnitude == approx(
+            1
         )
         assert_approx(parser.get_forces(np.arange(6.0)), [[0, 1, 2], [3, 4, 5]])
         assert parser.get_periodic_boundary_conditions(np.eye(3)) == [True] * 3
@@ -132,9 +126,7 @@ class TestQuantumEspressoXMLMapping:
 
         contributions = parser.get_energy_contributions(source)
 
-        assert contributions == [
-            {'value': -0.8 * ureg.hartree, 'name': 'one_electron'}
-        ]
+        assert contributions == [{'value': -0.8 * ureg.hartree, 'name': 'one_electron'}]
         assert parser.get_periodic_boundary_conditions(np.eye(3)) == [True] * 3
 
 
@@ -174,9 +166,7 @@ class TestGIPAWMapping:
             ('g-tensor', 'get_delta_g', np.eye(3)),
         ],
     )
-    def test_maps_job_specific_tensors(
-        self, job, method, expected, gipaw_xml_parser
-    ):
+    def test_maps_job_specific_tensors(self, job, method, expected, gipaw_xml_parser):
         parser = gipaw_xml_parser
         parser._data = {'input': {'job': job}}
         value = getattr(parser, method)({'__value': np.eye(3).reshape(-1)})
@@ -200,13 +190,13 @@ class TestPWSCFMapping:
         parser = pwscf_text_parser
         force = np.arange(3.0)
         source = {
-            'self_consistent': {'self_consistent': [
-                {'forces': force},
-                {'forces': force + 1},
-            ]},
-            'bfgs_geometry_optimization': {
-                'self_consistent': [{'forces': force + 2}]
+            'self_consistent': {
+                'self_consistent': [
+                    {'forces': force},
+                    {'forces': force + 1},
+                ]
             },
+            'bfgs_geometry_optimization': {'self_consistent': [{'forces': force + 2}]},
         }
 
         configurations = parser.get_configurations(source)
@@ -279,9 +269,7 @@ class TestPWSCFMapping:
 
     def test_maps_band_structures_and_single_point_workflow(self, pwscf_text_parser):
         parser = pwscf_text_parser
-        parser._data = {
-            'header': {'scf_threshold_energy_change': 1e-8 * ureg.rydberg}
-        }
+        parser._data = {'header': {'scf_threshold_energy_change': 1e-8 * ureg.rydberg}}
         source = {
             'band_energies': [[-1.0, 0.5, 2.0]],
             'occupation_numbers': [[2.0, 1.0, 0.0]],

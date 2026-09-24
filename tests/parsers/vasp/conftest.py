@@ -57,7 +57,7 @@ def silicon_gw_archive() -> EntryArchive:
     return SILICON_GW_ARCHIVE
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def silicon_gw_kspace_archive() -> EntryArchive:
     return parse_vasp(DATA_DIR / 'Si_GW' / 'vasprun.xml')
 

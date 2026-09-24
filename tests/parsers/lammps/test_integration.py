@@ -51,9 +51,7 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
         assert simulation.model_method
 
         system = simulation.model_system[5]
-        assert system.lattice_vectors[1][1].to('nanometer').magnitude == approx(
-            2.24235
-        )
+        assert system.lattice_vectors[1][1].to('nanometer').magnitude == approx(2.24235)
         assert system.periodic_boundary_conditions == [True, True, True]
         assert simulation.model_system[80].particle_states == []
         assert simulation.model_system[0].particle_states[91].chemical_symbol == 'H'
@@ -85,9 +83,7 @@ class TestLammpsXyzArchive(LammpsParserIntegrationSuite):
 class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
     archive_fixture = 'polymer_melt_minimization_archive'
 
-    def test_archive_contains_minimization_trajectory(
-        self, archive
-    ):
+    def test_archive_contains_minimization_trajectory(self, archive):
         simulation = archive.data
         assert len(simulation.model_system) == 159
         assert simulation.model_method

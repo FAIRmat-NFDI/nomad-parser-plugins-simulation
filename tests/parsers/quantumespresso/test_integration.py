@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from nomad.datamodel import EntryArchive
 
 from tests.parsers.common import (
     SimulationParserTestSuite,
@@ -9,6 +8,8 @@ from tests.parsers.common import (
     assert_approx,
     assert_identity_populated_once,
 )
+
+
 class QuantumEspressoIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
     expected_program_name = 'Quantum Espresso'
     require_lattice_vectors = True

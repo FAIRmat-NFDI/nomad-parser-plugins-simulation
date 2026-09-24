@@ -80,9 +80,7 @@ class TestControlParser:
 @pytest.mark.unit
 class TestFHIAimsOutputReader:
     def test_extracts_structure_from_output(self):
-        parser = FHIAimsOutFileParserLine(
-            'tests/data/fhiaims/Si_geomopt/out.out'
-        )
+        parser = FHIAimsOutFileParserLine('tests/data/fhiaims/Si_geomopt/out.out')
         parser.line_parsing = True
         parser.allow_overlap = True
         source = parser.to_dict()

@@ -76,9 +76,7 @@ class TestH5MDMapping:
                                 'step': {'__value': [1, 2]},
                                 'time': {'__value': [0.5, 1.0], '@unit': 'ps'},
                                 'value': {
-                                    '__value': np.array(
-                                        [np.eye(3), 2 * np.eye(3)]
-                                    ),
+                                    '__value': np.array([np.eye(3), 2 * np.eye(3)]),
                                     '@unit': 'angstrom',
                                 },
                             },
@@ -103,9 +101,12 @@ class TestH5MDMapping:
         )
 
         assert [payload['chemical_symbol'] for payload in result] == ['H', 'O']
-        assert parser.to_species_labels(
-            {'step': 0, 'frame_index': 1}, path='particles.all.species_label'
-        ) == []
+        assert (
+            parser.to_species_labels(
+                {'step': 0, 'frame_index': 1}, path='particles.all.species_label'
+            )
+            == []
+        )
 
     def test_maps_top_level_system_quantity(self):
         parser = H5MDH5Parser(data={'connectivity': {'bonds': [[0, 1]]}})
@@ -113,9 +114,7 @@ class TestH5MDMapping:
         assert parser.get_top_system_quantity(
             {'step': 0}, path='connectivity.bonds'
         ) == [[0, 1]]
-        assert parser.get_top_system_quantity(
-            {}, path='connectivity.bonds'
-        ) == []
+        assert parser.get_top_system_quantity({}, path='connectivity.bonds') == []
 
     def test_maps_trajectory_frames_and_filters_steps(self):
         parser = H5MDH5Parser()
@@ -140,10 +139,7 @@ class TestH5MDMapping:
         frames = parser.get_traj_data(source)
 
         assert [frame['step'] for frame in frames] == [0, 2]
-        assert (
-            frames[1]['positions'].to('angstrom').magnitude[0, 0]
-            == approx(18)
-        )
+        assert frames[1]['positions'].to('angstrom').magnitude[0, 0] == approx(18)
         assert frames[0]['velocities'].to('angstrom / ps').magnitude.shape == (3, 3)
 
     def test_rejects_mismatched_trajectory_lengths(self):
@@ -198,9 +194,7 @@ class TestH5MDMapping:
             }
         )
 
-        result = parser.get_contributions(
-            {'step': 2}, path='observables.total_energy'
-        )
+        result = parser.get_contributions({'step': 2}, path='observables.total_energy')
 
         assert result[0]['name'] == 'potential'
         assert result[0]['value'].to('kilojoule').magnitude == approx(3.0)

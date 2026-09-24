@@ -20,4 +20,3 @@ def test_rejects_non_phonopy_mainfile_names(tmp_path, name):
     parser = phonopy_parser.load()
 
     assert not parser.is_mainfile(str(mainfile), 'text/plain', b'', '')
-

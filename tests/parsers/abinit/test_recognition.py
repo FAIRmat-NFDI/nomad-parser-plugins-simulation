@@ -16,7 +16,6 @@ class TestAbinitRecognition:
             is True
         )
 
-
     @pytest.mark.parametrize(
         ('contents', 'compression'),
         [

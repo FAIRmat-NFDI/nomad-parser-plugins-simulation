@@ -24,7 +24,8 @@ class TestVaspPhonopyArchive(PhonopyParserIntegrationSuite):
 
         assert len(simulation.model_system) == 2
         assert [
-            state.chemical_symbol for state in simulation.model_system[0].particle_states
+            state.chemical_symbol
+            for state in simulation.model_system[0].particle_states
         ][:3] == ['C', 'C', 'C']
         assert simulation.model_system[0].positions.shape == (48, 3)
         assert simulation.model_system[1].positions.shape == (384, 3)
@@ -32,7 +33,6 @@ class TestVaspPhonopyArchive(PhonopyParserIntegrationSuite):
             simulation.model_system[1].representations[0].supercell_matrix,
             np.diag([2, 2, 2]),
         )
-
 
 
 class TestNoncanonicalHexagonalArchive(PhonopyParserIntegrationSuite):

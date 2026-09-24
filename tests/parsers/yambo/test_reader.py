@@ -58,9 +58,7 @@ class TestMainfileReader:
 class TestInputReader:
     def test_reads_input_key_values(self, tmp_path):
         mainfile = tmp_path / 'input'
-        mainfile.write_text(
-            '\nFFTGvecs = 10 Ry\n'
-        )
+        mainfile.write_text('\nFFTGvecs = 10 Ry\n')
         parser = InputParser()
         parser.mainfile = str(mainfile)
         source = parser.to_dict()

@@ -4,12 +4,12 @@ import pytest
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
-from tests.parsers.phonopy.conftest import DATA_DIR
 from nomad_simulation_parsers.parsers.phonopy.calculator import PhononProperties
 from nomad_simulation_parsers.parsers.phonopy.parser import (
     create_system,
     phonopy_obj_to_archive,
 )
+from tests.parsers.phonopy.conftest import DATA_DIR
 
 
 @pytest.mark.unit
@@ -47,9 +47,7 @@ class FakePhonopyObject:
 def test_phonopy_obj_to_archive_creates_simulation_systems():
     archive = EntryArchive()
 
-    result = phonopy_obj_to_archive(
-        FakePhonopyObject(), archive, get_logger(__name__)
-    )
+    result = phonopy_obj_to_archive(FakePhonopyObject(), archive, get_logger(__name__))
 
     assert result is archive
     assert archive.data.program.name == 'Phonopy'

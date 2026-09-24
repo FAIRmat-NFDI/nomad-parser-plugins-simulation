@@ -12,9 +12,7 @@ class TestVASPRecognition:
         parser = vasp_parser.load()
 
         assert (
-            parser.is_mainfile(
-                str(mainfile), 'text/plain', contents.encode(), contents
-            )
+            parser.is_mainfile(str(mainfile), 'text/plain', contents.encode(), contents)
             is True
         )
 
@@ -56,13 +54,16 @@ class TestVASPRecognition:
         mainfile.write_text(contents)
         parser = vasp_parser.load()
 
-        assert parser.is_mainfile(
-            str(mainfile),
-            'text/xml',
-            contents.encode(),
-            contents,
-            compression=compression,
-        ) is True
+        assert (
+            parser.is_mainfile(
+                str(mainfile),
+                'text/xml',
+                contents.encode(),
+                contents,
+                compression=compression,
+            )
+            is True
+        )
 
     def test_rejects_unsupported_compression(self, tmp_path):
         contents = (

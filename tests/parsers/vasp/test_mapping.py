@@ -59,17 +59,20 @@ class TestOutcarMapping:
         forces = np.arange(6, dtype=float).reshape(2, 3)
         source = {'positions_forces': [np.zeros((2, 3)), forces]}
 
-        assert parser.get_version(
-            {'version': '6.4.2', 'subversion': 'complex', 'platform': 'Linux'}
-        ) == '6.4.2 complex Linux'
+        assert (
+            parser.get_version(
+                {'version': '6.4.2', 'subversion': 'complex', 'platform': 'Linux'}
+            )
+            == '6.4.2 complex Linux'
+        )
         assert parser.get_data({'value': 3.5}) == 3.5
         mapped_forces = parser.get_forces(source)
         assert_approx(mapped_forces['forces'], forces)
         assert mapped_forces['npoints'] == 2
         assert mapped_forces['rank'] == [3]
-        assert parser.get_energy_contributions(
-            {'a': 1, 'b': 2}, exclude=['b']
-        ) == [{'name': 'a', 'value': 1}]
+        assert parser.get_energy_contributions({'a': 1, 'b': 2}, exclude=['b']) == [
+            {'name': 'a', 'value': 1}
+        ]
         assert parser.get_functional_key({'GGA': 'PE'}) == 'PBE'
         assert parser.get_configurations({'step': 1})[0]['frame_index'] == 0
         assert parser.get_atoms([2, 1], [['PAW', 'Si'], ['PAW', 'O']]) == [
@@ -131,9 +134,7 @@ class TestDOSCARMapping:
             ('OUTCAR.TR', 'DOSCAR.TR'),
         ],
     )
-    def test_resolves_matching_doscar_suffix(
-        self, tmp_path, outcar_name, doscar_name
-    ):
+    def test_resolves_matching_doscar_suffix(self, tmp_path, outcar_name, doscar_name):
         doscar_lines = [
             'header0',
             'header1',

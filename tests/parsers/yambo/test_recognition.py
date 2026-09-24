@@ -7,9 +7,7 @@ from nomad_simulation_parsers.parsers import yambo_parser
 class TestYamboRecognition:
     def test_recognizes_yambo_report(self, tmp_path):
         contents = (
-            'Version 5.0.4 Revision 1\n'
-            'MPI+HDF5_IO Build\n'
-            'http://www.yambo-code.org\n'
+            'Version 5.0.4 Revision 1\nMPI+HDF5_IO Build\nhttp://www.yambo-code.org\n'
         )
         mainfile = tmp_path / 'r-example'
         mainfile.write_text(contents)

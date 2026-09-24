@@ -49,7 +49,6 @@ class VASPIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
         assert archive.workflow2.method.convergence_targets
 
 
-
 class TestAgacRelaxOutcarArchive(VASPIntegrationSuite):
     archive_fixture = 'agac_relax_outcar_archive'
     workflow_name = 'SinglePoint'
@@ -95,7 +94,6 @@ class TestAgacRelaxOutcarArchive(VASPIntegrationSuite):
         assert dos.projected_dos[16].value.to('1/eV').magnitude[238] == pytest.approx(
             0.33900
         )
-
 
     @pytest.mark.integration
     def test_workflow_convergence(self, archive):
@@ -150,7 +148,6 @@ class TestAgacRelaxVasprunArchive(VASPIntegrationSuite):
         assert output.electronic_band_gaps
         assert output.electronic_dos
         assert output.electronic_dos[0].energies.points is not None
-
 
     @pytest.mark.integration
     def test_workflow_convergence(self, archive):

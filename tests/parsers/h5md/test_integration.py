@@ -32,20 +32,20 @@ class H5MDParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
         )
 
         assert any(
-            system.lattice_vectors is not None
-            for system in archive.data.model_system
+            system.lattice_vectors is not None for system in archive.data.model_system
         )
         assert any(
             system.periodic_boundary_conditions is not None
             for system in archive.data.model_system
         )
+
     required_simulation_sections = ['model_system', 'outputs']
 
 
 class TestH5MDArchive(H5MDParserIntegrationSuite):
     archive_fixture = 'h5md_archive'
 
-    def test_h5md_archive_contract(self, archive):
+    def test_h5md_archive_contract(self, archive):  # noqa: PLR0915
         simulation = archive.data
 
         assert simulation.program.name == 'OpenMM'
@@ -61,9 +61,7 @@ class TestH5MDArchive(H5MDParserIntegrationSuite):
         assert systems[0].n_particles == 728
         assert systems[0].positions.shape == (728, 3)
         assert systems[0].velocities.shape == (728, 3)
-        assert systems[2].positions[80][1].to('angstrom').magnitude == approx(
-            28.748762
-        )
+        assert systems[2].positions[80][1].to('angstrom').magnitude == approx(28.748762)
         assert systems[2].velocities[50][2].to('angstrom/ps').magnitude == approx(400.0)
         assert systems[3].lattice_vectors[2][2].to('angstrom').magnitude == approx(
             68.22318
@@ -124,19 +122,19 @@ class TestH5MDArchive(H5MDParserIntegrationSuite):
         total_energy = outputs[2].total_energies[0]
         assert total_energy.contributions[0].name == 'BaseEnergy'
         assert total_energy.contributions[0].contribution_type == 'custom'
-        assert total_energy.contributions[0].value.to(
-            'kilojoule'
-        ).magnitude == approx(3.0)
+        assert total_energy.contributions[0].value.to('kilojoule').magnitude == approx(
+            3.0
+        )
         assert total_energy.contributions[1].name == 'BaseEnergy'
         assert total_energy.contributions[1].contribution_type == 'kinetic'
-        assert total_energy.contributions[1].value.to(
-            'kilojoule'
-        ).magnitude == approx(2.0)
+        assert total_energy.contributions[1].value.to('kilojoule').magnitude == approx(
+            2.0
+        )
         assert total_energy.contributions[2].name == 'BaseEnergy'
         assert total_energy.contributions[2].contribution_type == 'potential'
-        assert total_energy.contributions[2].value.to(
-            'kilojoule'
-        ).magnitude == approx(1.0)
+        assert total_energy.contributions[2].value.to('kilojoule').magnitude == approx(
+            1.0
+        )
 
         assert outputs[1].total_forces[0].value.shape == (728, 3)
         assert outputs[1].total_forces[0].value[21][2].to('newton').magnitude == approx(
@@ -155,7 +153,7 @@ class TestH5MDArchive(H5MDParserIntegrationSuite):
         assert outputs[1].custom_outputs[0].value == approx(100.0)
         assert outputs[1].custom_outputs[0].unit == 'newton / angstrom ** 2'
 
-    def test_h5md_workflow_contract(self, archive):
+    def test_h5md_workflow_contract(self, archive):  # noqa: PLR0915
         workflow = archive.workflow2
         assert len(workflow.tasks) == 5
         assert workflow.method.integrator_type == 'langevin_leap_frog'

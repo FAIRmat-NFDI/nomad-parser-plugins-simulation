@@ -83,13 +83,10 @@ class TestFeBandSpinPolarized(FHIAimsParserIntegrationSuite):
             1,
         ]
         assert all(
-            band.value.shape == (1, 19)
-            for band in output.electronic_band_structures
+            band.value.shape == (1, 19) for band in output.electronic_band_structures
         )
         method = archive.data.model_method[0]
-        assert_approx(
-            method.numerical_settings[0].k_mesh[0].points, [[0, 0, 0]]
-        )
+        assert_approx(method.numerical_settings[0].k_mesh[0].points, [[0, 0, 0]])
         for band, expected_values, expected_occupations in zip(
             output.electronic_band_structures,
             [
@@ -102,9 +99,7 @@ class TestFeBandSpinPolarized(FHIAimsParserIntegrationSuite):
             assert_approx(
                 band.value.to('hartree').magnitude[0, :3], expected_values, atol=1e-6
             )
-            assert_approx(
-                band.occupation[0, :3], expected_occupations
-            )
+            assert_approx(band.occupation[0, :3], expected_occupations)
         assert len(output.electronic_dos) == 2
         assert all(dos.value.shape == (50,) for dos in output.electronic_dos)
         assert all(dos.energies.points.shape == (50,) for dos in output.electronic_dos)
@@ -116,7 +111,9 @@ class TestFeBandSpinPolarized(FHIAimsParserIntegrationSuite):
             ],
             strict=True,
         ):
-            assert_approx(dos.value[:3].to('1 / eV').magnitude, expected_values, atol=1e-6)
+            assert_approx(
+                dos.value[:3].to('1 / eV').magnitude, expected_values, atol=1e-6
+            )
             assert_approx(
                 dos.energies.points[:3].to('eV').magnitude,
                 [-15.0, -14.83673469, -14.67346939],
@@ -197,9 +194,7 @@ class TestSiGeometryOptimization(FHIAimsParserIntegrationSuite):
         assert len(force_targets) == 1
         assert force_targets[0].m_def.name == 'ForceConvergenceTarget'
         assert force_targets[0].threshold_type == 'maximum'
-        assert force_targets[0].threshold.to('eV/angstrom').magnitude == approx(
-            0.01
-        )
+        assert force_targets[0].threshold.to('eV/angstrom').magnitude == approx(0.01)
 
         energy_targets = workflow.method.single_point_convergence_targets
         assert len(energy_targets) == 1
@@ -224,9 +219,8 @@ class TestSiGeometryOptimization(FHIAimsParserIntegrationSuite):
         assert first_steps.delta_energies_total[-1].to('eV').magnitude == approx(
             7.477e-09
         )
-        assert (
-            first_steps.delta_charge_abs[-1].to('coulomb').magnitude
-            == approx(6.375e-08 * 1.602176634e-19)
+        assert first_steps.delta_charge_abs[-1].to('coulomb').magnitude == approx(
+            6.375e-08 * 1.602176634e-19
         )
 
     @pytest.mark.integration
@@ -292,9 +286,7 @@ class TestSiGeometryOptimization(FHIAimsParserIntegrationSuite):
             band_structure_section = band_structures[0]
             assert eigenvalue_section.spin_channel is None
             assert band_structure_section.spin_channel is None
-            assert (
-                eigenvalue_section.value.shape == eigenvalue_section.occupation.shape
-            )
+            assert eigenvalue_section.value.shape == eigenvalue_section.occupation.shape
             assert (
                 band_structure_section.value.shape
                 == band_structure_section.occupation.shape
@@ -332,9 +324,9 @@ class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
             ],
         )
         assert_approx(
-            archive.data.model_system[2].velocities.to(
-                'angstrom / femtosecond'
-            ).magnitude[0],
+            archive.data.model_system[2]
+            .velocities.to('angstrom / femtosecond')
+            .magnitude[0],
             [-28.17773990, 20.13038952, -13.61884175],
             atol=1e-8,
         )
@@ -344,9 +336,9 @@ class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
             atol=1e-6,
         )
         assert archive.workflow2.method.n_steps == 5
-        assert archive.workflow2.method.integration_timestep.to('ps').magnitude == approx(
-            0.001
-        )
+        assert archive.workflow2.method.integration_timestep.to(
+            'ps'
+        ).magnitude == approx(0.001)
         assert archive.workflow2.results.n_steps == 5
         assert archive.workflow2.results.finished_normally is True
 

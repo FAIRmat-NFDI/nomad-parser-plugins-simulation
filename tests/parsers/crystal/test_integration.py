@@ -26,9 +26,7 @@ class CrystalParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
         for system in simulation.model_system:
             assert system.positions is not None
             assert system.particle_states
-            assert all(
-                state.chemical_symbol for state in system.particle_states
-            )
+            assert all(state.chemical_symbol for state in system.particle_states)
             if not self.is_periodic:
                 continue
             assert system.lattice_vectors is not None
@@ -38,6 +36,7 @@ class CrystalParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
                 isinstance(periodic, bool)
                 for periodic in system.periodic_boundary_conditions
             )
+
 
 class CrystalParserSimulationIntegrationSuite(SimulationParserTestSuite):
     expected_program_name = 'Crystal'
@@ -56,7 +55,10 @@ class TestSinglePointArchive(CrystalParserIntegrationSuite):
         assert len(simulation.model_system) == 1
         system = simulation.model_system[0]
         assert system.positions.shape == (2, 3)
-        assert [state.chemical_symbol for state in system.particle_states] == ['Si', 'Si']
+        assert [state.chemical_symbol for state in system.particle_states] == [
+            'Si',
+            'Si',
+        ]
         assert {
             component.canonical_label
             for component in simulation.model_method[0].xc.components
@@ -67,9 +69,9 @@ class TestSinglePointArchive(CrystalParserIntegrationSuite):
         assert output.scf_steps.energies_total[-1].to('hartree').magnitude == approx(
             -573.300583798
         )
-        assert output.scf_steps.delta_energies_total[-1].to('hartree').magnitude == approx(
-            5.73e-8
-        )
+        assert output.scf_steps.delta_energies_total[-1].to(
+            'hartree'
+        ).magnitude == approx(5.73e-8)
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -573.30058382967
         )

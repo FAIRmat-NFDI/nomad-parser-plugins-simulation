@@ -11,11 +11,14 @@ class TestOctopusRecognition:
         mainfile.write_text(contents)
         parser = octopus_parser.load()
 
-        assert parser.is_mainfile(
-            str(mainfile), 'text/plain', contents.encode(), contents
-        ) is True
+        assert (
+            parser.is_mainfile(str(mainfile), 'text/plain', contents.encode(), contents)
+            is True
+        )
 
-    @pytest.mark.parametrize('contents', ['not an octopus output\n', 'Running octave\n'])
+    @pytest.mark.parametrize(
+        'contents', ['not an octopus output\n', 'Running octave\n']
+    )
     def test_rejects_non_octopus_output(self, tmp_path, contents):
         mainfile = tmp_path / 'stdout.txt'
         mainfile.write_text(contents)
