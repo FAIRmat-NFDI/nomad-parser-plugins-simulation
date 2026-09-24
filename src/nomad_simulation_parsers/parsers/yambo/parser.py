@@ -190,9 +190,7 @@ class YamboMainfileParser(TextParser):
             valence = source.get('valence')
             if valence is not None:
                 return (
-                    valence
-                    if hasattr(valence, 'units')
-                    else float(valence) * ureg.eV
+                    valence if hasattr(valence, 'units') else float(valence) * ureg.eV
                 )
 
             return None
