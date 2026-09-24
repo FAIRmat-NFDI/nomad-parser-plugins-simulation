@@ -319,7 +319,7 @@ class OutParser(MappingTextParser):
         }.get(reference.upper())
 
     def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
-        points = self._get_single_points(source)
+        points = self.single_points
         for point in points:
             if scf := self._navigate(point, 'self_consistent', 'scf_settings'):
                 return scf
