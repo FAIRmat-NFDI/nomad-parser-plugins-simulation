@@ -44,7 +44,7 @@ AO_ROW_RE = re.compile(r'\d+[A-Z][a-z]?$')
 
 def str_to_cartesian_coordinates(
     value: list[Any],
-) -> tuple[list[str], np.ndarray]:
+) -> tuple[list[str], np.ndarray | None]:
     cleaned = [
         item.replace('>', '') if isinstance(item, str) else item
         for item in value
@@ -58,7 +58,8 @@ def str_to_cartesian_coordinates(
         if isinstance(symbol, str) and len(coordinate) == CARTESIAN_COORDINATE_LENGTH:
             symbols.append(symbol)
             coordinates.append(coordinate)
-    return symbols, np.asarray(coordinates, dtype=np.float64) * ureg.angstrom
+    coordinates = np.asarray(coordinates, dtype=np.float64) * ureg.angstrom
+    return symbols, (coordinates if len(coordinates) else None)
 
 
 def str_to_mo_coefficients(value: str | list[str] | None) -> np.ndarray | None:
@@ -197,6 +198,7 @@ class OutParser(MappingTextParser):
         )
         self._method = None
         self._geometry_optimization: bool | None = None
+        self._single_points: list[dict[str, Any]] | None = None
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
@@ -222,10 +224,6 @@ class OutParser(MappingTextParser):
             return value[0] if value else None
         return value
 
-    def _get_cartesian_system(self, source: dict[str, Any]) -> tuple[list[str], Any]:
-        coordinates = source.get('cartesian_coordinates', [])
-        return str_to_cartesian_coordinates(coordinates) if coordinates else []
-
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
             source, 'self_consistent', 'scf_settings'
@@ -239,20 +237,19 @@ class OutParser(MappingTextParser):
             result['total_spin_multiplicity'] = int(multiplicity)
         return result
 
-    def _get_system(self, src):
-        coordinates = self._get_cartesian_system(src)
+    def _get_system(
+        self, src: dict[str, Any]
+    ) -> tuple[list[str], np.ndarray | None, dict[str, int]]:
+        xyz = src.get('cartesian_coordinates', [])
+        symbols, coordinates = str_to_cartesian_coordinates(xyz)
         charge_mult = self._get_charge_and_multiplicity(src)
-        # TODO:xe empty in GO for Orca 6, filled for Orca 4
-        return (*coordinates, charge_mult) if (coordinates or charge_mult) else []
+        return (symbols, coordinates, charge_mult)
 
     def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
-        points = self._get_single_points(source)
+        points = self.single_points
         if not any(points):
             return []
-        return [
-            system if (system:=self._get_system(point)) else ([], None, {})
-            for point in points
-        ]
+        return [self._get_system(point) for point in points]
 
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
         systems = self._get_systems(src)
@@ -272,9 +269,9 @@ class OutParser(MappingTextParser):
             for symbols, positions, spin_mult in systems
         ]
 
-        # set the last valid structure representative, otherwise 1st
+        # set the last valid structure representative
         for i in range(len(atoms)-1, -1, -1):
-            if atoms[i]['positions'] is not None or i==0:
+            if atoms[i]['particle_states'] and atoms[i]['positions'] is not None:
                 atoms[i]['is_representative'] = True
                 break
 
@@ -323,7 +320,10 @@ class OutParser(MappingTextParser):
 
     def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
         points = self._get_single_points(source)
-        return self._navigate(points[0], 'self_consistent', 'scf_settings')
+        for point in points:
+            if scf := self._navigate(point, 'self_consistent', 'scf_settings'):
+                return scf
+        return {}
 
     def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = {}
@@ -722,7 +722,7 @@ class OutParser(MappingTextParser):
         return components
 
     def get_molecular_orbitals(
-        self, single_point, src: dict[str, Any]
+        self, single_point: dict[str, Any], src: dict[str, Any]
     ) -> list[dict[str, Any]]:
         self_consistent = self._navigate(single_point, 'self_consistent')
         basis_set_total = self._parser_results(src.get('basis_set_total'))
@@ -767,7 +767,6 @@ class OutParser(MappingTextParser):
 
         return [molecular_orbitals]
 
-
     def _get_single_points(self, src: dict[str, Any]) -> list[dict[str, Any]]:
         if self._is_geometry_optimization:
             geometry_optimization = self._navigate(src, 'geometry_optimization')
@@ -778,8 +777,14 @@ class OutParser(MappingTextParser):
             single_point = self._navigate(src, 'single_point')
             return [single_point]
 
+    @property
+    def single_points(self) -> list[dict[str, Any]]:
+        if self._single_points is None:
+            self._single_points = self._get_single_points(self.text_parser)
+        return self._single_points
+
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        points = self._get_single_points(src)
+        points = self.single_points
         energies = [point.get('energy_total') if point else None for point in points]
         molecular_orbitals = [
                 self.get_molecular_orbitals(point, src) if point else []
@@ -830,19 +835,18 @@ class OutParser(MappingTextParser):
     def get_geometry_optimization_results(
             self, source: dict[str, Any]
     ) -> dict[str, Any]:
-        points = self._get_single_points(source)
-        n_steps = len(points)
+        n_steps = len(self.single_points)
         geometry_optimization = self._navigate(source, 'geometry_optimization')
         converged = geometry_optimization.get('is_converged')
         last_cycle = geometry_optimization.get('cycle', [{}])[-1]
         return {
             'is_converged': converged is not None,
             'steps': list(range(n_steps)),
-            'final_force_maximum': last_cycle.get('max_gradient'),
-            'final_displacement_maximum': last_cycle.get('max_step'),
+            'final_force_maximum': last_cycle.get('geom_opt_max_gradient'),
+            'final_displacement_maximum': last_cycle.get('geom_opt_max_displacement'),
         }
 
-    def _get_geometry_convergence_targets(self):
+    def _get_geometry_convergence_targets(self) -> list[ForceConvergenceTarget]:
         geometry_optimization = self.text_parser.geometry_optimization
         threshold = geometry_optimization.get('max_gradient_tol')
         if threshold is None:
