@@ -12,6 +12,11 @@ def approx(value, abs=0, rel=1e-6):
 class AbinitParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
     expected_program_name = 'ABINIT'
 
+    @pytest.mark.integration
+    @pytest.mark.skip(reason='ABINIT parser does not yet support identity population')
+    def test_identity_populated_once(self, archive):
+        pass
+
 
 class TestFeSinglePointArchive(AbinitParserIntegrationSuite):
     archive_fixture = 'fe_archive'

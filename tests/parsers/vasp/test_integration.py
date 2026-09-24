@@ -248,11 +248,11 @@ class BasicVASPIntegrationSuite(VASPIntegrationSuite):
 
 
 class TestSiliconGWArchive(BasicVASPIntegrationSuite):
-    archive_fixture = 'silicon_gw_archive'
+    archive_fixture = 'silicon_gw_kspace_archive'
 
     @pytest.mark.integration
-    def test_kspace(self, silicon_gw_kspace_archive):
-        method = silicon_gw_kspace_archive.data.model_method[0]
+    def test_kspace(self, archive):
+        method = archive.data.model_method[0]
         k_space = next(
             setting
             for setting in method.numerical_settings
@@ -292,8 +292,8 @@ class TestGammaOutcarArchive(BasicVASPIntegrationSuite):
     workflow_name = 'GeometryOptimization'
 
     @pytest.mark.integration
-    def test_program_and_kspace(self, gamma_outcar_kmesh_archive):
-        simulation = gamma_outcar_kmesh_archive.data
+    def test_program_and_kspace(self, archive):
+        simulation = archive.data
         assert simulation.program.version == (
             '5.4.1 05Feb16 gamma-only parallel IFC91_ompi'
         )

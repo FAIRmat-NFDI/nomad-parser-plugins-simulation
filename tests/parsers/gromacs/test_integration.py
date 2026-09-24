@@ -23,13 +23,13 @@ class TestGromacsWaterArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'water_archive'
     workflow_name = 'MolecularDynamics'
 
-    def test_archive_contains_trajectory_topology_and_bonds(self, water_archive):
-        simulation = water_archive.data
+    def test_archive_contains_trajectory_topology_and_bonds(self, archive):
+        simulation = archive.data
 
         assert simulation.program.name == 'GROMACS'
         assert simulation.model_system
         assert simulation.outputs
-        assert_identity_populated_once(water_archive)
+        assert_identity_populated_once(archive)
 
         system = simulation.model_system[0]
         assert system.positions is not None
@@ -38,8 +38,8 @@ class TestGromacsWaterArchive(GromacsParserIntegrationSuite):
         assert system.bond_list.shape[0] == 432
         assert system.sub_systems
 
-    def test_archive_has_valid_molecular_hierarchy(self, water_archive):
-        system = water_archive.data.model_system[0]
+    def test_archive_has_valid_molecular_hierarchy(self, archive):
+        system = archive.data.model_system[0]
         molecule_group = system.sub_systems[0]
 
         assert molecule_group.branch_label == 'molecule_group'
@@ -71,10 +71,8 @@ class TestGromacsProteinSmallArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'protein_small_archive'
     workflow_name = 'GeometryOptimization'
 
-    def test_protein_small_archive_contains_polymer_hierarchy(
-        self, protein_small_archive
-    ):
-        system = protein_small_archive.data.model_system[0]
+    def test_protein_small_archive_contains_polymer_hierarchy(self, archive):
+        system = archive.data.model_system[0]
 
         assert system.sub_systems
         multi_residue_group = next(
@@ -122,8 +120,8 @@ class GromacsIntegratorArchiveSuite(GromacsParserIntegrationSuite):
 class TestGromacsIntegratorSdArchive(GromacsIntegratorArchiveSuite):
     archive_fixture = 'integrator_sd_archive'
 
-    def test_integrator_settings(self, integrator_sd_archive):
-        method = integrator_sd_archive.workflow2.method
+    def test_integrator_settings(self, archive):
+        method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NVE'
         assert method.integrator_type == 'langevin_goga'
         assert method.thermostat_parameters
@@ -133,8 +131,8 @@ class TestGromacsIntegratorSdArchive(GromacsIntegratorArchiveSuite):
 class TestGromacsIntegratorMdvvArchive(GromacsIntegratorArchiveSuite):
     archive_fixture = 'integrator_mdvv_archive'
 
-    def test_integrator_settings(self, integrator_mdvv_archive):
-        method = integrator_mdvv_archive.workflow2.method
+    def test_integrator_settings(self, archive):
+        method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NVE'
         assert method.integrator_type == 'velocity_verlet'
 
@@ -143,8 +141,8 @@ class TestGromacsIntegratorMdvvArchive(GromacsIntegratorArchiveSuite):
 class TestGromacsIntegratorBdArchive(GromacsIntegratorArchiveSuite):
     archive_fixture = 'integrator_bd_archive'
 
-    def test_integrator_settings(self, integrator_bd_archive):
-        method = integrator_bd_archive.workflow2.method
+    def test_integrator_settings(self, archive):
+        method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NVE'
         assert method.integrator_type == 'brownian'
 
@@ -153,8 +151,8 @@ class TestGromacsIntegratorBdArchive(GromacsIntegratorArchiveSuite):
 class TestGromacsIntegratorVRescaleArchive(GromacsIntegratorArchiveSuite):
     archive_fixture = 'integrator_vrescale_archive'
 
-    def test_integrator_settings(self, integrator_vrescale_archive):
-        method = integrator_vrescale_archive.workflow2.method
+    def test_integrator_settings(self, archive):
+        method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NVT'
         assert method.integrator_type == 'leap_frog'
         assert method.thermostat_parameters[0].thermostat_type == 'velocity_rescaling'
@@ -164,8 +162,8 @@ class TestGromacsIntegratorVRescaleArchive(GromacsIntegratorArchiveSuite):
 class TestGromacsIntegratorNosehooverArchive(GromacsIntegratorArchiveSuite):
     archive_fixture = 'integrator_nosehoover_archive'
 
-    def test_integrator_settings(self, integrator_nosehoover_archive):
-        method = integrator_nosehoover_archive.workflow2.method
+    def test_integrator_settings(self, archive):
+        method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NPT'
         assert method.integrator_type == 'leap_frog'
         assert method.thermostat_parameters[0].thermostat_type == 'nose_hoover'
@@ -178,8 +176,8 @@ class TestGromacsPolymerMeltArchive(GromacsParserIntegrationSuite):
     required_simulation_sections = ('model_method', 'outputs')
     workflow_name = 'GeometryOptimization'
 
-    def test_minimization_workflow_and_outputs(self, polymer_melt_archive):
-        workflow = polymer_melt_archive.workflow2
+    def test_minimization_workflow_and_outputs(self, archive):
+        workflow = archive.workflow2
 
         assert workflow.method.optimization_method == 'steepest_descent'
         assert workflow.method.n_steps_maximum == 5000
@@ -194,14 +192,14 @@ class TestGromacsPolymerMeltArchive(GromacsParserIntegrationSuite):
             ).magnitude,
             676.0214199999999,
         )
-        assert len(polymer_melt_archive.data.outputs) == 11
+        assert len(archive.data.outputs) == 11
 
     @pytest.mark.skipif(
         Version(MDAnalysis.__version__) > Version('2.9'),
         reason='Incompatible polymer_melt TPR file for MDAnalysis',
     )
-    def test_minimization_sub_systems(self, polymer_melt_archive):
-        system = polymer_melt_archive.data.model_system[0]
+    def test_minimization_sub_systems(self, archive):
+        system = archive.data.model_system[0]
 
         assert len(system.sub_systems) == 1
         molecule_group = system.sub_systems[0]
@@ -225,9 +223,9 @@ class TestGromacsFeTestArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'fe_test_archive'
     workflow_name = 'MolecularDynamics'
 
-    def test_md_verbose_archive_content(self, fe_test_archive):
-        simulation = fe_test_archive.data
-        method = fe_test_archive.workflow2.method
+    def test_md_verbose_archive_content(self, archive):
+        simulation = archive.data
+        method = archive.workflow2.method
         outputs = simulation.outputs
 
         assert simulation.program.name == 'GROMACS'
@@ -305,8 +303,8 @@ class TestGromacsFreeEnergyArchive(GromacsParserIntegrationSuite):
         assert representative.positions is not None
         assert representative.particle_states
 
-    def test_fep_xvg_fields_are_populated(self, fep_archive):
-        workflow = fep_archive.workflow2
+    def test_fep_xvg_fields_are_populated(self, archive):
+        workflow = archive.workflow2
         assert workflow is not None
         method = workflow.method
         assert method is not None

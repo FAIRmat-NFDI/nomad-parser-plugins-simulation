@@ -18,12 +18,12 @@ class TestFeArchive(LobsterParserIntegrationSuite):
     archive_fixture = 'fe_archive'
 
     @pytest.mark.integration
-    def test_archive_contract(self, fe_archive):  # noqa: PLR0915
+    def test_archive_contract(self, archive):  # noqa: PLR0915
         """
         Tests spin-polarized Fe calculation with LOBSTER 4.0.0
         """
 
-        data = fe_archive.data
+        data = archive.data
         assert data.program.version == '4.0.0'
         assert data.wall_start.magnitude == 1619687985.0
 
@@ -234,12 +234,12 @@ class TestNaClArchive(LobsterParserIntegrationSuite):
     archive_fixture = 'nacl_archive'
 
     @pytest.mark.integration
-    def test_archive_contract(self, nacl_archive):  # noqa: PLR0915
+    def test_archive_contract(self, archive):  # noqa: PLR0915
         """
         Test non-spin-polarized NaCl calculation with LOBSTER 3.2.0
         """
 
-        data = nacl_archive.data
+        data = archive.data
         assert data.program.name == 'LOBSTER'
         assert data.program.version == '3.2.0'
         assert data.wall_start.magnitude == 1619713048.0
@@ -431,14 +431,14 @@ class TestHfV2Archive(LobsterParserIntegrationSuite):
         pytest.skip('HfV2 fixture contains only backup atomic identities')
 
     @pytest.mark.integration
-    def test_archive_contract(self, hfv2_archive):  # noqa: PLR0915
+    def test_archive_contract(self, archive):  # noqa: PLR0915
         """
         Test non-spin-polarized HfV2 calculation with LOBSTER 2.0.0,
         it has different ICOHPLIST.lobster and ICOOPLIST.lobster scheme.
         Also test backup structure parsing when no CONTCAR is present.
         """
 
-        data = hfv2_archive.data
+        data = archive.data
         assert data.program.name == 'LOBSTER'
         assert data.program.version == '2.0.0'
 
@@ -544,8 +544,8 @@ class TestNiArchive(LobsterParserIntegrationSuite):
     @pytest.mark.skipif(
         Version(ase.__version__) > Version('3.22'), reason='Incompatible with ase v26'
     )
-    def test_archive_contract(self, ni_archive):
-        data = ni_archive.data
+    def test_archive_contract(self, archive):
+        data = archive.data
 
         assert len(data.model_system) == 1
         system = data.model_system[0]
@@ -575,13 +575,13 @@ class TestSiArchive(LobsterParserIntegrationSuite):
     archive_fixture = 'si_archive'
 
     @pytest.mark.integration
-    def test_archive_contract(self, si_archive):  # noqa: PLR0915
+    def test_archive_contract(self, archive):  # noqa: PLR0915
         """
         Test spin-polarized orbitalwise Si calculation with LOBSTER 4.1.0,
         it has different ICOHPLIST.lobster and ICOOPLIST.lobster scheme.
         """
 
-        data = si_archive.data
+        data = archive.data
         assert data.program.name == 'LOBSTER'
         assert data.program.version == '4.1.0'
 

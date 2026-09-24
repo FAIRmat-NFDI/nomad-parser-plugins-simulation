@@ -14,11 +14,6 @@ class QuantumEspressoIntegrationSuite(SimulationParserTestSuite, WorkflowTestSui
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
 
-    @pytest.fixture
-    def archive(self, request):
-        source = request.getfixturevalue(self.archive_fixture)
-        return EntryArchive.m_from_dict(source.m_to_dict())
-
     @pytest.mark.integration
     def test_identity_populated_once(self, archive):
         if not any(system.particle_states for system in archive.data.model_system):
