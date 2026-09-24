@@ -1,6 +1,17 @@
+from collections import namedtuple
+
 import numpy as np
 from nomad.units import ureg
 from nomad_file_parser import Quantity, TextParser
+
+GOConv = namedtuple("GOConv", "key tol_pattern step_pattern unit")
+geometry_optimization_conv_params = [
+    GOConv('energy_change',      'Energy Change'    , 'Energy change', 'hartree'),
+    GOConv('max_gradient',       'Max. Gradient'    , 'MAX gradient', 'hartree/bohr'),
+    GOConv('rms_gradient',       'RMS Gradient'     , 'RMS gradient', 'hartree/bohr'),
+    GOConv('max_displacement',   'Max. Displacement', 'MAX step', 'bohr'),
+    GOConv('rms_displacement',   'RMS Displacement' , 'RMS step', 'bohr'),
+]
 
 
 def make_scf_re():
@@ -1305,34 +1316,22 @@ class OutReader(TextParser):
 
         calculation_quantities += [  # for geometry optimization
             Quantity(
-                f'{key.lower().replace(" ", "_")}',
-                rf'{key}\s+({re_float})\s+{re_float}\s+(?:YES|NO)',
+                f'geom_opt_{par.key}',
+                rf'{par.step_pattern}\s+({re_float})\s+{re_float}\s+(?:YES|NO)',
                 dtype=float,
-                unit=unit,
+                unit=par.unit,
             )
-            for key, unit in [
-                ('Energy change', 'hartree'),
-                ('RMS gradient', 'hartree/bohr'),
-                ('MAX gradient', 'hartree/bohr'),
-                ('RMS step', 'bohr'),
-                ('MAX step', 'bohr'),
-            ]
+            for par in geometry_optimization_conv_params
         ]
 
         geometry_optimization_quantities = [
             Quantity(
-                f'{key.lower().replace(" ", "_").replace(".", "")}_tol',
-                rf'{key}\s*(\w+)\s*\.+\s*({re_float})',
+                f'{par.key}_tol',
+                rf'{par.tol_pattern}\s*(\w+)\s*\.+\s*({re_float})',
                 dtype=float,
-                unit=unit,
+                unit=par.unit,
             )
-            for key, unit in [
-                ('Energy Change', 'hartree'),
-                ('Max. Gradient', 'hartree/bohr'),
-                ('RMS Gradient', 'hartree/bohr'),
-                ('Max. Displacement', 'bohr'),
-                ('RMS Displacement', 'bohr'),
-            ]
+            for par in geometry_optimization_conv_params
         ]
 
         geometry_optimization_quantities += [
