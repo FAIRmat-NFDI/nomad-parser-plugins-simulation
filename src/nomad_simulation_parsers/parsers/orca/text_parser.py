@@ -1,12 +1,72 @@
+from collections import namedtuple
+
 import numpy as np
 from nomad.units import ureg
 from nomad_file_parser import Quantity, TextParser
+
+GOConv = namedtuple("GOConv", "key tol_pattern step_pattern unit")
+geometry_optimization_conv_params = [
+    GOConv('energy_change',      'Energy Change'    , 'Energy change', 'hartree'),
+    GOConv('max_gradient',       'Max. Gradient'    , 'MAX gradient', 'hartree/bohr'),
+    GOConv('rms_gradient',       'RMS Gradient'     , 'RMS gradient', 'hartree/bohr'),
+    GOConv('max_displacement',   'Max. Displacement', 'MAX step', 'bohr'),
+    GOConv('rms_displacement',   'RMS Displacement' , 'RMS step', 'bohr'),
+]
+
+
+def make_scf_re():
+    """
+    Make regex for `calculation_quantities.self_consistent`.
+
+    The block starts with ORCA SCF or DFT GRID GENERATION
+    and ends with a long dash line.
+
+    ORCA v6 added several subheaders that also have long dash lines
+    before the end of the SCF block.
+    We should skip them and find the next dashed line
+    not belonging to said blocks.
+    """
+    spaces = r'[^\S\r\n]*'
+    newline = r'\r?\n'
+    dashes = rf'-+{spaces}{newline}'
+    dashes70 = rf'^-{{70,}}{spaces}$'
+    any_text = r'[\s\S]*?'
+
+    scf_header = rf'(?:ORCA SCF|DFT GRID GENERATION){spaces}{newline}{dashes}'
+
+    lean_scf_header = (
+        rf'{dashes70}{newline}'
+        rf'[^\r\n]*ORCA LEAN-SCF[^\r\n]*{newline}'
+        rf'[^\r\n]*memory conserving SCF solver[^\r\n]*{newline}'
+    )
+
+    orca_guess_header = (
+        rf'ORCA GUESS{spaces}{newline}'
+        rf'{spaces}Start orbitals & Density for SCF / CASSCF{spaces}$'
+    )
+
+    diis_banner = rf'^-+D-I-I-S-+{spaces}$'
+    soscf_banner = rf'^-+S-O-S-C-F-+{spaces}$'
+
+    def optional_banner(text):
+        return rf'(?:(?={any_text}{text}){any_text}{text}{any_text}{dashes70})?'
+
+    optional_banners = ''.join(map(optional_banner, (
+        orca_guess_header,
+        lean_scf_header,
+        diis_banner,
+        soscf_banner,
+    )))
+
+    p = rf'({scf_header}{optional_banners}{any_text}(?:{dashes70}|\Z))'
+    return p
 
 
 class OutReader(TextParser):
     def init_quantities(self):
         re_float = r'[-+]?\d+\.?\d*(?:[Ee][-+]\d+)?'
         re_n = r'\r*\n'
+
         self._energy_mapping = {
             'Total Energy': 'energy_total',
             'Nuclear Repulsion': 'energy_nuclear_repulsion',
@@ -1104,6 +1164,12 @@ class OutReader(TextParser):
 
         calculation_quantities = [
             Quantity(
+                'energy_total',
+                rf'FINAL SINGLE POINT ENERGY\s+({re_float})',
+                dtype=float,
+                unit=ureg.hartree,
+            ),
+            Quantity(
                 'cartesian_coordinates',
                 rf'CARTESIAN COORDINATES \(ANGSTROEM\)\s*\-+\s*([\s\S]+?){re_n}{re_n}',
                 # str_operation=str_to_cartesian_coordinates,
@@ -1126,7 +1192,7 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'self_consistent',
-                r'((?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z))',
+                make_scf_re(),
                 sub_parser=TextParser(quantities=self_consistent_quantities),
             ),
             Quantity(
@@ -1248,25 +1314,35 @@ class OutReader(TextParser):
             ),
         ]
 
+        calculation_quantities += [  # for geometry optimization
+            Quantity(
+                f'geom_opt_{par.key}',
+                rf'{par.step_pattern}\s+({re_float})\s+{re_float}\s+(?:YES|NO)',
+                dtype=float,
+                unit=par.unit,
+            )
+            for par in geometry_optimization_conv_params
+        ]
+
         geometry_optimization_quantities = [
             Quantity(
-                f'{key.lower().replace(" ", "_").replace(".", "")}_tol',
-                rf'{key}\s*(\w+)\s*\.+\s*({re_float})',
+                f'{par.key}_tol',
+                rf'{par.tol_pattern}\s*(\w+)\s*\.+\s*({re_float})',
                 dtype=float,
+                unit=par.unit,
             )
-            for key in [
-                'Energy Change',
-                'Max. Gradient',
-                'RMS Gradient',
-                'Max. Displacement',
-                'RMS Displacement',
-            ]
+            for par in geometry_optimization_conv_params
         ]
 
         geometry_optimization_quantities += [
             Quantity('update_method', r'Update method\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('coords_choice', r'Choice of coordinates\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('initial_hessian', r'Initial Hessian\s*(\w+)\s*\.+\s*(.+)'),
+            Quantity(
+                'is_converged',
+                r'(THE OPTIMIZATION HAS CONVERGED)',
+                convert=False
+            ),
         ]
 
         geometry_optimization_quantities += [
