@@ -186,7 +186,7 @@ class InfoFileParser(TextParser):
             initialization_quantities.append(
                 Quantity(
                     name,
-                    rf'{key_unit[1]}\s*:\s*([\s\S]*?)\n',
+                    rf'{key_unit[0]}\s*:\s*([\s\S]*?)\n',
                     unit=key_unit[1],
                     repeats=False,
                 )

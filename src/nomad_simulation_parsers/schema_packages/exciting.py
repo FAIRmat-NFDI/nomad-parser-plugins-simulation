@@ -74,6 +74,8 @@ add_mapping_annotations(
     (model_method.DFT.m_def, INPUT_XML_KEY, '.input.groundstate'),
     (model_method.DFT.xc, INFO_KEY, '.@'),
     (model_method.DFT.xc, INPUT_XML_KEY, '.@'),
+    (model_method.DFT.is_spin_polarized, INFO_KEY,
+                       ('get_is_spin_polarized', ['initialization.spin_treatment'])),
     (model_method.XCFunctional.components, INFO_KEY, ('get_xc_functionals', ['.type'])),
     (
         model_method.XCFunctional.components,
@@ -83,6 +85,10 @@ add_mapping_annotations(
     (model_method.XCComponent.canonical_label, INFO_KEY, '.libxc'),
     (model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'),
 )
+# numericla settings model_method
+add_mapping_annotation(numerical_settings.Smearing.m_def, INFO_KEY, '.@')
+add_mapping_annotation(numerical_settings.Smearing.name, INFO_KEY, 'initialization.smearing_kind')
+
 
 # numerical_settings
 add_mapping_annotations(
