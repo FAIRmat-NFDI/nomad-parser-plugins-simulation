@@ -48,7 +48,7 @@ def test_extracts_crystal_numeric_notation():
 def test_extracts_crystal_start_timestamp():
     timestamp = CrystalOutputParser().to_unix_time('10 10 2016 TIME 13:59:45.000')
 
-    assert timestamp == pytest.approx(1476100785.0)
+    assert timestamp == pytest.approx(1476107985.0)
 
 
 @pytest.mark.unit

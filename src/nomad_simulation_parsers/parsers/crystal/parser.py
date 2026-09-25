@@ -57,7 +57,9 @@ class CrystalOutputParser(TextParser):
 
         value = value.strip()
         date_time_obj = datetime.datetime.strptime(value, '%d %m %Y TIME %H:%M:%S.%f')
-        return date_time_obj.timestamp()
+        # Crystal does not include a timezone in this timestamp. Interpret it
+        # as UTC so parsing is independent of the machine's local timezone.
+        return date_time_obj.replace(tzinfo=datetime.timezone.utc).timestamp()
 
     def get_lattice_vectors(self, source: dict[str, Any]) -> pint.Quantity | None:
         def get_vectors(dct: dict[str, Any]) -> np.ndarray | None:
