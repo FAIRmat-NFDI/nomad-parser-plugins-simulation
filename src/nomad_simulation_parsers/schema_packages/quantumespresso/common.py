@@ -12,11 +12,17 @@ m_package = SchemaPackage()
 
 OUT_KEY = 'quantumespresso_out'
 XML_KEY = 'quantumespresso_xml'
-GIPAW_OUT_KEY = 'quantumespresso_gipaw_out'
-GIPAW_XML_KEY = 'quantumespresso_gipaw_xml'
-DOS_KEY = 'quantumespresso_dos'
+
+GIPAW_PROPERTIES_OUT_KEY = 'quantumespresso_gipaw_properties_out'
+GIPAW_PROPERTIES_XML_KEY = 'quantumespresso_gipaw_properties_xml'
+PWSCF_OUT_KEY = 'quantumespresso_pwscf_out'
+PWSCF_XML_KEY = 'quantumespresso_pwscf_xml'
+
+PWSCF_DOS_KEY = 'quantumespresso_pwscf_dos'
 # necessary for mapping reference energy for dos
-DOS_OUT_KEY = 'quantumespresso_dos_out'
+PWSCF_DOS_OUT_KEY = 'quantumespresso_pwscf_dos_out'
+DOS_KEY = PWSCF_DOS_KEY
+DOS_OUT_KEY = PWSCF_DOS_OUT_KEY
 
 
 class Program(general.Program):
@@ -122,10 +128,14 @@ class TotalEnergy(outputs.TotalEnergy):
     )
     add_mapping_annotation(outputs.TotalEnergy.value, XML_KEY, '.value || .etot')
     add_mapping_annotation(
-        outputs.TotalEnergy.contributions, OUT_KEY, ('get_energy_contributions', ['.@'])
+        outputs.TotalEnergy.contributions,
+        OUT_KEY,
+        ('get_energy_contributions', ['.@']),
     )
     add_mapping_annotation(
-        outputs.TotalEnergy.contributions, XML_KEY, ('get_energy_contributions', ['.@'])
+        outputs.TotalEnergy.contributions,
+        XML_KEY,
+        ('get_energy_contributions', ['.@']),
     )
     add_mapping_annotation(outputs.TotalEnergy.name, XML_KEY, '.name')
 
@@ -140,13 +150,35 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, XML_KEY, '.general_info')
     add_mapping_annotation(model_method.DFT.m_def, OUT_KEY, '.header')
     add_mapping_annotation(model_method.DFT.m_def, XML_KEY, '.input')
-    add_mapping_annotation(general.Simulation.model_system, OUT_KEY, '.@')
-    add_mapping_annotation(general.Simulation.outputs, OUT_KEY, '.@')
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        OUT_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
+        general.Simulation.model_system,
+        XML_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs,
+        OUT_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs,
+        XML_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
 
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, XML_KEY, '@')
-add_mapping_annotation(general.Simulation.m_def, DOS_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, PWSCF_DOS_KEY, '@')
 
 
 try:

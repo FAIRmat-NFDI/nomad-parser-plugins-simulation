@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from nomad.units import ureg
+from nomad_simulations.schema_packages.general import Program, Simulation
 
 from nomad_simulation_parsers.parsers.quantumespresso.gipaw.parser import (
     GIPAWMainfileTextParser,
@@ -9,11 +10,16 @@ from nomad_simulation_parsers.parsers.quantumespresso.gipaw.parser import (
 from nomad_simulation_parsers.parsers.quantumespresso.parser import (
     MainfileTextParser,
     MainfileXMLParser,
+    QuantumEspressoMetainfoParser,
     get_program_name_version,
+)
+from nomad_simulation_parsers.parsers.quantumespresso.phonon.parser import (
+    PhononMainfileParser,
 )
 from nomad_simulation_parsers.parsers.quantumespresso.pwscf.parser import (
     PWSCFMainfileTextParser,
 )
+from nomad_simulation_parsers.schema_packages.quantumespresso import common
 from tests.parsers.common import approx, assert_approx
 
 
@@ -44,6 +50,15 @@ def pwscf_text_parser():
 
 @pytest.mark.unit
 class TestQuantumEspressoTextMapping:
+    def test_common_and_module_mapping_keys_are_distinct(self):
+        keys = {
+            common.OUT_KEY,
+            common.GIPAW_PROPERTIES_OUT_KEY,
+            common.PWSCF_OUT_KEY,
+        }
+
+        assert len(keys) == 3
+
     def test_maps_text_helpers_and_topology_values(self, text_parser):
         parser = text_parser
         parser._data = {
@@ -68,6 +83,40 @@ class TestQuantumEspressoTextMapping:
         assert parser.get_periodic_boundary_conditions(
             {'simulation_cell': np.eye(3)}
         ) == [True, True, True]
+
+    def test_maps_phonon_energy_with_common_outputs(self):
+        source = PhononMainfileParser()
+        source._data = {
+            'header': {
+                'program_name_version': ['PHONON', 'v.7.0'],
+                'start_date_time': '1Jan2024 00:00:00',
+            },
+            'calculation': [
+                {
+                    'energies': {'energy_total': -10 * ureg.rydberg},
+                    'simulation_cell': np.eye(3) * ureg.bohr,
+                    'labels_positions': {
+                        'labels': ['Si'],
+                        'positions': np.zeros((1, 3)) * ureg.bohr,
+                    },
+                }
+            ],
+        }
+        target = QuantumEspressoMetainfoParser(
+            data_object=Simulation(program=Program(name='Quantum Espresso'))
+        )
+        target.annotation_key = common.OUT_KEY
+
+        source.convert(target)
+
+        outputs = target.data_object.outputs
+        assert len(outputs) == 1
+        assert outputs[0].m_def.qualified_name() == (
+            'nomad_simulations.schema_packages.outputs.Outputs'
+        )
+        assert outputs[0].total_energies[0].value.to('rydberg').magnitude == approx(
+            -10
+        )
 
     def test_maps_program_name_and_version(self):
         assert get_program_name_version('Program PWSCF v.7.3 starts') == (

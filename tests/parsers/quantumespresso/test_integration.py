@@ -12,14 +12,19 @@ from tests.parsers.common import (
 
 class QuantumEspressoIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
     expected_program_name = 'Quantum Espresso'
+    identity_policy = 'once'
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
 
     @pytest.mark.integration
     def test_identity_populated_once(self, archive):
-        if not any(system.particle_states for system in archive.data.model_system):
+        systems = archive.data.model_system
+        if not any(system.particle_states for system in systems):
             pytest.skip('fixture does not contain particle-state identities')
-        assert_identity_populated_once(archive)
+        if self.identity_policy == 'every':
+            assert all(system.particle_states for system in systems)
+        else:
+            assert_identity_populated_once(archive)
 
 
 class TestPWSCFTextArchive(QuantumEspressoIntegrationSuite):
@@ -128,7 +133,8 @@ class TestEPWArchive(QuantumEspressoIntegrationSuite):
 
 class TestPhononArchive(QuantumEspressoIntegrationSuite):
     archive_fixture = 'phonon_archive'
-    required_simulation_sections = ()
+    identity_policy = 'every'
+    required_simulation_sections = ('model_system',)
     workflow_name = 'SinglePoint'
 
 
