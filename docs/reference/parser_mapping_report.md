@@ -804,7 +804,6 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `hash_id` | Unmapped | — |
-
 | `initialization` | Mapped | `initialization.smearing_kind`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.xc_functional`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_configurations(lattice_vectors)` |
 | `initialization.lattice_vectors_reciprocal` | Unmapped | — |
@@ -849,10 +848,10 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `initialization.species.positions_format` | Mapped | `get_configurations(positions_format)` |
 | `initialization.species.positions` | Mapped | `positions`<br>`get_configurations(positions)` |
 | `initialization.potential_mixing` | Unmapped | — |
-| `initialization.xc_functional` | Mapped | `initialization.xc_functional.type.libxc` |
-| `initialization.xc_functional.type` | Mapped | `initialization.xc_functional.type.libxc` |
-| `initialization.xc_functional.name_reference` | Unmapped | — |
-| `initialization.xc_functional.parameters` | Unmapped | — |
+| `initialization.xc_functional` | Mapped | `initialization.xc_functional`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
+| `initialization.xc_functional.type` | Mapped | `initialization.xc_functional`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
+| `initialization.xc_functional.name_reference` | Mapped | `initialization.xc_functional` |
+| `initialization.xc_functional.parameters` | Mapped | `initialization.xc_functional` |
 | `groundstate` | Mapped | `get_scf_steps(groundstate)` |
 | `groundstate.scf_iteration` | Mapped | `get_configurations(scf_iteration)` |
 | `groundstate.scf_iteration.energy_total` | Mapped | `energy_total`<br>`get_scf_steps(energy_total)` |
