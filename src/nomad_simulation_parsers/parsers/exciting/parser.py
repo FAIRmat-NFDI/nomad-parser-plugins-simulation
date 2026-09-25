@@ -276,11 +276,14 @@ class InfoParser(TextParser):
         return None
 
     def get_is_spin_polarized(self, spin_treatment: str | None) -> bool:
-        """Determine if the calculation is spin-polarized based on the spin treatment."""
+        """
+        Determine if the calculation is spin-polarized based on the spin treatment.
+        """
         return {
             'spin-unpolarised': False,
             'spin-polarised': True,
-            }.get(spin_treatment)
+        }.get(spin_treatment)
+
 
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
@@ -474,7 +477,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=input_xml_files[0], logger=self.logger
             )
             data_parser.annotation_key = exciting.INPUT_XML_KEY
-            input_xml_parser.convert(data_parser,  update_mode='merge')
+            input_xml_parser.convert(data_parser)
             input_xml_parser.close()
 
         # eigenvalues from eigval.out
