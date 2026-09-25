@@ -45,6 +45,8 @@ add_mapping_annotations(
     (general.Simulation.m_def, DOS_XML_KEY, '@'),
     (general.Simulation.m_def, GEO_OPT_KEY, '@'),
 )
+
+
 # -----------------------------------------------------------------------------
 # Simulation
 # -----------------------------------------------------------------------------
@@ -71,12 +73,11 @@ class Simulation(general.Simulation):
     #       m_def=model_method.DFT.m_def,
     # )
 
-    add_mapping_annotation(
-            model_method.DFT.m_def,
-            INPUT_XML_KEY,
-            '.input.groundstate',
-    
-    )
+    # add_mapping_annotation(
+    #     model_method.DFT.m_def,
+    #     INPUT_XML_KEY,
+    #     '.input.groundstate',
+    # )
 
     add_mapping_annotations(
         (
@@ -89,29 +90,44 @@ class Simulation(general.Simulation):
         (general.Simulation.outputs, DOS_XML_KEY, '.@'),
     )
 
+
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
 
+
 class DFT(model_method.DFT):
     add_mapping_annotations(
-         (model_method.DFT.xc, INFO_KEY, '.@'),
-         (model_method.DFT.xc, INPUT_XML_KEY, '.@'),
-         (model_method.DFT.is_spin_polarized, INFO_KEY,
-             ('get_is_spin_polarized', ['initialization.spin_treatment'])),
-         )
+        (model_method.DFT.xc, INFO_KEY, '.@'),
+        (model_method.DFT.xc, INPUT_XML_KEY, '.@'),
+        (
+            model_method.DFT.is_spin_polarized,
+            INFO_KEY,
+            ('get_is_spin_polarized', ['initialization.spin_treatment']),
+        ),
+    )
+
 
 class XCFunctional(model_method.XCFunctional):
-
     add_mapping_annotations(
-        (model_method.XCFunctional.components, INFO_KEY, ('get_xc_functionals', ['.type'])),
-        (model_method.XCFunctional.components, INPUT_XML_KEY, ('get_xc_functionals', ['.libxc'])),
+        (
+            model_method.XCFunctional.components,
+            INFO_KEY,
+            ('get_xc_functionals', ['.type']),
+        ),
+        (
+            model_method.XCFunctional.components,
+            INPUT_XML_KEY,
+            ('get_xc_functionals', ['.libxc']),
+        ),
     )
+
 
 class XCComponent(model_method.XCComponent):
     add_mapping_annotations(
         (model_method.XCComponent.canonical_label, INFO_KEY, '.libxc'),
         (model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'),
     )
+
 
 class ModelMethod(model_method.ModelMethod):
     add_mapping_annotation(
@@ -122,13 +138,14 @@ class ModelMethod(model_method.ModelMethod):
     )
 
 
-
 class Smearing(numerical_settings.Smearing):
     add_mapping_annotation(
         numerical_settings.Smearing.name,
         INFO_KEY,
         'initialization.smearing_kind',
     )
+
+
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotations(
         (model_system.Representation.m_def, INFO_KEY, '.@'),
@@ -141,17 +158,23 @@ class ModelSystem(model_system.ModelSystem):
         ),
     )
 
+
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
         (model_system.AtomsState.m_def, INFO_KEY, '.atoms'),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
-)
+    )
+
 
 class Outputs(outputs.Outputs):
     add_mapping_annotations(
         (outputs.Outputs.total_energies, INFO_KEY, '.@'),
         (outputs.Outputs.total_forces, INFO_KEY, ('get_forces', ['.@'])),
-        (outputs.Outputs.electronic_eigenvalues, EIGVAL_KEY, ('get_eigenvalues', ['.@'])),
+        (
+            outputs.Outputs.electronic_eigenvalues,
+            EIGVAL_KEY,
+            ('get_eigenvalues', ['.@']),
+        ),
         (outputs.Outputs.electronic_band_gaps, EIGVAL_KEY, ('get_band_gaps', ['.@'])),
         (
             outputs.Outputs.electronic_band_structures,
@@ -162,11 +185,16 @@ class Outputs(outputs.Outputs):
         (outputs.Outputs.scf_steps, INFO_KEY, ('get_scf_steps', ['@'])),
     )
 
+
 class TotalEnergy(properties.TotalEnergy):
-    add_mapping_annotation(properties.TotalEnergy.value, INFO_KEY, '.final.energy_total || energy_total')
+    add_mapping_annotation(
+        properties.TotalEnergy.value, INFO_KEY, '.final.energy_total || energy_total'
+    )
+
 
 class Forces(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
+
 
 class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
     add_mapping_annotations(
@@ -175,12 +203,16 @@ class ElectronicEigenvalues(outputs.ElectronicEigenvalues):
         (outputs.ElectronicEigenvalues.occupation, EIGVAL_KEY, '.occupancies'),
     )
 
+
 class ElectronicBandGap(outputs.ElectronicBandGap):
-    add_mapping_annotation(outputs.ElectronicBandGap.spin_channel, 
-                           EIGVAL_KEY, '.spin_channel')
-    add_mapping_annotation(outputs.ElectronicBandGap.value, 
-                           EIGVAL_KEY, '.value',unit='eV')
-    
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.spin_channel, EIGVAL_KEY, '.spin_channel'
+    )
+    add_mapping_annotation(
+        outputs.ElectronicBandGap.value, EIGVAL_KEY, '.value', unit='eV'
+    )
+
+
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotations(
         (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
@@ -190,14 +222,19 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
             outputs.ElectronicDensityOfStates.projected_dos,
             DOS_XML_KEY,
             'dos.partialdos.diagram',
-        )
+        ),
     )
 
+
 class VariablesEnergy2(variables.Energy2):
-    add_mapping_annotation(variables.Energy2.points,
-        DOS_XML_KEY,('to_float', [r'.point[*]."@e"']), unit='hartree',)
-    add_mapping_annotation(variables.Energy2.m_def, 
-        DOS_XML_KEY, '.@')
+    add_mapping_annotation(
+        variables.Energy2.points,
+        DOS_XML_KEY,
+        ('to_float', [r'.point[*]."@e"']),
+        unit='hartree',
+    )
+    add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
+
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(
@@ -205,6 +242,7 @@ class KSpace(numerical_settings.KSpace):
         BANDSTRUCTURE_XML_KEY,
         '.@',
     )
+
 
 class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotations(
@@ -221,7 +259,9 @@ class KLinePath(numerical_settings.KLinePath):
                 [r'bandstructure.vertex[*]."@coord"'],
             ),
         ),
-    )    
+    )
+
+
 # class NumericalSettingsBandStructure(numerical_settings.KSpace):
 #     add_mapping_annotations(
 #         #(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
@@ -238,10 +278,15 @@ class KLinePath(numerical_settings.KLinePath):
 #         ),
 #     )
 
+
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    add_mapping_annotation(outputs.ElectronicDensityOfStates.value,
-                           DOS_XML_KEY,('to_float', [r'.point[*]."@dos"']),unit='1/hartree'
-                           )
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value,
+        DOS_XML_KEY,
+        ('to_float', [r'.point[*]."@dos"']),
+        unit='1/hartree',
+    )
+
 
 class OutputsSCFSteps(outputs.SCFSteps):
     add_mapping_annotations(
@@ -251,16 +296,18 @@ class OutputsSCFSteps(outputs.SCFSteps):
         (outputs.SCFSteps.delta_potential_rms, INFO_KEY, '.delta_potential_rms'),
         (outputs.SCFSteps.delta_charge_abs, INFO_KEY, '.delta_charge_abs'),
         (outputs.SCFSteps.delta_force_abs, INFO_KEY, '.delta_force_abs'),
-)
+    )
+
 
 class GeometryOptimization(workflow.GeometryOptimization):
     add_mapping_annotations(
-    (workflow.GeometryOptimization.m_def, GEO_OPT_KEY, '@'),
-    (
-        workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
-        GEO_OPT_KEY,
-        '.@',
-    ),)
+        (workflow.GeometryOptimization.m_def, GEO_OPT_KEY, '@'),
+        (
+            workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
+            GEO_OPT_KEY,
+            '.@',
+        ),
+    )
     # TODO: Mapping annotations don't work for convergence targets because
     # parser methods return fully-formed metainfo objects, not dictionaries.
     # The mapper expects dict data. Convergence targets are now populated
@@ -272,14 +319,16 @@ class GeometryOptimization(workflow.GeometryOptimization):
     #  .GeometryOptimizationMethod.single_point_convergence_targets,
     #  GEO_OPT_KEY, ('get_single_point_convergence', ['.@'])),
 
+
 class SinglePoint(workflow.SinglePoint):
     add_mapping_annotations(
-    (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
-    (workflow.SinglePoint.m_def, INFO_KEY, '.@'),
-    # TODO: Same issue as above - manually populated in parser
-    # (workflow.single_point.SinglePointMethod.convergence_targets,
-    #  INFO_KEY, ('get_single_point_convergence', ['.@']))
-)
+        (workflow.single_point.SinglePointMethod.m_def, INFO_KEY, '.@'),
+        (workflow.SinglePoint.m_def, INFO_KEY, '.@'),
+        # TODO: Same issue as above - manually populated in parser
+        # (workflow.single_point.SinglePointMethod.convergence_targets,
+        #  INFO_KEY, ('get_single_point_convergence', ['.@']))
+    )
+
 
 try:
     m_package.__init_metainfo__()
