@@ -131,7 +131,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `time_start` | Unmapped | — |
-| `single_point` | Mapped | `single_point`<br>`single_point.band_gap`<br>`single_point.code_specific_quantities`<br>`single_point.delta_energies_total`<br>`single_point.eigenvalues`<br>`single_point.energies`<br>`single_point.energies.value`<br>`single_point.forces`<br>`single_point.forces.value`<br>`single_point.labels_positions`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.value`<br>`single_point.value` |
+| `single_point` | Mapped | `single_point`<br>`single_point.band_gap`<br>`single_point.code_specific_quantities`<br>`single_point.delta_energies_total`<br>`single_point.eigenvalues`<br>`single_point.energies`<br>`single_point.energies.value`<br>`single_point.forces`<br>`single_point.forces.value`<br>`single_point.labels_positions`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.spin_channel`<br>`single_point.total_dos.value`<br>`single_point.value` |
 | `single_point.labels_positions` | Mapped | `single_point`<br>`single_point.labels_positions` |
 | `single_point.lattice_vectors` | Mapped | `single_point`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
 | `single_point.band_engine_input` | Mapped | `single_point` |
@@ -246,7 +246,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `single_point.forces_total` | Mapped | `forces_total`<br>`single_point` |
 | `single_point.self_consistency` | Mapped | `single_point`<br>`get_scf_steps(self_consistency)` |
 | `single_point.self_consistency.energy_change` | Mapped | `single_point`<br>`get_scf_steps(energy_change)` |
-| `single_point.total_dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.value` |
+| `single_point.total_dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`single_point.total_dos.energies`<br>`single_point.total_dos.spin_channel`<br>`single_point.total_dos.value` |
 | `single_point.total_dos.nspin_ne` | Mapped | `single_point`<br>`single_point.total_dos` |
 | `single_point.total_dos.dos` | Mapped | `single_point`<br>`single_point.total_dos`<br>`get_dos(dos)` |
 | `single_point.mulliken_populations` | Mapped | `single_point` |
@@ -271,7 +271,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `single_point.band_gap_info.energy_highest_occupied` | Mapped | `single_point`<br>`get_band_gaps(energy_highest_occupied)` |
 | `single_point.band_gap_info.energy_lowest_unoccupied` | Mapped | `single_point`<br>`get_band_gaps(energy_lowest_unoccupied)` |
 | `single_point.band_gap_info.value` | Mapped | `single_point`<br>`get_band_gaps(value)` |
-| `geometry_optimization` | Mapped | `geometry_optimization.step`<br>`geometry_optimization.step molecular_dynamics.step  single_point`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.spin_channel`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.code_specific_quantities`<br>`geometry_optimization.step molecular_dynamics.step  single_point.delta_energies_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.eigenvalues`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.occupations`<br>`geometry_optimization.step molecular_dynamics.step  single_point.energies.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.forces.value  forces_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.labels_positions`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.energies`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  forces_total` |
+| `geometry_optimization` | Mapped | `geometry_optimization.step`<br>`geometry_optimization.step  molecular_dynamics.step  single_point`<br>`geometry_optimization.step  molecular_dynamics.step  single_point.labels_positions`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.spin_channel`<br>`geometry_optimization.step molecular_dynamics.step  single_point.band_gap  band_gap_info  band_energy_ranges.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.code_specific_quantities`<br>`geometry_optimization.step molecular_dynamics.step  single_point.delta_energies_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.eigenvalues`<br>`geometry_optimization.step molecular_dynamics.step  single_point.eigenvalues  band_energy_ranges.occupations`<br>`geometry_optimization.step molecular_dynamics.step  single_point.energies.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.forces.value  forces_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.energies`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.spin_channel`<br>`geometry_optimization.step molecular_dynamics.step  single_point.total_dos.value`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  energy_total`<br>`geometry_optimization.step molecular_dynamics.step  single_point.value  forces_total` |
 | `geometry_optimization.labels_positions` | Unmapped | — |
 | `geometry_optimization.lattice_vectors` | Mapped | `get_periodic_boundary_conditions(lattice_vectors)` |
 | `geometry_optimization.band_engine_input` | Unmapped | — |
@@ -651,7 +651,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## Crystal / OUT
 
-**Summary:** 24 mapped, 101 unmapped quantities (19.20% coverage).
+**Summary:** 20 mapped, 105 unmapped quantities (16.00% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
@@ -694,14 +694,14 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `crystal_class` | Unmapped | — |
 | `space_group` | Unmapped | — |
 | `dimensionality` | Unmapped | — |
-| `lattice_parameters` | Mapped | `get_systems(lattice_parameters)` |
+| `lattice_parameters` | Unmapped | — |
 | `labels_positions` | Mapped | `get_systems(labels_positions)` |
 | `labels_positions_raw` | Unmapped | — |
 | `system_edited` | Mapped | `get_systems(system_edited)` |
-| `system_edited.lattice_parameters` | Mapped | `get_systems(lattice_parameters)` |
+| `system_edited.lattice_parameters` | Unmapped | — |
 | `system_edited.labels_positions` | Mapped | `get_systems(labels_positions)` |
 | `system_edited.labels_positions_nanotube` | Mapped | `get_systems(labels_positions_nanotube)` |
-| `lattice_vectors_restart` | Mapped | `get_systems(lattice_vectors_restart)` |
+| `lattice_vectors_restart` | Unmapped | — |
 | `labels_positions_restart` | Unmapped | — |
 | `symmops` | Unmapped | — |
 | `basis_set` | Unmapped | — |
@@ -758,7 +758,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `energy_total` | Mapped | `get_outputs(energy_total)` |
 | `geo_opt` | Mapped | `get_outputs(geo_opt)`<br>`get_systems(geo_opt)` |
 | `geo_opt.geo_opt_step` | Unmapped | — |
-| `geo_opt.geo_opt_step.lattice_parameters` | Mapped | `get_systems(lattice_parameters)` |
+| `geo_opt.geo_opt_step.lattice_parameters` | Unmapped | — |
 | `geo_opt.geo_opt_step.labels_positions` | Mapped | `get_systems(labels_positions)` |
 | `geo_opt.geo_opt_step.labels_positions_nanotube` | Mapped | `get_systems(labels_positions_nanotube)` |
 | `geo_opt.geo_opt_step.energy` | Mapped | `energy`<br>`get_outputs(energy)` |
@@ -783,18 +783,18 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## Crystal / F25
 
-**Summary:** 0 mapped, 8 unmapped quantities (0.00% coverage).
+**Summary:** 8 mapped, 0 unmapped quantities (100.00% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `segments` | Unmapped | — |
-| `segments.first_row` | Unmapped | — |
-| `segments.second_row` | Unmapped | — |
-| `segments.energies` | Unmapped | — |
-| `dos` | Unmapped | — |
-| `dos.first_row` | Unmapped | — |
-| `dos.second_row` | Unmapped | — |
-| `dos.values` | Unmapped | — |
+| `segments` | Mapped | `segments`<br>`segments.value` |
+| `segments.first_row` | Mapped | `segments`<br>`get_band_structures(first_row)`<br>`get_dos(first_row)` |
+| `segments.second_row` | Mapped | `segments`<br>`get_dos(second_row)` |
+| `segments.energies` | Mapped | `segments`<br>`get_band_structures(energies)` |
+| `dos` | Mapped | `dos`<br>`dos.energies`<br>`dos.values` |
+| `dos.first_row` | Mapped | `dos`<br>`get_band_structures(first_row)`<br>`get_dos(first_row)` |
+| `dos.second_row` | Mapped | `dos`<br>`get_dos(second_row)` |
+| `dos.values` | Mapped | `dos`<br>`dos.values`<br>`get_dos(values)` |
 
 ## Exciting / INFO.OUT
 
@@ -963,7 +963,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## FHI-aims / output
 
-**Summary:** 78 mapped, 141 unmapped quantities (35.62% coverage).
+**Summary:** 85 mapped, 134 unmapped quantities (38.81% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
@@ -1026,18 +1026,18 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `gw_self_consistency` | Unmapped | — |
 | `gw_eigenvalues` | Unmapped | — |
 | `lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
-| `structure` | Mapped | `structure.positions` |
+| `structure` | Mapped | `structure.positions`<br>`structure.velocities` |
 | `structure.labels` | Unmapped | — |
 | `structure.positions` | Mapped | `structure.positions` |
 | `structure.positions` | Mapped | `structure.positions` |
-| `structure.velocities` | Unmapped | — |
+| `structure.velocities` | Mapped | `structure.velocities` |
 | `lattice_vectors_reciprocal` | Unmapped | — |
 | `full_scf` | Unmapped | — |
 | `full_scf.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `full_scf.self_consistency.date_time` | Unmapped | — |
 | `full_scf.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `full_scf.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `full_scf.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `full_scf.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `full_scf.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `full_scf.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `full_scf.self_consistency.forces` | Mapped | `forces` |
 | `full_scf.self_consistency.stress_tensor` | Unmapped | — |
@@ -1054,19 +1054,19 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `full_scf.structure.labels` | Unmapped | — |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
-| `full_scf.structure.velocities` | Unmapped | — |
+| `full_scf.structure.velocities` | Mapped | `structure.velocities` |
 | `full_scf.structure` | Unmapped | — |
 | `full_scf.structure.labels` | Unmapped | — |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
 | `full_scf.structure.positions` | Mapped | `structure.positions` |
-| `full_scf.structure.velocities` | Unmapped | — |
+| `full_scf.structure.velocities` | Mapped | `structure.velocities` |
 | `full_scf.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
 | `full_scf.energy` | Mapped | `get_energies(energy)` |
 | `full_scf.energy_components` | Mapped | `get_energies(energy_components)` |
 | `full_scf.energy_xc` | Unmapped | — |
 | `full_scf.eigenvalues` | Mapped | `eigenvalues` |
-| `full_scf.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `full_scf.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `full_scf.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `full_scf.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `full_scf.forces` | Mapped | `forces` |
 | `full_scf.forces_raw` | Unmapped | — |
 | `full_scf.force_maximum` | Unmapped | — |
@@ -1083,8 +1083,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `geometry_optimization.self_consistency.date_time` | Unmapped | — |
 | `geometry_optimization.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `geometry_optimization.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `geometry_optimization.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `geometry_optimization.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `geometry_optimization.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `geometry_optimization.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `geometry_optimization.self_consistency.forces` | Mapped | `forces` |
 | `geometry_optimization.self_consistency.stress_tensor` | Unmapped | — |
@@ -1101,19 +1101,19 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `geometry_optimization.structure.labels` | Unmapped | — |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
-| `geometry_optimization.structure.velocities` | Unmapped | — |
+| `geometry_optimization.structure.velocities` | Mapped | `structure.velocities` |
 | `geometry_optimization.structure` | Unmapped | — |
 | `geometry_optimization.structure.labels` | Unmapped | — |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
 | `geometry_optimization.structure.positions` | Mapped | `structure.positions` |
-| `geometry_optimization.structure.velocities` | Unmapped | — |
+| `geometry_optimization.structure.velocities` | Mapped | `structure.velocities` |
 | `geometry_optimization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
 | `geometry_optimization.energy` | Mapped | `get_energies(energy)` |
 | `geometry_optimization.energy_components` | Mapped | `get_energies(energy_components)` |
 | `geometry_optimization.energy_xc` | Unmapped | — |
 | `geometry_optimization.eigenvalues` | Mapped | `eigenvalues` |
-| `geometry_optimization.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `geometry_optimization.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `geometry_optimization.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `geometry_optimization.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `geometry_optimization.forces` | Mapped | `forces` |
 | `geometry_optimization.forces_raw` | Unmapped | — |
 | `geometry_optimization.force_maximum` | Unmapped | — |
@@ -1130,8 +1130,8 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `molecular_dynamics.self_consistency` | Mapped | `get_scf_steps(self_consistency)` |
 | `molecular_dynamics.self_consistency.date_time` | Unmapped | — |
 | `molecular_dynamics.self_consistency.eigenvalues` | Mapped | `eigenvalues` |
-| `molecular_dynamics.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `molecular_dynamics.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `molecular_dynamics.self_consistency.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `molecular_dynamics.self_consistency.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `molecular_dynamics.self_consistency.energy_components` | Mapped | `get_energies(energy_components)` |
 | `molecular_dynamics.self_consistency.forces` | Mapped | `forces` |
 | `molecular_dynamics.self_consistency.stress_tensor` | Unmapped | — |
@@ -1148,19 +1148,19 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `molecular_dynamics.structure.labels` | Unmapped | — |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
-| `molecular_dynamics.structure.velocities` | Unmapped | — |
+| `molecular_dynamics.structure.velocities` | Mapped | `structure.velocities` |
 | `molecular_dynamics.structure` | Unmapped | — |
 | `molecular_dynamics.structure.labels` | Unmapped | — |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
 | `molecular_dynamics.structure.positions` | Mapped | `structure.positions` |
-| `molecular_dynamics.structure.velocities` | Unmapped | — |
+| `molecular_dynamics.structure.velocities` | Mapped | `structure.velocities` |
 | `molecular_dynamics.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_periodic_boundary_conditions(lattice_vectors)` |
 | `molecular_dynamics.energy` | Mapped | `get_energies(energy)` |
 | `molecular_dynamics.energy_components` | Mapped | `get_energies(energy_components)` |
 | `molecular_dynamics.energy_xc` | Unmapped | — |
 | `molecular_dynamics.eigenvalues` | Mapped | `eigenvalues` |
-| `molecular_dynamics.eigenvalues.kpoints` | Mapped | `get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
-| `molecular_dynamics.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
+| `molecular_dynamics.eigenvalues.kpoints` | Mapped | `get_band_gaps(kpoints)`<br>`get_band_structures(kpoints)`<br>`get_eigenvalues(kpoints)` |
+| `molecular_dynamics.eigenvalues.occupation_eigenvalue` | Mapped | `get_band_gaps(occupation_eigenvalue)`<br>`get_band_structures(occupation_eigenvalue)`<br>`get_eigenvalues(occupation_eigenvalue)` |
 | `molecular_dynamics.forces` | Mapped | `forces` |
 | `molecular_dynamics.forces_raw` | Unmapped | — |
 | `molecular_dynamics.force_maximum` | Unmapped | — |
@@ -2634,362 +2634,6 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `end_date_time` | Unmapped | — |
 | `job_done` | Unmapped | — |
 
-## Quantum ESPRESSO / phonon
-
-**Summary:** 349 mapped, 0 unmapped quantities (100.00% coverage).
-
-| File-parser quantity | Status | Archive mapper source |
-| --- | --- | --- |
-| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
-| `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
-| `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
-| `header.compile_parallel_version` | Mapped | `header` |
-| `header.nthreads` | Mapped | `header` |
-| `header.nproc` | Mapped | `header` |
-| `header.npool` | Mapped | `header` |
-| `header.input_filename` | Mapped | `header` |
-| `header.save_directory` | Mapped | `header` |
-| `header.ntypx` | Mapped | `header` |
-| `header.npk` | Mapped | `header` |
-| `header.lmaxx` | Mapped | `header` |
-| `header.nchix` | Mapped | `header` |
-| `header.ndmx` | Mapped | `header` |
-| `header.nbrx` | Mapped | `header` |
-| `header.pseudopotential_report` | Mapped | `header` |
-| `header.pseudopotential_report.species` | Mapped | `header` |
-| `header.pseudopotential_report.version` | Mapped | `header` |
-| `header.pseudopotential_report.contents` | Mapped | `header` |
-| `header.gamma_algorithms` | Mapped | `header` |
-| `header.diagonalization_algorithm` | Mapped | `header` |
-| `header.atom_radii` | Mapped | `header` |
-| `header.input_positions_cell_dirname` | Mapped | `header` |
-| `header.supercell` | Mapped | `header` |
-| `header.renormalized_wavefunction` | Mapped | `header` |
-| `header.exchange_correlation` | Mapped | `header` |
-| `header.dispersion` | Mapped | `header` |
-| `header.g_vector_sticks` | Mapped | `header` |
-| `header.ibrav` | Mapped | `header` |
-| `header.alat` | Mapped | `header`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
-| `header.cell_volume` | Mapped | `header` |
-| `header.number_of_atoms` | Mapped | `header` |
-| `header.number_of_species` | Mapped | `header` |
-| `header.number_of_electrons` | Mapped | `header` |
-| `header.number_of_electrons.total` | Mapped | `header` |
-| `header.number_of_electrons.up` | Mapped | `header` |
-| `header.number_of_electrons.down` | Mapped | `header` |
-| `header.number_of_states` | Mapped | `header` |
-| `header.wavefunction_cutoff` | Mapped | `header` |
-| `header.density_cutoff` | Mapped | `header` |
-| `header.fock_cutoff` | Mapped | `header` |
-| `header.scf_threshold_energy_change` | Mapped | `header` |
-| `header.potential_mixing_beta` | Mapped | `header` |
-| `header.mixing_scheme` | Mapped | `header` |
-| `header.xc_functional` | Mapped | `header`<br>`header.xc_functional` |
-| `header.exact_exchange_fraction` | Mapped | `header` |
-| `header.md_max_steps` | Mapped | `header` |
-| `header.spin_orbit_mode` | Mapped | `header` |
-| `header.berry_efield` | Mapped | `header` |
-| `header.berry_efield.direction` | Mapped | `header` |
-| `header.berry_efield.intensity` | Mapped | `header` |
-| `header.berry_efield.strings` | Mapped | `header` |
-| `header.berry_efield.niter` | Mapped | `header` |
-| `header.assume_isolated` | Mapped | `header` |
-| `header.celldm` | Mapped | `header` |
-| `header.units` | Mapped | `header` |
-| `header.simulation_cell` | Mapped | `header` |
-| `header.reciprocal_cell_units` | Mapped | `header` |
-| `header.reciprocal_cell` | Mapped | `header` |
-| `header.pseudopotential` | Mapped | `header` |
-| `header.pseudopotential.idx` | Mapped | `header` |
-| `header.pseudopotential.label` | Mapped | `header` |
-| `header.pseudopotential.filename` | Mapped | `header` |
-| `header.pseudopotential.md5sum` | Mapped | `header` |
-| `header.pseudopotential.type` | Mapped | `header` |
-| `header.pseudopotential.valence` | Mapped | `header` |
-| `header.pseudopotential.comment` | Mapped | `header` |
-| `header.pseudopotential.n_radial_grid_points` | Mapped | `header` |
-| `header.pseudopotential.integral_ndirections` | Mapped | `header` |
-| `header.pseudopotential.integral_lmax_exact` | Mapped | `header` |
-| `header.pseudopotential.augmentation_shape` | Mapped | `header` |
-| `header.pseudopotential.ndmx` | Mapped | `header` |
-| `header.pseudopotential.nbeta` | Mapped | `header` |
-| `header.pseudopotential.beta` | Mapped | `header` |
-| `header.pseudopotential.ncoefficients` | Mapped | `header` |
-| `header.pseudopotential.rinner` | Mapped | `header` |
-| `header.point_group` | Mapped | `header` |
-| `header.atom_species_pp` | Mapped | `header` |
-| `header.starting_magnetization` | Mapped | `header` |
-| `header.md_cell_mass` | Mapped | `header` |
-| `header.symmetry` | Mapped | `header` |
-| `header.symmetry.nsymm` | Mapped | `header` |
-| `header.symmetry.symm_inversion` | Mapped | `header` |
-| `header.symmetry.nsymm_with_fractional_translation` | Mapped | `header` |
-| `header.symmetry.nsymm_ignored` | Mapped | `header` |
-| `header.labels_positions` | Mapped | `header` |
-| `header.labels_positions.axes` | Mapped | `header` |
-| `header.labels_positions.units` | Mapped | `header` |
-| `header.labels_positions.labels` | Mapped | `header` |
-| `header.labels_positions.positions` | Mapped | `header` |
-| `header.k_points` | Mapped | `header` |
-| `header.k_points.nk` | Mapped | `header` |
-| `header.k_points.gaussian_broadening` | Mapped | `header` |
-| `header.k_points.n_gauss` | Mapped | `header` |
-| `header.k_points.smearing` | Mapped | `header` |
-| `header.k_points.width` | Mapped | `header` |
-| `header.k_points.units` | Mapped | `header` |
-| `header.k_points.ik` | Mapped | `header` |
-| `header.k_points.points` | Mapped | `header` |
-| `header.k_points.wk` | Mapped | `header` |
-| `header.k_points.warning` | Mapped | `header` |
-| `header.dense_grid` | Mapped | `header` |
-| `header.smooth_grid` | Mapped | `header` |
-| `header.alpha_ewald` | Mapped | `header` |
-| `header.core_charge_realspace` | Mapped | `header` |
-| `header.input_occupation` | Mapped | `header` |
-| `header.allocated_arrays` | Mapped | `header` |
-| `header.temporary_arrays` | Mapped | `header` |
-| `header.martyna_tuckerman_parameters` | Mapped | `header` |
-| `header.core_charge_check` | Mapped | `header` |
-| `header.input_potential_recalculated_file` | Mapped | `header` |
-| `header.starting_density_file` | Mapped | `header` |
-| `header.starting_potential` | Mapped | `header` |
-| `header.starting_charge_negative` | Mapped | `header` |
-| `header.initial_charge` | Mapped | `header` |
-| `header.starting_wfc` | Mapped | `header` |
-| `header.time_setup_cpu1_end` | Mapped | `header` |
-| `header.per_process_mem` | Mapped | `header` |
-| `header.profiling` | Mapped | `header` |
-| `header.memory` | Mapped | `header` |
-| `header.output_datafile` | Mapped | `header` |
-| `calculation` | Mapped | `calculation` |
-| `calculation.dispersion` | Mapped | `calculation` |
-| `calculation.g_vector_sticks` | Mapped | `calculation` |
-| `calculation.ibrav` | Mapped | `calculation` |
-| `calculation.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
-| `calculation.cell_volume` | Mapped | `calculation` |
-| `calculation.number_of_atoms` | Mapped | `calculation` |
-| `calculation.number_of_species` | Mapped | `calculation` |
-| `calculation.number_of_electrons` | Mapped | `calculation` |
-| `calculation.number_of_electrons.total` | Mapped | `calculation` |
-| `calculation.number_of_electrons.up` | Mapped | `calculation` |
-| `calculation.number_of_electrons.down` | Mapped | `calculation` |
-| `calculation.number_of_states` | Mapped | `calculation` |
-| `calculation.wavefunction_cutoff` | Mapped | `calculation` |
-| `calculation.density_cutoff` | Mapped | `calculation` |
-| `calculation.fock_cutoff` | Mapped | `calculation` |
-| `calculation.scf_threshold_energy_change` | Mapped | `calculation` |
-| `calculation.potential_mixing_beta` | Mapped | `calculation` |
-| `calculation.mixing_scheme` | Mapped | `calculation` |
-| `calculation.xc_functional` | Mapped | `calculation` |
-| `calculation.exact_exchange_fraction` | Mapped | `calculation` |
-| `calculation.md_max_steps` | Mapped | `calculation` |
-| `calculation.spin_orbit_mode` | Mapped | `calculation` |
-| `calculation.berry_efield` | Mapped | `calculation` |
-| `calculation.berry_efield.direction` | Mapped | `calculation` |
-| `calculation.berry_efield.intensity` | Mapped | `calculation` |
-| `calculation.berry_efield.strings` | Mapped | `calculation` |
-| `calculation.berry_efield.niter` | Mapped | `calculation` |
-| `calculation.assume_isolated` | Mapped | `calculation` |
-| `calculation.celldm` | Mapped | `calculation` |
-| `calculation.units` | Mapped | `calculation` |
-| `calculation.simulation_cell` | Mapped | `calculation` |
-| `calculation.reciprocal_cell_units` | Mapped | `calculation` |
-| `calculation.reciprocal_cell` | Mapped | `calculation` |
-| `calculation.pseudopotential` | Mapped | `calculation` |
-| `calculation.pseudopotential.idx` | Mapped | `calculation` |
-| `calculation.pseudopotential.label` | Mapped | `calculation` |
-| `calculation.pseudopotential.filename` | Mapped | `calculation` |
-| `calculation.pseudopotential.md5sum` | Mapped | `calculation` |
-| `calculation.pseudopotential.type` | Mapped | `calculation` |
-| `calculation.pseudopotential.valence` | Mapped | `calculation` |
-| `calculation.pseudopotential.comment` | Mapped | `calculation` |
-| `calculation.pseudopotential.n_radial_grid_points` | Mapped | `calculation` |
-| `calculation.pseudopotential.integral_ndirections` | Mapped | `calculation` |
-| `calculation.pseudopotential.integral_lmax_exact` | Mapped | `calculation` |
-| `calculation.pseudopotential.augmentation_shape` | Mapped | `calculation` |
-| `calculation.pseudopotential.ndmx` | Mapped | `calculation` |
-| `calculation.pseudopotential.nbeta` | Mapped | `calculation` |
-| `calculation.pseudopotential.beta` | Mapped | `calculation` |
-| `calculation.pseudopotential.ncoefficients` | Mapped | `calculation` |
-| `calculation.pseudopotential.rinner` | Mapped | `calculation` |
-| `calculation.point_group` | Mapped | `calculation` |
-| `calculation.atom_species_pp` | Mapped | `calculation` |
-| `calculation.starting_magnetization` | Mapped | `calculation` |
-| `calculation.md_cell_mass` | Mapped | `calculation` |
-| `calculation.symmetry` | Mapped | `calculation` |
-| `calculation.symmetry.nsymm` | Mapped | `calculation` |
-| `calculation.symmetry.symm_inversion` | Mapped | `calculation` |
-| `calculation.symmetry.nsymm_with_fractional_translation` | Mapped | `calculation` |
-| `calculation.symmetry.nsymm_ignored` | Mapped | `calculation` |
-| `calculation.labels_positions` | Mapped | `calculation` |
-| `calculation.labels_positions.axes` | Mapped | `calculation` |
-| `calculation.labels_positions.units` | Mapped | `calculation` |
-| `calculation.labels_positions.labels` | Mapped | `calculation` |
-| `calculation.labels_positions.positions` | Mapped | `calculation` |
-| `calculation.k_points` | Mapped | `calculation` |
-| `calculation.k_points.nk` | Mapped | `calculation` |
-| `calculation.k_points.gaussian_broadening` | Mapped | `calculation` |
-| `calculation.k_points.n_gauss` | Mapped | `calculation` |
-| `calculation.k_points.smearing` | Mapped | `calculation` |
-| `calculation.k_points.width` | Mapped | `calculation` |
-| `calculation.k_points.units` | Mapped | `calculation` |
-| `calculation.k_points.ik` | Mapped | `calculation` |
-| `calculation.k_points.points` | Mapped | `calculation` |
-| `calculation.k_points.wk` | Mapped | `calculation` |
-| `calculation.k_points.warning` | Mapped | `calculation` |
-| `calculation.dense_grid` | Mapped | `calculation` |
-| `calculation.smooth_grid` | Mapped | `calculation` |
-| `calculation.alpha_ewald` | Mapped | `calculation` |
-| `calculation.core_charge_realspace` | Mapped | `calculation` |
-| `calculation.input_occupation` | Mapped | `calculation` |
-| `calculation.allocated_arrays` | Mapped | `calculation` |
-| `calculation.temporary_arrays` | Mapped | `calculation` |
-| `calculation.martyna_tuckerman_parameters` | Mapped | `calculation` |
-| `calculation.core_charge_check` | Mapped | `calculation` |
-| `calculation.input_potential_recalculated_file` | Mapped | `calculation` |
-| `calculation.starting_density_file` | Mapped | `calculation` |
-| `calculation.starting_potential` | Mapped | `calculation` |
-| `calculation.starting_charge_negative` | Mapped | `calculation` |
-| `calculation.initial_charge` | Mapped | `calculation` |
-| `calculation.starting_wfc` | Mapped | `calculation` |
-| `calculation.time_setup_cpu1_end` | Mapped | `calculation` |
-| `calculation.per_process_mem` | Mapped | `calculation` |
-| `calculation.profiling` | Mapped | `calculation` |
-| `calculation.memory` | Mapped | `calculation` |
-| `calculation.output_datafile` | Mapped | `calculation` |
-| `calculation.charge_negative_spin` | Mapped | `calculation` |
-| `calculation.magnetic_moments` | Mapped | `calculation` |
-| `calculation.energies` | Mapped | `calculation`<br>`energies` |
-| `calculation.energies.energy_total` | Mapped | `calculation`<br>`energy_total` |
-| `calculation.energies.energy_total_harris_foulkes_estimate` | Mapped | `calculation` |
-| `calculation.energies.energy_total_accuracy_estimate` | Mapped | `calculation` |
-| `calculation.energies.energy_total_paw_all_electron` | Mapped | `calculation` |
-| `calculation.magnetization_total` | Mapped | `calculation` |
-| `calculation.magnetization_absolute` | Mapped | `calculation` |
-| `calculation.fermi_energy_shift` | Mapped | `calculation` |
-| `calculation.q` | Mapped | `calculation` |
-| `calculation.dynamical_matrix` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.dispersion` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.g_vector_sticks` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.ibrav` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.alat` | Mapped | `calculation`<br>`get_periodic_boundary_conditions(alat)`<br>`get_value(alat)` |
-| `calculation.dynamical_matrix.cell_volume` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_atoms` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_species` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_electrons` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_electrons.total` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_electrons.up` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_electrons.down` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.number_of_states` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.wavefunction_cutoff` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.density_cutoff` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.fock_cutoff` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.scf_threshold_energy_change` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.potential_mixing_beta` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.mixing_scheme` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.xc_functional` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.exact_exchange_fraction` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.md_max_steps` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.spin_orbit_mode` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.berry_efield` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.berry_efield.direction` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.berry_efield.intensity` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.berry_efield.strings` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.berry_efield.niter` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.assume_isolated` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.celldm` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.units` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.simulation_cell` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.reciprocal_cell_units` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.reciprocal_cell` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.idx` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.label` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.filename` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.md5sum` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.type` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.valence` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.comment` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.n_radial_grid_points` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.integral_ndirections` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.integral_lmax_exact` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.augmentation_shape` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.ndmx` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.nbeta` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.beta` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.ncoefficients` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.pseudopotential.rinner` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.point_group` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.atom_species_pp` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.starting_magnetization` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.md_cell_mass` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.symmetry` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.symmetry.nsymm` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.symmetry.symm_inversion` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.symmetry.nsymm_with_fractional_translation` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.symmetry.nsymm_ignored` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.labels_positions` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.labels_positions.axes` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.labels_positions.units` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.labels_positions.labels` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.labels_positions.positions` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.nk` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.gaussian_broadening` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.n_gauss` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.smearing` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.width` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.units` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.ik` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.points` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.wk` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.k_points.warning` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.dense_grid` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.smooth_grid` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.alpha_ewald` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.core_charge_realspace` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.input_occupation` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.allocated_arrays` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.temporary_arrays` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.martyna_tuckerman_parameters` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.core_charge_check` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.input_potential_recalculated_file` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.starting_density_file` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.starting_potential` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.starting_charge_negative` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.initial_charge` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.starting_wfc` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.time_setup_cpu1_end` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.per_process_mem` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.profiling` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.memory` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.output_datafile` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.charge_negative_spin` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.magnetic_moments` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.energies` | Mapped | `calculation`<br>`energies` |
-| `calculation.dynamical_matrix.energies.energy_total` | Mapped | `calculation`<br>`energy_total` |
-| `calculation.dynamical_matrix.energies.energy_total_harris_foulkes_estimate` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.energies.energy_total_accuracy_estimate` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.energies.energy_total_paw_all_electron` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.magnetization_total` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.magnetization_absolute` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.fermi_energy_shift` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.number` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.modes` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.number` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.ecutwfc` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.beta` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.total_time` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.time` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.threshold` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.alpha_mix` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.scf.iteration.ddv_scf` | Mapped | `calculation` |
-| `calculation.dynamical_matrix.representation.converged` | Mapped | `calculation` |
-| `calculation.frequencies` | Mapped | `calculation` |
-
 ## Quantum ESPRESSO / XSpectra
 
 **Summary:** 131 mapped, 20 unmapped quantities (86.75% coverage).
@@ -3286,7 +2930,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## VASP / OUTCAR
 
-**Summary:** 21 mapped, 9 unmapped quantities (70.00% coverage).
+**Summary:** 22 mapped, 8 unmapped quantities (73.33% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
@@ -3313,7 +2957,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `parameters` | Mapped | `parameters` |
 | `ions_per_type` | Unmapped | — |
 | `species` | Unmapped | — |
-| `kpoints` | Unmapped | — |
+| `kpoints` | Mapped | `kpoints.multiplicities`<br>`kpoints.points`<br>`kpoints.weights` |
 | `nbands` | Unmapped | — |
 | `lattice_vectors` | Unmapped | — |
 | `positions` | Unmapped | — |
@@ -3611,4 +3255,5 @@ The following parsers could not be represented by a reliable file-parser quantit
 - `Phonopy`
 - `GPAW / GPW`
 - `LOBSTER / COXPCAR`
+- `Quantum ESPRESSO / phonon`
 - `Yambo / NetCDF`

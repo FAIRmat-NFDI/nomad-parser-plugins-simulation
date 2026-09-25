@@ -28,12 +28,13 @@ class ModelSystem(model_system.ModelSystem):
         model_system.ModelSystem.positions,
         NETCDF_KEY,
         ('get_positions', []),
-        unit='angstrom',
+        unit='bohr',
     )
     add_mapping_annotation(
         model_system.ModelSystem.lattice_vectors,
         NETCDF_KEY,
         ('get_lattice_vectors', []),
+        unit='bohr',
     )
     add_mapping_annotation(
         model_system.AtomsState.m_def, NETCDF_KEY, ('get_labels', [])

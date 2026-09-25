@@ -4,7 +4,10 @@ from nomad_simulations.schema_packages import general
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-from .common import GIPAW_OUT_KEY, GIPAW_XML_KEY
+from .common import GIPAW_PROPERTIES_OUT_KEY, GIPAW_PROPERTIES_XML_KEY
+
+GIPAW_OUT_KEY = GIPAW_PROPERTIES_OUT_KEY
+GIPAW_XML_KEY = GIPAW_PROPERTIES_XML_KEY
 
 m_package = SchemaPackage()
 

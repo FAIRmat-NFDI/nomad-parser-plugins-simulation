@@ -10,7 +10,7 @@ from nomad.datamodel import EntryArchive
 from nomad.units import ureg
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, Path, XMLParser
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
     GeometryOptimization,
     MolecularDynamics,
@@ -540,7 +540,7 @@ class XMLArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser(logger=self.logger)
-        data_parser.data_object = Simulation()
+        data_parser.data_object = Simulation(program=Program(name='vasp'))
 
         xml_parser = VasprunParser(filepath=self.mainfile, logger=self.logger)
 
