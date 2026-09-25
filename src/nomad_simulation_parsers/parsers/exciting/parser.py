@@ -275,6 +275,15 @@ class InfoParser(TextParser):
                 return fermi
         return None
 
+    def get_is_spin_polarized(self, spin_treatment: str | None) -> bool:
+        """
+        Determine if the calculation is spin-polarized based on the spin treatment.
+        """
+        return {
+            'spin-unpolarised': False,
+            'spin-polarised': True,
+        }.get(spin_treatment)
+
 
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
