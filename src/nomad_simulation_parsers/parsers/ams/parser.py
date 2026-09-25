@@ -52,6 +52,25 @@ class MainfileParser(TextParser):
         'M06-L': 'M06-L',
     }
 
+    def get_configurations(self, source: Any = None) -> list[Any]:
+        if source is None:
+            return []
+        configurations = source if isinstance(source, list) else [source]
+        for frame_index, configuration in enumerate(configurations):
+            if hasattr(configuration, '__setitem__'):
+                configuration['frame_index'] = frame_index
+        return configurations
+
+    def get_topology_labels(
+        self, labels: Any = None, frame_index: int = 0
+    ) -> Any:
+        # Particle identity is frame-independent. Keep it on the topology frame
+        # only, while positions and other frame-dependent values remain on every
+        # geometry-optimization or trajectory frame.
+        if frame_index:
+            return None
+        return labels
+
     def get_functional_key(self, source: dict[str, Any]) -> str | None:
         for rung in ('MGGA', 'GGA', 'LDA'):
             value = (source.get(rung) or '').strip()
@@ -180,6 +199,8 @@ class MainfileParser(TextParser):
         return band_gaps
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if source is None:
+            return []
         dos = source.get('dos')
         if dos is None:
             return []

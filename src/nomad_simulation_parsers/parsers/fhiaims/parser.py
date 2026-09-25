@@ -203,9 +203,10 @@ class FHIAimsOutMappingParser(TextMappingParser):
     def get_eigenvalues(
         self, source: list[dict[str, Any]], params: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        n_spin = 1
-        for p in params.get('parameter', []):
-            if n_spin := p.get('Number of spin channels'):
+        n_spin = params.get('Number of spin channels', 1)
+        for parameter in params.get('parameter', []):
+            if value := parameter.get('Number of spin channels'):
+                n_spin = value
                 break
         eigenvalues = []
         # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged

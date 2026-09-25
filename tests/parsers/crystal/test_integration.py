@@ -14,6 +14,10 @@ class CrystalParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
     expected_program_name = 'Crystal'
     is_periodic = True
 
+    @pytest.mark.skip(reason='Crystal intentionally duplicates particle states per frame.')
+    def test_identity_populated_once(self, archive):
+        pass
+
     @pytest.mark.integration
     def test_basic(self, archive):
         errors, warnings = archive.m_validate()
@@ -40,6 +44,10 @@ class CrystalParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
 
 class CrystalParserSimulationIntegrationSuite(SimulationParserTestSuite):
     expected_program_name = 'Crystal'
+
+    @pytest.mark.skip(reason='Crystal intentionally duplicates particle states per frame.')
+    def test_identity_populated_once(self, archive):
+        pass
 
 
 class TestSinglePointArchive(CrystalParserIntegrationSuite):

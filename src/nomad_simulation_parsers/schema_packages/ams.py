@@ -39,7 +39,16 @@ class ModelSystem(model_system.ModelSystem):
     ).update(dict(ams_out=Mapper(mapper='.labels_positions[1]')))
     model_system.AtomsState.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
-    ).update(dict(ams_out=Mapper(mapper='.labels_positions[0]')))
+    ).update(
+        dict(
+            ams_out=Mapper(
+                mapper=(
+                    'get_topology_labels',
+                    ['.labels_positions[0]', '.frame_index'],
+                )
+            )
+        )
+    )
     model_system.Representation.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
@@ -154,7 +163,14 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.model_system,
         OUT_KEY,
-        '.geometry_optimization.step|| molecular_dynamics.step || .single_point',
+        (
+            'get_configurations',
+            [
+                '.geometry_optimization.step'
+                ' || molecular_dynamics.step'
+                ' || .single_point'
+            ],
+        ),
     )
     add_mapping_annotation(
         general.Simulation.outputs,

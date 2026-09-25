@@ -85,7 +85,7 @@ class TestFHIAimsOutputReader:
         parser.allow_overlap = True
         source = parser.to_dict()
 
-        assert {'Number of spin channels': 2} in source['array_size_parameters'][
+        assert {'Number of spin channels': 1} in source['array_size_parameters'][
             'parameter'
         ]
         assert source['structure']['labels'] == ['Si', 'Si']

@@ -1040,6 +1040,8 @@ class OutParser(TextParser):
 class RKFParser(FileParser):
     def __init__(self, mainfile=None, logger=None, open=None):
         super().__init__(mainfile, logger, open)
+        self._calc_type = None
+        self._labels = []
         self._energies_map = {
             'Bond Energy': 'x_ams_bond',
             'Corr. due to Orthogonalization': 'x_ams_orthogonalization',
@@ -1145,7 +1147,8 @@ class RKFParser(FileParser):
             positions = history.get(f'Coords({n + 1})')
             if positions is not None:
                 positions = np.reshape(positions, (len(self._labels), 3)) * ureg.bohr
-            calc_results['step'][n] = {'labels_positions': [self._labels, positions]}
+            labels = self._labels if n == 0 else None
+            calc_results['step'][n] = {'labels_positions': [labels, positions]}
             if (energy_total := history.get(f'Energy({n + 1})')) is not None:
                 calc_results['step'][n]['energy_total'] = energy_total * ureg.hartree
 
@@ -1193,15 +1196,25 @@ class RKFParser(FileParser):
             if len(files) != 1:
                 self.logger.warning('Inconsistent number of rkf files found.')
             self._calc_type = 'single_point'
-            calc_results.update(RKFParser(mainfile=files[0] if files else None).results)
+            parser = RKFParser(mainfile=files[0] if files else None).parse()
+            if parser is not None:
+                calc_results.update(parser.results)
 
         elif history:
             # pass
             if len(files) == 1:
-                calc_results['step'][-1] = RKFParser(mainfile=files[0]).parse()
+                parser = RKFParser(mainfile=files[0]).parse()
+                if parser is not None:
+                    if n_entries > 1:
+                        parser.results.pop('labels_positions', None)
+                    calc_results['step'][-1] = parser
             elif len(files) == n_entries:
                 for n, name in enumerate(files):
-                    calc_results['step'][n] = RKFParser(mainfile=name).parse()
+                    parser = RKFParser(mainfile=name).parse()
+                    if parser is not None:
+                        if n:
+                            parser.results.pop('labels_positions', None)
+                        calc_results['step'][n] = parser
             else:
                 self.logger.warning('Inconsistent number of rkf files found.')
 
