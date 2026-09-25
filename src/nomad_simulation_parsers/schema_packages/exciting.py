@@ -46,10 +46,6 @@ add_mapping_annotations(
     (general.Simulation.m_def, GEO_OPT_KEY, '@'),
 )
 
-
-# -----------------------------------------------------------------------------
-# Simulation
-# -----------------------------------------------------------------------------
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
 
@@ -136,6 +132,11 @@ class ModelMethod(model_method.ModelMethod):
         '.@',
         m_def=numerical_settings.Smearing.m_def,
     )
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def,
+        BANDSTRUCTURE_XML_KEY,
+        '.@'
+    )
 
 
 class Smearing(numerical_settings.Smearing):
@@ -212,7 +213,6 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
         outputs.ElectronicBandGap.value, EIGVAL_KEY, '.value', unit='eV'
     )
 
-
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotations(
         (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
@@ -225,7 +225,6 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
         ),
     )
 
-
 class VariablesEnergy2(variables.Energy2):
     add_mapping_annotation(
         variables.Energy2.points,
@@ -235,14 +234,12 @@ class VariablesEnergy2(variables.Energy2):
     )
     add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
-
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(
         numerical_settings.KSpace.k_line_path,
         BANDSTRUCTURE_XML_KEY,
         '.@',
     )
-
 
 class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotations(
