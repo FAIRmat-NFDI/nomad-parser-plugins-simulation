@@ -474,7 +474,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=input_xml_files[0], logger=self.logger
             )
             data_parser.annotation_key = exciting.INPUT_XML_KEY
-            input_xml_parser.convert(data_parser)
+            input_xml_parser.convert(data_parser,  update_mode='merge')
             input_xml_parser.close()
 
         # eigenvalues from eigval.out
