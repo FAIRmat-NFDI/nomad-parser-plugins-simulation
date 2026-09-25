@@ -98,7 +98,7 @@ class DFT(model_method.DFT):
         (
             model_method.DFT.is_spin_polarized,
             INFO_KEY,
-            ('get_is_spin_polarized', ['initialization.spin_treatment']),
+            ('get_is_spin_polarized', ['initialization.x_exciting_spin_treatment']),
         ),
     )
 
