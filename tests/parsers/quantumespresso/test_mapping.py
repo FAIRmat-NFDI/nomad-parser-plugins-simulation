@@ -114,9 +114,7 @@ class TestQuantumEspressoTextMapping:
         assert outputs[0].m_def.qualified_name() == (
             'nomad_simulations.schema_packages.outputs.Outputs'
         )
-        assert outputs[0].total_energies[0].value.to('rydberg').magnitude == approx(
-            -10
-        )
+        assert outputs[0].total_energies[0].value.to('rydberg').magnitude == approx(-10)
 
     def test_maps_program_name_and_version(self):
         assert get_program_name_version('Program PWSCF v.7.3 starts') == (

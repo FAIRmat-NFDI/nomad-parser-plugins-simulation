@@ -177,12 +177,8 @@ class KMesh(numerical_settings.KMesh):
             dict(shape_rest=()),
         ),
     )
-    add_mapping_annotation(
-        numerical_settings.KMesh.points, OUTCAR_KEY, '.points'
-    )
-    add_mapping_annotation(
-        numerical_settings.KMesh.weights, OUTCAR_KEY, '.weights'
-    )
+    add_mapping_annotation(numerical_settings.KMesh.points, OUTCAR_KEY, '.points')
+    add_mapping_annotation(numerical_settings.KMesh.weights, OUTCAR_KEY, '.weights')
     add_mapping_annotation(
         numerical_settings.KMesh.multiplicities, OUTCAR_KEY, '.multiplicities'
     )

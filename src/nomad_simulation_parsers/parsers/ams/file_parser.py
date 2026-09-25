@@ -1173,7 +1173,7 @@ class RKFParser(FileParser):
                     .magnitude
                 )
 
-    def _parse_history(self, calc_results) -> None:
+    def _parse_history(self, calc_results) -> None:  # noqa: PLR0912
         history = self.data.get('History', {})
         n_entries = history.get('nEntries', 0)
 

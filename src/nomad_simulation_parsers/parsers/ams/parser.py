@@ -61,9 +61,7 @@ class MainfileParser(TextParser):
                 configuration['frame_index'] = frame_index
         return configurations
 
-    def get_topology_labels(
-        self, labels: Any = None, frame_index: int = 0
-    ) -> Any:
+    def get_topology_labels(self, labels: Any = None, frame_index: int = 0) -> Any:
         # Particle identity is frame-independent. Keep it on the topology frame
         # only, while positions and other frame-dependent values remain on every
         # geometry-optimization or trajectory frame.

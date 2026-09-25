@@ -165,11 +165,7 @@ class Simulation(general.Simulation):
         OUT_KEY,
         (
             'get_configurations',
-            [
-                '.geometry_optimization.step'
-                ' || molecular_dynamics.step'
-                ' || .single_point'
-            ],
+            ['.geometry_optimization.step || molecular_dynamics.step || .single_point'],
         ),
     )
     add_mapping_annotation(
