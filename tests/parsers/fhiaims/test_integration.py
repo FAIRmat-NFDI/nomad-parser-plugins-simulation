@@ -88,6 +88,24 @@ class TestFeScfSpinPolarized(FHIAimsParserIntegrationSuite):
         )
 
 
+@pytest.mark.integration
+def test_single_point_n_max_iterations(tmp_path):
+    """SCF max-iterations is migrated onto `SinglePointMethod.n_max_iterations`."""
+    content = (DATA_DIR / 'Fe_scf_spinpol' / 'out.out').read_text(encoding='utf-8')
+    modified = content.replace(
+        'Maximum number of self-consistency iterations not provided.',
+        'Maximum number of self-consistency iterations: 40',
+        1,
+    )
+    assert modified != content, 'Failed to inject max-iterations line'
+    mainfile = tmp_path / 'aims_with_max_scf.out'
+    mainfile.write_text(modified, encoding='utf-8')
+
+    method = parse_fhiaims(mainfile).workflow2.method
+    assert method.m_def.name == 'SinglePointMethod'
+    assert method.n_max_iterations == 40
+
+
 class TestFeBandSpinPolarized(FHIAimsParserIntegrationSuite):
     archive_fixture = 'fe_band_spinpol_archive'
     workflow_name = 'SinglePoint'
