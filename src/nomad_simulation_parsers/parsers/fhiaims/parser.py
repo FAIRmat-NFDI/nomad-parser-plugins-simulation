@@ -589,6 +589,9 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             # mapper would clear the un-annotated `method`).
             self.archive.workflow2 = SinglePoint()
             self.archive.workflow2.method = SinglePointMethod()
+            n_max_iterations = out_parser.data.get('max_scf_iterations')
+            if n_max_iterations is not None:
+                self.archive.workflow2.method.n_max_iterations = n_max_iterations
             if energy_threshold is not None:
                 self.archive.workflow2.method.convergence_targets = [
                     EnergyConvergenceTarget(
