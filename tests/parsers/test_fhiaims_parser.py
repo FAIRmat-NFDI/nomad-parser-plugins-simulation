@@ -91,6 +91,29 @@ def test_single_point_workflow():
     assert energy_target.threshold.to('eV').magnitude == approx(1.0e-5)
 
 
+def test_single_point_n_max_iterations(tmp_path):
+    """SCF max-iterations is migrated onto `SinglePointMethod.n_max_iterations`."""
+    source_path = 'tests/data/fhiaims/Fe_singlepoint/aims.out'
+    with open(source_path, encoding='utf-8') as f:
+        content = f.read()
+    modified = content.replace(
+        'Maximum number of self-consistency iterations not provided.',
+        'Maximum number of self-consistency iterations: 40',
+        1,
+    )
+    assert modified != content, 'Failed to inject max-iterations line'
+    test_file = tmp_path / 'aims_with_max_scf.out'
+    test_file.write_text(modified, encoding='utf-8')
+
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse(str(test_file), archive, LOGGER)
+
+    method = archive.workflow2.method
+    assert method.m_def.name == 'SinglePointMethod'
+    assert method.n_max_iterations == 40
+
+
 def test_scf_steps_quantities():
     parser = FHIAimsParser()
     archive = EntryArchive()
