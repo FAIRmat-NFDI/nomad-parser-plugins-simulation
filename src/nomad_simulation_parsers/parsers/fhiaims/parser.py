@@ -557,12 +557,10 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         archive_handler.annotation_key = fhiaims.TEXT_DOS_KEY
         out_parser.convert(archive_handler, remove=False)
 
-        # workflow. Convergence targets stay imperative (shared polymorphic
-        # `convergence_targets` def), built here and assigned after convert().
+        # workflow — polymorphic convergence targets are built here and assigned
+        # after convert() (see below).
         force_threshold = out_parser.data.get('convergence_forces')
         energy_threshold = out_parser.data.get('convergence_energy')
-        if energy_threshold is not None and not hasattr(energy_threshold, 'units'):
-            energy_threshold = energy_threshold * ureg.eV
 
         workflow_key = None
         convergence_targets = None
@@ -570,8 +568,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         if out_parser.data.get('geometry_optimization'):
             workflow_key = fhiaims.GEO_OPT_WORKFLOW_KEY
             self.archive.workflow2 = GeometryOptimization()
-            # `method` is created + filled by convert() via the geo_opt_workflow
-            # annotations (subsection edge + optimization_method).
+            # `method` is created + filled by convert() via the geo_opt annotations.
             if force_threshold is not None:
                 convergence_targets = [
                     ForceConvergenceTarget(
@@ -588,9 +585,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             workflow_key = fhiaims.MD_WORKFLOW_KEY
             self.archive.workflow2 = MolecularDynamics()
         else:
-            # Single point: no declarative mapping applies, so it is populated
-            # manually and not passed through convert() (the SinglePoint `.@`
-            # root mapper would clear the un-annotated `method`).
+            # single point: populated manually, not via convert() (its `.@` root
+            # mapper would clear the un-annotated `method`).
             self.archive.workflow2 = SinglePoint()
             self.archive.workflow2.method = SinglePointMethod()
             if energy_threshold is not None:
@@ -605,9 +601,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             archive_handler.annotation_key = workflow_key
             out_parser.convert(archive_handler)
 
-            # Polymorphic convergence targets must be assigned after convert() so
-            # the concrete subclass survives (convert rebuilds subsections as
-            # their declared base type).
+            # assign polymorphic targets after convert() (it rebuilds subsections
+            # as their declared base type).
             if convergence_targets is not None:
                 self.archive.workflow2.method.convergence_targets = convergence_targets
             if single_point_convergence_targets is not None:

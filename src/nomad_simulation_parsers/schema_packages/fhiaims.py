@@ -283,11 +283,8 @@ class Energy2(variables.Energy2):
 
 
 # workflow
-# Map `tasks` to a `.tasks` source that does not exist in the parsed data so it
-# resolves to empty. This is deliberate: the workflow root `.@` mappers below
-# would otherwise recurse into the inherited `tasks` subsection and nest the
-# workflow inside its own task list. The real task list is built later by the
-# workflow normalizer from the outputs.
+# Map `tasks` to a non-existent `.tasks` so it resolves empty: the `.@` root
+# mappers would otherwise recurse into `tasks` and nest the workflow in itself.
 add_mapping_annotation(
     workflow.general.SimulationWorkflow.tasks, GEO_OPT_WORKFLOW_KEY, '.tasks'
 )
@@ -298,9 +295,8 @@ add_mapping_annotation(
 # single point
 add_mapping_annotation(workflow.single_point.SinglePoint.m_def, SINGLE_POINT_KEY, '.@')
 
-# geometry optimization — activate `method` via its subsection edge (ORCA idiom);
-# `optimization_method` is the only mapped quantity. `results` carries no mapped
-# quantities, so it needs no annotation (the workflow normalizer fills it).
+# geometry optimization: `method` activated via its subsection edge;
+# `optimization_method` is the only mapped quantity (`results` is normalizer-filled).
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimization.m_def,
     GEO_OPT_WORKFLOW_KEY,
@@ -312,7 +308,7 @@ add_mapping_annotation(
     '.@',
 )
 add_mapping_annotation(
-    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
+    workflow.geometry_optimization.GeometryOptimizationModel.optimization_method,
     GEO_OPT_WORKFLOW_KEY,
     '.geometry_relaxation_method',
 )
@@ -323,14 +319,9 @@ add_mapping_annotation(
 )
 
 
-# NOTE: `convergence_targets` / `single_point_convergence_targets` are repeating
-# *polymorphic* subsections. They are NOT mapped via annotations here: the
-# concrete subclass (`ForceConvergenceTarget` / `EnergyConvergenceTarget`) is
-# selected through the shared, inherited `convergence_targets` SubSection def,
-# whose `mapper_m_def` slot is global — so geo-opt (force) and single-point
-# (energy) cannot both be expressed. They are assigned manually *after*
-# `convert()` in the parser, mirroring the abinit/exciting workflow parsers and
-# the `add_mapping_annotation` docstring caveat.
+# `convergence_targets` / `single_point_convergence_targets` are polymorphic and
+# share one global mapper slot, so they can't be annotated here — the parser
+# assigns them after `convert()` (nomad-file-parser#19).
 
 
 class KSpace(numerical_settings.KSpace):
