@@ -42,6 +42,10 @@ ORBITAL_RANGE_BOUNDS = 2
 AO_ROW_RE = re.compile(r'\d+[A-Z][a-z]?$')
 
 
+def empty_or_nones(x: list[Any]) -> bool:
+    return len(x)==0 or all(xi is None for xi in x)
+
+
 def str_to_cartesian_coordinates(
     value: list[Any],
 ) -> tuple[list[str], np.ndarray | None]:
@@ -781,19 +785,55 @@ class OutParser(MappingTextParser):
             self._single_points = self._get_single_points(self.text_parser)
         return self._single_points
 
+    def get_scf_iterations(self, point: dict[str, Any]) -> dict[str, list[float|None]]:
+        iterations = self._navigate(point, 'self_consistent',
+            'scf_iterations', 'scf_iter_group')
+        if not iterations:
+            return {}
+
+        # The order of the columns depends on ORCA version
+        # and on the SCF stage/algorithm and can change during
+        # each single point computation -> determine it dynamically.
+        valid_keys_units = {
+            'energy': ureg.hartree,
+            'deltae': ureg.hartree,
+            'maxdp': None,
+            'rmsdp': None,
+            'time': ureg.second,
+        }
+
+        iter_ret = {}
+        for key, unit in valid_keys_units.items():
+            iter_ret[key] = []
+            for iter_block in iterations:
+                iter_header = iter_block.get('header', [])
+                iter_values = iter_block.get('values', [])
+                parsed_keys = [
+                    key.replace('-', '').lower().replace('(sec)', '')
+                    for key in iter_header
+                    if not (key.startswith('(') and key.endswith(')'))]
+                ikey = parsed_keys.index(key) if key in parsed_keys else None
+                for values in iter_values:
+                    if ikey is not None and len(values)>ikey:
+                        value = values[ikey]
+                    else:
+                        value = None
+                    if value is not None and unit is not None:
+                        value = value * unit
+                    iter_ret[key].append(value)
+            if empty_or_nones(iter_ret[key]):
+                iter_ret.pop(key)
+
+        return iter_ret
+
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
         points = self.single_points
         energies = [point.get('energy_total') if point else None for point in points]
         molecular_orbitals = [
                 self.get_molecular_orbitals(point, src) if point else []
             for point in points]
-
         scf_steps = [
-            self._navigate(
-                    point,
-                    'self_consistent',
-                    'scf_iterations'
-                    ).get('energy', [])
+                self.get_scf_iterations(point) if point else []
             for point in points]
 
         if not any(molecular_orbitals) and not any(energies) and not any(scf_steps):
@@ -804,7 +844,7 @@ class OutParser(MappingTextParser):
                 'model_system_ref': f'/data/model_system/{i}',
                 'molecular_orbitals': molecular_orbitals_i,
                 'total_energy': [{'value': energy}] if energy is not None else [],
-                'scf_steps': {'energies_total': scf_steps_i},
+                'scf_steps': scf_steps_i,
             }
             for i, (energy, molecular_orbitals_i, scf_steps_i) in enumerate(
                 zip(energies, molecular_orbitals, scf_steps, strict=True)
