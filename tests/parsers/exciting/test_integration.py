@@ -159,7 +159,7 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
         assert output.scf_steps.delta_potential_rms[23].to(
             'hartree'
         ).magnitude == approx(0.489106e-07)
-        assert output.scf_steps.delta_charge_abs[23].to('coulomb').magnitude == approx(
+        assert output.scf_steps.delta_charge_abs[23].to('elementary_charge').magnitude == approx(
             4.16073e-08
         )
         assert output.scf_steps.delta_force_abs[23].to(
