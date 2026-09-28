@@ -706,18 +706,39 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'scf_iterations',
-                r'SCF ITERATIONS\s*\-+([\s\S]+?)\*{10}',
+                r'(?:SCF ITERATIONS\s*\-+'
+                r'|ORCA LEAN-SCF[ \t]*\r?\n[ \t]*memory conserving SCF solver'
+                r'[ \t]*\r?\n[ \t]*\-+)([\s\S]+?)\*{10}',
                 sub_parser=TextParser(
                     quantities=[
-                        Quantity(
-                            'energy',
-                            rf'\n *\d+\s*({re_float})\s*{re_float}',
-                            repeats=True,
-                            dtype=float,
-                            unit=ureg.hartree,
-                        )
-                    ]
-                ),
+                    Quantity(
+                        'scf_iter_group',
+                        r'((?:Iteration|ITER)\b[\s\S]*?)(?='
+                        r'(?:Iteration|ITER)\b|\*{10,}|\Z)',
+                        repeats=True,
+                        sub_parser = TextParser(
+                            quantities=
+                            [
+                            Quantity(
+                                'header',
+                                r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
+                                repeats=False,
+                                dtype=str,
+                                ),
+                            Quantity(
+                                'values',
+                                rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
+                                rf'[ \t]+({re_float})[ \t]+({re_float})'
+                                rf'[ \t]+({re_float})[ \t]+({re_float})'
+                                rf'(?:[ \t]+({re_float}))?',
+                                repeats=True,
+                                dtype=float,
+                                ),
+                            ],
+                            ),
+                        ),
+                        ],
+            ),
             ),
             Quantity(
                 'final_grid',
