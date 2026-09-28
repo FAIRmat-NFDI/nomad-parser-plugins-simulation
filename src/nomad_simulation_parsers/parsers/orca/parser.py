@@ -243,7 +243,9 @@ class OutParser(MappingTextParser):
             {
                 'is_representative': True,
                 'positions': positions,
-                'particle_states': [{'chemical_symbol': symbol} for symbol in symbols],
+                'particle_states': [
+                    {'chemical_symbol': symbol} for symbol in symbols
+                ],
                 **self._get_charge_and_multiplicity(src),
             }
         ]
