@@ -132,11 +132,6 @@ class ModelMethod(model_method.ModelMethod):
         '.@',
         m_def=numerical_settings.Smearing.m_def,
     )
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def,
-        BANDSTRUCTURE_XML_KEY,
-        '.@'
-    )
 
 
 class Smearing(numerical_settings.Smearing):
@@ -148,9 +143,12 @@ class Smearing(numerical_settings.Smearing):
 
 
 class ModelSystem(model_system.ModelSystem):
+    add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
+
+
+class Representation(model_system.Representation):
     add_mapping_annotations(
         (model_system.Representation.m_def, INFO_KEY, '.@'),
-        (model_system.ModelSystem.positions, INFO_KEY, '.positions'),
         (model_system.Representation.lattice_vectors, INFO_KEY, '.lattice_vectors'),
         (
             model_system.Representation.periodic_boundary_conditions,
@@ -159,10 +157,9 @@ class ModelSystem(model_system.ModelSystem):
         ),
     )
 
-
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
-        (model_system.AtomsState.m_def, INFO_KEY, '.atoms'),
+        (atoms_state.AtomsState.m_def, INFO_KEY, '.atoms'),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
     )
 
@@ -193,7 +190,7 @@ class TotalEnergy(properties.TotalEnergy):
     )
 
 
-class Forces(properties.forces.TotalForce):
+class TotalForce(properties.forces.TotalForce):
     add_mapping_annotation(properties.forces.TotalForce.value, INFO_KEY, '.forces')
 
 
@@ -217,13 +214,7 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotations(
         (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
         (outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'),
-        (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),
-        (
-            outputs.ElectronicDensityOfStates.projected_dos,
-            DOS_XML_KEY,
-            'dos.partialdos.diagram',
-        ),
-    )
+        (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),)
 
 class VariablesEnergy2(variables.Energy2):
     add_mapping_annotation(
@@ -235,6 +226,11 @@ class VariablesEnergy2(variables.Energy2):
     add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
 class KSpace(numerical_settings.KSpace):
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def,
+        BANDSTRUCTURE_XML_KEY,
+        '.@'
+    )
     add_mapping_annotation(
         numerical_settings.KSpace.k_line_path,
         BANDSTRUCTURE_XML_KEY,
@@ -258,31 +254,16 @@ class KLinePath(numerical_settings.KLinePath):
         ),
     )
 
-
-# class NumericalSettingsBandStructure(numerical_settings.KSpace):
-#     add_mapping_annotations(
-#         #(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
-#         (numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY, '.@'),
-#         (
-#             numerical_settings.KLinePath.high_symmetry_path_names,
-#             BANDSTRUCTURE_XML_KEY,
-#             r'bandstructure.vertex[*]."@label"',
-#         ),
-#         (
-#             numerical_settings.KLinePath.high_symmetry_path_values,
-#             BANDSTRUCTURE_XML_KEY,
-#             ('reshape_coords', [r'bandstructure.vertex[*]."@coord"']),
-#         ),
-#     )
-
-
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.value,
         DOS_XML_KEY,
         ('to_float', [r'.point[*]."@dos"']),
-        unit='1/hartree',
-    )
+        unit='1/hartree'),
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.projected_dos,
+            DOS_XML_KEY,
+            'dos.partialdos.diagram')
 
 
 class OutputsSCFSteps(outputs.SCFSteps):
