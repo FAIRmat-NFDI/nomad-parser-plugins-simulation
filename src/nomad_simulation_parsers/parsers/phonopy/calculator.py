@@ -18,21 +18,14 @@
 #
 import re
 from fractions import Fraction
-from itertools import combinations
 from typing import Any
 
 import numpy as np
-from ase import lattice as aselattice
-from ase.cell import Cell
-from ase.dft.kpoints import (
-    get_special_points,
-    parse_path_string,
-    sc_special_points,
-    special_paths,
-)
+from nomad_simulations.schema_packages.numerical_settings import KSpaceFunctionalities
 from phonopy import Phonopy
 from phonopy.phonon.band_structure import BandStructure
 from phonopy.physical_units import get_physical_units
+from phonopy.structure.atoms import PhonopyAtoms
 
 _PHONOPY_UNITS = get_physical_units()
 EvTokJmol = _PHONOPY_UNITS.EvTokJmol
@@ -46,7 +39,7 @@ def generate_kpath_parameters(
     for p in paths:
         k_points.append([points[k] for k in p])
         for index in range(len(p)):
-            if p[index] == 'G':
+            if p[index] in ('G', 'GAMMA'):
                 p[index] = 'Γ'
     parameters: list[dict[str, Any]] = []
     n_k = 2
@@ -99,62 +92,20 @@ def read_kpath(filename: str) -> list[dict[str, Any]]:
     return generate_kpath_parameters(points, [labels], npoints)
 
 
-def test_non_canonical_hexagonal(cell: Cell, symprec: float) -> int | None:
-    """
-    Tests if the cell is a non-canonical hexagonal cell
-    and returns the index of the ~ 60 degree angle
-    (error range controlled by `symprec`).
-    """
-    try:
-        target = 60
-        angles = cell.angles()
-        lattices = cell.lengths()
-    except AttributeError:
-        raise ValueError('Cell is not ase.cell.Cell')
-
-    # 2 tests:
-    ## 1. if there is only one angle close to 60 degrees
-    ## 2. if there is only one pair of lattice vectors with the same length
-    condition_angles = (angles > target - symprec) & (angles < target + symprec)
-    lattice_pairs = list(combinations(lattices, 2))
-    if (len(match_id := np.where(condition_angles)[0]) == 1) and (
-        sum([lat[1] - symprec <= lat[0] <= lat[1] + symprec for lat in lattice_pairs])
-        == 1
-    ):
-        return int(match_id[0])
-    return None
-
-
-def generate_kpath_ase(cell: Cell, symprec: float, logger=None) -> list[dict[str, Any]]:
-    try:
-        if not isinstance(cell, Cell):
-            cell = Cell(cell)
-        if isinstance(
-            rot_axis_id := test_non_canonical_hexagonal(cell, 1e2 * symprec), int
-        ):  # be more lenient with the angle
-            logger.warning(
-                'Non-canonical hexagonal cell detected. Will correct the orientation.'
-            )
-            target_axis_id = list(set(range(3)) - {rot_axis_id})[0]
-            mirror_matrix = np.eye(3)
-            mirror_matrix[target_axis_id, target_axis_id] *= -1
-            cell = Cell(mirror_matrix @ cell)
-        lattice = aselattice.get_lattice_from_canonical_cell(cell, eps=symprec)
-        paths = parse_path_string(lattice.special_path)
-        points = lattice.get_special_points()
-    except Exception:
-        logger.warning('Cannot resolve lattice paths.')
-        paths = special_paths['orthorombic']  # TODO: remove reliance on `ase`
-        points = sc_special_points['orthorombic']  # TODO: remove reliance on `ase`
-    if points is None:
-        try:
-            points = get_special_points(cell)
-        except Exception:
-            return []
-
-    if isinstance(paths, str):
-        paths = [list(path) for path in paths.split(',')]
-    return generate_kpath_parameters(points, paths, 100)
+def generate_kpath_seekpath(
+    atoms: PhonopyAtoms, symprec: float, logger=None
+) -> list[dict[str, Any]]:
+    structure = (
+        atoms.cell.tolist(),
+        atoms.scaled_positions.tolist(),
+        atoms.numbers.tolist(),
+    )
+    resolved = KSpaceFunctionalities.resolve_special_points_and_path(
+        structure, logger, eps=symprec
+    )
+    if resolved is None:
+        return []
+    return generate_kpath_parameters(resolved['points'], resolved['path'], 100)
 
 
 class PhononProperties:
@@ -181,12 +132,13 @@ class PhononProperties:
         frequency_unit_factor = VaspToTHz
         is_eigenvectors = False
 
-        unit_cell = phonopy_obj.unitcell.cell
         sym_tol = phonopy_obj.symmetry.tolerance
         if self.band_conf is not None:
             parameters = read_kpath(self.band_conf)
         else:
-            parameters = generate_kpath_ase(unit_cell, sym_tol, self.logger)
+            parameters = generate_kpath_seekpath(
+                phonopy_obj.unitcell, sym_tol, self.logger
+            )
         if not parameters:
             return None, None, None
 
