@@ -1364,6 +1364,11 @@ class OutReader(TextParser):
                 r'(THE OPTIMIZATION HAS CONVERGED)',
                 convert=False
             ),
+            Quantity(
+                'is_not_converged',
+                r'(The optimization did not converge)',
+                convert=False
+            ),
         ]
 
         geometry_optimization_quantities += [
