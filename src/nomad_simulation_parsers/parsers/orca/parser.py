@@ -22,7 +22,10 @@ from nomad_simulations.schema_packages.workflow import (
     SerialWorkflow,
     SimulationWorkflow,
 )
-from nomad_simulations.schema_packages.workflow.general import ForceConvergenceTarget
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -884,19 +887,27 @@ class OutParser(MappingTextParser):
             'final_displacement_maximum': last_cycle.get('geom_opt_max_displacement'),
         }
 
-    def _get_geometry_convergence_targets(self) -> list[ForceConvergenceTarget]:
+    def _get_geometry_convergence_targets(self) -> list[ForceConvergenceTarget] | None:
         geometry_optimization = self.text_parser.geometry_optimization
         threshold = geometry_optimization.get('max_gradient_tol')
         if threshold is None:
             return None
         return [
-            ForceConvergenceTarget(
-                threshold=threshold[1],
-                threshold_type='maximum'
-            )
+            ForceConvergenceTarget(threshold=threshold[1], threshold_type='maximum'),
             # The normalizer checks against this.
             # We do not add `rms_gradient_tol` since the check will be wrong:
             # it will try to take RMS of `final_force_maximum` and complain.
+        ]
+
+    def _get_scf_convergence_targets(self) -> list[EnergyConvergenceTarget] | None:
+        threshold = self._navigate(self.single_points[0], 'self_consistent',
+            'scf_settings', 'energy_change_tolerance')
+        if threshold is None:
+            return None
+        return [
+            EnergyConvergenceTarget(threshold=threshold, threshold_type='absolute'),
+            # There are other thresholds and combinations thereof,
+            # but the schema and normalizer support only this one.
         ]
 
     def build_workflow(
@@ -911,8 +922,10 @@ class OutParser(MappingTextParser):
             metainfo_parser.data_object = archive.workflow2
             metainfo_parser.annotation_key = orca.GEOM_OPT_KEY
             self.convert(metainfo_parser)
-            convergence_targets = self._get_geometry_convergence_targets()
-            archive.workflow2.method.convergence_targets = convergence_targets
+            geom_conv_targets = self._get_geometry_convergence_targets()
+            scf_conv_targets = self._get_scf_convergence_targets()
+            archive.workflow2.method.convergence_targets = geom_conv_targets
+            archive.workflow2.method.single_point_convergence_targets = scf_conv_targets
             archive.workflow2.normalize(archive, logger)
             return archive.workflow2
 
