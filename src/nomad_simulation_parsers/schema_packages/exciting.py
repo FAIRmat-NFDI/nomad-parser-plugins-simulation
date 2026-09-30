@@ -138,7 +138,7 @@ class Smearing(numerical_settings.Smearing):
     add_mapping_annotation(
         numerical_settings.Smearing.kind,
         INFO_KEY,
-        'initialization.smearing_kind',
+        ('get_smearing_kind', ['initialization.smearing_kind'])
     )
     add_mapping_annotation(
         numerical_settings.Smearing.width,
