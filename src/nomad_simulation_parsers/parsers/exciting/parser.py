@@ -285,6 +285,30 @@ class InfoParser(TextParser):
         }.get(spin_treatment)
 
 
+    def get_smearing_kind(self, smearing_kind: str | None) -> str | None:
+        """
+        Map the smearing kind from the input to a standardized representation.
+        """
+        if smearing_kind is None:
+            return None
+
+        if isinstance(smearing_kind, (list, tuple)):
+            smearing_kind = ' '.join(str(item) for item in smearing_kind)
+
+        smearing_kind = ' '.join(smearing_kind.split())
+        
+        return {
+            'Fermi-Dirac': 'Fermi-Dirac',
+            'Gaussian': 'Gaussian',
+            'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': 
+            'Methfessel-Paxton 1',
+            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': 
+            'Methfessel-Paxton 2',
+            'Extended linear tetrahedron method': 'Tetrahedra-extended',
+            'Square-wave impulse': 'Square-wave impulse',
+        }.get(smearing_kind)
+
+    
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
