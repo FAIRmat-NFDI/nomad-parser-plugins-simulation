@@ -101,6 +101,12 @@ class DFT(model_method.DFT):
             ('get_is_spin_polarized', ['initialization.x_exciting_spin_treatment']),
         ),
     )
+    # add_mapping_annotation(
+    #     model_method.ModelMethod.numerical_settings,
+    #     INFO_KEY,
+    #     '.@',
+    #     m_def=numerical_settings.Smearing.m_def,
+    # )
 
 
 class XCFunctional(model_method.XCFunctional):
@@ -124,26 +130,42 @@ class XCComponent(model_method.XCComponent):
         (model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'),
     )
 
-
-class ModelMethod(model_method.ModelMethod):
+class Numerical_Settings(model_method.ModelMethod):
     add_mapping_annotation(
-        model_method.ModelMethod.numerical_settings,
-        INFO_KEY,
-        '.@',
-        m_def=numerical_settings.Smearing.m_def,
-    )
+    model_method.ModelMethod.numerical_settings,
+    INFO_KEY,
+    '.@',
+    m_def=numerical_settings.Smearing.m_def,
+)
 
+# class ModelMethod(model_method.ModelMethod):
+#     add_mapping_annotation(
+#         model_method.ModelMethod.numerical_settings,
+#         INFO_KEY,
+#         '.@',
+#         m_def=numerical_settings.Smearing.m_def,
+#     )
+
+# class ModelMethod(model_method.ModelMethod):
+#     add_mapping_annotation(
+#         numerical_settings.Smearing.m_def, 
+#         INFO_KEY, '.@')
 
 class Smearing(numerical_settings.Smearing):
+    # add_mapping_annotation(
+    #     numerical_settings.Smearing.m_def,
+    #     INFO_KEY,
+    #     '.@'
+    # )
     add_mapping_annotation(
-        numerical_settings.Smearing.kind,
+        numerical_settings.Smearing.name,
         INFO_KEY,
         ('get_smearing_kind', ['initialization.smearing_kind'])
     )
-    add_mapping_annotation(
-        numerical_settings.Smearing.width,
-        INFO_KEY,
-        'initialization.smearing_width')
+    # add_mapping_annotation(
+    #     numerical_settings.Smearing.width,
+    #     INFO_KEY,
+    #     'initialization.smearing_width')
 
 
 class ModelSystem(model_system.ModelSystem):
