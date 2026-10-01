@@ -86,7 +86,7 @@ class Outputs(outputs.Outputs):
     add_mapping_annotation(outputs.Outputs.total_energies, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.total_forces, OUT_KEY, '.@')
     add_mapping_annotation(outputs.Outputs.scf_steps, OUT_KEY, '.scf_steps')
-    # TODO Implement parser for `f9`/`f98
+    # TODO Implement parser for `f9`/`f98`
     add_mapping_annotation(
         outputs.Outputs.electronic_dos, F25_KEY, ('get_dos', ['.dos'])
     )

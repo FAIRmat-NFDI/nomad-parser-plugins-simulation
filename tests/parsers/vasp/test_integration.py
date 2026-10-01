@@ -13,7 +13,7 @@ LOGGER = get_logger(__name__)
 
 
 class VASPIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
-    expected_program_name = 'vasp'
+    expected_program_name = 'VASP'
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
     require_scf_steps = True

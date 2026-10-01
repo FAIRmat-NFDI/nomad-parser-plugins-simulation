@@ -351,8 +351,9 @@ class OutcarParser(MappingTextParser):
         if not isinstance(source, np.ndarray):
             return {}
 
-        if source.ndim == 1:
-            source = np.expand_dims(source, axis=0)
+        if source.size == 0 or source.size % 4:
+            return {}
+        source = source.reshape(-1, 4)
         k_mults = source[:, 3]
         return {
             'points': source[:, 0:3],
@@ -578,7 +579,7 @@ class OutcarArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:
         # set up archive parser
         archive_data_parser = VASPMetainfoParser(logger=self.logger)
-        archive_data = Simulation(program=Program(name='vasp'))
+        archive_data = Simulation(program=Program(name='VASP'))
 
         # assign simulation section to archive data
         self.archive.data = archive_data

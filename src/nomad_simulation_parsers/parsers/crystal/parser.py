@@ -324,7 +324,7 @@ class CrystalF25Parser(TextParser):
             values = self.to_array(cols, rows, energies)
             band_structures.extend(
                 [
-                    dict(value=value, spin=spin)
+                    dict(value=value, spin_channel=spin if spin > 0 else None)
                     for spin, value in enumerate(values[None, :])
                 ]
             )

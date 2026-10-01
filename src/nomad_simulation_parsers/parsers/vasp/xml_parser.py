@@ -540,7 +540,7 @@ class XMLArchiveWriter(ArchiveWriter):
 
     def write_to_archive(self) -> None:
         data_parser = VASPMetainfoParser(logger=self.logger)
-        data_parser.data_object = Simulation(program=Program(name='vasp'))
+        data_parser.data_object = Simulation(program=Program(name='VASP'))
 
         xml_parser = VasprunParser(filepath=self.mainfile, logger=self.logger)
 
