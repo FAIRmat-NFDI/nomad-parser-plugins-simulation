@@ -14,54 +14,6 @@ geometry_optimization_conv_params = [
 ]
 
 
-def make_scf_re():
-    """
-    Make regex for `calculation_quantities.self_consistent`.
-
-    The block starts with ORCA SCF or DFT GRID GENERATION
-    and ends with a long dash line.
-
-    ORCA v6 added several subheaders that also have long dash lines
-    before the end of the SCF block.
-    We should skip them and find the next dashed line
-    not belonging to said blocks.
-    """
-    spaces = r'[^\S\r\n]*'
-    newline = r'\r?\n'
-    dashes = rf'-+{spaces}{newline}'
-    dashes70 = rf'^-{{70,}}{spaces}$'
-    any_text = r'[\s\S]*?'
-
-    scf_header = rf'(?:ORCA SCF|DFT GRID GENERATION){spaces}{newline}{dashes}'
-
-    lean_scf_header = (
-        rf'{dashes70}{newline}'
-        rf'[^\r\n]*ORCA LEAN-SCF[^\r\n]*{newline}'
-        rf'[^\r\n]*memory conserving SCF solver[^\r\n]*{newline}'
-    )
-
-    orca_guess_header = (
-        rf'ORCA GUESS{spaces}{newline}'
-        rf'{spaces}Start orbitals & Density for SCF / CASSCF{spaces}$'
-    )
-
-    diis_banner = rf'^-+D-I-I-S-+{spaces}$'
-    soscf_banner = rf'^-+S-O-S-C-F-+{spaces}$'
-
-    def optional_banner(text):
-        return rf'(?:(?={any_text}{text}){any_text}{text}{any_text}{dashes70})?'
-
-    optional_banners = ''.join(map(optional_banner, (
-        orca_guess_header,
-        lean_scf_header,
-        diis_banner,
-        soscf_banner,
-    )))
-
-    p = rf'({scf_header}{optional_banners}{any_text}(?:{dashes70}|\Z))'
-    return p
-
-
 class OutReader(TextParser):
     def init_quantities(self):
         re_float = r'[-+]?\d+\.?\d*(?:[Ee][-+]\d+)?'
@@ -706,40 +658,30 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'scf_iterations',
-                r'(?:SCF ITERATIONS\s*\-+'
-                r'|ORCA LEAN-SCF[ \t]*\r?\n[ \t]*memory conserving SCF solver'
-                r'[ \t]*\r?\n[ \t]*\-+)([\s\S]+?)\*{10}',
-                sub_parser=TextParser(
-                    quantities=[
+                r'((?:Iteration|ITER)\b[\s\S]*?)(?='
+                r'(?:Iteration|ITER)\b|\*{10,}|\Z)',
+                repeats=True,
+                sub_parser = TextParser(
+                    quantities=
+                    [
                     Quantity(
-                        'scf_iter_group',
-                        r'((?:Iteration|ITER)\b[\s\S]*?)(?='
-                        r'(?:Iteration|ITER)\b|\*{10,}|\Z)',
-                        repeats=True,
-                        sub_parser = TextParser(
-                            quantities=
-                            [
-                            Quantity(
-                                'header',
-                                r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
-                                repeats=False,
-                                dtype=str,
-                                ),
-                            Quantity(
-                                'values',
-                                rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
-                                rf'[ \t]+({re_float})[ \t]+({re_float})'
-                                rf'[ \t]+({re_float})[ \t]+({re_float})'
-                                rf'(?:[ \t]+({re_float}))?',
-                                repeats=True,
-                                dtype=float,
-                                ),
-                            ],
-                            ),
+                        'header',
+                        r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
+                        repeats=False,
+                        dtype=str,
                         ),
-                        ],
-            ),
-            ),
+                    Quantity(
+                        'values',
+                        rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'(?:[ \t]+({re_float}))?',
+                        repeats=True,
+                        dtype=float,
+                        ),
+                    ],
+                    ),
+                ),
             Quantity(
                 'final_grid',
                 r'Setting up the final grid:([\s\S]+?)\-{10}',
@@ -1213,7 +1155,19 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'self_consistent',
-                make_scf_re(),
+                # In older versions, the block starts with ORCA SCF or
+                # DFT GRID GENERATION and ends with a long dash line.
+                # However, ORCA 6 added several subheaders that also have long dash
+                # lines before the end of the SCF block.
+                # Thus we first try to find version 6-specific block beginning with
+                # the SHARK header and ending with timing info.
+                (
+                r'('
+                r'-+\r?\nSHARK INTEGRAL PACKAGE\r?\n-+[\s\S]*?Total SCF time:'
+                r'|'
+                r'(?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z)'
+                r')'
+                ),
                 sub_parser=TextParser(quantities=self_consistent_quantities),
             ),
             Quantity(
