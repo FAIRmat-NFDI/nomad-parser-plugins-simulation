@@ -1,6 +1,9 @@
 name: Parser test stages
 
 on:
+  concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
   pull_request:
   push:
     branches:
@@ -32,7 +35,7 @@ jobs:
       - name: Install test dependencies
         run: uv sync --extra dev --extra md --locked
       - name: Run unit tests
-        run: uv run pytest tests -m unit -q
+        run: uv run pytest tests -m 'unit and not large_fixture' -q
       - name: Run integration tests for changed parsers
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

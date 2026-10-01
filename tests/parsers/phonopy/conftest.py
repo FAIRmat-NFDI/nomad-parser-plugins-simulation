@@ -23,7 +23,9 @@ LOGGER = get_logger(__name__)
 @pytest.fixture(scope='module')
 def vasp_phonopy_archive() -> EntryArchive:
     archive = EntryArchive()
-    PhonopyParser().parse(str(DATA_DIR / 'vasp' / 'phonopy.yaml'), archive, LOGGER)
+    PhonopyParser().parse(
+        str(LARGE_DATA_DIR / 'vasp' / 'phonopy.yaml'), archive, LOGGER
+    )
     return archive
 
 

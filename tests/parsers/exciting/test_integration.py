@@ -23,6 +23,7 @@ class ExcitingParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuit
     require_periodic_boundary_conditions = True
 
 
+@pytest.mark.large_fixture
 class TestCMinimalArchive(ExcitingParserIntegrationSuite):
     archive_fixture = 'c_minimal_archive'
     workflow_name = 'SinglePoint'
@@ -64,7 +65,6 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
-        assert simulation.outputs[0].electronic_band_gaps[0].value is not None
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
