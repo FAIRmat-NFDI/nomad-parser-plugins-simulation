@@ -323,8 +323,8 @@ class OutParser(MappingTextParser):
             'ROKS': 'ROKS',
         }.get(reference.upper())
 
-    def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
-        points = self._get_single_points(source)
+    def _get_scf_settings(self) -> dict[str, Any]:
+        points = self.single_points
         for point in points:
             if scf := self._navigate(point, 'self_consistent', 'scf_settings'):
                 return scf
@@ -367,7 +367,7 @@ class OutParser(MappingTextParser):
         # materializes a hollow DFT section inside e.g. a multireference method's
         # `contributions`. Navigating from the root avoids that (verified by the
         # old-vs-new archive snapshot diff on the CASSCF/CASCI fixtures).
-        method = self.get_dft(self._get_scf_settings(source))
+        method = self.get_dft(self._get_scf_settings())
         if method:
             self._method = 'DFT'
         return [method] if method else []
@@ -641,7 +641,7 @@ class OutParser(MappingTextParser):
 
     def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
         relativistic = self._parser_results(source.get('relativistic_hamiltonian'))
-        scf_settings = self._get_scf_settings(source)
+        scf_settings = self._get_scf_settings()
 
         raw_method = self._to_scalar(
             relativistic.get('method') or scf_settings.get('scalar_relativistic_method')
