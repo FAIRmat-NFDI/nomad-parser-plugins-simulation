@@ -789,8 +789,7 @@ class OutParser(MappingTextParser):
         return self._single_points
 
     def get_scf_iterations(self, point: dict[str, Any]) -> dict[str, list[float|None]]:
-        iterations = self._navigate(point, 'self_consistent',
-            'scf_iterations', 'scf_iter_group')
+        iterations = self._navigate(point, 'self_consistent', 'scf_iterations')
         if not iterations:
             return {}
 
