@@ -137,14 +137,14 @@ PARSER_REPORT_SPECS = (
         'nomad_simulation_parsers.parsers.quantumespresso.pwscf.file_parser',
         'PWSCFFileParser',
         'nomad_simulation_parsers.schema_packages.quantumespresso.common',
-        'DOS_KEY',
+        'PWSCF_DOS_KEY',
     ),
     ParserReportSpec(
         'Quantum ESPRESSO / DOS output',
         'nomad_simulation_parsers.parsers.quantumespresso.pwscf.file_parser',
         'PWSCFDOSTextParser',
         'nomad_simulation_parsers.schema_packages.quantumespresso.common',
-        'DOS_OUT_KEY',
+        'PWSCF_DOS_OUT_KEY',
     ),
     ParserReportSpec(
         'Quantum ESPRESSO / EPW',
