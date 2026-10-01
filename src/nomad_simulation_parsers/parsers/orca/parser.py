@@ -17,7 +17,15 @@ from nomad_simulations.schema_packages.model_method import (
     OrbitalLocalization,
     PerturbationMethod,
 )
-from nomad_simulations.schema_packages.workflow.general import SerialWorkflow
+from nomad_simulations.schema_packages.workflow import (
+    GeometryOptimization,
+    SerialWorkflow,
+    SimulationWorkflow,
+)
+from nomad_simulations.schema_packages.workflow.general import (
+    EnergyConvergenceTarget,
+    ForceConvergenceTarget,
+)
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -37,9 +45,13 @@ ORBITAL_RANGE_BOUNDS = 2
 AO_ROW_RE = re.compile(r'\d+[A-Z][a-z]?$')
 
 
+def empty_or_nones(x: list[Any]) -> bool:
+    return len(x)==0 or all(xi is None for xi in x)
+
+
 def str_to_cartesian_coordinates(
     value: list[Any],
-) -> tuple[list[str], np.ndarray]:
+) -> tuple[list[str], np.ndarray | None]:
     cleaned = [
         item.replace('>', '') if isinstance(item, str) else item
         for item in value
@@ -53,7 +65,8 @@ def str_to_cartesian_coordinates(
         if isinstance(symbol, str) and len(coordinate) == CARTESIAN_COORDINATE_LENGTH:
             symbols.append(symbol)
             coordinates.append(coordinate)
-    return symbols, np.asarray(coordinates, dtype=np.float64) * ureg.angstrom
+    coordinates = np.asarray(coordinates, dtype=np.float64) * ureg.angstrom
+    return symbols, (coordinates if len(coordinates) else None)
 
 
 def str_to_mo_coefficients(value: str | list[str] | None) -> np.ndarray | None:
@@ -191,6 +204,8 @@ class OutParser(MappingTextParser):
             logger=logger or get_logger(__name__), text_parser=OutReader(), **kwargs
         )
         self._method = None
+        self._geometry_optimization: bool | None = None
+        self._single_points: list[dict[str, Any]] | None = None
 
     def load_file(self) -> OutReader:
         text_parser = super().load_file()
@@ -216,14 +231,9 @@ class OutParser(MappingTextParser):
             return value[0] if value else None
         return value
 
-    def _get_cartesian_system(self, source: dict[str, Any]) -> tuple[list[str], Any]:
-        single_point = self._navigate(source, 'single_point')
-        coordinates = single_point.get('cartesian_coordinates', [])
-        return str_to_cartesian_coordinates(coordinates) if coordinates else ([], None)
-
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
         scf_settings = self._navigate(
-            source, 'single_point', 'self_consistent', 'scf_settings'
+            source, 'self_consistent', 'scf_settings'
         )
         result = {}
         total_charge = self._to_scalar(scf_settings.get('total_charge'))
@@ -234,19 +244,43 @@ class OutParser(MappingTextParser):
             result['total_spin_multiplicity'] = int(multiplicity)
         return result
 
+    def _get_system(
+        self, src: dict[str, Any]
+    ) -> tuple[list[str], np.ndarray | None, dict[str, int]]:
+        xyz = src.get('cartesian_coordinates', [])
+        symbols, coordinates = str_to_cartesian_coordinates(xyz)
+        charge_mult = self._get_charge_and_multiplicity(src)
+        return (symbols, coordinates, charge_mult)
+
+    def _get_systems(self, source: dict[str, Any]) -> list[tuple[list[str], Any]]:
+        points = self.single_points
+        if not any(points):
+            return []
+        return [self._get_system(point) for point in points]
+
     def get_atoms(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        symbols, positions = self._get_cartesian_system(src)
-        if not symbols:
+        systems = self._get_systems(src)
+
+        if not systems:
             return []
 
-        return [
+        atoms = [
             {
-                'is_representative': True,
+                'is_representative': False,
                 'positions': positions,
                 'particle_states': [{'chemical_symbol': symbol} for symbol in symbols],
-                **self._get_charge_and_multiplicity(src),
+                **spin_mult,
             }
+            for symbols, positions, spin_mult in systems
         ]
+
+        # set the last valid structure representative
+        for i in range(len(atoms)-1, -1, -1):
+            if atoms[i]['particle_states'] and atoms[i]['positions'] is not None:
+                atoms[i]['is_representative'] = True
+                break
+
+        return atoms
 
     @staticmethod
     def _normalize_localization_method(value: Any) -> str | None:
@@ -289,8 +323,12 @@ class OutParser(MappingTextParser):
             'ROKS': 'ROKS',
         }.get(reference.upper())
 
-    def _get_scf_settings(self, source: dict[str, Any]) -> dict[str, Any]:
-        return self._navigate(source, 'single_point', 'self_consistent', 'scf_settings')
+    def _get_scf_settings(self) -> dict[str, Any]:
+        points = self.single_points
+        for point in points:
+            if scf := self._navigate(point, 'self_consistent', 'scf_settings'):
+                return scf
+        return {}
 
     def _build_xc(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
         xc = {}
@@ -329,7 +367,7 @@ class OutParser(MappingTextParser):
         # materializes a hollow DFT section inside e.g. a multireference method's
         # `contributions`. Navigating from the root avoids that (verified by the
         # old-vs-new archive snapshot diff on the CASSCF/CASCI fixtures).
-        method = self.get_dft(self._get_scf_settings(source))
+        method = self.get_dft(self._get_scf_settings())
         if method:
             self._method = 'DFT'
         return [method] if method else []
@@ -603,7 +641,7 @@ class OutParser(MappingTextParser):
 
     def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
         relativistic = self._parser_results(source.get('relativistic_hamiltonian'))
-        scf_settings = self._get_scf_settings(source)
+        scf_settings = self._get_scf_settings()
 
         raw_method = self._to_scalar(
             relativistic.get('method') or scf_settings.get('scalar_relativistic_method')
@@ -688,14 +726,21 @@ class OutParser(MappingTextParser):
 
         return components
 
-    def get_molecular_orbitals(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        self_consistent = self._navigate(src, 'single_point', 'self_consistent')
-        basis_set_total = self._parser_results(src.get('basis_set_total'))
+    def get_molecular_orbitals(
+        self, single_point: dict[str, Any], src: dict[str, Any]
+    ) -> list[dict[str, Any]]:
 
-        orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
-        coefficients = str_to_mo_coefficients(
-            self_consistent.get('molecular_orbital_coefficients')
-        )
+        # first check for CASSCF results, then for SCF results
+        orbital_energies, coefficients = None, None
+        casscf_results = self._navigate(single_point, 'casscf_results')
+        orbital_energies = self._to_scalar(casscf_results.get('orbital_energies'))
+
+        if orbital_energies is None:
+            self_consistent = self._navigate(single_point, 'self_consistent')
+            orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
+            coefficients = str_to_mo_coefficients(
+                self_consistent.get('molecular_orbital_coefficients')
+            )
         if orbital_energies is None and coefficients is None:
             return []
 
@@ -708,6 +753,7 @@ class OutParser(MappingTextParser):
             ):
                 table = None
 
+        basis_set_total = self._parser_results(src.get('basis_set_total'))
         n_ao = self._to_scalar(basis_set_total.get('main_basis_set'))
         molecular_orbitals = {
             'n_mo': int(table.shape[0])
@@ -732,21 +778,167 @@ class OutParser(MappingTextParser):
 
         return [molecular_orbitals]
 
+    def _get_single_points(self, src: dict[str, Any]) -> list[dict[str, Any]]:
+        if self._is_geometry_optimization:
+            geometry_optimization = self._navigate(src, 'geometry_optimization')
+            cycles = geometry_optimization.get('cycle', [])
+            final = self._navigate(geometry_optimization, 'final_energy_evaluation')
+            return cycles + [final]
+        else:
+            single_point = self._navigate(src, 'single_point')
+            return [single_point]
+
+    @property
+    def single_points(self) -> list[dict[str, Any]]:
+        if self._single_points is None:
+            self._single_points = self._get_single_points(self.text_parser)
+        return self._single_points
+
+    def get_scf_iterations(self, point: dict[str, Any]) -> dict[str, list[float|None]]:
+        iterations = self._navigate(point, 'self_consistent', 'scf_iterations')
+        if not iterations:
+            return {}
+
+        # The order of the columns depends on ORCA version
+        # and on the SCF stage/algorithm and can change during
+        # each single point computation -> determine it dynamically.
+        valid_keys_units = {
+            'energy': ureg.hartree,
+            'deltae': ureg.hartree,
+            'maxdp': None,
+            'rmsdp': None,
+            'time': ureg.second,
+        }
+
+        iter_ret = {}
+        for key, unit in valid_keys_units.items():
+            iter_ret[key] = []
+            for iter_block in iterations:
+                iter_header = iter_block.get('header', [])
+                iter_values = iter_block.get('values', [])
+                parsed_keys = [
+                    key.replace('-', '').lower().replace('(sec)', '')
+                    for key in iter_header
+                    if not (key.startswith('(') and key.endswith(')'))]
+                ikey = parsed_keys.index(key) if key in parsed_keys else None
+                for values in iter_values:
+                    if ikey is not None and len(values)>ikey:
+                        value = values[ikey]
+                    else:
+                        value = None
+                    if value is not None and unit is not None:
+                        value = value * unit
+                    iter_ret[key].append(value)
+            if empty_or_nones(iter_ret[key]):
+                iter_ret.pop(key)
+
+        return iter_ret
+
     def get_outputs(self, src: dict[str, Any]) -> list[dict[str, Any]]:
-        molecular_orbitals = self.get_molecular_orbitals(src)
-        if not molecular_orbitals:
+        points = self.single_points
+        energies = [point.get('energy_total') if point else None for point in points]
+        molecular_orbitals = [
+                self.get_molecular_orbitals(point, src) if point else []
+            for point in points]
+        scf_steps = [
+                self.get_scf_iterations(point) if point else []
+            for point in points]
+
+        if not any(molecular_orbitals) and not any(energies) and not any(scf_steps):
             return []
 
         return [
             {
-                'model_system_ref': '/data/model_system/0',
-                'molecular_orbitals': molecular_orbitals,
+                'model_system_ref': f'/data/model_system/{i}',
+                'molecular_orbitals': molecular_orbitals_i,
+                'total_energy': [{'value': energy}] if energy is not None else [],
+                'scf_steps': scf_steps_i,
             }
+            for i, (energy, molecular_orbitals_i, scf_steps_i) in enumerate(
+                zip(energies, molecular_orbitals, scf_steps, strict=True)
+            )
+        ]
+
+    @property
+    def _is_geometry_optimization(self) -> bool:
+        if self._geometry_optimization is None:
+            geometry_optimization = self.text_parser.geometry_optimization
+            self._geometry_optimization = geometry_optimization is not None
+        return self._geometry_optimization
+
+    def get_geometry_optimization_method(
+        self, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        update_method = geometry_optimization.get('update_method')
+        result = {'optimization_type': 'atomic', 'sampling_frequency': 1}
+        if isinstance(update_method, (list, tuple)) and len(update_method) > 1:
+            result['optimization_method'] = update_method[1]
+        elif isinstance(update_method, str):
+            result['optimization_method'] = update_method
+        return result
+
+    def get_geometry_optimization_results(
+            self, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        n_steps = len(self.single_points)
+        geometry_optimization = self._navigate(source, 'geometry_optimization')
+        last_cycle = geometry_optimization.get('cycle', [{}])[-1]
+        if geometry_optimization.get('is_converged'):
+            converged = True
+        elif geometry_optimization.get('is_not_converged'):
+            converged = False
+        else:
+            converged = None
+        return {
+            'is_converged': converged,
+            'steps': list(range(n_steps)),
+            'final_force_maximum': last_cycle.get('geom_opt_max_gradient'),
+            'final_displacement_maximum': last_cycle.get('geom_opt_max_displacement'),
+        }
+
+    def _get_geometry_convergence_targets(self) -> list[ForceConvergenceTarget] | None:
+        geometry_optimization = self.text_parser.geometry_optimization
+        threshold = geometry_optimization.get('max_gradient_tol')
+        if threshold is None:
+            return None
+        return [
+            ForceConvergenceTarget(threshold=threshold[1], threshold_type='maximum'),
+            # The normalizer checks against this.
+            # We do not add `rms_gradient_tol` since the check will be wrong:
+            # it will try to take RMS of `final_force_maximum` and complain.
+        ]
+
+    def _get_scf_convergence_targets(self) -> list[EnergyConvergenceTarget] | None:
+        threshold = self._navigate(self.single_points[0], 'self_consistent',
+            'scf_settings', 'energy_change_tolerance')
+        if threshold is None:
+            return None
+        return [
+            EnergyConvergenceTarget(threshold=threshold, threshold_type='absolute'),
+            # There are other thresholds and combinations thereof,
+            # but the schema and normalizer support only this one.
         ]
 
     def build_workflow(
-        self, archive: 'EntryArchive', logger: 'BoundLogger'
-    ) -> SerialWorkflow | None:
+        self,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        metainfo_parser: MetainfoParser,
+    ) -> SimulationWorkflow | None:
+
+        if self._is_geometry_optimization:
+            archive.workflow2 = GeometryOptimization()
+            metainfo_parser.data_object = archive.workflow2
+            metainfo_parser.annotation_key = orca.GEOM_OPT_KEY
+            self.convert(metainfo_parser)
+            geom_conv_targets = self._get_geometry_convergence_targets()
+            scf_conv_targets = self._get_scf_convergence_targets()
+            archive.workflow2.method.convergence_targets = geom_conv_targets
+            archive.workflow2.method.single_point_convergence_targets = scf_conv_targets
+            archive.workflow2.normalize(archive, logger)
+            return archive.workflow2
+
         simulation = archive.data
         methods = simulation.model_method or []
         if not any(isinstance(method, HF) for method in methods) or not any(
@@ -788,7 +980,7 @@ class OrcaArchiveWriter(ArchiveWriter):
 
         try:
             reader.convert(metainfo_parser)
-            reader.build_workflow(self.archive, self.logger)
+            reader.build_workflow(self.archive, self.logger, metainfo_parser)
         finally:
             metainfo_parser.close()
             reader.close()
