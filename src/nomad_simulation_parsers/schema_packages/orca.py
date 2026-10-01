@@ -230,10 +230,9 @@ add_mapping_annotation(
 )
 
 add_mapping_annotation(
-    model_method.ModelMethod.numerical_settings,
+    numerical_settings.LocalCorrelationSettings.m_def,
     OUT_KEY,
     '.numerical_settings',
-    m_def=numerical_settings.LocalCorrelationSettings.m_def,
 )
 add_mapping_annotation(
     numerical_settings.LocalCorrelationSettings.screening_thresholds,
