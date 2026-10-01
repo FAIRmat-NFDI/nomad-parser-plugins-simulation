@@ -729,13 +729,18 @@ class OutParser(MappingTextParser):
     def get_molecular_orbitals(
         self, single_point: dict[str, Any], src: dict[str, Any]
     ) -> list[dict[str, Any]]:
-        self_consistent = self._navigate(single_point, 'self_consistent')
-        basis_set_total = self._parser_results(src.get('basis_set_total'))
 
-        orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
-        coefficients = str_to_mo_coefficients(
-            self_consistent.get('molecular_orbital_coefficients')
-        )
+        # first check for CASSCF results, then for SCF results
+        orbital_energies, coefficients = None, None
+        casscf_results = self._navigate(single_point, 'casscf_results')
+        orbital_energies = self._to_scalar(casscf_results.get('orbital_energies'))
+
+        if orbital_energies is None:
+            self_consistent = self._navigate(single_point, 'self_consistent')
+            orbital_energies = self._to_scalar(self_consistent.get('orbital_energies'))
+            coefficients = str_to_mo_coefficients(
+                self_consistent.get('molecular_orbital_coefficients')
+            )
         if orbital_energies is None and coefficients is None:
             return []
 
@@ -748,6 +753,7 @@ class OutParser(MappingTextParser):
             ):
                 table = None
 
+        basis_set_total = self._parser_results(src.get('basis_set_total'))
         n_ao = self._to_scalar(basis_set_total.get('main_basis_set'))
         molecular_orbitals = {
             'n_mo': int(table.shape[0])

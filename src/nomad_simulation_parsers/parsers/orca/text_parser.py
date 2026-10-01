@@ -454,6 +454,21 @@ class OutReader(TextParser):
             ]
         ]
 
+        # Orbital energies quantity
+        orbital_energies_quantity = Quantity(
+                'orbital_energies',
+                (
+                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
+                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
+                    rf'{re_float}\s*\n)+)'
+                ),
+                str_operation=lambda x: np.array(
+                    [v.split()[:4] for v in x.splitlines() if v.strip()],
+                    dtype=float,
+                ),
+                repeats=True,
+        )
+
         # Population analysis quantities
         population_quantities = [
             Quantity(
@@ -729,19 +744,7 @@ class OutReader(TextParser):
                 r'SCF CONVERGENCE\s*\-+([\s\S]+?)\-{10}',
                 sub_parser=TextParser(quantities=scf_convergence_quantities),
             ),
-            Quantity(
-                'orbital_energies',
-                (
-                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
-                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
-                    rf'{re_float}\s*\n)+)'
-                ),
-                str_operation=lambda x: np.array(
-                    [v.split()[:4] for v in x.splitlines() if v.strip()],
-                    dtype=float,
-                ),
-                repeats=True,
-            ),
+            orbital_energies_quantity,
             Quantity(
                 'molecular_orbital_coefficients',
                 r'MOLECULAR ORBITALS\s*\-+([\s\S]+?)(?=\n\s*\*{10})',
@@ -1278,6 +1281,17 @@ class OutReader(TextParser):
                                 ]
                             ),
                         ),
+                    ]
+                ),
+            ),
+            Quantity(
+                'casscf_results',
+                # for now, capture only orbinal energies
+                r'-+\r?\nCASSCF RESULTS\r?\n-+([\s\S]*?)'
+                r'-{45}\r?\nCAS-SCF STATES FOR BLOCK',
+                sub_parser=TextParser(
+                    quantities=[
+                        orbital_energies_quantity,
                     ]
                 ),
             ),
