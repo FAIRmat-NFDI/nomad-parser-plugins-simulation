@@ -17,7 +17,6 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from tests.parsers.common import approx, assert_approx
 
-
 LARGE_DATA_DIR = (
     Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'lammps'
     if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ

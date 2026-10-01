@@ -12,7 +12,6 @@ from nomad_simulation_parsers.parsers.gromacs.mdp_parser import GromacsMdpParser
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
 from tests.parsers.common import assert_approx
 
-
 LARGE_DATA_DIR = (
     Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'gromacs'
     if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
