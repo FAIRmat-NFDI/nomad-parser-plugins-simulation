@@ -3015,8 +3015,8 @@ wheels = [
 
 [[package]]
 name = "nomad-file-parser"
-version = "0.1.dev44+gaea6f81b2"
-source = { git = "https://github.com/FAIRmat-NFDI/nomad-file-parser.git?rev=develop#aea6f81b2a22f6b434cdd3f22dca9df5b7e05ac6" }
+version = "0.1.dev52+g2bbf6b26e"
+source = { git = "https://github.com/FAIRmat-NFDI/nomad-file-parser.git?rev=develop#2bbf6b26efd393bed604fa86fb06ce2fccae8f1f" }
 dependencies = [
     { name = "h5py" },
     { name = "jmespath" },
@@ -3178,8 +3178,8 @@ provides-extras = ["md", "dev"]
 
 [[package]]
 name = "nomad-simulations"
-version = "0.8.1.dev11+g0588fda74"
-source = { git = "https://github.com/nomad-coe/nomad-simulations.git?rev=develop#0588fda743cd7fcd0dd6788531193cbd60e0e7e9" }
+version = "0.8.1.dev12+g3ca052672"
+source = { git = "https://github.com/nomad-coe/nomad-simulations.git?rev=develop#3ca05267271abd6674e90fc6f28aa854e7419f20" }
 dependencies = [
     { name = "matid" },
     { name = "nomad-lab", extra = ["infrastructure"] },
