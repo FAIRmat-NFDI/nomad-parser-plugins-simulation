@@ -14,6 +14,7 @@ import pytest
 from nomad_file_parser.mapping_parser import MAPPING_ANNOTATION_KEY
 from nomad_simulations.schema_packages import general, model_method, numerical_settings
 
+from nomad_simulation_parsers import schema_packages
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 TEST_KEY = '_test_mdef'
@@ -62,8 +63,6 @@ def test_m_def_fall_through_for_non_inheriting_section():
 
 def test_no_slot_after_importing_all_schema_packages():
     """Guards every current and future in-repo `m_def=` caller at once."""
-    import nomad_simulation_parsers.schema_packages as schema_packages
-
     entry_points = [
         value
         for value in list(vars(schema_packages).values())

@@ -1,3 +1,6 @@
+import importlib
+
+from nomad.client import parse as client_parse
 from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 from pytest import approx, mark
@@ -222,3 +225,37 @@ def test_scf_eigenvalues_and_band_structures():
             # Hartree->Joule conversion applied (state 1 ~ -1774 eV, not ~1e20)
             assert section.value.to('eV').magnitude[0][0] == approx(-1774.0, abs=2.0)
             assert section.occupation[0][0] == approx(2.0)
+
+
+def assert_numerical_settings_intact(archive):
+    settings = archive.data.model_method[0].numerical_settings
+    by_type = sorted(type(s).__name__ for s in settings)
+    assert by_type == [
+        'KSpace',
+        'SelfConsistency',
+        'SelfConsistency',
+        'SelfConsistency',
+    ], by_type
+
+    kspace = next(s for s in settings if type(s).__name__ == 'KSpace')
+    assert list(kspace.k_mesh[0].grid) == [8, 8, 8]
+    for criterion in settings:
+        if type(criterion).__name__ == 'SelfConsistency':
+            assert criterion.threshold_change is not None
+
+
+def test_numerical_settings_with_other_schema_packages_loaded():
+    """numerical_settings must stay typed with other plugins' schema packages
+    imported in the same process (#257)."""
+    importlib.import_module('nomad_simulation_parsers.schema_packages.orca')
+
+    archive = EntryArchive()
+    FHIAimsParser().parse('tests/data/fhiaims/Si_geomopt/out.out', archive, LOGGER)
+    assert_numerical_settings_intact(archive)
+
+
+def test_numerical_settings_through_full_plugin_loading():
+    """Same through nomad.client.parse, i.e. with every plugin entry point
+    loaded as in `nomad parse` or an Oasis (#257)."""
+    archive = client_parse('tests/data/fhiaims/Si_geomopt/out.out')[0]
+    assert_numerical_settings_intact(archive)
