@@ -348,12 +348,38 @@ add_mapping_annotation(
 
 
 class MolecularDynamics(workflow.MolecularDynamics):
-    # workflow.molecular_dynamics.MolecularDynamicsModel.m_def.m_annotations.setdefault(
-    #     MAPPING_ANNOTATION_KEY, {}
-    # ).update(dict(md_workflow=Mapper(mapper='.@')))
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsMethod.m_def, MD_WORKFLOW_KEY, '.@'
+    )
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsResults.m_def,
+        MD_WORKFLOW_KEY,
+        '.@',
+    )
     workflow.molecular_dynamics.MolecularDynamicsResults.m_def.m_annotations.setdefault(
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(md_workflow=Mapper(mapper='.@')))
+
+
+class MolecularDynamicsMethod(workflow.molecular_dynamics.MolecularDynamicsMethod):
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsMethod.integration_timestep,
+        MD_WORKFLOW_KEY,
+        'controlInOut_MD_time_step',
+    )
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsMethod.n_steps,
+        MD_WORKFLOW_KEY,
+        'length(molecular_dynamics)',
+    )
+
+
+class MolecularDynamicsResults(workflow.molecular_dynamics.MolecularDynamicsResults):
+    add_mapping_annotation(
+        workflow.molecular_dynamics.MolecularDynamicsResults.n_steps,
+        MD_WORKFLOW_KEY,
+        'length(molecular_dynamics)',
+    )
 
 
 class GeometryOptimization(workflow.GeometryOptimization):

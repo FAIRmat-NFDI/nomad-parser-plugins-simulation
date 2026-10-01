@@ -21,8 +21,6 @@ PWSCF_XML_KEY = 'quantumespresso_pwscf_xml'
 PWSCF_DOS_KEY = 'quantumespresso_pwscf_dos'
 # necessary for mapping reference energy for dos
 PWSCF_DOS_OUT_KEY = 'quantumespresso_pwscf_dos_out'
-DOS_KEY = PWSCF_DOS_KEY
-DOS_OUT_KEY = PWSCF_DOS_OUT_KEY
 
 
 class Program(general.Program):

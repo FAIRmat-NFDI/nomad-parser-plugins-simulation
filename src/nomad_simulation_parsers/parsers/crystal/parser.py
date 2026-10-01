@@ -298,6 +298,9 @@ class CrystalF25Parser(TextParser):
         return np.array(values, dtype=np.float64).reshape((rows, cols))
 
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if source is None:
+            return []
+
         first_row = source['first_row']
         cols, rows = (int(first_row[n]) for n in range(2))
         de = first_row[3]
@@ -322,12 +325,7 @@ class CrystalF25Parser(TextParser):
 
             cols, rows = (int(first_row[n]) for n in range(2))
             values = self.to_array(cols, rows, energies)
-            band_structures.extend(
-                [
-                    dict(value=value, spin_channel=spin if spin > 0 else None)
-                    for spin, value in enumerate(values[None, :])
-                ]
-            )
+            band_structures.extend([dict(value=values)])
         return band_structures
 
 

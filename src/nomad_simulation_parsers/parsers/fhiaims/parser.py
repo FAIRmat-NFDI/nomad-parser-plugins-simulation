@@ -212,11 +212,15 @@ class FHIAimsOutMappingParser(TextMappingParser):
         # Only the last "Writing Kohn-Sham eigenvalues" block holds the converged
         # eigenvalues; earlier blocks are intermediate SCF snapshots.
         for data in (source or [])[-1:]:
+            if data.get('kpoints') is None:
+                continue
             kpts = data.get('kpoints', [np.zeros(3)] * n_spin)
             kpts = np.reshape(kpts, (len(kpts) // n_spin, n_spin, 3))
             kpts = np.transpose(kpts, axes=(1, 0, 2))[0]
 
             occs_eigs = data.get('occupation_eigenvalue')
+            if occs_eigs is None:
+                continue
             n_kpts = len(kpts)
             n_eigs = len(occs_eigs) // (n_kpts * n_spin)
             occs_eigs = np.transpose(
@@ -661,20 +665,12 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     )
                 ]
         if workflow_key:
-            archive_handler.data_object = self.archive.workflow2
-            archive_handler.annotation_key = workflow_key
-            out_parser.convert(archive_handler)
             if workflow_key == 'md_workflow':
-                md_sections = out_parser.data.get('molecular_dynamics', [])
-                timestep = out_parser.data.get('controlInOut_MD_time_step')
-                self.archive.workflow2.method = MolecularDynamicsMethod(
-                    integration_timestep=timestep,
-                    n_steps=len(md_sections),
-                )
-                self.archive.workflow2.results = MolecularDynamicsResults(
-                    n_steps=len(md_sections),
-                    finished_normally=True,
-                )
+                self.archive.workflow2.method = MolecularDynamicsMethod()
+                self.archive.workflow2.results = MolecularDynamicsResults()
+            archive_handler.data_object = self.archive.workflow2
+            archive_handler.annotation_key = fhiaims.MD_WORKFLOW_KEY
+            out_parser.convert(archive_handler)
 
         gw_archive = self.child_archives.get('GW') if self.child_archives else None
         if gw_archive is not None:

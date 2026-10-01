@@ -340,7 +340,6 @@ class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
             'ps'
         ).magnitude == approx(0.001)
         assert archive.workflow2.results.n_steps == 5
-        assert archive.workflow2.results.finished_normally is True
 
 
 class TestGaAsHybrid(FHIAimsParserIntegrationSuite):
