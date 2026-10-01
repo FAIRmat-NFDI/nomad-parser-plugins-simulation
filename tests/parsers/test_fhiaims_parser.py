@@ -56,6 +56,41 @@ def test_workflow_convergence_targets():
     assert energy_target.threshold.to('eV').magnitude == approx(1.0e-6)
 
 
+def test_md_workflow():
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/H2O_md/aims.out', archive, LOGGER)
+
+    workflow = archive.workflow2
+    assert workflow is not None
+    assert workflow.m_def.name == 'MolecularDynamics'
+    # `tasks` must stay empty before normalization: the recursion guard (mapping
+    # `.tasks` to a nonexistent source) stops the workflow root `.@` mapper from
+    # nesting the workflow inside its own task list.
+    assert not workflow.tasks
+
+
+def test_single_point_workflow():
+    parser = FHIAimsParser()
+    archive = EntryArchive()
+    parser.parse('tests/data/fhiaims/Fe_singlepoint/aims.out', archive, LOGGER)
+
+    workflow = archive.workflow2
+    assert workflow is not None
+    assert workflow.m_def.name == 'SinglePoint'
+    assert workflow.method is not None
+    assert workflow.method.m_def.name == 'SinglePointMethod'
+    assert not workflow.tasks
+
+    targets = workflow.method.convergence_targets
+    assert targets is not None
+    assert len(targets) == 1
+    energy_target = targets[0]
+    assert energy_target.m_def.name == 'EnergyConvergenceTarget'
+    assert energy_target.threshold_type == 'absolute'
+    assert energy_target.threshold.to('eV').magnitude == approx(1.0e-5)
+
+
 def test_scf_steps_quantities():
     parser = FHIAimsParser()
     archive = EntryArchive()
