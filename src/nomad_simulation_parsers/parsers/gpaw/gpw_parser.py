@@ -195,13 +195,17 @@ class GPW2FileParser(FileParser):
                 'timeunit': 'femtosecond',
             }
             if self.ulm is not None:
-                self._info['parameter'].update(self.ulm.parameters.asdict())
+                try:
+                    parameters = self.ulm.parameters.asdict()
+                    if parameters:
+                        self._info['parameter'].update(parameters)
+                except Exception:
+                    pass
 
+        mode = self._info['parameter'].get('mode')
         self._info.update(
             {
-                'planewavecutoff': self._info['parameter']
-                .get('mode', {})
-                .get('ecut', None),
+                'planewavecutoff': mode.get('ecut') if isinstance(mode, dict) else None,
                 'basisset': self._info['parameter'].get('basis'),
                 'energyerror': self._info['parameter']
                 .get('convergence', {})

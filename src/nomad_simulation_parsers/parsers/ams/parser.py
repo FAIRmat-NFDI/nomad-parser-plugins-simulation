@@ -52,6 +52,23 @@ class MainfileParser(TextParser):
         'M06-L': 'M06-L',
     }
 
+    def get_configurations(self, source: Any = None) -> list[Any]:
+        if source is None:
+            return []
+        configurations = source if isinstance(source, list) else [source]
+        for frame_index, configuration in enumerate(configurations):
+            if hasattr(configuration, '__setitem__'):
+                configuration['frame_index'] = frame_index
+        return configurations
+
+    def get_topology_labels(self, labels: Any = None, frame_index: int = 0) -> Any:
+        # Particle identity is frame-independent. Keep it on the topology frame
+        # only, while positions and other frame-dependent values remain on every
+        # geometry-optimization or trajectory frame.
+        if frame_index:
+            return None
+        return labels
+
     def get_functional_key(self, source: dict[str, Any]) -> str | None:
         for rung in ('MGGA', 'GGA', 'LDA'):
             value = (source.get(rung) or '').strip()
@@ -101,7 +118,14 @@ class MainfileParser(TextParser):
         else:
             if not isinstance(source, tuple | list) or len(source) < MIN_TUPLE_FIELDS:
                 return []
-            energies = []
+            # ``band_energy_ranges`` contains minimum and maximum energies
+            # grouped by spin channel, followed by occupations. Preserve both
+            # ranges as the energy axis for the mapped eigenvalue sections.
+            energy_min, energy_max = source[:2]
+            energies = [
+                np.asarray([energy_min[spin], energy_max[spin]]) * ureg.hartree
+                for spin in range(min(len(energy_min), len(energy_max)))
+            ]
             occupations = source[2]
 
         nspin = max(len(energies), len(occupations))
@@ -175,10 +199,6 @@ class MainfileParser(TextParser):
     def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         if source is None:
             return []
-
-        if not isinstance(source, dict):
-            return []
-
         dos = source.get('dos')
         if dos is None:
             return []
@@ -190,7 +210,10 @@ class MainfileParser(TextParser):
             return []
 
         energies = dos[:, 0]
-        return [dict(energies=energies, value=values) for values in dos[:, 1:].T]
+        return [
+            dict(energies=energies, value=values, spin_channel=spin_channel)
+            for spin_channel, values in enumerate(dos[:, 1:].T)
+        ]
 
     def get_scf_steps(self, source: dict[str, Any]) -> dict[str, Any]:
         self_consistency = source.get('self_consistency', {})

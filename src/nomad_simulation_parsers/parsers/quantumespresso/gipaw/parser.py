@@ -142,6 +142,8 @@ class GIPAWMainfileXMLParser(MainfileXMLParser):
 
 class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
     schema = gipaw
+    out_key = common.GIPAW_PROPERTIES_OUT_KEY
+    xml_key = common.GIPAW_PROPERTIES_XML_KEY
     _text_parser = GIPAWMainfileTextParser(text_parser=GIPAWFileParser())
     _xml_parser = GIPAWMainfileXMLParser()
 
@@ -173,16 +175,7 @@ class GIPAWArchiveWriter(QuantumEspressoArchiveWriter):
                     self._mainfile_parser._data = list(
                         self.mainfile_parser.data.values()
                     )[0]
-                    self.simulation_parser.annotation_key = common.XML_KEY
         return self._mainfile_parser
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        # parse with common annotations
         super().parse_program(archive, index)
-        # parse with gipaw specific annotations
-        self.simulation_parser.annotation_key = (
-            common.GIPAW_OUT_KEY
-            if isinstance(self.mainfile_parser, GIPAWMainfileTextParser)
-            else common.GIPAW_XML_KEY
-        )
-        self.mainfile_parser.convert(self.simulation_parser)

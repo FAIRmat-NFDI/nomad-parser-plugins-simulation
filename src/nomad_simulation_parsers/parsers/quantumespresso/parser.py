@@ -77,6 +77,9 @@ def load_writer(header: str) -> QuantumEspressoArchiveWriter:
 
 
 class MainfileTextParser(TextParser):
+    def get_configurations(self, source: dict[str, Any]) -> dict[str, Any]:
+        return source
+
     def get_version(self, name_version: list[str]) -> str:
         return ' '.join(name_version[1:]).lstrip('v.')
 
@@ -95,7 +98,9 @@ class MainfileTextParser(TextParser):
             )
         return 1 if magnetic is None else 2
 
-    def get_energy_contributions(self, source: dict[str, Any]):
+    def get_energy_contributions(self, source: dict[str, Any] | None):
+        if not source:
+            return []
         return [
             dict(value=val.magnitude, name=key.split('energy_total_', 1)[-1])
             for key, val in source.items()
@@ -232,12 +237,17 @@ class MainfileXMLParser(XMLParser):
     def get_forces(self, source: np.ndarray):
         return np.reshape(source, (np.size(source) // 3, 3))
 
+    def get_configurations(self, source: dict[str, Any]) -> dict[str, Any]:
+        return source
+
     def get_periodic_boundary_conditions(self, cell: Any = None) -> list[bool] | None:
         if cell is None:
             return None
         return [True, True, True]
 
-    def get_energy_contributions(self, source: dict[str, Any]):
+    def get_energy_contributions(self, source: dict[str, Any] | None):
+        if not source:
+            return []
         return [
             dict(value=val, name=key) for key, val in source.items() if key != 'etot'
         ]
@@ -266,21 +276,38 @@ class QuantumEspressoArchiveWriter(ArchiveWriter):
     """
 
     schema: ModuleType = common
+    out_key: str | None = None
+    xml_key: str | None = None
     simulation_parser = QuantumEspressoMetainfoParser()
     _text_parser = MainfileTextParser(text_parser=QuantumEspressoFileParser())
     _xml_parser = MainfileXMLParser()
     _mainfile_parser = None
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:
-        if self.mainfile_parser is None:
+        mainfile_parser = self.mainfile_parser
+        if mainfile_parser is None:
             return
+        common_key = (
+            common.XML_KEY
+            if isinstance(mainfile_parser, MainfileXMLParser)
+            else common.OUT_KEY
+        )
+        module_key = (
+            self.xml_key
+            if isinstance(mainfile_parser, MainfileXMLParser)
+            else self.out_key
+        )
         self.simulation_parser.logger = self.logger
-        self.mainfile_parser.logger = self.logger
+        mainfile_parser.logger = self.logger
         self.simulation_parser.data_object = Simulation(
             program=Program(name='Quantum Espresso')
         )
-        # convert
-        self.mainfile_parser.convert(self.simulation_parser)
+        # Convert shared QE data first, then merge module-specific additions.
+        self.simulation_parser.annotation_key = common_key
+        mainfile_parser.convert(self.simulation_parser)
+        if module_key:
+            self.simulation_parser.annotation_key = module_key
+            mainfile_parser.convert(self.simulation_parser, update_mode='merge')
         # set the parsed data to archive
         archive.data = self.simulation_parser.data_object
 
@@ -476,6 +503,7 @@ class QuantumEspressoParser(MatchingParser):
     """
 
     _supported_exts = ['out', 'log', 'xml']
+    _supported_programs = {'pwscf', 'phonon', 'epw', 'xspectra', 'gipaw'}
 
     def is_mainfile(
         self,
@@ -493,6 +521,8 @@ class QuantumEspressoParser(MatchingParser):
             programs = get_program_types(filename, multiple=True)
             if not programs:
                 return True
+            if programs[0].lower() not in self._supported_programs:
+                return False
             if 'pwscf' in programs[0].lower():
                 # search all qe mainfiles in the directory and sub directories
                 qe_files = []

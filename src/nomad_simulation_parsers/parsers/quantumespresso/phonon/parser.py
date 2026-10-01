@@ -10,7 +10,8 @@ from .file_parser import PhononFileParser
 
 
 class PhononMainfileParser(MainfileTextParser):
-    pass
+    def get_configurations(self, source):
+        return source.get('calculation', [])
 
 
 class PhononArchiveWriter(QuantumEspressoArchiveWriter):

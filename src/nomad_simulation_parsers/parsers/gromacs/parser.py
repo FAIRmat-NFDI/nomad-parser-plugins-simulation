@@ -1209,7 +1209,9 @@ class GromacsParser(MatchingParser):
     Main parser interface to NOMAD.
     """
 
-    archive_writer = GromacsArchiveWriter()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.archive_writer = GromacsArchiveWriter()
 
     def parse(
         self,

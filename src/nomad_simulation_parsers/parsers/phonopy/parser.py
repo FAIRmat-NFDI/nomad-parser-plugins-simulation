@@ -189,10 +189,24 @@ def phonopy_obj_to_dict(
 
 class PhonopyArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
+        mainfile = os.path.abspath(self.mainfile)
+        mainfile_dir = os.path.dirname(mainfile)
         cwd = os.getcwd()
-        os.chdir(os.path.dirname(self.mainfile))
+        os.chdir(mainfile_dir)
         try:
-            phonopy_obj = phonopy.load(self.mainfile)
+            # ``phonopy.yaml`` commonly stores the structure and references a
+            # neighbouring HDF5 force-constant file.  ``phonopy.load`` does
+            # not discover that sidecar automatically, so make the parser's
+            # public entry point behave like the usual phonopy directory
+            # layout.
+            force_constants_file = os.path.join(mainfile_dir, 'force_constants.hdf5')
+            if os.path.isfile(force_constants_file):
+                phonopy_obj = phonopy.load(
+                    mainfile,
+                    force_constants_filename=force_constants_file,
+                )
+            else:
+                phonopy_obj = phonopy.load(mainfile)
         except Exception:
             self.logger.error('Error loading phonopy file.')
             phonopy_obj = None

@@ -89,7 +89,7 @@ class ControlParser(TextParser):
             ),
             Quantity(
                 'symmetry_thresh',
-                r'\n *phonon symmetry_thresh\s*([\d\.]+)',
+                r'\n *phonon symmetry_thresh\s*([-+\d\.eE]+)',
                 dtype=float,
             ),
             Quantity('frequency_unit', r'\n *phonon frequency_unit\s*(\S+)'),

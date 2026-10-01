@@ -126,10 +126,26 @@ class DFT(model_method.DFT):
 class ModelMethod(model_method.ModelMethod):
     # kspace numerical settings
     add_mapping_annotation(numerical_settings.KSpace.m_def, XML_KEY, 'modeling.kpoints')
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def,
+        OUTCAR_KEY,
+        'kpoints',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def,
+        XML_KEY,
+        'modeling.parameters.separator[?"@name"==\'electronic\'] | [0]',
+    )
+    add_mapping_annotation(
+        numerical_settings.SelfConsistency.m_def, OUTCAR_KEY, 'parameters'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.k_mesh, XML_KEY, '.@')
+    add_mapping_annotation(
+        numerical_settings.KSpace.k_mesh, OUTCAR_KEY, ('get_k_mesh', ['.@'])
+    )
 
 
 class KMesh(numerical_settings.KMesh):
@@ -149,7 +165,7 @@ class KMesh(numerical_settings.KMesh):
         (
             'reshape_array',
             ['.varray[?"@name"==\'kpointlist\'].v | [0]'],
-            dict(shape_rest=(3)),
+            dict(shape_rest=(3,)),
         ),
     )
     add_mapping_annotation(
@@ -160,6 +176,11 @@ class KMesh(numerical_settings.KMesh):
             ['.varray[?"@name"==\'weights\'].v | [0]'],
             dict(shape_rest=()),
         ),
+    )
+    add_mapping_annotation(numerical_settings.KMesh.points, OUTCAR_KEY, '.points')
+    add_mapping_annotation(numerical_settings.KMesh.weights, OUTCAR_KEY, '.weights')
+    add_mapping_annotation(
+        numerical_settings.KMesh.multiplicities, OUTCAR_KEY, '.multiplicities'
     )
 
 

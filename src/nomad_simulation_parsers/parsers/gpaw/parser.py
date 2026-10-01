@@ -5,7 +5,7 @@ from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MappingParser, MetainfoParser
-from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import EnergyConvergenceTarget
 from nomad_simulations.schema_packages.workflow.single_point import (
     SinglePoint,
@@ -195,7 +195,7 @@ class GPAWArchiveWriter(ArchiveWriter):
         self.archive_parser.logger = self.logger
         self.mainfile_parser.filepath = self.mainfile
         self.archive_parser.annotation_key = gpaw.GPW_KEY
-        self.archive_parser.data_object = Simulation()
+        self.archive_parser.data_object = Simulation(program=Program(name='GPAW'))
 
         self.mainfile_parser.convert(self.archive_parser)
         self.archive.data = self.archive_parser.data_object

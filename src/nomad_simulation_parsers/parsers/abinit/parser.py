@@ -569,22 +569,35 @@ class MainfileParser(TextParser):
         self, eigenvalues: np.ndarray, occupations: np.ndarray
     ) -> list[dict[str, Any]]:
         n_spin_channels = 2
+        expected_dimensions = 2
+        metadata_columns = 6
         nsppol = self.get_input_var('nsppol', 2, 1, scalar=True)
-        eigs = np.reshape(
-            eigenvalues,
-            (
-                nsppol,
-                len(eigenvalues) // nsppol,
-                np.size(eigenvalues) // len(eigenvalues),
-            ),
-        )
+        if eigenvalues is None or nsppol is None or nsppol <= 0:
+            return []
+
+        eigenvalues = np.asarray(eigenvalues)
+        if eigenvalues.size == 0:
+            return []
+        if eigenvalues.ndim == 1:
+            eigenvalues = eigenvalues.reshape(1, -1)
+        if eigenvalues.ndim != expected_dimensions or eigenvalues.shape[0] % nsppol:
+            return []
+
+        n_kpoints = eigenvalues.shape[0] // nsppol
+        eigs = eigenvalues.reshape(nsppol, n_kpoints, eigenvalues.shape[1])
 
         kpts = eigs.T[3:6].T[0]
         # if len(kpts) == 1:  # no bs for one kpoint (atoms or molecules)
         #     return []
 
-        nband = int(eigs.T[1].T[0][0])
-        eigs = eigs.T[6 : 6 + nband].T
+        if eigs.shape[2] <= metadata_columns:
+            self.logger.error('Eigenvalue rows do not contain band metadata')
+            return []
+        nband = int(eigs[0, 0, 1])
+        if nband <= 0 or metadata_columns + nband > eigs.shape[2]:
+            self.logger.error('Invalid number of bands: %s', nband)
+            return []
+        eigs = eigs.T[metadata_columns : metadata_columns + nband].T
         is_spin_polarized = nsppol == n_spin_channels
         bandstructures = []
         for n, eig in enumerate(eigs):
@@ -594,18 +607,14 @@ class MainfileParser(TextParser):
             bandstructures.append(entry)
 
         if occupations is not None:
-            occs = np.reshape(
-                occupations,
-                (
-                    nsppol,
-                    len(occupations) // nsppol,
-                    np.size(occupations) // len(occupations),
-                ),
-            )
-            if np.shape(eigs) != np.shape(occs):
+            occupations = np.asarray(occupations)
+            expected_shape = (nsppol, n_kpoints, nband)
+            if occupations.size != np.prod(expected_shape):
                 self.logger.error('Inconsistent shape of eigenvalues and occupations')
-            for n, occ in enumerate(occs):
-                bandstructures[n]['occupations'] = occ
+            else:
+                occs = occupations.reshape(expected_shape)
+                for n, occ in enumerate(occs):
+                    bandstructures[n]['occupations'] = occ
 
         return bandstructures
 
@@ -696,6 +705,8 @@ class DosParser(TextParser):
         self.text_parser = DataTextParser()
 
     def get_dos(self, source: np.ndarray) -> list[dict[str, Any]]:
+        if source is None:
+            return []
         nsp = self.data.get('nspinpol')
         dos = []
         for dos_sp in np.reshape(
@@ -744,6 +755,15 @@ class AbinitArchiveWriter(ArchiveWriter):
         self.metainfo_parser.annotation_key = self.annotation_key
         self.metainfo_parser.data_object = self.archive.workflow2
         self.mainfile_parser.convert(self.metainfo_parser)
+        # Workflow conversion can leave the polymorphic ``method`` section
+        # unset when the output does not contain mapped workflow fields. Keep
+        # the method object created above so convergence targets can still be
+        # attached and the resulting workflow remains schema-valid.
+        if convergence and self.archive.workflow2.method is None:
+            if isinstance(self.archive.workflow2, GeometryOptimization):
+                self.archive.workflow2.method = GeometryOptimizationMethod()
+            elif isinstance(self.archive.workflow2, SinglePoint):
+                self.archive.workflow2.method = SinglePointMethod()
         # Assign convergence targets only after convert() to preserve the
         # polymorphic EnergyConvergenceTarget/ForceConvergenceTarget subclasses;
         # see the `add_mapping_annotation` docstring for why the ordering matters.

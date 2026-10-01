@@ -31,7 +31,13 @@ class HrParser(TextParser):
     def init_quantities(self):
         self._quantities = [
             Quantity('degeneracy_factors', r'\s*written on[\s\w]*:\d*:\d*\s*([\d\s]+)'),
-            Quantity('hoppings', r'\s*([-\d\s.]+)', repeats=False),
+            Quantity(
+                'hoppings',
+                r'(?m)^\s*((?:[-+]?\d+(?:\.\d*)?(?:[EeDd][-+]?\d+)?\s+){6}'
+                r'[-+]?\d+(?:\.\d*)?(?:[EeDd][-+]?\d+)?)\s*$',
+                repeats=True,
+                dtype=float,
+            ),
         ]
 
 
