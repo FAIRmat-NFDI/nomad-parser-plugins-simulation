@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import phonopy
@@ -11,6 +12,11 @@ from nomad_simulation_parsers.parsers.phonopy.parser import (
 )
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'phonopy'
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'phonopy'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 

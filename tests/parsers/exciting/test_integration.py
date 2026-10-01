@@ -95,6 +95,18 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         )
 
 
+@pytest.mark.large_fixture
+class TestCSiTDDFTArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_si_tddft_archive'
+    workflow_name = 'SinglePoint'
+
+    @pytest.mark.integration
+    def test_tddft_archive_identity(self, archive):
+        assert archive.data.program.version == 'NITROGEN'
+        assert len(archive.data.model_system) == 1
+        assert len(archive.data.outputs) == 1
+
+
 class TestCGroundStateArchive(ExcitingParserIntegrationSuite):
     archive_fixture = 'c_gs_archive'
     workflow_name = 'GeometryOptimization'

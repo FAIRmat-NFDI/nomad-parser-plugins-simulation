@@ -2,6 +2,7 @@ import os
 import re
 import tempfile
 from io import BytesIO, StringIO
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -13,7 +14,15 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParsers,
     XYZTrajParser,
 )
+from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from tests.parsers.common import approx, assert_approx
+
+
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'lammps'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else Path(__file__).resolve().parents[2] / 'data' / 'lammps'
+)
 
 LOGGER = get_logger(__name__)
 
@@ -772,3 +781,14 @@ ITEM: BOX BOUNDS pp pp pp
 
         assert parsers.eval('n_frames') == 2
         assert parser.get_positions(1)[2][1] == approx(-0.845205)
+
+
+@pytest.mark.large_fixture
+def test_equilibration_dcd_reads_with_lammps_topology():
+    base = LARGE_DATA_DIR / 'polymer_melt'
+    parser = MDAnalysisParser(topology_format='DATA', format='DCD')
+    parser.mainfile = str(base / 'Equil' / 'step3_input.data')
+    parser.auxilliary_files = [str(base / 'Equil' / 'step4.1_equilibration.dcd')]
+
+    assert parser.get_n_atoms(0) == 7200
+    assert parser.get_positions(0).shape == (7200, 3)

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,11 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.exciting.parser import ExcitingParser
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'exciting'
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'exciting'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 
@@ -44,6 +50,11 @@ def ga_o_strucopt_archive() -> EntryArchive:
 @pytest.fixture(scope='module')
 def ce_o_dos_archive() -> EntryArchive:
     return parse_exciting(DATA_DIR / 'CeO_dos' / 'INFO.OUT')
+
+
+@pytest.fixture(scope='module')
+def c_si_tddft_archive() -> EntryArchive:
+    return parse_exciting(LARGE_DATA_DIR / 'CSi_tddft' / 'INFO.OUT')
 
 
 @pytest.fixture(scope='module')

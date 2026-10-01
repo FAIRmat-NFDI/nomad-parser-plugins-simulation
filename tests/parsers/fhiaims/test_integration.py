@@ -437,16 +437,19 @@ class TestSiliconGWBands(FHIAimsParserIntegrationSuite):
         ).magnitude == approx(0.093853)
 
 
+@pytest.mark.large_fixture
 class TestNativeTight(FHIAimsParserIntegrationSuite):
     archive_fixture = 'native_tight_archive'
     workflow_name = 'GeometryOptimization'
 
 
+@pytest.mark.large_fixture
 class TestNativeIntermediate(FHIAimsParserIntegrationSuite):
     archive_fixture = 'native_intermediate_archive'
     workflow_name = 'GeometryOptimization'
 
 
+@pytest.mark.large_fixture
 class TestNativeLightSpd(FHIAimsParserIntegrationSuite):
     archive_fixture = 'native_light_spd_archive'
     workflow_name = 'GeometryOptimization'

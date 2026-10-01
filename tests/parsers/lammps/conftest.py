@@ -9,6 +9,11 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'lammps'
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'lammps'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 
@@ -58,4 +63,6 @@ def methane_xyz_archive() -> EntryArchive:
 
 @pytest.fixture(scope='class')
 def polymer_melt_minimization_archive() -> EntryArchive:
-    return parse_lammps(DATA_DIR / 'polymer_melt' / 'Emin' / 'log.step4.0_minimization')
+    return parse_lammps(
+        LARGE_DATA_DIR / 'polymer_melt' / 'Emin' / 'log.step4.0_minimization'
+    )

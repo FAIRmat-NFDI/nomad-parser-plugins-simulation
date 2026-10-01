@@ -194,6 +194,7 @@ class TestWithCHGCARArchive:
             assert dataset_array[9][9][9] == pytest.approx(0.18013097030e-05)
 
 
+@pytest.mark.large_fixture
 class TestMgStaticArchive:
     @pytest.mark.integration
     def test_mg_static_maps_electronic_data(self, mg_static_archive):
@@ -207,6 +208,7 @@ class TestMgStaticArchive:
         assert output.scf_steps
 
 
+@pytest.mark.large_fixture
 class TestMgBandsArchive:
     @pytest.mark.integration
     def test_mg_bands_maps_band_calculation(self, mg_bands_archive):
@@ -381,6 +383,7 @@ class TestDftuMultiParameterArchive(BasicVASPIntegrationSuite):
     archive_fixture = 'dftu_multi_parameter_archive'
 
 
+@pytest.mark.large_fixture
 class TestDftuSingleParameterArchive(BasicVASPIntegrationSuite):
     archive_fixture = 'dftu_single_parameter_archive'
 
@@ -389,6 +392,7 @@ class TestDftuMultiParameterNoIncarArchive(BasicVASPIntegrationSuite):
     archive_fixture = 'dftu_multi_parameter_no_incar_archive'
 
 
+@pytest.mark.large_fixture
 class TestMalformedTimeArchive(BasicVASPIntegrationSuite):
     archive_fixture = 'malformed_time_archive'
 
