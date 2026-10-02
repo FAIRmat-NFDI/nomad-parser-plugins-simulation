@@ -80,6 +80,7 @@ class TestLammpsXyzArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
+@pytest.mark.large_fixture
 class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
     archive_fixture = 'polymer_melt_minimization_archive'
 

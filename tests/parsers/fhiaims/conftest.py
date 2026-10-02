@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,11 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'fhiaims'
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'fhiaims'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 
@@ -86,14 +92,14 @@ def si_gw_bands_archive() -> EntryArchive:
 
 @pytest.fixture(scope='module')
 def native_tight_archive() -> EntryArchive:
-    return parse_fhiaims(DATA_DIR / 'native_tiers' / 'tight' / 'aims.out')
+    return parse_fhiaims(LARGE_DATA_DIR / 'native_tiers' / 'tight' / 'aims.out')
 
 
 @pytest.fixture(scope='module')
 def native_intermediate_archive() -> EntryArchive:
-    return parse_fhiaims(DATA_DIR / 'native_tiers' / 'intermediate' / 'aims.out')
+    return parse_fhiaims(LARGE_DATA_DIR / 'native_tiers' / 'intermediate' / 'aims.out')
 
 
 @pytest.fixture(scope='module')
 def native_light_spd_archive() -> EntryArchive:
-    return parse_fhiaims(DATA_DIR / 'native_tiers' / 'light_spd' / 'aims.out')
+    return parse_fhiaims(LARGE_DATA_DIR / 'native_tiers' / 'light_spd' / 'aims.out')

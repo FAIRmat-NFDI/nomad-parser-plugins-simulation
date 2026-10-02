@@ -256,18 +256,21 @@ Use these markers:
 
 CI runs in three stages:
 
-1. **Pull-request fast gate:** all `unit` tests and integration tests affected by
-   changed parser directories. Target: less than two minutes.
+1. **Pull-request fast gate:** all `unit` tests and non-large integration tests
+   affected by changed parser directories. Target: less than two minutes.
 2. **Pull-request package gate:** all non-large `unit` and `integration` tests.
 3. **Nightly or release gate:** `pipeline` and `large_fixture` tests using a
-   versioned fixture bundle with checksums.
+   versioned fixture bundle with checksums. Mark a complete integration class
+   `large_fixture` when its data is stored in that bundle.
 
-These stages are implemented in `.github/workflows/actions.yml`. The nightly
-fixture manifest is `tests/fixtures/nightly.sha256` and is verified by
-`tools/verify_fixture_bundle.py`; update its checksum in the same change as a
-fixture update. The fast gate runs all unit tests, then selects integration
-directories changed by the pull request. Changes to shared parser code fall back
-to all integration tests.
+These stages are implemented in `.github/workflows/actions.yml`. The nightly job
+sparse-checks out an immutable fixture-bundle revision separately from the normal
+source checkout. The fixture manifest is `tests/fixtures/nightly.sha256` and is
+verified by `tools/verify_fixture_bundle.py`; update its checksum and the pinned
+bundle revision in the same change as a fixture update. For local runs, set
+`NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT` to the bundle's `tests/data` directory. The fast
+gate runs all unit tests, then selects integration directories changed by the
+pull request. Changes to shared parser code fall back to all integration tests.
 
 Tests must not pass merely because a fixture is unavailable. A required fixture is
 a repository or CI setup error. Optional large fixtures may be deselected by marker,

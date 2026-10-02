@@ -9,6 +9,7 @@ class PhonopyParserIntegrationSuite(SimulationParserTestSuite):
     required_simulation_sections = ('model_system',)
 
 
+@pytest.mark.large_fixture
 class TestVaspPhonopyArchive(PhonopyParserIntegrationSuite):
     archive_fixture = 'vasp_phonopy_archive'
 

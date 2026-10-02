@@ -11,6 +11,10 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -32,7 +36,7 @@ jobs:
       - name: Install test dependencies
         run: uv sync --extra dev --extra md --locked
       - name: Run unit tests
-        run: uv run pytest tests -m unit -q
+        run: uv run pytest tests -m 'unit and not large_fixture' -q
       - name: Run integration tests for changed parsers
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -41,13 +45,13 @@ jobs:
           changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
           shared_change=$(printf '%s\n' "$changed_files" | grep -Eq '^(pyproject\.toml|uv\.lock|src/|tests/(conftest\.py|common\.py))' && echo true || echo false)
           if [ "$shared_change" = true ]; then
-            uv run pytest tests -m integration -q
+            uv run pytest tests -m 'integration and not large_fixture' -q
             exit 0
           fi
           parsers=$(printf '%s\n' "$changed_files" | sed -n -E 's#^(src/nomad_simulation_parsers/parsers|tests/parsers)/([^/]+)/.*#\2#p' | sort -u)
           if [ -n "$parsers" ]; then
             while IFS= read -r parser; do
-              uv run pytest "tests/parsers/$parser" -m integration -q
+              uv run pytest "tests/parsers/$parser" -m 'integration and not large_fixture' -q
             done <<< "$parsers"
           else
             echo 'No parser-specific integration tests selected.'
@@ -84,6 +88,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check out versioned large-fixture bundle
+        uses: actions/checkout@v4
+        with:
+          repository: FAIRmat-NFDI/nomad-simulation-parser-test-fixtures
+          ref: 49cb45cadb52c8ae4ddf04a0a26aca9551b20ee1
+          sparse-checkout: |
+            tests/data/ams/band_pbe_GF/
+            tests/data/exciting/C_minimal/INFO.OUT
+            tests/data/exciting/CSi_tddft/
+            tests/data/fhiaims/native_tiers/
+            tests/data/gromacs/cgwater/
+            tests/data/gromacs/protein_fsfg/
+            tests/data/lammps/polymer_melt/Emin/
+            tests/data/lammps/polymer_melt/Equil/
+            tests/data/orca/CoPc_CASCI_QD.out
+            tests/data/orca/CoPc_CASSCF_SA.out
+            tests/data/orca/CoPc_CASSCF_SS.out
+            tests/data/phonopy/vasp/
+            tests/data/vasp/Mg_bands/
+            tests/data/vasp/dftu/single_parameter/
+            tests/data/vasp/malformed_time/
+          sparse-checkout-cone-mode: false
+          path: .fixture-bundle
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -93,8 +121,12 @@ jobs:
       - name: Install test dependencies
         run: uv sync --extra dev --extra md --locked
       - name: Verify the versioned fixture bundle
-        run: uv run python tools/verify_fixture_bundle.py tests/fixtures/nightly.sha256
+        run: >-
+          uv run python tools/verify_fixture_bundle.py
+          tests/fixtures/nightly.sha256 --root .fixture-bundle
       - name: Run pipeline and large-fixture tests
+        env:
+          NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT: ${{ github.workspace }}/.fixture-bundle/tests/data
         run: uv run pytest tests -m 'pipeline or large_fixture' -q
 
   ruff-linting:

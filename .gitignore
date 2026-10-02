@@ -137,3 +137,6 @@ tests/data/**/*.npz
 # Parser-output snapshots are generated in CI, never tracked
 target_snapshots.json
 source_snapshots.json
+
+# Separate checkout used by the nightly large-fixture tests
+.fixture-bundle/

@@ -96,6 +96,14 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
     required_simulation_sections = ('model_method', 'model_system')
 
     @pytest.mark.integration
+    def test_casci_qd_archive_identity(self, archive):
+        assert archive.data.program.version == '4.2.1'
+
+        system = archive.data.model_system[0]
+        assert system.total_charge == 0
+        assert system.total_spin_multiplicity == 2
+
+    @pytest.mark.integration
     def test_multireference_methods_basis_sets_and_relativity(self, archive):
         casci = next(
             method
@@ -154,6 +162,25 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
             assert relativity.level == 'scalar'
             assert relativity.approximation == 'DKH'
             assert relativity.dkh_order == 2
+
+
+@pytest.mark.large_fixture
+class CASSCFArchiveSuite(OrcaParserIntegrationSuite):
+    required_simulation_sections = ('model_method', 'model_system')
+
+    @pytest.mark.integration
+    def test_casscf_archive_identity(self, archive):
+        assert archive.data.program.version == '4.2.1'
+        assert len(archive.data.model_system) == 1
+        assert archive.data.model_method
+
+
+class TestCASSCFStateAveraged(CASSCFArchiveSuite):
+    archive_fixture = 'casscf_state_averaged_archive'
+
+
+class TestCASSCFStateSpecific(CASSCFArchiveSuite):
+    archive_fixture = 'casscf_state_specific_archive'
 
 
 class TestDLPNOCoupledCluster(OrcaParserIntegrationSuite, WorkflowTestSuite):

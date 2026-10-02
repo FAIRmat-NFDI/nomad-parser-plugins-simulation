@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,11 @@ from nomad.utils import get_logger
 from nomad_simulation_parsers.parsers.ams.parser import AMSParser
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'ams'
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'ams'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 
@@ -23,7 +29,7 @@ def scf_archive() -> EntryArchive:
 
 @pytest.fixture(scope='module')
 def band_archive() -> EntryArchive:
-    return parse_ams(DATA_DIR / 'band_pbe_GF' / 'band_pbe_GF.out')
+    return parse_ams(LARGE_DATA_DIR / 'band_pbe_GF' / 'band_pbe_GF.out')
 
 
 @pytest.fixture(scope='module')

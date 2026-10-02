@@ -9,7 +9,7 @@ from nomad_simulation_parsers.parsers.phonopy.parser import (
     create_system,
     phonopy_obj_to_archive,
 )
-from tests.parsers.phonopy.conftest import DATA_DIR
+from tests.parsers.phonopy.conftest import LARGE_DATA_DIR
 
 
 @pytest.mark.unit
@@ -58,14 +58,22 @@ def test_phonopy_obj_to_archive_creates_simulation_systems():
     assert archive.m_validate() == ([], [])
 
 
-@pytest.mark.unit
+@pytest.mark.large_fixture
 def test_phonopy_fixture_loads_force_constants():
     phonopy_obj = phonopy.load(
-        DATA_DIR / 'vasp' / 'phonopy.yaml',
-        force_constants_filename=DATA_DIR / 'vasp' / 'force_constants.hdf5',
+        LARGE_DATA_DIR / 'vasp' / 'phonopy.yaml',
+        force_constants_filename=LARGE_DATA_DIR / 'vasp' / 'force_constants.hdf5',
     )
 
     assert phonopy_obj.force_constants.shape == (48, 384, 3, 3)
+
+
+@pytest.mark.large_fixture
+def test_vasp_band_yaml_loads_unit_cell():
+    phonopy_obj = phonopy.load(LARGE_DATA_DIR / 'vasp' / 'band.yaml')
+
+    assert len(phonopy_obj.unitcell) == 48
+    np.testing.assert_array_equal(phonopy_obj.supercell_matrix, np.diag([4, 4, 4]))
 
 
 @pytest.mark.integration

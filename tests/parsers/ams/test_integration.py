@@ -54,6 +54,7 @@ class TestSCFArchive(AMSParserIntegrationSuite):
         assert output.electronic_eigenvalues[1].occupation[0, 14] == approx(0.0)
 
 
+@pytest.mark.large_fixture
 class TestBandArchive(AMSParserIntegrationSuite):
     archive_fixture = 'band_archive'
     workflow_name = 'GeometryOptimization'

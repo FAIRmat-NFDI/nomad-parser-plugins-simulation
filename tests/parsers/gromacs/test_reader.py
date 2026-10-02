@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,12 @@ from nomad_simulation_parsers.parsers.gromacs.mdanalysis_parser import (
 from nomad_simulation_parsers.parsers.gromacs.mdp_parser import GromacsMdpParser
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import GromacsXvgParser
 from tests.parsers.common import assert_approx
+
+LARGE_DATA_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'gromacs'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else Path(__file__).resolve().parents[2] / 'data' / 'gromacs'
+)
 
 
 @pytest.mark.unit
@@ -99,6 +106,25 @@ class TestGromacsMDAnalysisReader:
         assert frame['positions'].shape == (648, 3)
         assert frame['velocities'].shape == (648, 3)
         assert frame['lattice_vectors'].shape == (3, 3)
+
+    @pytest.mark.large_fixture
+    @pytest.mark.parametrize(
+        ('directory', 'topology', 'trajectory', 'n_atoms'),
+        [
+            ('protein_fsfg', 'nvt.tpr', 'nvt.trr', 45194),
+            ('cgwater', 'cgwater.tpr', 'cgwater.trr', 1000),
+        ],
+    )
+    def test_reads_large_trajectory_sets(
+        self, directory, topology, trajectory, n_atoms
+    ):
+        base = LARGE_DATA_DIR / directory
+        parser = GromacsMDAnalysisFileParser()
+        parser.mainfile = str(base / topology)
+        parser.auxilliary_files = [str(base / trajectory)]
+
+        assert parser.get_n_atoms(0) == n_atoms
+        assert parser.get_frame_data(0)['positions'].shape == (n_atoms, 3)
 
 
 @pytest.mark.unit
