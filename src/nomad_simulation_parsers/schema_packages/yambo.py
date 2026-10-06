@@ -84,7 +84,9 @@ class Energy2(variables.Energy2):
 
 class AbsorptionSpectrum(properties.AbsorptionSpectrum):
     add_mapping_annotation(
-        properties.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
+        properties.AbsorptionSpectrum.value,
+        SPECTRA_KEY,
+        '.intensities',
     )
     add_mapping_annotation(
         properties.AbsorptionSpectrum.energies, SPECTRA_KEY, '.@'

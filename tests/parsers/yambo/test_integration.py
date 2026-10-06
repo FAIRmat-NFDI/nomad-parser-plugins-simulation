@@ -108,3 +108,22 @@ class TestYamboCH4Archive(SimulationParserTestSuite):
                 [0.0, 0.0, 9.44863],
             ],
         )
+
+
+class TestYamboSpectraArchive(SimulationParserTestSuite):
+    archive_fixture = 'spectra_archive'
+    expected_program_name = 'YAMBO'
+    required_simulation_sections = ('outputs',)
+
+    @pytest.mark.integration
+    def test_maps_absorption_spectrum(self, archive):
+        spectrum = archive.data.outputs[-1].absorption_spectra[0]
+
+        assert spectrum.label == 'Polarizability'
+        assert len(spectrum.energies.points) == 4000
+        assert len(spectrum.value) == 4000
+        assert spectrum.energies.points[0].to('eV').magnitude == approx(0.0)
+        assert spectrum.energies.points[1].to('eV').magnitude == approx(
+            0.00250062509
+        )
+        assert spectrum.value[0] == approx(6.56836937e-6)
