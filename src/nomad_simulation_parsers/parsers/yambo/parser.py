@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -311,17 +310,29 @@ class YamboMainfileParser(TextParser):
 
 
 class YamboSpectraParser(TextParser):
-    def get_spectra(self) -> dict[str, Any]:
-        data = self.data_object.get('data')
-        if data is None or data.shape[1] < 2:
+    def to_dict(self) -> dict[str, Any]:
+        spectra_files = search_files('o*', os.path.dirname(self.filepath))
+        spectra = []
+        for spectra_file in spectra_files:
+            self.text_parser.mainfile = spectra_file
+            self.text_parser.parse()
+            # TODO fix data text parser so parse includes data
+            self.text_parser.get('data')
+            spectra.append(self.text_parser._results)
+        return dict(spectra=spectra)
+
+    def get_energies(self, data: np.ndarray | None) -> np.ndarray | None:
+        if data is None or data.shape[1] < 2:  # noqa: PLR2004
+            return None
+        return data[:, 0] * ureg.eV
+
+    def get_intensities(self, data: np.ndarray | None) -> dict[str, Any]:
+        if data is None or data.shape[1] < 2:  # noqa: PLR2004
             return {}
 
-        return dict(
-            excitation_energies=data[:, 0] * ureg.eV,
-            intensities=data[:, 1],
-        )
+        return (data[:, 1],)
 
-    def get_spectra_type(self, parsed: str | None) -> str | None:
+    def get_spectrum_type(self, parsed: str | None) -> str | None:
         if parsed is None:
             return None
         return {
@@ -366,24 +377,12 @@ class YamboArchiveWriter(ArchiveWriter):
             netcdf_parser.convert(data_parser)
 
         # spectra files
-        spectra_files = search_files('o*', os.path.dirname(self.mainfile))
-        spectra_parser = YamboSpectraParser(logger=self.logger, text_parser=SpectraParser())
-        absorption_spectra_parser = YamboMetainfoParser()
-        absorption_spectra_parser.data_object = yambo.AbsorptionSpectrum()
-        absorption_spectra_parser.annotation_key = yambo.SPECTRA_KEY
-        
-        for spectra_file in spectra_files:
-            spectra_parser.filepath = spectra_file
-            absorption_spectra_parser.data_object = yambo.AbsorptionSpectrum()
-            spectra_parser.convert(absorption_spectra_parser)
-
-            outputs = (
-                data.outputs[-1] if data.outputs else data.m_create(yambo.outputs.Outputs)
-            )
-            outputs.m_append(
-                yambo.outputs.Outputs.absorption_spectra,
-                absorption_spectra_parser.data_object,
-            )
+        spectra_parser = YamboSpectraParser(
+            logger=self.logger, text_parser=SpectraParser()
+        )
+        spectra_parser.filepath = self.mainfile
+        data_parser.annotation_key = yambo.SPECTRA_KEY
+        spectra_parser.convert(data_parser)
 
         data_parser.close()
         if netcdf_parser is not None:
@@ -401,7 +400,4 @@ class YamboParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        # reload schema to load yambo annotations
-        reload(yambo)
-
         self.archive_writer.write(mainfile, archive, logger, child_archives)
