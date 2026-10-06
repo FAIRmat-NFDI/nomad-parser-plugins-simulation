@@ -5,9 +5,9 @@ from nomad_simulations.schema_packages import (
     model_system,
     numerical_settings,
     outputs,
+    properties,
+    variables,
 )
-from nomad_simulations.schema_packages.properties import AbsorptionSpectrum #HB, 3 Aug, 2026
-
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 OUT_KEY = 'yambo_out'
@@ -79,48 +79,40 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
     add_mapping_annotation(
         outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel')
 
-#class AbsorptionSpectra(outputs.AbsorptionSpectrum):
-# class AbsorptionSpectra(outputs.AbsorptionSpectrum):
-  #  add_mapping_annotation(
-   #     outputs.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
-    # )
-    # add_mapping_annotation(
-      #  outputs.AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
-    # )
-# EM, 6 Jul, 2026:    
-   # add_mapping_annotation(
-   #     outputs.AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
-   # )
-   # add_mapping_annotation(
-    #    outputs.AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
-    # )
-# end EM
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, SPECTRA_KEY, '.excitation_energies')
 
-#HB, 3 Aug, 2026
-
-class AbsorptionSpectra(AbsorptionSpectrum):
+class AbsorptionSpectrum(properties.AbsorptionSpectrum):
     add_mapping_annotation(
-        AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
+        properties.AbsorptionSpectrum.value, SPECTRA_KEY, '.intensities'
     )
     add_mapping_annotation(
-        AbsorptionSpectrum.energies, SPECTRA_KEY, '.excitation_energies'
+        properties.AbsorptionSpectrum.energies, SPECTRA_KEY, '.@'
     )
-    
+    # TODO redundant with label
+    sp_type = Quantity(
+        type=str,
+        description='Spectrum type'
+    )
+    n_energies = Quantity(
+        type=int,
+        description='Number of energies in the spectrum'
+    )
     add_mapping_annotation(
-        AbsorptionSpectrum.sp_type, SPECTRA_KEY, 'sp_type'
+        sp_type, SPECTRA_KEY, 'sp_type'
     )
     add_mapping_annotation(
-        AbsorptionSpectrum.n_energies, SPECTRA_KEY, 'n_energies'
+        n_energies, SPECTRA_KEY, 'n_energies'
     )
-# end HB
+    add_mapping_annotation(
+        properties.AbsorptionSpectrum.label, SPECTRA_KEY, 'sp_type'
+    )
+    add_mapping_annotation(
+        properties.AbsorptionSpectrum.type, SPECTRA_KEY, ('get_spectra_type',  ['sp_type'])
+    )
 
 
 class Outputs(outputs.Outputs):
-    # TODO add description
-#    sp_type = Quantity(type=str)   # EM: commented,  6 Jul, 2026
-
-#    add_mapping_annotation(sp_type, SPECTRA_KEY, 'sp_type')  # EM: changed sp_type to SPECTRA_KEY, Jul 1st, 2026; commented whole line:  6 Jul, 2026
-
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
         NETCDF_KEY,
@@ -148,17 +140,9 @@ class Outputs(outputs.Outputs):
             ['.valence_conduction', '.valence', '.conduction'],
         ),
     )
-    # TODO is this the correct def to use for spectra data
-
-#HB, 3rd Aug, 2026
     add_mapping_annotation(
-        AbsorptionSpectra.m_def, SPECTRA_KEY, ('get_spectra', ['data'])
+        AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', [])
     )
-# end HB
-    # TODO is this the correct def to use for spectra data
- #   add_mapping_annotation(
-  #      AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', ['data'])  # EM: outputs.AbsorptionSpectrum  -->  AbsorptionSpectrum
-   # )
 
 
 class Simulation(general.Simulation):

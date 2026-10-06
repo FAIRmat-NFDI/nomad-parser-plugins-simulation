@@ -310,57 +310,24 @@ class YamboMainfileParser(TextParser):
         return [dict(value=value)]
 
 
-class YamboSpectraParser(MappingParser):  # EM
-    def __init__(self, **kwargs):  # HB
-        super().__init__(**kwargs)  # HB
-        self.spectra_parser = SpectraParser(mainfile=self.filepath)  # EM
-
+class YamboSpectraParser(TextParser):
     def get_spectra(self) -> dict[str, Any]:
-        self.spectra_parser.mainfile = self.filepath #HB Aug 3rd 2026
-        data = []
-        names = []
-
-        with open(self.filepath) as f:
-            for line in f:
-                line = line.strip()
-
-                if line.startswith('#') and 'E/ev' in line:
-                    names = [k.strip() for k in line.split() if k != '#']
-                    continue
-
-                if names and not line.startswith('#') and line:
-                    data.append(line.split())
-
-        if not data:
-            return {}
-
-        data = np.array(data, dtype=np.float64)
-
-        if data.shape[1] < 2:
+        data = self.data_object.get('data')
+        if data is None or data.shape[1] < 2:
             return {}
 
         return dict(
             excitation_energies=data[:, 0] * ureg.eV,
             intensities=data[:, 1],
-            # HB, Aug 3rd, 2026
-            sp_type=self.spectra_parser.get('sp_type'),
-            n_energies=self.spectra_parser.get('n_energies'),
         )
 
-        #end HB
-
-# EM, Jul 22nd, 2026:    
-#    def get_nenergies(self) -> int:
-#       with open(self.filepath) as f:
-#          for line in f:
-#		   line = line.strip()
-#               
-#           if line.startswith('#') and 'BEnSteps' in line or 'ETStpsXd' in line:	
-#		       n_energies = [item[3] for item in line.split() if len(line.split())>=4]
-#			
-#       return n_energies 
-# end EM
-
+    def get_spectra_type(self, parsed: str | None) -> str | None:
+        if parsed is None:
+            return None
+        return {
+            'Absorption': 'dielectric_function',
+            'EELS': 'energy_loss_spectrum',
+        }.get(parsed.strip())
 
 
 class YamboArchiveWriter(ArchiveWriter):
@@ -400,36 +367,23 @@ class YamboArchiveWriter(ArchiveWriter):
 
         # spectra files
         spectra_files = search_files('o*', os.path.dirname(self.mainfile))
-        spectra_parser = YamboSpectraParser(text_parser=SpectraParser())
+        spectra_parser = YamboSpectraParser(logger=self.logger, text_parser=SpectraParser())
         absorption_spectra_parser = YamboMetainfoParser()
-        absorption_spectra_parser.data_object = yambo.AbsorptionSpectra()
+        absorption_spectra_parser.data_object = yambo.AbsorptionSpectrum()
         absorption_spectra_parser.annotation_key = yambo.SPECTRA_KEY
         
-        #start HB
-        SPECTRA_TYPE_MAP = {
-        'Absorption': 'dielectric_function',
-        'EELS': 'energy_loss_spectrum',
-        }
-
         for spectra_file in spectra_files:
             spectra_parser.filepath = spectra_file
-            absorption_spectra_parser.data_object = yambo.AbsorptionSpectra() #HB
-
+            absorption_spectra_parser.data_object = yambo.AbsorptionSpectrum()
             spectra_parser.convert(absorption_spectra_parser)
 
-            spectra_obj = absorption_spectra_parser.data_object
-			# spectra_obj.type = SPECTRA_TYPE_MAP.get(sp_type, 'unknown')
-			# spectra_obj.label = sp_type
-            spectra_obj.label = spectra_obj.sp_type #HB 
-            spectra_obj.type = SPECTRA_TYPE_MAP.get(spectra_obj.sp_type, 'unknown') #HB 
             outputs = (
                 data.outputs[-1] if data.outputs else data.m_create(yambo.outputs.Outputs)
             )
             outputs.m_append(
-                yambo.AbsorptionSpectra.m_def,
-                spectra_obj,
+                yambo.outputs.Outputs.absorption_spectra,
+                absorption_spectra_parser.data_object,
             )
-            #end HB
 
         data_parser.close()
         if netcdf_parser is not None:
