@@ -61,7 +61,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         output = simulation.outputs[0]
         output.scf_steps.delta_energies_total[9].to('hartree').magnitude == 0.991184e-07
         output.scf_steps.delta_potential_rms[9].to('hartree').magnitude == 0.324873e-08
-        output.scf_steps.delta_charge_abs[9].to('coulomb').magnitude == 0.235501e-08
+        output.scf_steps.delta_charge_abs[9].to(
+            'elementary_charge').magnitude == 0.235501e-08
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
@@ -171,7 +172,8 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
         assert output.scf_steps.delta_potential_rms[23].to(
             'hartree'
         ).magnitude == approx(0.489106e-07)
-        assert output.scf_steps.delta_charge_abs[23].to('coulomb').magnitude == approx(
+        assert output.scf_steps.delta_charge_abs[23].to(
+            'elementary_charge').magnitude == approx(
             4.16073e-08
         )
         assert output.scf_steps.delta_force_abs[23].to(
