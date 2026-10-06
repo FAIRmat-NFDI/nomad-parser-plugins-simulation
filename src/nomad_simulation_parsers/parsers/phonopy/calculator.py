@@ -93,7 +93,7 @@ def read_kpath(filename: str) -> list[dict[str, Any]]:
 
 
 def generate_kpath_seekpath(
-    atoms: PhonopyAtoms, symprec: float, logger=None
+    atoms: PhonopyAtoms, symprec: float, logger
 ) -> list[dict[str, Any]]:
     structure = (
         atoms.cell.tolist(),
