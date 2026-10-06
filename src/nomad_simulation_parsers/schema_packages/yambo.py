@@ -148,7 +148,7 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.model_method, NETCDF_KEY, '.@')
     add_mapping_annotation(general.Simulation.outputs, NETCDF_KEY, '.@')
     add_mapping_annotation(
-        Outputs.m_def,
+        general.Simulation.outputs,
         OUT_KEY,
         (
             'get_outputs',

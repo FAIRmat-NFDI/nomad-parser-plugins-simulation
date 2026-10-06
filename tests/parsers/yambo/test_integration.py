@@ -117,9 +117,12 @@ class TestYamboSpectraArchive(SimulationParserTestSuite):
 
     @pytest.mark.integration
     def test_maps_absorption_spectrum(self, archive):
-        spectrum = archive.data.outputs[-1].absorption_spectra[0]
+        (output,) = archive.data.outputs
+        (spectrum,) = output.absorption_spectra
 
+        assert spectrum.sp_type == 'Polarizability'
         assert spectrum.label == 'Polarizability'
+        assert spectrum.type == 'polarizability'
         assert len(spectrum.energies.points) == 4000
         assert len(spectrum.value) == 4000
         assert spectrum.energies.points[0].to('eV').magnitude == approx(0.0)
