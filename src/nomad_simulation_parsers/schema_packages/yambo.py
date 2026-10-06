@@ -8,6 +8,7 @@ from nomad_simulations.schema_packages import (
     properties,
     variables,
 )
+
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 OUT_KEY = 'yambo_out'
@@ -77,40 +78,33 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
 class ElectronicBandGap(outputs.ElectronicBandGap):
     add_mapping_annotation(outputs.ElectronicBandGap.value, OUT_KEY, '.value')
     add_mapping_annotation(
-        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel')
+        outputs.ElectronicBandGap.spin_channel, OUT_KEY, '.spin_channel'
+    )
+
 
 class Energy2(variables.Energy2):
-    add_mapping_annotation(variables.Energy2.points, SPECTRA_KEY, '.excitation_energies')
+    add_mapping_annotation(variables.Energy2.points, SPECTRA_KEY, '.@')
+
 
 class AbsorptionSpectrum(properties.AbsorptionSpectrum):
     add_mapping_annotation(
         properties.AbsorptionSpectrum.value,
         SPECTRA_KEY,
-        '.intensities',
+        ('get_intensities', ['.data']),
     )
     add_mapping_annotation(
-        properties.AbsorptionSpectrum.energies, SPECTRA_KEY, '.@'
+        properties.AbsorptionSpectrum.energies, SPECTRA_KEY, ('get_energies', ['.data'])
     )
     # TODO redundant with label
-    sp_type = Quantity(
-        type=str,
-        description='Spectrum type'
-    )
-    n_energies = Quantity(
-        type=int,
-        description='Number of energies in the spectrum'
-    )
+    sp_type = Quantity(type=str, description='Spectrum type')
+    n_energies = Quantity(type=int, description='Number of energies in the spectrum')
+    add_mapping_annotation(sp_type, SPECTRA_KEY, '.sp_type')
+    add_mapping_annotation(n_energies, SPECTRA_KEY, '.n_energies')
+    add_mapping_annotation(properties.AbsorptionSpectrum.label, SPECTRA_KEY, '.sp_type')
     add_mapping_annotation(
-        sp_type, SPECTRA_KEY, 'sp_type'
-    )
-    add_mapping_annotation(
-        n_energies, SPECTRA_KEY, 'n_energies'
-    )
-    add_mapping_annotation(
-        properties.AbsorptionSpectrum.label, SPECTRA_KEY, 'sp_type'
-    )
-    add_mapping_annotation(
-        properties.AbsorptionSpectrum.type, SPECTRA_KEY, ('get_spectra_type',  ['sp_type'])
+        properties.AbsorptionSpectrum.type,
+        SPECTRA_KEY,
+        ('get_spectrum_type', ['.sp_type']),
     )
 
 
@@ -142,9 +136,7 @@ class Outputs(outputs.Outputs):
             ['.valence_conduction', '.valence', '.conduction'],
         ),
     )
-    add_mapping_annotation(
-        AbsorptionSpectrum.m_def, SPECTRA_KEY, ('get_spectra', [])
-    )
+    add_mapping_annotation(AbsorptionSpectrum.m_def, SPECTRA_KEY, '.spectra')
 
 
 class Simulation(general.Simulation):
@@ -168,6 +160,7 @@ class Simulation(general.Simulation):
         ),
     )
     add_mapping_annotation(Outputs.m_def, SPECTRA_KEY, '.@')
+
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, NETCDF_KEY, '@')

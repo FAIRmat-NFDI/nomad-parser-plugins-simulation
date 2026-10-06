@@ -123,7 +123,5 @@ class TestYamboSpectraArchive(SimulationParserTestSuite):
         assert len(spectrum.energies.points) == 4000
         assert len(spectrum.value) == 4000
         assert spectrum.energies.points[0].to('eV').magnitude == approx(0.0)
-        assert spectrum.energies.points[1].to('eV').magnitude == approx(
-            0.00250062509
-        )
+        assert spectrum.energies.points[1].to('eV').magnitude == approx(0.00250062509)
         assert spectrum.value[0] == approx(6.56836937e-6)

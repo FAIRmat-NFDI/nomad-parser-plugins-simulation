@@ -2,14 +2,14 @@ import numpy as np
 from netCDF4 import Dataset  # pylint: disable=no-name-in-module
 from nomad.units import ureg
 from nomad_file_parser import FileParser
-from nomad_file_parser.text_parser import Quantity, TextParser, DataTextParser
+from nomad_file_parser.text_parser import DataTextParser, Quantity, TextParser
 
 RE_FLOAT = r'[-+]*\d*\.\d+[Ee]*[-+]*\d*'
 
 
 class SpectraParser(DataTextParser):
     def init_quantities(self) -> None:
-        self._quantities = [        
+        self._quantities = [
             Quantity(
                 'sp_type',
                 r'(EELS|Polarizability|Absorption)',
