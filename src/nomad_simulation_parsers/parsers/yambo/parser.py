@@ -326,11 +326,11 @@ class YamboSpectraParser(TextParser):
             return None
         return data[:, 0] * ureg.eV
 
-    def get_intensities(self, data: np.ndarray | None) -> dict[str, Any]:
+    def get_intensities(self, data: np.ndarray | None) -> np.ndarray | None:
         if data is None or data.shape[1] < 2:  # noqa: PLR2004
-            return {}
+            return None
 
-        return (data[:, 1],)
+        return data[:, 1]
 
     def get_spectrum_type(self, parsed: str | None) -> str | None:
         if parsed is None:
@@ -338,6 +338,7 @@ class YamboSpectraParser(TextParser):
         return {
             'Absorption': 'dielectric_function',
             'EELS': 'energy_loss_spectrum',
+            'Polarizability': 'polarizability',
         }.get(parsed.strip())
 
 
