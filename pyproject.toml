@@ -46,7 +46,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/FAIRmat-NFDI/nomad-parser-plugins-simulation"
+Repository = "https://github.com/FAIRmat-NFDI/nomad-simulation-parsers"
 
 [project.scripts]
 nomad-sim-parser = "nomad_simulation_parsers.cli:main"
