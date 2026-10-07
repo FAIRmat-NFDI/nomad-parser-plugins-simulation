@@ -1,6 +1,6 @@
 import operator
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import MDAnalysis
@@ -69,7 +69,83 @@ from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisPa
 # =============================================================================
 
 
+def group_indices_by_value(
+    indices: Iterable[int], values: np.ndarray
+) -> dict[Any, np.ndarray]:
+    """Group a subset of particle indices by the corresponding array value."""
+    indices = np.sort(np.asarray(indices))
+    grouped_indices: dict[Any, list[int]] = {}
+    for index in indices:
+        grouped_indices.setdefault(values[index], []).append(index)
+
+    return {
+        value: np.asarray(grouped_indices[value], dtype=indices.dtype)
+        for value in sorted(grouped_indices)
+    }
+
+
 class GromacsMDAnalysisParser(MDAnalysisParser):
+    @staticmethod
+    def disambiguate_system_names(systems: Iterable[dict[str, Any]]) -> None:
+        """Number reused names across incompatible types, sizes, or parents."""
+        systems = list(systems)
+        reserved_names = set()
+        pending_systems = list(systems)
+        while pending_systems:
+            system = pending_systems.pop()
+            reserved_names.add(system['name'])
+            pending_systems.extend(system.get('sub_systems', []))
+
+        assigned_names = set()
+        names_by_context: dict[str, dict[tuple, str]] = {}
+
+        def assign_names(
+            siblings: Iterable[dict[str, Any]], parent_path: tuple = ()
+        ) -> None:
+            sibling_signatures: dict[tuple, list[dict[str, Any]]] = {}
+            for system in siblings:
+                base_name = system['name']
+                signature = (
+                    system['branch_label'],
+                    len(system['particle_indices']),
+                    parent_path,
+                )
+                contexts = names_by_context.setdefault(base_name, {})
+                if signature in contexts:
+                    unique_name = contexts[signature]
+                elif not contexts:
+                    unique_name = base_name
+                    contexts[signature] = unique_name
+                    assigned_names.add(unique_name)
+                else:
+                    counter = 1
+                    unique_name = f'{base_name}_{counter}'
+                    while (
+                        unique_name in reserved_names
+                        or unique_name in assigned_names
+                    ):
+                        counter += 1
+                        unique_name = f'{base_name}_{counter}'
+                    contexts[signature] = unique_name
+                    assigned_names.add(unique_name)
+
+                system['name'] = unique_name
+                sibling_signatures.setdefault(signature, []).append(system)
+
+            # Descend only after every sibling has its final name so that each
+            # child context contains the disambiguated parent name.
+            for matching_systems in sibling_signatures.values():
+                representative = matching_systems[0]
+                child_path = parent_path + (
+                    representative['branch_label'],
+                    representative['name'],
+                    len(representative['particle_indices']),
+                )
+                for system in matching_systems:
+                    assign_names(system.get('sub_systems', []), child_path)
+
+        assign_names(systems)
+
     def reset(self):
         super().reset()
         self.data = None
@@ -435,41 +511,39 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         return system
 
     def _create_molecule(
-        self, molecule: int, i_molecule: int, particle_arrays: dict
+        self,
+        particle_indices: np.ndarray,
+        i_molecule: int,
+        particle_arrays: dict,
     ) -> dict[str, Any]:
         """Create a single molecule with its residues."""
 
         def _create_residue(
             res_id: int,
             restype: str,
-            parent_system: dict[str, Any],
+            residue_indices: np.ndarray,
             particle_arrays: dict,
         ) -> dict[str, Any]:
             """Create a single residue."""
-            particle_indices = np.where(particle_arrays['resids'] == res_id)[0]
-            particle_indices = np.intersect1d(
-                particle_indices, parent_system['particle_indices']
-            )
-
             composition_formula = self._generate_chemical_formula(
-                particle_indices, particle_arrays
+                residue_indices, particle_arrays
             )
 
             return self._create_system_node(
                 name=f'{restype}',
                 branch_label='monomer',
-                particle_indices=particle_indices,
+                particle_indices=residue_indices,
                 composition_formula=composition_formula,
             )
 
         def _create_monomer_group(
-            restype: str, parent_system: dict[str, Any], particle_arrays: dict[str, Any]
+            restype: str,
+            typed_residues: list[tuple[Any, np.ndarray]],
+            particle_arrays: dict[str, Any],
         ) -> dict[str, Any]:
             """Create a monomer group with its constituent residues."""
-
-            restype_indices = np.where(particle_arrays['resnames'] == restype)[0]
-            particle_indices = np.intersect1d(
-                restype_indices, parent_system['particle_indices']
+            particle_indices = np.sort(
+                np.concatenate([indices for _, indices in typed_residues])
             )
 
             monomer_group = self._create_system_node(
@@ -479,35 +553,36 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
             )
 
             # Add individual residues
-            restype_resids = np.unique(
-                particle_arrays['resids'][monomer_group['particle_indices']]
-            )
-            for res_id in restype_resids:
+            for res_id, residue_indices in typed_residues:
                 residue = _create_residue(
-                    res_id, restype, monomer_group, particle_arrays
+                    res_id, restype, residue_indices, particle_arrays
                 )
                 monomer_group.setdefault('sub_systems', []).append(residue)
 
             # Set composition formula as RESTYPE(count)
-            monomer_count = len(restype_resids)
+            monomer_count = len(typed_residues)
             monomer_group['composition_formula'] = f'{restype}({monomer_count})'
 
             return monomer_group
 
         def _add_residue_hierarchy(
-            sec_molecule: dict[str, Any], particle_arrays: dict[str, Any]
+            sec_molecule: dict[str, Any],
+            residues: dict[Any, np.ndarray],
+            particle_arrays: dict[str, Any],
         ) -> None:
             """Add residue/monomer hierarchy to a molecule."""
-            mol_resnames = particle_arrays['resnames'][sec_molecule['particle_indices']]
-            restypes = np.unique(mol_resnames)
+            residues_by_type: dict[str, list[tuple[Any, np.ndarray]]] = {}
+            for res_id, residue_indices in residues.items():
+                restype = particle_arrays['resnames'][residue_indices[0]]
+                residues_by_type.setdefault(restype, []).append(
+                    (res_id, residue_indices)
+                )
 
-            for restype in restypes:
+            for restype in sorted(residues_by_type):
                 sec_monomer_group = _create_monomer_group(
-                    restype, sec_molecule, particle_arrays
+                    restype, residues_by_type[restype], particle_arrays
                 )
                 sec_molecule.setdefault('sub_systems', []).append(sec_monomer_group)
-
-        particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
 
         # Get molecule type from first atom in molecule
         moltype = particle_arrays['moltypes'][particle_indices[0]]
@@ -520,11 +595,11 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         )
 
         # Check if molecule has multiple residues
-        mol_resids = np.unique(
-            particle_arrays['resids'][mol_system['particle_indices']]
+        residues = group_indices_by_value(
+            mol_system['particle_indices'], particle_arrays['resids']
         )
-        if len(mol_resids) > 1:
-            _add_residue_hierarchy(mol_system, particle_arrays)
+        if len(residues) > 1:
+            _add_residue_hierarchy(mol_system, residues, particle_arrays)
         else:
             # Single-residue molecule: add composition formula (terminal branch)
             mol_system['composition_formula'] = self._generate_chemical_formula(
@@ -600,28 +675,25 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
             }
 
         def _create_molecule_group(
-            moltype: str, particle_arrays: dict
+            moltype: str, particle_indices: np.ndarray, particle_arrays: dict
         ) -> dict[str, Any]:
             """Create a molecule group with its constituent molecules."""
-            particle_indices = np.where(particle_arrays['moltypes'] == moltype)[0]
-
-            # Calculate composition formula
-            mol_nums = particle_arrays['molnums'][particle_indices]
-            moltype_count = np.unique(mol_nums).shape[0]
+            molecules = group_indices_by_value(
+                particle_indices, particle_arrays['molnums']
+            )
 
             molecule_group = self._create_system_node(
                 name=f'group_{moltype}',
                 branch_label='molecule_group',
                 particle_indices=particle_indices,
-                composition_formula=f'{moltype}({moltype_count})',
+                composition_formula=f'{moltype}({len(molecules)})',
             )
 
             # Add individual molecules
-            molecules = particle_arrays['molnums']
-            for i_molecule, molecule in enumerate(
-                np.unique(molecules[molecule_group['particle_indices']])
-            ):
-                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+            for i_molecule, molecule_indices in enumerate(molecules.values()):
+                mol = self._create_molecule(
+                    molecule_indices, i_molecule, particle_arrays
+                )
                 molecule_group.setdefault('sub_systems', []).append(mol)
 
             return molecule_group
@@ -632,9 +704,15 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
         particle_arrays = _extract_particle_arrays(particles_info)
 
         # Build molecular hierarchy
-        moltypes = np.unique(particle_arrays['moltypes'])
-        for moltype in moltypes:
-            molecule_group = _create_molecule_group(moltype, particle_arrays)
+        molecule_groups = group_indices_by_value(
+            np.arange(len(particle_arrays['moltypes'])), particle_arrays['moltypes']
+        )
+        for moltype, particle_indices in molecule_groups.items():
+            molecule_group = _create_molecule_group(
+                moltype, particle_indices, particle_arrays
+            )
             mol_hierarchy[moltype] = molecule_group
+
+        self.disambiguate_system_names(mol_hierarchy.values())
 
         return mol_hierarchy
