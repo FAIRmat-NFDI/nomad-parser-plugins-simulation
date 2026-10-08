@@ -37,7 +37,7 @@ class TestVaspPhonopyArchive(PhonopyParserIntegrationSuite):
 
 
 class TestNoncanonicalHexagonalArchive(PhonopyParserIntegrationSuite):
-    archive_fixture = 'cp2k_phonopy_archive'
+    archive_fixture = 'cp2k_hexagonal_noncanonical_phonopy_archive'
 
     @pytest.mark.integration
     def test_identity_populated_once(self, archive):
@@ -57,5 +57,15 @@ class TestNoncanonicalHexagonalArchive(PhonopyParserIntegrationSuite):
             np.eye(3, dtype=int),
         )
 
-        # TODO: assert the nine hexagonal band segments after band results are
-        # populated in the archive by phonopy_obj_to_archive.
+    @pytest.mark.integration
+    def test_mapping_populates_method_and_outputs(self, archive):
+        simulation = archive.data
+        assert len(simulation.model_method) == 1
+        assert simulation.model_method[0].name == 'harmonic lattice dynamics'
+        assert len(simulation.outputs) == 1
+        outputs = simulation.outputs[0]
+        assert len(outputs.force_constants) == 1
+        assert len(outputs.phonon_band_structures) == 9
+        assert len(outputs.phonon_dos) == 1
+        assert len(outputs.vibrational_free_energies) == 1
+        assert outputs.model_system_ref is simulation.model_system[1]
