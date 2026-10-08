@@ -58,6 +58,16 @@ def dlpno_cc_archive() -> EntryArchive:
     return parse_orca('dlpno-coupled-cluster.out')
 
 
+@pytest.fixture(scope='module')
+def orca_6_optimization_archive() -> EntryArchive:
+    return parse_orca('geometry_optimization_water_v6.out')
+
+
+@pytest.fixture(scope='module')
+def orca_4_optimization_archive() -> EntryArchive:
+    return parse_orca('geometry_optimization_water_v4.out')
+
+
 class _UploadForTest:
     def __init__(self, upload_id: str, upload_files: files.StagingUploadFiles) -> None:
         self.upload_id = upload_id

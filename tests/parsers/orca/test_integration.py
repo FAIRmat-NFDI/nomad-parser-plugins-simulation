@@ -19,7 +19,7 @@ from nomad_simulations.schema_packages.properties.molecular_orbitals import (
     MolecularOrbitals,
 )
 
-from tests.parsers.common import SimulationParserTestSuite, WorkflowTestSuite
+from tests.parsers.common import SimulationParserTestSuite, WorkflowTestSuite, approx
 
 
 class OrcaParserIntegrationSuite(SimulationParserTestSuite):
@@ -231,6 +231,134 @@ class TestDLPNOCoupledCluster(OrcaParserIntegrationSuite, WorkflowTestSuite):
         assert len(cc_local_settings.screening_thresholds) == 13
         assert cc_local_settings.screening_thresholds[-1].name == 'TCutDOWeak'
         assert cc_local_settings.screening_thresholds[-1].value == pytest.approx(4e-3)
+
+
+class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuite):
+    workflow_name = 'GeometryOptimization'
+
+    @pytest.mark.integration
+    def test_geometry_optimization_trajectory(self, archive):
+        simulation = archive.data
+
+        assert len(simulation.model_system) == self.n_steps
+        assert len(simulation.outputs) == self.n_steps
+        assert simulation.model_system[-1].is_representative
+        assert [
+            len(system.particle_states) for system in simulation.model_system
+        ] == [self.n_atoms] + [0] * (self.n_steps - 1)
+        assert all(
+            system.positions.shape == (self.n_atoms, 3)
+            for system in simulation.model_system
+        )
+        assert [
+            output.model_system_ref.m_proxy_value
+            for output in simulation.outputs
+        ] == [f'/data/model_system/{i}' for i in range(self.n_steps)]
+
+    @pytest.mark.integration
+    def test_per_step_energy_and_scf_data(self, archive):
+        outputs = archive.data.outputs
+
+        assert [
+            output.total_energies[0].value.to('hartree').magnitude
+            for output in outputs
+        ] == pytest.approx(self.energies)
+        assert [
+            len(output.scf_steps.energies_total) for output in outputs
+        ] == self.scf_iterations
+        assert all(
+            len(output.scf_steps.delta_energies_total)
+            == len(output.scf_steps.energies_total)
+            for output in outputs
+        )
+        assert all(
+            len(output.scf_steps.delta_density_matrix_max)
+            == len(output.scf_steps.energies_total)
+            for output in outputs
+        )
+        assert all(
+            len(output.scf_steps.delta_density_matrix_rms)
+            == len(output.scf_steps.energies_total)
+            for output in outputs
+        )
+
+    @pytest.mark.integration
+    def test_geometry_optimization_workflow(self, archive):
+        workflow = archive.workflow2
+
+        assert workflow.method.optimization_type == 'atomic'
+        assert workflow.method.optimization_method == 'BFGS'
+        assert workflow.method.sampling_frequency == 1
+
+        force_target = workflow.method.convergence_targets[0]
+        assert force_target.m_def.name == 'ForceConvergenceTarget'
+        assert force_target.threshold_type == 'maximum'
+        assert force_target.threshold.to('hartree / bohr').magnitude == approx(
+            self.force_threshold
+        )
+
+        energy_target = workflow.method.single_point_convergence_targets[0]
+        assert energy_target.m_def.name == 'EnergyConvergenceTarget'
+        assert energy_target.threshold_type == 'absolute'
+        assert energy_target.threshold.to('hartree').magnitude == approx(1e-8)
+
+        assert workflow.results.is_converged
+        assert workflow.results.n_steps == self.n_steps
+        assert list(workflow.results.steps) == list(range(self.n_steps))
+        assert workflow.results.final_force_maximum.to('hartree / bohr').magnitude == (
+            approx(self.final_force)
+        )
+        assert workflow.results.final_displacement_maximum.to('bohr').magnitude == (
+            approx(self.final_displacement)
+        )
+
+
+class TestOrca6GeometryOptimization(OrcaGeometryOptimizationSuite):
+    archive_fixture = 'orca_6_optimization_archive'
+    n_steps = 6
+    n_atoms = 3
+    energies = [
+    -76.365745915290,
+    -76.366381764866,
+    -76.366429652180,
+    -76.366444025963,
+    -76.366444062916,
+    -76.366444063527,
+    ]
+    scf_iterations = [15, 9, 7, 6, 3, 2]
+    force_threshold = 0.0001000000
+    final_force = 0.0000177027
+    final_displacement = 0.0000369167
+
+    @pytest.mark.integration
+    def test_scf_durations_are_mapped(self, archive):
+        assert [
+            len(output.scf_steps.durations) for output in archive.data.outputs
+        ] == self.scf_iterations
+
+
+class TestOrca4GeometryOptimization(OrcaGeometryOptimizationSuite):
+    archive_fixture = 'orca_4_optimization_archive'
+    n_steps = 6
+    n_atoms = 3
+    energies = [
+    -76.365725501042,
+    -76.366356332856,
+    -76.366403888790,
+    -76.366419828387,
+    -76.366419849341,
+    -76.366419841490,
+    ]
+    scf_iterations = [13, 9, 6, 5, 3, 1]
+    force_threshold = 0.0001000000
+    final_force = 0.0000173643
+    final_displacement = 0.0000365511
+
+    @pytest.mark.integration
+    def test_scf_durations_are_absent(self, archive):
+        assert all(
+            output.scf_steps.durations is None for output in archive.data.outputs
+        )
 
 
 class TestDFTPrintMOs(OrcaParserIntegrationSuite):
