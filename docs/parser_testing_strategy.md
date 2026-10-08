@@ -6,6 +6,24 @@ Tests vary along several independent dimensions. This document develops one of t
 
 Scope is not the only axis. A second is how inputs are chosen: the examples below are all *example-based* (hand-picked inputs with known outputs). Asserting invariants over inputs rather than fixed cases is already part of the protocol as *metamorphic* tests (for example, changing whitespace or the source unit rescales the result predictably); generalising these with *property-based* testing (e.g. Hypothesis, over generated inputs) is a natural next step. Treat the scope ladder below as one well-developed dimension of the strategy, not the whole of it.
 
+### Axes
+
+Three independent choices describe any test, and the policy names all three so that a missing kind is visible rather than forgotten.
+
+* **Scope**: how much code runs, from one function to the complete NOMAD pipeline. This is the ladder developed below, refined into the five parser layers of the protocol.
+* **Input selection**: how the inputs are chosen. *Example-based* tests use hand-picked inputs with known outputs; *metamorphic* tests transform an input and check the relation between the two outputs; *property-based* tests generate inputs and check a law that must hold for all of them.
+* **Oracle**: what decides pass or fail. An *explicit value* stated in the test or in a reviewed manifest (`case.yaml`); a *relation* between runs (metamorphic and property-based tests need no expected value); a *differential* comparison against another implementation or another revision of the same code; or a *snapshot*, a stored previous output of the code under test.
+
+The last two oracles are the ones that most easily pass when they should fail, and the next section fixes how we use them.
+
+### The role of snapshots
+
+A snapshot records what the code produced at some point and fails when the output changes. It says nothing about whether either output was correct, so a snapshot is never the oracle for a parsing rule, a unit conversion, or a mapped value; those are checked at the lowest layer that can reproduce them, with the expected value stated in the test. Committed snapshot files of parser archives are not part of this repository.
+
+What this repository does use is the *differential* form at end-to-end scope: the additive-output check (`tests/parsers/check_additivity.sh`, documented in [`how_to/test_parsers.md`](how_to/test_parsers.md)) runs two revisions of the parsers on the same fixtures, compares `archive.data` and `workflow2` leaf by leaf, passes on additions, warns on growth and fails on any removed or changed leaf. It is transient (the snapshots are regenerated on each run and never committed), type-sensitive, and run on manual dispatch and before a rollout, because deciding whether a change is intended is a human decision. The same differential idea, with the legacy parsers as the reference, is the parity report in the Area C distribution. Both are the end-to-end tier of the strategy: they catch what no one anticipated, and a disagreement they report is a finding to triage, not a verdict.
+
+The `case.yaml` manifests of the protocol are the opposite of snapshots: they hold a few reviewed expectations per fixture, written by a person from the source file, and a change to a manifest is reviewed as a behaviour change. When a pull request changes parser output, the sequence is therefore: add the lowest-layer test with the new expected value, update the manifest if a public value changed, and run the additive check to see what else moved.
+
 ### Scope: different test types serve different purposes and catch different categories of bugs
 
 1. **Unit Tests** catch logic errors early and cheaply  
