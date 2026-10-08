@@ -110,6 +110,38 @@ class TestGromacsProteinSmallArchive(GromacsParserIntegrationSuite):
                     for monomer in monomer_group.sub_systems or []:
                         assert monomer.branch_label == 'monomer'
 
+    def test_protein_small_archive_preserves_residue_groups(self, archive):
+        system = archive.data.model_system[0]
+        protein_group = next(
+            group
+            for group in system.sub_systems
+            if group.name == 'group_Protein_chain_X'
+        )
+        protein = protein_group.sub_systems[0]
+
+        residue_groups = {group.name: group for group in protein.sub_systems}
+        assert list(residue_groups) == [
+            'group_ACE',
+            'group_GLY',
+            'group_NME',
+            'group_PHE',
+            'group_SER',
+        ]
+        assert [
+            residue.name for residue in residue_groups['group_PHE'].sub_systems
+        ] == ['PHE', 'PHE']
+        assert [
+            residue.name for residue in residue_groups['group_SER'].sub_systems
+        ] == ['SER'] * 5
+
+        for residue_group in residue_groups.values():
+            residue_indices = np.concatenate(
+                [residue.particle_indices for residue in residue_group.sub_systems]
+            )
+            assert np.array_equal(
+                residue_group.particle_indices, np.sort(residue_indices)
+            )
+
 
 class GromacsIntegratorArchiveSuite(GromacsParserIntegrationSuite):
     required_simulation_sections = ('model_method',)
