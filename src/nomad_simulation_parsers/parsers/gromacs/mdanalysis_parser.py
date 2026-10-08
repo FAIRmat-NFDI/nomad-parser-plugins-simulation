@@ -87,38 +87,43 @@ def group_indices_by_value(
 class GromacsMDAnalysisParser(MDAnalysisParser):
     @staticmethod
     def disambiguate_system_names(systems: Iterable[dict[str, Any]]) -> None:
-        """Number reused names across incompatible types, sizes, or parents."""
+        """Number every name reused across incompatible hierarchy contexts."""
         systems = list(systems)
         reserved_names = set()
-        pending_systems = list(systems)
-        while pending_systems:
-            system = pending_systems.pop()
-            reserved_names.add(system['name'])
-            pending_systems.extend(system.get('sub_systems', []))
+        names_by_context: dict[str, dict[tuple, list[dict[str, Any]]]] = {}
 
-        assigned_names = set()
-        names_by_context: dict[str, dict[tuple, str]] = {}
-
-        def assign_names(
+        def collect_contexts(
             siblings: Iterable[dict[str, Any]], parent_path: tuple = ()
         ) -> None:
-            sibling_signatures: dict[tuple, list[dict[str, Any]]] = {}
             for system in siblings:
                 base_name = system['name']
+                reserved_names.add(base_name)
                 signature = (
                     system['branch_label'],
                     len(system['particle_indices']),
                     parent_path,
                 )
                 contexts = names_by_context.setdefault(base_name, {})
-                if signature in contexts:
-                    unique_name = contexts[signature]
-                elif not contexts:
-                    unique_name = base_name
-                    contexts[signature] = unique_name
-                    assigned_names.add(unique_name)
-                else:
-                    counter = 1
+                contexts.setdefault(signature, []).append(system)
+                child_path = parent_path + (
+                    (
+                        system['branch_label'],
+                        base_name,
+                        len(system['particle_indices']),
+                    ),
+                )
+                collect_contexts(system.get('sub_systems', []), child_path)
+
+        collect_contexts(systems)
+
+        assigned_names = set()
+        for base_name, contexts in names_by_context.items():
+            if len(contexts) == 1:
+                unique_names = [base_name]
+            else:
+                unique_names = []
+                counter = 0
+                for _ in contexts:
                     unique_name = f'{base_name}_{counter}'
                     while (
                         unique_name in reserved_names
@@ -126,25 +131,15 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                     ):
                         counter += 1
                         unique_name = f'{base_name}_{counter}'
-                    contexts[signature] = unique_name
-                    assigned_names.add(unique_name)
+                    unique_names.append(unique_name)
+                    counter += 1
 
-                system['name'] = unique_name
-                sibling_signatures.setdefault(signature, []).append(system)
-
-            # Descend only after every sibling has its final name so that each
-            # child context contains the disambiguated parent name.
-            for matching_systems in sibling_signatures.values():
-                representative = matching_systems[0]
-                child_path = parent_path + (
-                    representative['branch_label'],
-                    representative['name'],
-                    len(representative['particle_indices']),
-                )
+            for matching_systems, unique_name in zip(
+                contexts.values(), unique_names
+            ):
+                assigned_names.add(unique_name)
                 for system in matching_systems:
-                    assign_names(system.get('sub_systems', []), child_path)
-
-        assign_names(systems)
+                    system['name'] = unique_name
 
     def reset(self):
         super().reset()

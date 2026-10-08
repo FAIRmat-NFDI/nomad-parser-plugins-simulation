@@ -61,7 +61,7 @@ class TestSystemNameDisambiguation:
 
         assert root['name'] == 'group_PEO'
         assert repeated_small['name'] == 'PEO_1'
-        assert repeated_large['name'] == 'PEO'
+        assert repeated_large['name'] == 'PEO_0'
         assert same_signature['name'] == repeated_large['name']
         assert root['sub_systems'] == [
             repeated_large,
@@ -114,11 +114,11 @@ class TestSystemNameDisambiguation:
 
         chain_a_group = chains[0]['sub_systems'][0]['sub_systems'][0]
         chain_b_group = chains[1]['sub_systems'][0]['sub_systems'][0]
-        assert chain_a_group['name'] == 'group_SA'
+        assert chain_a_group['name'] == 'group_SA_0'
         assert chain_b_group['name'] == 'group_SA_1'
         assert [group['name'] for group in chain_a_group['sub_systems']] == [
-            'SA',
-            'SA',
+            'SA_0',
+            'SA_0',
         ]
         assert [group['name'] for group in chain_b_group['sub_systems']] == [
             'SA_1',
@@ -136,7 +136,7 @@ class TestSystemNameDisambiguation:
             [first, other_name, conflicting]
         )
 
-        assert first['name'] == 'PEO'
+        assert first['name'] == 'PEO_0'
         assert other_name['name'] == 'PEO_1'
         assert conflicting['name'] == 'PEO_2'
 
