@@ -114,8 +114,8 @@ class TestRelativityMapping:
         )
         assert model == {'level': 'scalar', 'approximation': 'DKH', 'dkh_order': 2}
 
-    def test_absent_relativity_yields_empty(self):
-        assert OutParser().get_relativity_model({}) == {}
+    def test_absent_relativity_yields_none(self):
+        assert OutParser().get_relativity_model({}) is None
 
 
 @pytest.mark.unit

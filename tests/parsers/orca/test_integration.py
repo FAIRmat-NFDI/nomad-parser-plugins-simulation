@@ -11,7 +11,6 @@ from nomad_simulations.schema_packages.model_method import (
     MultireferencePT,
     OrbitalLocalization,
     PerturbationMethod,
-    RelativityModel,
 )
 from nomad_simulations.schema_packages.numerical_settings import (
     LocalCorrelationSettings,
@@ -41,6 +40,7 @@ class TestRIMP2Water(OrcaParserIntegrationSuite):
         assert isinstance(method, PerturbationMethod)
         assert method.type == 'MP'
         assert method.order == 2
+        assert method.relativity is None
 
         basis_sets = [
             settings
@@ -154,11 +154,7 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
             # universally and the mapper injected a hollow DFT here; DFT stays
             # root-anchored to avoid it.
             assert not any(isinstance(c, DFT) for c in method.contributions)
-            relativity = next(
-                contribution
-                for contribution in method.contributions
-                if isinstance(contribution, RelativityModel)
-            )
+            relativity = method.relativity
             assert relativity.level == 'scalar'
             assert relativity.approximation == 'DKH'
             assert relativity.dkh_order == 2
