@@ -111,6 +111,53 @@ class TestGromacsProteinSmallArchive(GromacsParserIntegrationSuite):
                         assert monomer.branch_label == 'monomer'
 
 
+
+@pytest.mark.integration
+class TestGromacsHierarchyDisambiguationArchive(GromacsParserIntegrationSuite):
+    archive_fixture = 'hierarchy_disambiguation_archive'
+    workflow_name = 'MolecularDynamics'
+
+    def test_same_residue_groups_are_scoped_to_their_parent_chain(self, archive):
+        system = archive.data.model_system[0]
+
+        assert system.n_particles == 12
+        assert len(system.sub_systems) == 6
+
+        for chain_index, chain_group in enumerate(system.sub_systems):
+            chain_letter = chr(ord('A') + chain_index)
+            chain_name = f'Protein_chain_{chain_letter}'
+            residue_name = f'sA_{chain_index}'
+            expected_indices = np.array([2 * chain_index, 2 * chain_index + 1])
+
+            assert chain_group.name == f'group_{chain_name}'
+            assert chain_group.branch_label == 'molecule_group'
+            assert np.array_equal(chain_group.particle_indices, expected_indices)
+            assert len(chain_group.sub_systems) == 1
+
+            chain = chain_group.sub_systems[0]
+            assert chain.name == chain_name
+            assert chain.branch_label == 'molecule'
+            assert np.array_equal(chain.particle_indices, expected_indices)
+            assert len(chain.sub_systems) == 1
+
+            residue_group = chain.sub_systems[0]
+            assert residue_group.name == f'group_{residue_name}'
+            assert residue_group.branch_label == 'monomer_group'
+            assert np.array_equal(residue_group.particle_indices, expected_indices)
+            assert [residue.name for residue in residue_group.sub_systems] == [
+                residue_name,
+                residue_name,
+            ]
+            assert [residue.branch_label for residue in residue_group.sub_systems] == [
+                'monomer',
+                'monomer',
+            ]
+            assert [
+                residue.particle_indices.tolist()
+                for residue in residue_group.sub_systems
+            ] == [[expected_indices[0]], [expected_indices[1]]]
+
+
 class GromacsIntegratorArchiveSuite(GromacsParserIntegrationSuite):
     required_simulation_sections = ('model_method',)
     workflow_name = 'MolecularDynamics'
