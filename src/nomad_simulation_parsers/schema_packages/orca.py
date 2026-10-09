@@ -329,7 +329,6 @@ add_mapping_annotation(
     model_method.ModelMethodElectronic.relativity,
     OUT_KEY,
     ('get_relativity_model', ['@']),
-    m_def=model_method.RelativityModel.m_def,
 )
 
 try:

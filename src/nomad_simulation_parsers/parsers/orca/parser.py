@@ -601,9 +601,7 @@ class OutParser(MappingTextParser):
             self._method = 'HF'
         return [{'reference_form': reference_form}] if reference_form else []
 
-    def get_relativity_model(
-        self, source: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any] | None:
         relativistic = self._parser_results(source.get('relativistic_hamiltonian'))
         scf_settings = self._get_scf_settings(source)
 
@@ -642,7 +640,6 @@ class OutParser(MappingTextParser):
         )
         if approximation == 'DKH' and dkh_order is not None:
             model['dkh_order'] = int(dkh_order)
-        # TODO implement support in mapping parser
         return model
 
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
