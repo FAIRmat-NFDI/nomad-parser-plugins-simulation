@@ -326,11 +326,9 @@ add_mapping_annotation(
 )
 add_mapping_annotation(model_method.RelativityModel.dkh_order, OUT_KEY, '.dkh_order')
 add_mapping_annotation(
-    model_method.ModelMethod.contributions,
+    model_method.ModelMethodElectronic.relativity,
     OUT_KEY,
-    ('get_relativity_models', ['@']),
-    cache=True,
-    m_def=model_method.RelativityModel.m_def,
+    ('get_relativity_model', ['@']),
 )
 
 try:
