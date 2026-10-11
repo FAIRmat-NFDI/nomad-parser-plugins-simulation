@@ -12,43 +12,43 @@ Protein_chain_A    1
 
 [ atoms ]
 ; nr  type  resnr  residue  atom  cgnr  charge  mass
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ moleculetype ]
 Protein_chain_B    1
 
 [ atoms ]
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ moleculetype ]
 Protein_chain_C    1
 
 [ atoms ]
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ moleculetype ]
 Protein_chain_D    1
 
 [ atoms ]
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ moleculetype ]
 Protein_chain_E    1
 
 [ atoms ]
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ moleculetype ]
 Protein_chain_F    1
 
 [ atoms ]
-1     SA    1      sA       C     1     0.0     72.0
-2     SA    2      sA       C     2     0.0     72.0
+1     SA    1      sA       WN1   1     0.0     72.0
+2     SA    2      sA       WP1   2     0.0     72.0
 
 [ system ]
 Minimal Frame49 hierarchy reproducer

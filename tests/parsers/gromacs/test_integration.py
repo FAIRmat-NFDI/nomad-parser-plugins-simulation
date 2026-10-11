@@ -2,6 +2,7 @@ import MDAnalysis
 import numpy as np
 import pytest
 from nomad.units import ureg
+from nomad_simulations.schema_packages.atoms_state import AtomsState, CGBeadState
 from packaging.version import Version
 
 from nomad_simulation_parsers.parsers.gromacs.parser import ENERGY_UNIT
@@ -22,6 +23,13 @@ class GromacsParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
 class TestGromacsWaterArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'water_archive'
     workflow_name = 'MolecularDynamics'
+
+    def test_water_particles_remain_atomic(self, archive):
+        particle_states = archive.data.model_system[0].particle_states
+
+        assert all(isinstance(state, AtomsState) for state in particle_states)
+        assert [state.chemical_symbol for state in particle_states].count('O') == 216
+        assert [state.chemical_symbol for state in particle_states].count('H') == 432
 
     def test_archive_contains_trajectory_topology_and_bonds(self, archive):
         simulation = archive.data
@@ -110,12 +118,26 @@ class TestGromacsProteinSmallArchive(GromacsParserIntegrationSuite):
                     for monomer in monomer_group.sub_systems or []:
                         assert monomer.branch_label == 'monomer'
 
-
-
 @pytest.mark.integration
 class TestGromacsHierarchyDisambiguationArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'hierarchy_disambiguation_archive'
     workflow_name = 'MolecularDynamics'
+
+    def test_preserves_coarse_grained_particle_identities(self, archive):
+        topology, *trajectory_frames = archive.data.model_system
+
+        assert all(
+            isinstance(state, CGBeadState) for state in topology.particle_states
+        )
+        assert [state.get_label() for state in topology.particle_states] == [
+            'WN1',
+            'WP1',
+        ] * 6
+        assert all(
+            state.mass.to(ureg.amu).magnitude == 72
+            for state in topology.particle_states
+        )
+        assert all(not frame.particle_states for frame in trajectory_frames)
 
     def test_same_residue_groups_are_scoped_to_their_parent_chain(self, archive):
         system = archive.data.model_system[0]

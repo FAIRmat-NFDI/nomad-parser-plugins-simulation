@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 import numpy as np
+from ase.data import atomic_numbers
 from ase.symbols import symbols2numbers
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
@@ -11,6 +12,7 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
 )
+from nomad_simulations.schema_packages.atoms_state import AtomsState, CGBeadState
 from nomad_simulations.schema_packages.force_field import (
     ParticleParametersContainer,
 )
@@ -768,6 +770,33 @@ class GromacsMDAnalysisParser(MappingParser):
                 pass
         return result
 
+    def get_particle_states(self) -> list[AtomsState | CGBeadState]:
+        """Build schema particle identities without inventing atom types."""
+        particle_states = []
+        for parameters in self.get_particle_parameters():
+            label = str(parameters.get('label') or 'CGX')
+            element = parameters.get('element')
+            element = str(element) if element is not None else None
+            state_kwargs: dict[str, Any] = {'label': label}
+
+            mass = parameters.get('mass')
+            try:
+                if mass is not None and np.isfinite(mass) and mass > 0:
+                    state_kwargs['mass'] = float(mass) * ureg.amu
+            except (TypeError, ValueError):
+                pass
+
+            if element in atomic_numbers:
+                particle_states.append(
+                    AtomsState(chemical_symbol=element, **state_kwargs)
+                )
+            else:
+                particle_states.append(
+                    CGBeadState(bead_symbol=label, **state_kwargs)
+                )
+
+        return particle_states
+
     def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
         """Return per-type particle parameters grouped from per-particle data.
 
@@ -1097,6 +1126,14 @@ class GromacsArchiveWriter(MDParser):
         # contributions are handled by a dedicated pass below, not here.
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser, update_mode='replace')
+
+        # Particle identities are polymorphic in the v2 schema. Mapping every
+        # TPR particle through AtomsState loses coarse-grained bead labels because
+        # non-element symbols cannot populate AtomsState.chemical_symbol.
+        if self.archive.data.model_system:
+            self.archive.data.model_system[0].particle_states.extend(
+                self._mdanalysis_parser.get_particle_states()
+            )
 
         # ForceField contributions: target model_method[0] directly, mirroring
         # the XVG/FEP pattern. This avoids depending on from_dict's in-place

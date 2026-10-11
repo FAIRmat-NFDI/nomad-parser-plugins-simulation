@@ -141,8 +141,7 @@ class SimulationParserTestSuite(_SimulationParserSuite):
         assert representative.positions is not None
         assert representative.particle_states
         assert all(
-            state.chemical_symbol is not None
-            for state in representative.particle_states
+            state.get_label() is not None for state in representative.particle_states
         )
         if self.require_periodic_boundary_conditions:
             assert representative.periodic_boundary_conditions is not None

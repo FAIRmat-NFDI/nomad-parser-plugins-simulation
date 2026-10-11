@@ -102,12 +102,6 @@ class Program(general.Program):
     )
 
 
-class AtomsState(model_system.AtomsState):
-    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.label')
-    add_mapping_annotation(model_system.AtomsState.chemical_symbol, TPR_KEY, '.element')
-    add_mapping_annotation(model_system.AtomsState.mass, TPR_KEY, '.mass', unit='amu')
-
-
 add_mapping_annotation(
     model_system.ModelSystem.lattice_vectors, TPR_KEY, '.lattice_vectors'
 )
@@ -123,7 +117,7 @@ class ModelSystem(model_system.ModelSystem):
     IMPLEMENTED:
     - positions, velocities: Particle coordinates and velocities
     - bond_list: Bond topology (atom index pairs) extracted from MDAnalysis
-    - particle_states (AtomsState): Atom labels and types
+    - particle_states: Atomic or coarse-grained particle identities
     - sub_systems: Hierarchical molecular structure (molecule groups → molecules →
       monomers)
     """
@@ -134,7 +128,6 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
-    add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
 
 
 # ROOT annotation for nested ModelSystem instances
