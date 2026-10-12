@@ -21,15 +21,9 @@ from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
-from ase.symbols import symbols2numbers
 from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_simulations.schema_packages import workflow
-from nomad_simulations.schema_packages.atoms_state import (
-    AtomsState,
-    CGBeadState,
-    ParticleState,
-)
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages.outputs import (
@@ -40,74 +34,12 @@ from nomad_simulations.schema_packages.outputs import (
 from nomad_simulations.schema_packages.properties.energies import BaseEnergy
 from nomad_simulations.schema_packages.properties.forces import BaseForce
 
+from nomad_simulation_parsers.parsers.utils.particle_states import (
+    particle_parameters_from_labels,
+    particle_states_from_parameters,
+)
+
 # from runschema.method import Interaction, Model
-
-
-def particle_state_payloads_from_labels(
-    labels: Iterable[str | None] | None,
-) -> list[dict[str, str | None]]:
-    """
-    Build parser-side particle-state payloads from a sequence of particle labels.
-
-    If all labels are valid element symbols, atomic payloads are emitted.
-    Otherwise the whole set falls back to CG bead payloads to avoid mixing
-    semantic meanings across particle-state subclasses.
-    """
-    label_list = [] if labels is None else list(labels)
-    if not label_list:
-        return []
-
-    is_atomic = False
-    if all(label not in (None, '') for label in label_list):
-        try:
-            symbols2numbers(label_list)
-            is_atomic = True
-        except (KeyError, TypeError, ValueError):
-            is_atomic = False
-
-    if is_atomic:
-        return [
-            {
-                'm_def': AtomsState.m_def.qualified_name(),
-                'chemical_symbol': label,
-                'label': label,
-            }
-            for label in label_list
-        ]
-
-    payloads = []
-    for label in label_list:
-        payload = {'m_def': CGBeadState.m_def.qualified_name(), 'label': label}
-        if label:
-            payload['bead_symbol'] = label
-        payloads.append(payload)
-    return payloads
-
-
-def particle_states_from_labels(
-    labels: Iterable[str | None] | None,
-) -> list[ParticleState]:
-    """
-    Instantiate parser-side particle states from labels using the shared fallback
-    policy.
-    """
-    particle_states: list[ParticleState] = []
-    for payload in particle_state_payloads_from_labels(labels):
-        if 'chemical_symbol' in payload:
-            particle_states.append(
-                AtomsState(
-                    chemical_symbol=payload.get('chemical_symbol'),
-                    label=payload.get('label'),
-                )
-            )
-        else:
-            particle_states.append(
-                CGBeadState(
-                    bead_symbol=payload.get('bead_symbol'),
-                    label=payload.get('label'),
-                )
-            )
-    return particle_states
 
 
 class MDParser(ArchiveWriter):
@@ -235,12 +167,13 @@ class MDParser(ArchiveWriter):
         # for the topology frame; other trajectory frames get no `particle_states`.
         # This avoids storing `n_particles` identity records per frame, which
         # otherwise bloats the archive and the Elasticsearch index doc (see
-        # FAIRmat-NFDI/nomad-simulations#474). `particle_states_from_labels` returns
-        # [] for missing/empty labels, so no guard is needed.
+        # FAIRmat-NFDI/nomad-simulations#474). The shared constructor returns []
+        # for missing/empty labels, so no guard is needed.
         particle_labels = data.pop('labels', [])
         dimensions = data.pop('dimensions')
 
-        for particle_state in particle_states_from_labels(particle_labels):
+        parameters = particle_parameters_from_labels(particle_labels)
+        for particle_state in particle_states_from_parameters(parameters):
             model_system.particle_states.append(particle_state)
 
         model_system.lattice_vectors = lattice_vectors

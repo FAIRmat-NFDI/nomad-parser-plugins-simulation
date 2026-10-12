@@ -2,7 +2,6 @@ import os
 from typing import Any
 
 import numpy as np
-from ase.data import atomic_numbers
 from ase.symbols import symbols2numbers
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
@@ -12,7 +11,6 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
 )
-from nomad_simulations.schema_packages.atoms_state import AtomsState, CGBeadState
 from nomad_simulations.schema_packages.force_field import (
     ParticleParametersContainer,
 )
@@ -26,6 +24,9 @@ from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+from nomad_simulation_parsers.parsers.utils.particle_states import (
+    particle_states_from_parameters,
+)
 from nomad_simulation_parsers.schema_packages import gromacs
 
 from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
@@ -731,7 +732,7 @@ class GromacsMDAnalysisParser(MappingParser):
 
         Each dict contains:
         - 'label' (str): raw force-field site name (e.g. 'OW', 'HW1', 'CA')
-        - 'element' (str): chemical element symbol (e.g. 'O', 'H', 'C'),
+        - 'chemical_symbol' (str): source-provided chemical element symbol,
           absent for coarse-grained or unresolvable particles
         - 'mass' (float, amu): particle mass when available from MDAnalysis
         - 'charge' (float, elementary charge): partial charge when available
@@ -740,7 +741,11 @@ class GromacsMDAnalysisParser(MappingParser):
         if self.data_object is not None:
             particles_info = self.data_object.get('atoms_info') or {}
         raw_names = particles_info.get('names', []) or []
-        elements = particles_info.get('elements', []) or []
+        elements = (
+            particles_info.get('elements', [])
+            if particles_info.get('elements_are_explicit', True)
+            else []
+        ) or []
         # Fall back to get_particle_labels when particles_info is not populated
         # (e.g. in tests)
         if not raw_names and not elements:
@@ -754,7 +759,7 @@ class GromacsMDAnalysisParser(MappingParser):
             element = elements[i] if i < len(elements) else None
             entry: dict[str, Any] = {'label': label or element or 'CGX'}
             if element and element != 'CGX':
-                entry['element'] = element
+                entry['chemical_symbol'] = element
             result.append(entry)
         universe = getattr(self.data_object, 'universe', None)
         if universe is not None:
@@ -769,33 +774,6 @@ class GromacsMDAnalysisParser(MappingParser):
             except Exception:
                 pass
         return result
-
-    def get_particle_states(self) -> list[AtomsState | CGBeadState]:
-        """Build schema particle identities without inventing atom types."""
-        particle_states = []
-        for parameters in self.get_particle_parameters():
-            label = str(parameters.get('label') or 'CGX')
-            element = parameters.get('element')
-            element = str(element) if element is not None else None
-            state_kwargs: dict[str, Any] = {'label': label}
-
-            mass = parameters.get('mass')
-            try:
-                if mass is not None and np.isfinite(mass) and mass > 0:
-                    state_kwargs['mass'] = float(mass) * ureg.amu
-            except (TypeError, ValueError):
-                pass
-
-            if element in atomic_numbers:
-                particle_states.append(
-                    AtomsState(chemical_symbol=element, **state_kwargs)
-                )
-            else:
-                particle_states.append(
-                    CGBeadState(bead_symbol=label, **state_kwargs)
-                )
-
-        return particle_states
 
     def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
         """Return per-type particle parameters grouped from per-particle data.
@@ -1132,7 +1110,9 @@ class GromacsArchiveWriter(MDParser):
         # non-element symbols cannot populate AtomsState.chemical_symbol.
         if self.archive.data.model_system:
             self.archive.data.model_system[0].particle_states.extend(
-                self._mdanalysis_parser.get_particle_states()
+                particle_states_from_parameters(
+                    self._mdanalysis_parser.get_particle_parameters()
+                )
             )
 
         # ForceField contributions: target model_method[0] directly, mirroring

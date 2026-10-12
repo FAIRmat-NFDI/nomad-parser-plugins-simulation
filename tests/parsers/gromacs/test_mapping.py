@@ -2,8 +2,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from nomad.units import ureg
-from nomad_simulations.schema_packages.atoms_state import AtomsState, CGBeadState
 
 from nomad_simulation_parsers.parsers.gromacs.mdp_parser import (
     GromacsMdpParser as GromacsMdpFileParser,
@@ -103,6 +101,16 @@ class StubMDAnalysisDataObject:
         return default
 
 
+class StubParticleInfoDataObject:
+    universe = None
+
+    def __init__(self, atoms_info):
+        self.atoms_info = atoms_info
+
+    def get(self, key, default=None):
+        return self.atoms_info if key == 'atoms_info' else default
+
+
 @pytest.mark.unit
 class TestGromacsMDAnalysisMapping:
     @pytest.fixture
@@ -121,67 +129,34 @@ class TestGromacsMDAnalysisMapping:
         assert configurations[0]['positions'].shape == (2, 3)
         assert_approx(configurations[0]['bond_list'], [[0, 1]])
 
-    @pytest.mark.parametrize(
-        ('parameters', 'expected_types', 'expected_labels'),
-        [
-            (
-                [
-                    {'label': 'OW', 'element': 'O', 'mass': 15.999},
-                    {'label': 'HW1', 'element': 'H', 'mass': 1.008},
-                ],
-                [AtomsState, AtomsState],
-                ['O', 'H'],
-            ),
-            (
-                [
-                    {'label': 'WN1', 'element': 'WN1', 'mass': 50.0},
-                    {'label': 'WP1', 'mass': 50.0},
-                ],
-                [CGBeadState, CGBeadState],
-                ['WN1', 'WP1'],
-            ),
-            (
-                [
-                    {'label': 'OW', 'element': 'O', 'mass': 15.999},
-                    {'label': 'WN1', 'element': 'WN1', 'mass': 50.0},
-                ],
-                [AtomsState, CGBeadState],
-                ['O', 'WN1'],
-            ),
-        ],
-    )
-    def test_creates_particle_states_by_identity_type(
-        self, parser, monkeypatch, parameters, expected_types, expected_labels
-    ):
-        monkeypatch.setattr(parser, 'get_particle_parameters', lambda: parameters)
+    def test_uses_only_explicit_topology_elements(self, parser):
+        parser.data_object = StubParticleInfoDataObject(
+            {
+                'names': ['C', 'WN1'],
+                'elements': ['C', 'WN1'],
+                'elements_are_explicit': False,
+            }
+        )
 
-        states = parser.get_particle_states()
+        parameters = parser.get_particle_parameters()
 
-        assert [type(state) for state in states] == expected_types
-        assert [state.get_label() for state in states] == expected_labels
-        assert [state.label for state in states] == [
-            parameter['label'] for parameter in parameters
+        assert parameters == [{'label': 'C'}, {'label': 'WN1'}]
+
+    def test_preserves_explicit_topology_elements(self, parser):
+        parser.data_object = StubParticleInfoDataObject(
+            {
+                'names': ['CA', 'OW'],
+                'elements': ['C', 'O'],
+                'elements_are_explicit': True,
+            }
+        )
+
+        parameters = parser.get_particle_parameters()
+
+        assert parameters == [
+            {'label': 'CA', 'chemical_symbol': 'C'},
+            {'label': 'OW', 'chemical_symbol': 'O'},
         ]
-        assert [state.mass.to(ureg.amu).magnitude for state in states] == pytest.approx(
-            [parameter['mass'] for parameter in parameters]
-        )
-
-    def test_does_not_store_partial_charge_as_intrinsic_charge(
-        self, parser, monkeypatch
-    ):
-        monkeypatch.setattr(
-            parser,
-            'get_particle_parameters',
-            lambda: [
-                {'label': 'OW', 'element': 'O', 'charge': -0.8},
-                {'label': 'WN1', 'element': 'WN1', 'charge': 0.5},
-            ],
-        )
-
-        atom, bead = parser.get_particle_states()
-
-        assert atom.charge == 0
-        assert bead.charge is None
 
     def test_maps_force_field_contributions_by_interaction_type(self, parser):
         parser.data_object = StubTrajectory()
