@@ -46,6 +46,7 @@ from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archi
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
+    write_parsed_blocks,
 )
 from nomad_simulation_parsers.schema_packages import fhiaims
 
@@ -605,6 +606,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         out_parser.text_parser.line_parsing = self.line_parsing
         out_parser.text_parser.allow_overlap = self.line_parsing
         out_parser.filepath = self.mainfile
+        text_parsers  = [out_parser.data_object]
 
         archive_handler = FHIAimsMetainfoParser(logger=self.logger)
         archive_handler.annotation_key = self.annotation_key
@@ -690,6 +692,8 @@ class FHIAimsArchiveWriter(ArchiveWriter):
                     TaskReference(task=gw_archive.workflow2),
                 ]
             )
+
+        write_parsed_blocks(self.archive, text_parsers)
 
         phonon_archive = (
             self.child_archives.get('phonon') if self.child_archives else None
