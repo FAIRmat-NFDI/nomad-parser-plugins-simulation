@@ -6,9 +6,11 @@ import re
 import textwrap
 from collections.abc import Callable, Iterable
 from glob import glob
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from nomad.datamodel.context import ServerContext
 from nomad.datamodel.datamodel import EntryMetadata
 
 try:
@@ -53,6 +55,24 @@ def write_parsed_blocks(
         return
 
     context = getattr(archive, 'm_context', None)
+
+    def source_file_name(mainfile: str) -> str | None:
+        if isinstance(context, ServerContext):
+            try:
+                return str(
+                    Path(mainfile)
+                    .resolve()
+                    .relative_to(Path(context.raw_path()).resolve())
+                )
+            except ValueError:
+                # ServerContext can write HDF5 data for a local fixture, but the
+                # fixture itself is not a raw file in that upload.
+                DEFAULT_LOGGER.debug('source file is outside the archive context')
+                return None
+        if context is not None and hasattr(context, 'get_relative_path'):
+            return context.get_relative_path(mainfile)
+        return mainfile
+
     files: dict[str, dict[str, Any]] = {}
     archive_mainfile = getattr(archive, 'mainfile', None)
     if not isinstance(text_parsers, Iterable):
@@ -65,9 +85,9 @@ def write_parsed_blocks(
         if mainfile is None:
             continue
 
-        file_name = str(mainfile)
-        if context is not None and hasattr(context, 'get_relative_path'):
-            file_name = context.get_relative_path(file_name)
+        file_name = source_file_name(str(mainfile))
+        if file_name is None:
+            continue
 
         file_info = files.setdefault(
             file_name,
@@ -105,7 +125,8 @@ def write_parsed_blocks(
         source_file = SourceFile(**file_kwargs)
         source_files.append(source_file)
 
-    metadata.source_files = source_files
+    if source_files:
+        metadata.source_files = source_files
 
 
 def create_mapping_table(  # noqa: PLR0915
