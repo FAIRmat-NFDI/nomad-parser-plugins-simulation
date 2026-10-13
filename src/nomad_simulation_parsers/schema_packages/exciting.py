@@ -110,15 +110,6 @@ class DFT(model_method.DFT):
 
 
 class XCFunctional(model_method.XCFunctional):
-#    add_mapping_annotations(
-#        (
-#            model_method.XCFunctional.functional_key,
-#            INFO_KEY,
-#            ('get_xc_functionals', ['.key']),
-#            model_method.XCFunctional.components,
-#            INFO_KEY,
-#            ('get_xc_functionals', ['.type']),
-#        ),
     add_mapping_annotations(
         (
             model_method.XCFunctional.functional_key,
