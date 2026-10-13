@@ -8,21 +8,14 @@ if TYPE_CHECKING:
         BoundLogger,
     )
 
-from importlib import reload
-
 import numpy as np
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages import model_method
-from nomad_simulations.schema_packages.atoms_state import AtomsState
 from nomad.units import ureg
-
-from nomad_simulation_parsers.schema_packages import gaussian
-from nomad_simulation_parsers.schema_packages.utils import remove_mapping_annotations
 
 from .text_parser import GaussianOutReader
 
@@ -284,10 +277,6 @@ class GaussianParser(MatchingParser):
         child_archives: dict[str, 'EntryArchive'] | None = None,
     ) -> None:
         
-        # Clean up any mapping annotations that might have been left by other parsers
-        remove_mapping_annotations(Simulation.m_def)
-        reload(gaussian)
-
         reader = OutParser()
         reader.filepath = mainfile
 
@@ -302,6 +291,3 @@ class GaussianParser(MatchingParser):
 
         meta.close()
         reader.close()
-
-
-        remove_mapping_annotations(Simulation.m_def)       

@@ -14,7 +14,7 @@ from nomad_simulations.schema_packages import (
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-OUT_KEY = 'out'
+OUT_KEY = 'gaussian_out'
 
 m_package = SchemaPackage()
 
