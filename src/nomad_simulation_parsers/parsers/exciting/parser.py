@@ -79,32 +79,6 @@ class ExcitingMetainfoParser(MetainfoParser):
 
 
 class InfoParser(TextParser):
-    # def get_xc_functionals(self, xc_type: int) -> list[dict[str, Any]]:
-    #     xc_functional_map = {
-    #         2: ['LDA_C_PZ', 'LDA_X'],
-    #         3: ['LDA_C_PW', 'LDA_X'],
-    #         4: ['LDA_C_XALPHA'],
-    #         5: ['LDA_C_VBH'],
-    #         20: ['GGA_C_PBE', 'GGA_X_PBE'],
-    #         21: ['GGA_C_PBE', 'GGA_X_PBE_R'],
-    #         22: ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
-    #         26: ['GGA_C_PBE', 'GGA_X_WC'],
-    #         30: ['GGA_C_AM05', 'GGA_X_AM05'],
-    #         300: ['GGA_C_BGCP', 'GGA_X_PBE'],
-    #         406: ['HYB_GGA_XC_PBEH'],
-    #         408: ['HYB_GGA_XC_HSE03'],
-    #     }
-    #     return [dict(libxc=name) for name in xc_functional_map.get(xc_type, [])]
-
-    # def get_xc_functionals(self, xc_type: int) -> dict[str, Any]:
-    #     functional = XC_FUNCTIONAL_MAP.get(xc_type)
-    #     if functional is None:
-    #         return {}
-    #     return {
-    #         'functional_key': functional['key'],
-    #         'components': [{'libxc': name} for name in functional['components']],
-    #     }
-
     def get_xc_functional_key(self, xc_type: int) -> str | None:
         #return self.get_xc_functionals(xc_type).get('functional_key')
         functional = XC_FUNCTIONAL_MAP.get(xc_type)
