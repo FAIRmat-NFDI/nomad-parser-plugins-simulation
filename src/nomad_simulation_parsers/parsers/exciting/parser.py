@@ -289,7 +289,6 @@ class InfoParser(TextParser):
         """
         Map the smearing kind from the input to a standardized representation.
         """
-        print("Inside smearing:wq")
         if smearing_kind is None:
             return None
 
