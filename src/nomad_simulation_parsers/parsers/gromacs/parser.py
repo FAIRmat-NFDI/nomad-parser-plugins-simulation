@@ -25,7 +25,7 @@ from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.parsers.utils.particle_states import (
-    particle_states_from_parameters,
+    particle_state_payloads_from_parameters,
 )
 from nomad_simulation_parsers.schema_packages import gromacs
 
@@ -775,6 +775,26 @@ class GromacsMDAnalysisParser(MappingParser):
                 pass
         return result
 
+    def get_atomic_particle_parameters(
+        self, parameters: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        """Select validated atomic particle payloads for the TPR mapping."""
+        return [
+            payload
+            for payload in particle_state_payloads_from_parameters(parameters)
+            if 'chemical_symbol' in payload
+        ]
+
+    def get_bead_particle_parameters(
+        self, parameters: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        """Select validated coarse-grained particle payloads for the TPR mapping."""
+        return [
+            payload
+            for payload in particle_state_payloads_from_parameters(parameters)
+            if 'chemical_symbol' not in payload
+        ]
+
     def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
         """Return per-type particle parameters grouped from per-particle data.
 
@@ -1104,16 +1124,6 @@ class GromacsArchiveWriter(MDParser):
         # contributions are handled by a dedicated pass below, not here.
         self._simulation_parser.annotation_key = gromacs.TPR_KEY
         self._mdanalysis_parser.convert(self._simulation_parser, update_mode='replace')
-
-        # Particle identities are polymorphic in the v2 schema. Mapping every
-        # TPR particle through AtomsState loses coarse-grained bead labels because
-        # non-element symbols cannot populate AtomsState.chemical_symbol.
-        if self.archive.data.model_system:
-            self.archive.data.model_system[0].particle_states.extend(
-                particle_states_from_parameters(
-                    self._mdanalysis_parser.get_particle_parameters()
-                )
-            )
 
         # ForceField contributions: target model_method[0] directly, mirroring
         # the XVG/FEP pattern. This avoids depending on from_dict's in-place

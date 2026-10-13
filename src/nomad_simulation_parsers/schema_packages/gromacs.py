@@ -1,5 +1,6 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import (
+    atoms_state,
     force_field,
     general,
     model_system,
@@ -134,6 +135,29 @@ class ModelSystem(model_system.ModelSystem):
 # When MappingParser creates ModelSystem from subsystems list,
 # use that dict as source root
 add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
+
+# The first configuration carries the topology's particle parameters. Map each
+# concrete ParticleState separately so atoms and coarse-grained beads retain
+# their appropriate schema types.
+add_mapping_annotation(
+    atoms_state.AtomsState.m_def,
+    TPR_KEY,
+    ('get_atomic_particle_parameters', ['.labels']),
+)
+add_mapping_annotation(atoms_state.AtomsState.label, TPR_KEY, '.label')
+add_mapping_annotation(
+    atoms_state.AtomsState.chemical_symbol, TPR_KEY, '.chemical_symbol'
+)
+add_mapping_annotation(atoms_state.AtomsState.mass, TPR_KEY, '.mass')
+
+add_mapping_annotation(
+    atoms_state.CGBeadState.m_def,
+    TPR_KEY,
+    ('get_bead_particle_parameters', ['.labels']),
+)
+add_mapping_annotation(atoms_state.CGBeadState.label, TPR_KEY, '.label')
+add_mapping_annotation(atoms_state.CGBeadState.bead_symbol, TPR_KEY, '.bead_symbol')
+add_mapping_annotation(atoms_state.CGBeadState.mass, TPR_KEY, '.mass')
 
 # Subsystem hierarchy annotations (apply to all ModelSystem instances including
 # subsystems)
