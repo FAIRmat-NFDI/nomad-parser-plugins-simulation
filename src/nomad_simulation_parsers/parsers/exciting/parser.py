@@ -323,18 +323,28 @@ class InfoParser(TextParser):
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
 
-    def get_k_mesh_dimensionality(self, grid) -> int | None:
-        print("in grid", grid)
-        if grid is None:
-            return None
-        print(len(grid))
-        return len(grid)
+    #def get_k_mesh_dimensionality(self, grid) -> int | None:
+    #    if grid is None:
+    #        return None
+    #    return len(grid)
 
-    def get_total_number_of_kpoints(self, grid) -> int | None:
-        if grid is None:
-            return None
-        return int(np.prod(grid))
-
+    #Not used for the moment, since I used the reduced number of k-points written in the INFO.OUT file. 
+    #def get_total_number_of_kpoints(self, grid) -> int | None:
+    #    if grid is None:
+    #        return None
+    #    return int(np.prod(grid))
+    
+    def get_k_mesh(self) -> list[dict[str, Any]]:
+        initialization = self.data.get('initialization', {})
+        grid = initialization.get('kpoint_grid')
+        n_points = initialization.get('x_exciting_number_kpoints')
+        return [
+            {
+                'grid': grid if grid is not None else None, 
+                'n_points': n_points if n_points is not None else None,
+                'dimensionality': len(grid) if grid is not None else None,
+            }
+        ]
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
@@ -503,7 +513,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
-
+        
         # Legacy exciting behavior uses INFO.OUT as the canonical source for
         # reference energy metadata. If the selected mainfile is GW_INFO.OUT
         # and parsing yields no payload, fallback to sibling INFO.OUT.
@@ -639,7 +649,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
             self.archive.workflow2 = workflow
-
+    
         # close parsers
         info_parser.close()
         data_parser.close()
@@ -651,7 +661,7 @@ class ExcitingParser(MatchingParser):
     """
 
     archive_writer = ExcitingArchiveWriter()
-
+    
     def parse(
         self,
         mainfile: str,
