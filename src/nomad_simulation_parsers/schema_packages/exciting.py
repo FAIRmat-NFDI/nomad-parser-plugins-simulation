@@ -197,6 +197,7 @@ class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
         (atoms_state.AtomsState.m_def, INFO_KEY, '.atoms'),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
+        (atoms_state.AtomsState.mass, INFO_KEY, '.atomic_mass'),
     )
 
 
