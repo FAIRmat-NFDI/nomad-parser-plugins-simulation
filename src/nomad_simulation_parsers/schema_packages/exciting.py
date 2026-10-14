@@ -173,6 +173,52 @@ class Smearing(numerical_settings.Smearing):
          'initialization.smearing_width')
 
 
+class KSpace(numerical_settings.KSpace):
+    add_mapping_annotation(numerical_settings.KSpace.m_def,INFO_KEY,'.@',)
+#     add_mapping_annotation(numerical_settings.KSpace.k_mesh, INFO_KEY, '.@')
+    
+
+# class KMesh(numerical_settings.KMesh):
+#     add_mapping_annotation(numerical_settings.KMesh.grid, INFO_KEY, '.initialization.kpoint_grid')
+#     add_mapping_annotation(numerical_settings.KMesh.n_points, INFO_KEY, '.initialization.x_exciting_number_kpoints')
+#     #add_mapping_annotation(numerical_settings.KMesh.dimensionlity, INFO_KEY, '.dimensionality')
+#     #add_mapping_annotation(
+#     #    numerical_settings.KMesh.offset,
+#     #    INFO_KEY,
+#     #    ('.initialization.kpoint_offset'),
+#     #)
+#     )
+   # add_mapping_annotation(
+   #     numerical_settings.KSpace.k_mesh,
+   #     INFO_KEY,
+   #     ('get_k_mesh', []),
+   # )
+   # add_mapping_annotation(
+   #     numerical_settings.KSpace.k_mesh,
+   #     INFO_KEY,
+   #     '.@',
+   # )
+
+
+class KMesh(numerical_settings.KMesh):
+    add_mapping_annotation(
+        numerical_settings.KMesh.m_def,
+        INFO_KEY,
+        '.@',
+    )
+
+    add_mapping_annotation(
+        numerical_settings.KMesh.grid,
+        INFO_KEY,
+        'initialization.kpoint_grid',
+    )
+
+    add_mapping_annotation(
+        numerical_settings.KMesh.n_points,
+        INFO_KEY,
+        'initialization.x_exciting_number_kpoints',
+    )
+
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
 

@@ -1,6 +1,6 @@
 import os
 from typing import Any
-
+import sys
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
@@ -323,7 +323,6 @@ class InfoParser(TextParser):
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
 
-    
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
