@@ -135,26 +135,6 @@ class XCComponent(model_method.XCComponent):
         (model_method.XCComponent.canonical_label, INPUT_XML_KEY, '.libxc'),
     )
 
-# class Numerical_Settings(model_method.ModelMethod):
-#     add_mapping_annotation(
-#     model_method.ModelMethod.numerical_settings,
-#     INFO_KEY,
-#     '.@',
-#     m_def=numerical_settings.Smearing.m_def,
-# )
-
-# class ModelMethod(model_method.ModelMethod):
-#     add_mapping_annotation(
-#         model_method.ModelMethod.numerical_settings,
-#         INFO_KEY,
-#         '.@',
-#         m_def=numerical_settings.Smearing.m_def,
-#     )
-
-# class ModelMethod(model_method.ModelMethod):
-#     add_mapping_annotation(
-#         numerical_settings.Smearing.m_def, 
-#         INFO_KEY, '.@')
 
 class Smearing(numerical_settings.Smearing):
     add_mapping_annotation(
