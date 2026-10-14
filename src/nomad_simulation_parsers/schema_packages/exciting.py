@@ -89,6 +89,7 @@ class Simulation(general.Simulation):
 
 class Program(general.Program):
     add_mapping_annotation(general.Program.version, INFO_KEY, '.program_version')
+    add_mapping_annotation(general.Program.version_internal, INFO_KEY, '.hash_id')
 
 
 class DFT(model_method.DFT):
@@ -101,12 +102,6 @@ class DFT(model_method.DFT):
             ('get_is_spin_polarized', ['initialization.x_exciting_spin_treatment']),
         ),
     )
-    # add_mapping_annotation(
-    #     model_method.ModelMethod.numerical_settings,
-    #     INFO_KEY,
-    #     '.@',
-    #     m_def=numerical_settings.Smearing.m_def,
-    # )
 
 
 class XCFunctional(model_method.XCFunctional):
