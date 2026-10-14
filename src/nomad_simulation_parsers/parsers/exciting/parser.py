@@ -323,6 +323,18 @@ class InfoParser(TextParser):
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
 
+    def get_k_mesh_dimensionality(self, grid) -> int | None:
+        print("in grid", grid)
+        if grid is None:
+            return None
+        print(len(grid))
+        return len(grid)
+
+    def get_total_number_of_kpoints(self, grid) -> int | None:
+        if grid is None:
+            return None
+        return int(np.prod(grid))
+
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]

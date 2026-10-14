@@ -175,31 +175,7 @@ class Smearing(numerical_settings.Smearing):
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotation(numerical_settings.KSpace.m_def,INFO_KEY,'.@',)
-#     add_mapping_annotation(numerical_settings.KSpace.k_mesh, INFO_KEY, '.@')
     
-
-# class KMesh(numerical_settings.KMesh):
-#     add_mapping_annotation(numerical_settings.KMesh.grid, INFO_KEY, '.initialization.kpoint_grid')
-#     add_mapping_annotation(numerical_settings.KMesh.n_points, INFO_KEY, '.initialization.x_exciting_number_kpoints')
-#     #add_mapping_annotation(numerical_settings.KMesh.dimensionlity, INFO_KEY, '.dimensionality')
-#     #add_mapping_annotation(
-#     #    numerical_settings.KMesh.offset,
-#     #    INFO_KEY,
-#     #    ('.initialization.kpoint_offset'),
-#     #)
-#     )
-   # add_mapping_annotation(
-   #     numerical_settings.KSpace.k_mesh,
-   #     INFO_KEY,
-   #     ('get_k_mesh', []),
-   # )
-   # add_mapping_annotation(
-   #     numerical_settings.KSpace.k_mesh,
-   #     INFO_KEY,
-   #     '.@',
-   # )
-
-
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(
         numerical_settings.KMesh.m_def,
@@ -213,10 +189,18 @@ class KMesh(numerical_settings.KMesh):
         'initialization.kpoint_grid',
     )
 
+    # I am not sure we want to annotate the number of reduced k-points 
+    # or that of total k-points. In my opinion it makes more sense to have the reduced
+    # k-point, but it should be make clear in the schema.
     add_mapping_annotation(
         numerical_settings.KMesh.n_points,
         INFO_KEY,
         'initialization.x_exciting_number_kpoints',
+    )
+    add_mapping_annotation(
+        numerical_settings.KMesh.dimensionality,
+        INFO_KEY,
+        ('get_k_mesh_dimensionality', ['initialization.kpoint_grid']),
     )
 
 class ModelSystem(model_system.ModelSystem):
