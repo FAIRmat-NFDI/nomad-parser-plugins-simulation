@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     )
 
 import numpy as np
+from ase.data import chemical_symbols
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
@@ -251,6 +252,7 @@ class OutParser(MappingTextParser):
         runs = src.get('run') or []
         runs = runs if isinstance(runs, list) else [runs]
         systems = []
+        frame_index = 0
 
         for run in runs:
             for system in run.get('system', []) or []:
@@ -263,8 +265,17 @@ class OutParser(MappingTextParser):
 
                 positions = arr[:, -3:] * ureg.angstrom
                 atomic_numbers = arr[:, 1].astype(int) if arr.shape[1] > 1 else []
-                atoms = [{'atomic_number': int(z)} for z in atomic_numbers]
-                systems.append({'positions': positions, 'particle_states': atoms})
+                mapped_system = {'positions': positions}
+                if frame_index == 0:
+                    mapped_system['particle_states'] = [
+                        {
+                            'atomic_number': int(z),
+                            'chemical_symbol': chemical_symbols[int(z)],
+                        }
+                        for z in atomic_numbers
+                    ]
+                systems.append(mapped_system)
+                frame_index += 1
         return systems
 
 
