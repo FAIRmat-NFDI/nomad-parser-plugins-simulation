@@ -206,6 +206,22 @@ class TestGromacsMDAnalysisMapping:
         else:
             assert len(parser.get_configurations()) == 2
 
+    def test_indexes_mixed_particle_state_payloads(self, parser):
+        parameters = [
+            {'label': 'OW', 'chemical_symbol': 'O'},
+            {'label': 'B1'},
+            {'label': 'HW', 'chemical_symbol': 'H'},
+        ]
+
+        atoms = parser.get_atomic_particle_parameters(parameters)
+        beads = parser.get_bead_particle_parameters(parameters)
+
+        assert [(state['label'], state['__index']) for state in atoms] == [
+            ('OW', 0),
+            ('HW', 2),
+        ]
+        assert [(state['label'], state['__index']) for state in beads] == [('B1', 1)]
+
     def test_groups_force_field_interactions(self, parser):
         parser.data_object = StubInteractionsDataObject(
             [

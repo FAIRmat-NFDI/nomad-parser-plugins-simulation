@@ -11,9 +11,6 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
 )
-from nomad_simulations.schema_packages.force_field import (
-    ParticleParametersContainer,
-)
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -780,8 +777,10 @@ class GromacsMDAnalysisParser(MappingParser):
     ) -> list[dict[str, Any]]:
         """Select validated atomic particle payloads for the TPR mapping."""
         return [
-            payload
-            for payload in particle_state_payloads_from_parameters(parameters)
+            {**payload, '__index': index}
+            for index, payload in enumerate(
+                particle_state_payloads_from_parameters(parameters)
+            )
             if 'chemical_symbol' in payload
         ]
 
@@ -790,8 +789,10 @@ class GromacsMDAnalysisParser(MappingParser):
     ) -> list[dict[str, Any]]:
         """Select validated coarse-grained particle payloads for the TPR mapping."""
         return [
-            payload
-            for payload in particle_state_payloads_from_parameters(parameters)
+            {**payload, '__index': index}
+            for index, payload in enumerate(
+                particle_state_payloads_from_parameters(parameters)
+            )
             if 'chemical_symbol' not in payload
         ]
 
@@ -1137,16 +1138,6 @@ class GromacsArchiveWriter(MDParser):
             self._simulation_parser.mapper = None
             self._mdanalysis_parser.convert(self._simulation_parser)
             self._simulation_parser.data_object = self.archive.data
-
-        # ParticleParametersContainer: no annotation path from Simulation to
-        # model_method for PARTICLE_PARAM_KEY; target directly.
-        if self.archive.data.model_method:
-            ppc = ParticleParametersContainer()
-            self._simulation_parser.data_object = ppc
-            self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
-            self._mdanalysis_parser.convert(self._simulation_parser)
-            if ppc.particle_parameters:
-                self.archive.data.model_method[-1].numerical_settings.append(ppc)
 
     def write_to_archive(self):
         self._simulation_parser.logger = self.logger

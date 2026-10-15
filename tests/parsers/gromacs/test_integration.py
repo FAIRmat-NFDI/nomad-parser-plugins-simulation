@@ -3,6 +3,10 @@ import numpy as np
 import pytest
 from nomad.units import ureg
 from nomad_simulations.schema_packages.atoms_state import AtomsState, CGBeadState
+from nomad_simulations.schema_packages.force_field import (
+    ForceCalculations,
+    ParticleParametersContainer,
+)
 from packaging.version import Version
 
 from nomad_simulation_parsers.parsers.gromacs.parser import ENERGY_UNIT
@@ -45,6 +49,17 @@ class TestGromacsWaterArchive(GromacsParserIntegrationSuite):
         assert system.bond_list.shape[1] == 2
         assert system.bond_list.shape[0] == 432
         assert system.sub_systems
+
+    def test_force_field_includes_particle_parameters(self, archive):
+        numerical_settings = archive.data.model_method[0].numerical_settings
+
+        assert len(numerical_settings) == 2
+        assert isinstance(numerical_settings[0], ForceCalculations)
+        assert isinstance(numerical_settings[1], ParticleParametersContainer)
+        assert [
+            parameter.particle_type
+            for parameter in numerical_settings[1].particle_parameters
+        ] == ['OW', 'HW1', 'HW2']
 
     def test_archive_has_valid_molecular_hierarchy(self, archive):
         system = archive.data.model_system[0]

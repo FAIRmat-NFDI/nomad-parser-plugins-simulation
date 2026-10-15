@@ -23,7 +23,6 @@ m_package = SchemaPackage()
 LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
-PARTICLE_PARAM_KEY = 'gromacs_particle_params'
 XVG_KEY = 'gromacs_xvg'
 
 
@@ -523,7 +522,8 @@ add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 #   model_method[0] (the existing ForceField instance) directly as data_object and
 #   runs a dedicated convert with TPR_KEY. This mirrors the XVG/FEP pattern and
 #   avoids depending on from_dict's in-place sub-section update behaviour.
-# ParticleParametersContainer uses a dedicated PARTICLE_PARAM_KEY pass in parser.py.
+# ParticleParametersContainer is populated through numerical_settings in the same
+# direct TPR pass.
 class ForceField(force_field.ForceField):
     add_mapping_annotation(
         force_field.ForceField.contributions,
@@ -573,32 +573,32 @@ add_mapping_annotation(
 # triggers a numpy ambiguous-truth-value error on `if keyword:`.
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
-# ParticleParametersContainer is populated via a dedicated PARTICLE_PARAM_KEY convert
-# pass that targets a fresh ParticleParametersContainer() as data_object, then
-# appended to ForceField.numerical_settings in parser.py.
 add_mapping_annotation(
-    force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
+    force_field.ParticleParametersContainer.m_def,
+    TPR_KEY,
+    '@',
+    update_mode='append',
 )
 add_mapping_annotation(
     force_field.ParticleParametersContainer.particle_parameters,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     ('get_particle_parameters_by_type', []),
 )
-add_mapping_annotation(force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@')
+add_mapping_annotation(force_field.ParticleParameters.m_def, TPR_KEY, '@')
 add_mapping_annotation(
     force_field.ParticleParameters.particle_type,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.particle_type',
 )
 add_mapping_annotation(
     force_field.ParticleParameters.partial_charge,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.partial_charge',
     unit='elementary_charge',
 )
 add_mapping_annotation(
     force_field.ParticleParameters.effective_mass,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.effective_mass',
     unit='amu',
 )
