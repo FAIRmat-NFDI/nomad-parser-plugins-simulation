@@ -12,11 +12,12 @@ import numpy as np
 from nomad.parsing import MatchingParser
 from nomad.parsing.file_parser.mapping_parser import MetainfoParser
 from nomad.parsing.file_parser.mapping_parser import TextParser as MappingTextParser
-from nomad.utils import get_logger
-from nomad_simulations.schema_packages.general import Simulation
-from nomad_simulations.schema_packages import model_method
 from nomad.units import ureg
+from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
+from nomad_simulations.schema_packages.general import Simulation
+
+from nomad_simulation_parsers.schema_packages import gaussian
 
 from .text_parser import GaussianOutReader
 
@@ -140,7 +141,7 @@ class OutParser(MappingTextParser):
                     continue
                 core = token.split('/')[0]
                 core = core.lstrip('RUO')
-                if len(core) < 3 or core in skip:
+                if len(core) < 3 or core in skip:  # noqa: PLR2004
                     continue
                 if core.startswith(exclude_prefixes):
                     continue
@@ -152,10 +153,7 @@ class OutParser(MappingTextParser):
             if functional is None:
                 continue
 
-            dft = model_method.DFT()
-            dft.name = 'DFT'
-            dft.xc = model_method.XCFunctional(functional_key=functional)
-            methods.append(dft)
+            methods.append(dict(name='DFT', xc=dict(functional_key=functional)))
 
         return methods
 
@@ -171,7 +169,9 @@ class OutParser(MappingTextParser):
             return ene
         scf_final = get('scf_iteration_final')
         if scf_final is not None:
-            ene = self._get_last(getattr(scf_final, 'get', lambda k, d=None: d)('energy_total'))
+            ene = self._get_last(
+                getattr(scf_final, 'get', lambda k, d=None: d)('energy_total')
+            )
             if ene is not None:
                 return ene
         return None
@@ -186,7 +186,9 @@ class OutParser(MappingTextParser):
                 output: dict[str, Any] = {}
                 ene = self._extract_energy(system)
                 if ene is not None:
-                    energy_val = ene if hasattr(ene, 'magnitude') else ene * ureg.hartree
+                    energy_val = (
+                        ene if hasattr(ene, 'magnitude') else ene * ureg.hartree
+                    )
                     output['total_energies'] = [dict(value=energy_val)]
                 forces = system.get('forces')
                 if forces is None:
@@ -225,7 +227,11 @@ class OutParser(MappingTextParser):
 
     @staticmethod
     def _select_orientation(system: dict[str, Any]) -> Any:
-        for key in ('standard_orientation', 'input_orientation', 'z_matrix_orientation'):
+        for key in (
+            'standard_orientation',
+            'input_orientation',
+            'z_matrix_orientation',
+        ):
             ori = system.get(key)
             if ori is None:
                 continue
@@ -262,15 +268,14 @@ class OutParser(MappingTextParser):
         return systems
 
 
-
 class GaussianArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
-        
+
         reader = OutParser(text_parser=GaussianOutReader())
         reader.filepath = self.mainfile
 
         meta = MetainfoParser(data_object=Simulation())
-        meta.annotation_key = 'out'
+        meta.annotation_key = gaussian.OUT_KEY
         # Traverse nested sections (model_system, outputs, particle_states, etc.)
         meta.max_nested_level = 6
         meta.parse_only_required = False
