@@ -6,20 +6,6 @@ from tests.parsers.common import SimulationParserTestSuite, approx, assert_appro
 class GaussianParserIntegrationSuite(SimulationParserTestSuite):
     expected_program_name = 'Gaussian'
 
-    @pytest.mark.integration
-    @pytest.mark.skip(
-        reason='Gaussian currently maps atomic numbers; normalization fills symbols.'
-    )
-    def test_representative_system_is_complete(self, archive):
-        pass
-
-    @pytest.mark.integration
-    @pytest.mark.skip(
-        reason='Gaussian currently preserves particle identities on every geometry.'
-    )
-    def test_identity_populated_once(self, archive):
-        pass
-
 
 class TestAlSCFArchive(GaussianParserIntegrationSuite):
     archive_fixture = 'al_scf_archive'
@@ -38,6 +24,7 @@ class TestAlSCFArchive(GaussianParserIntegrationSuite):
         assert_approx(system.positions.to('angstrom').magnitude, [[0.0, 0.0, 0.0]])
         assert system.lattice_vectors is None
         assert system.particle_states[0].atomic_number == 13
+        assert system.particle_states[0].chemical_symbol == 'Al'
         assert len(simulation.outputs) == 1
         assert simulation.outputs[0].total_energies[0].value.to(
             'hartree'
@@ -64,7 +51,11 @@ class TestAlMultistepArchive(GaussianParserIntegrationSuite):
             [[0.0, 0.0, 1.375], [0.0, 0.0, -1.375]],
         )
         assert system.lattice_vectors is None
-        assert [state.atomic_number for state in system.particle_states] == [13, 13]
+        assert [
+            (state.atomic_number, state.chemical_symbol)
+            for state in system.particle_states
+        ] == [(13, 'Al'), (13, 'Al')]
+        assert all(not frame.particle_states for frame in simulation.model_system[1:])
         assert simulation.outputs[4].total_energies[0].value.to(
             'hartree'
         ).magnitude == approx(-484.282281400868)
@@ -91,12 +82,16 @@ class TestCHOFrequencyArchive(GaussianParserIntegrationSuite):
             [[0.672383, -2.128358, 0.069305], [1.595194, 1.205311, 0.059439]],
         )
         assert system.lattice_vectors is None
-        assert [state.atomic_number for state in system.particle_states[:4]] == [
-            1,
-            7,
-            8,
-            8,
+        assert [
+            (state.atomic_number, state.chemical_symbol)
+            for state in system.particle_states[:4]
+        ] == [
+            (1, 'H'),
+            (7, 'N'),
+            (8, 'O'),
+            (8, 'O'),
         ]
+        assert all(not frame.particle_states for frame in simulation.model_system[1:])
         assert simulation.outputs[-1].total_energies[0].value.to(
             'hartree'
         ).magnitude == approx(-322.091639810912)
@@ -114,7 +109,10 @@ class TestNOMPArchive(GaussianParserIntegrationSuite):
         assert len(simulation.model_method) == 0
         assert len(simulation.model_system) == 1
         system = simulation.model_system[0]
-        assert [state.atomic_number for state in system.particle_states] == [7, 7, 8, 8]
+        assert [
+            (state.atomic_number, state.chemical_symbol)
+            for state in system.particle_states
+        ] == [(7, 'N'), (7, 'N'), (8, 'O'), (8, 'O')]
         assert system.positions.shape == (4, 3)
         assert_approx(
             system.positions.to('angstrom').magnitude,
