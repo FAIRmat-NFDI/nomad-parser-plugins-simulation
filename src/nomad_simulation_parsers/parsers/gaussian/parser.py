@@ -16,6 +16,7 @@ from nomad.utils import get_logger
 from nomad_simulations.schema_packages.general import Simulation
 from nomad_simulations.schema_packages import model_method
 from nomad.units import ureg
+from nomad_file_parser import ArchiveWriter
 
 from .text_parser import GaussianOutReader
 
@@ -27,13 +28,6 @@ class OutParser(MappingTextParser):
     Couples GaussianOutReader (regex) with a few convenience getters that
     the mapping rules will call.
     """
-
-    def __init__(self):
-        super().__init__(text_parser=GaussianOutReader())
-        # Parse everything; helper getters rely on full data presence.
-        self.parse_only_required = False
-        self.text_parser.parse_only_required = False
-        self.text_parser.findlazy = False
 
     def load_file(self):
         if self.filepath:
@@ -268,17 +262,12 @@ class OutParser(MappingTextParser):
         return systems
 
 
-class GaussianParser(MatchingParser):
-    def parse(
-        self,
-        mainfile: str,
-        archive: 'EntryArchive',
-        logger: 'BoundLogger',
-        child_archives: dict[str, 'EntryArchive'] | None = None,
-    ) -> None:
+
+class GaussianArchiveWriter(ArchiveWriter):
+    def write_to_archive(self):
         
-        reader = OutParser()
-        reader.filepath = mainfile
+        reader = OutParser(text_parser=GaussianOutReader())
+        reader.filepath = self.mainfile
 
         meta = MetainfoParser(data_object=Simulation())
         meta.annotation_key = 'out'
@@ -287,7 +276,19 @@ class GaussianParser(MatchingParser):
         meta.parse_only_required = False
 
         reader.convert(meta)
-        archive.data = meta.data_object
+        self.archive.data = meta.data_object
 
         meta.close()
         reader.close()
+
+
+class GaussianParser(MatchingParser):
+    def parse(
+        self,
+        mainfile: str,
+        archive: 'EntryArchive',
+        logger: 'BoundLogger',
+        child_archives: dict[str, 'EntryArchive'] | None = None,
+    ) -> None:
+        archive_writer = GaussianArchiveWriter()
+        archive_writer.write(mainfile, archive, logger, child_archives)
