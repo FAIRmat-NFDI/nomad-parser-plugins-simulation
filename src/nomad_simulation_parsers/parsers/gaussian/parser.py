@@ -261,7 +261,7 @@ class OutParser(MappingTextParser):
                 if arr.size == 0:
                     continue
 
-                positions = arr[:, -3:]
+                positions = arr[:, -3:] * ureg.angstrom
                 atomic_numbers = arr[:, 1].astype(int) if arr.shape[1] > 1 else []
                 atoms = [{'atomic_number': int(z)} for z in atomic_numbers]
                 systems.append({'positions': positions, 'particle_states': atoms})
