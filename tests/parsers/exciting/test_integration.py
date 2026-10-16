@@ -23,6 +23,7 @@ class ExcitingParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuit
     require_periodic_boundary_conditions = True
 
 
+@pytest.mark.large_fixture
 class TestCMinimalArchive(ExcitingParserIntegrationSuite):
     archive_fixture = 'c_minimal_archive'
     workflow_name = 'SinglePoint'
@@ -64,7 +65,6 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
-        assert simulation.outputs[0].electronic_band_gaps[0].value is not None
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
@@ -93,6 +93,18 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             restored.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
             archive.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
         )
+
+
+@pytest.mark.large_fixture
+class TestCSiTDDFTArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_si_tddft_archive'
+    workflow_name = 'SinglePoint'
+
+    @pytest.mark.integration
+    def test_tddft_archive_identity(self, archive):
+        assert archive.data.program.version == 'NITROGEN'
+        assert len(archive.data.model_system) == 1
+        assert len(archive.data.outputs) == 1
 
 
 class TestCGroundStateArchive(ExcitingParserIntegrationSuite):

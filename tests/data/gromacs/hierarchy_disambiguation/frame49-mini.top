@@ -1,0 +1,62 @@
+[ defaults ]
+; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
+1         2          no         1.0      1.0
+
+[ atomtypes ]
+; name  mass    charge  ptype  sigma  epsilon
+SA      72.000  0.0     A      0.47   0.0
+
+[ moleculetype ]
+; name             nrexcl
+Protein_chain_A    1
+
+[ atoms ]
+; nr  type  resnr  residue  atom  cgnr  charge  mass
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ moleculetype ]
+Protein_chain_B    1
+
+[ atoms ]
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ moleculetype ]
+Protein_chain_C    1
+
+[ atoms ]
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ moleculetype ]
+Protein_chain_D    1
+
+[ atoms ]
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ moleculetype ]
+Protein_chain_E    1
+
+[ atoms ]
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ moleculetype ]
+Protein_chain_F    1
+
+[ atoms ]
+1     SA    1      sA       C     1     0.0     72.0
+2     SA    2      sA       C     2     0.0     72.0
+
+[ system ]
+Minimal Frame49 hierarchy reproducer
+
+[ molecules ]
+Protein_chain_A    1
+Protein_chain_B    1
+Protein_chain_C    1
+Protein_chain_D    1
+Protein_chain_E    1
+Protein_chain_F    1

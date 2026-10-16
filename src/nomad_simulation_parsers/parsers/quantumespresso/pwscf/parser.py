@@ -430,6 +430,8 @@ class DOSParser(TextParser):
 
 class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     schema = pwscf
+    out_key = common.PWSCF_OUT_KEY
+    xml_key = common.PWSCF_XML_KEY
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
     dos_parser = DOSParser(text_parser=PWSCFDOSTextParser())
@@ -444,14 +446,14 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
 
         # parse dos
         self.dos_parser.filepath = self._mainfile_parser.filepath
-        self.simulation_parser.annotation_key = common.DOS_KEY
+        self.simulation_parser.annotation_key = common.PWSCF_DOS_KEY
         self.dos_parser.convert(self.simulation_parser)
         if archive.data.outputs and archive.data.outputs[-1].electronic_dos:
             # parse reference energy from out_file
             self.simulation_parser.data_object = archive.data.outputs[
                 -1
             ].electronic_dos[-1]
-            self.simulation_parser.annotation_key = common.DOS_OUT_KEY
+            self.simulation_parser.annotation_key = common.PWSCF_DOS_OUT_KEY
             self.mainfile_parser.convert(self.simulation_parser)
             # reset to archive
             self.simulation_parser.data_object = archive

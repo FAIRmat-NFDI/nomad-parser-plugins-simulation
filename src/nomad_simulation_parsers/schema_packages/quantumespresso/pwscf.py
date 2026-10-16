@@ -3,7 +3,10 @@ from nomad_simulations.schema_packages import general, outputs, variables
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
-from .common import DOS_KEY, DOS_OUT_KEY, OUT_KEY, XML_KEY
+from .common import PWSCF_DOS_KEY as DOS_KEY
+from .common import PWSCF_DOS_OUT_KEY as DOS_OUT_KEY
+from .common import PWSCF_OUT_KEY as OUT_KEY
+from .common import PWSCF_XML_KEY as XML_KEY
 
 m_package = SchemaPackage()
 
@@ -121,18 +124,6 @@ class SCFSteps(outputs.SCFSteps):
 
 class Simulation(general.Simulation):
     add_mapping_annotation(
-        general.Simulation.model_system,
-        OUT_KEY,
-        ('get_configurations', ['.@']),
-        cache=True,
-    )
-    add_mapping_annotation(
-        general.Simulation.model_system,
-        XML_KEY,
-        ('get_configurations', ['.@']),
-        cache=True,
-    )
-    add_mapping_annotation(
         general.Simulation.outputs, OUT_KEY, ('get_configurations', ['.@']), cache=True
     )
     add_mapping_annotation(
@@ -141,6 +132,10 @@ class Simulation(general.Simulation):
     add_mapping_annotation(
         general.Simulation.outputs, DOS_KEY, '.@', update_mode='merge@last'
     )
+
+
+add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, XML_KEY, '@')
 
 
 try:

@@ -43,14 +43,21 @@ def sha256(path: Path) -> str:
 def main() -> None:
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument('manifest', type=Path)
+    argument_parser.add_argument(
+        '--root',
+        type=Path,
+        default=Path(),
+        help='directory containing the repository-relative fixture paths',
+    )
     args = argument_parser.parse_args()
 
     for expected, relative_path in parse_manifest(args.manifest):
         if relative_path.is_absolute() or '..' in relative_path.parts:
             raise ValueError(f'{args.manifest}: unsafe fixture path {relative_path}')
-        if not relative_path.is_file():
+        fixture_path = args.root / relative_path
+        if not fixture_path.is_file():
             raise FileNotFoundError(f'missing required fixture: {relative_path}')
-        actual = sha256(relative_path)
+        actual = sha256(fixture_path)
         if actual != expected:
             msg = (
                 f'checksum mismatch for {relative_path}: expected {expected}, '

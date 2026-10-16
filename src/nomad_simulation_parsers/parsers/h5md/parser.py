@@ -55,7 +55,7 @@ class H5MDH5Parser(HDF5Parser):
     def map_value(
         self, source: dict[str, Any], key: str = None, enum_spec: str = None
     ) -> Any:
-        if key is None:
+        if key is None or not source:
             return None
 
         value = self.get_value(key, source)

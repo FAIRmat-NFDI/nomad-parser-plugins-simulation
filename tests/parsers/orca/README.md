@@ -28,8 +28,11 @@ parsing or mapping rules change.
 
 Notes:
 
-- `CoPc_CASCI_QD.out` is ~19 MB; its integration class is marked
-  `@pytest.mark.large_fixture` and runs only in the nightly gate.
+- `CoPc_CASCI_QD.out` is ~19 MB and is not part of the normal checkout. Its
+  integration class is marked `@pytest.mark.large_fixture`; the nightly gate
+  obtains it from the pinned fixture bundle and verifies its SHA-256 checksum.
+  For a local run, check out the fixture bundle and set
+  `NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT` to its `tests/data` directory.
 - `dft-print-MOs.out` stores the MO coefficient matrix through the HDF5 backend,
   so `TestDFTPrintMOs` skips the two generic serialization round-trips (they
   detach from the upload-backed context).

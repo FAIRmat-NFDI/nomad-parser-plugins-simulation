@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Generate a JSON serialization of each parser's ``archive.data`` for the
-additivity check.
+"""Generate a JSON serialization of each parser's ``archive.data`` and
+``archive.workflow2`` for the additivity check.
 
 This is not a pytest test: it is run directly by ``check_additivity.sh`` (and
 manually) to snapshot a ref. Snapshots are written to a plain JSON file and
@@ -164,11 +164,24 @@ def load_parser(dotted: str) -> type:
     return getattr(importlib.import_module(module_name), class_name)
 
 
-def serialize_archive_data(archive: EntryArchive):
-    """Convert archive.data to a JSON-serializable dict for comparison."""
-    if not archive.data:
-        return None
-    return archive.data.m_to_dict(with_meta=False)
+def serialize_archive(
+    archive: EntryArchive, sections: tuple[str, ...] = ('data', 'workflow2')
+):
+    """Serialize the requested top-level archive sections to a JSON-able dict.
+
+    Captures each named section (``archive.data``, ``archive.workflow2``, ...) as
+    ``{section: <m_to_dict>}``, so the additivity check covers workflow output as
+    well as ``data``. A section that is unset contributes nothing, so a
+    ``None -> populated`` change still reads as additive and ``populated -> None``
+    as a removal; a wholly-empty archive returns ``None`` (no leaves), matching
+    how a bare ``archive.data`` was handled before.
+    """
+    out = {}
+    for name in sections:
+        section = getattr(archive, name, None)
+        if section is not None:
+            out[name] = section.m_to_dict(with_meta=False)
+    return out or None
 
 
 def _sha256(path: Path) -> str | None:
@@ -234,7 +247,7 @@ def generate(parser_dirs: list[str]) -> tuple[dict, list[str]]:
             archive = EntryArchive()
             parser_class().parse(mainfile, archive, LOGGER)
             key = f'{parser_dir}:{Path(mainfile).name}'
-            snapshots[key] = serialize_archive_data(archive)
+            snapshots[key] = serialize_archive(archive)
             mainfiles.append(mainfile)
     return snapshots, mainfiles
 

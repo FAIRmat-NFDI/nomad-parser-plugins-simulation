@@ -38,7 +38,7 @@ class LobsterMainfileParser(TextParser):
     def to_unix_time(self, datetime_str: str):
         return (
             datetime.datetime.strptime(datetime_str, '%Y-%m-%d at %H:%M:%S')
-            .replace(tzinfo=datetime.timezone.utc)
+            .replace(tzinfo=datetime.UTC)
             .timestamp()
         )
 

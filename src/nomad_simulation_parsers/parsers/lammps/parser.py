@@ -564,7 +564,7 @@ class LammpsArchiveWriter(MDParser):
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
         if file_type == 'dcd' or file_type == 'xyz' and data_file:
-            return _create_formatted_parser(traj_file, data_file, file_type)
+            return _create_formatted_parser(traj_file, file_type, data_file)
 
         # TODO: 'atom' keyword is a LB edit, test
         elif file_type == 'custom' or file_type == 'atom' and data_file:

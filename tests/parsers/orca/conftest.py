@@ -1,3 +1,4 @@
+import os
 from collections.abc import Generator
 from pathlib import Path
 
@@ -10,12 +11,23 @@ from nomad.utils import create_uuid, get_logger
 from nomad_simulation_parsers.parsers.orca.parser import OrcaParser
 
 DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'orca'
+LARGE_FIXTURE_DIR = (
+    Path(os.environ['NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT']) / 'orca'
+    if 'NOMAD_SIM_PARSERS_LARGE_FIXTURE_ROOT' in os.environ
+    else DATA_DIR
+)
 LOGGER = get_logger(__name__)
 
 
 def parse_orca(filename: str) -> EntryArchive:
     archive = EntryArchive()
     OrcaParser().parse(str(DATA_DIR / filename), archive, LOGGER)
+    return archive
+
+
+def parse_large_orca(filename: str) -> EntryArchive:
+    archive = EntryArchive()
+    OrcaParser().parse(str(LARGE_FIXTURE_DIR / filename), archive, LOGGER)
     return archive
 
 
@@ -26,7 +38,19 @@ def ri_mp2_water_archive() -> EntryArchive:
 
 @pytest.fixture(scope='module')
 def casci_qd_archive() -> EntryArchive:
-    return parse_orca('CoPc_CASCI_QD.out')
+    archive = EntryArchive()
+    OrcaParser().parse(str(LARGE_FIXTURE_DIR / 'CoPc_CASCI_QD.out'), archive, LOGGER)
+    return archive
+
+
+@pytest.fixture(scope='module')
+def casscf_state_averaged_archive() -> EntryArchive:
+    return parse_large_orca('CoPc_CASSCF_SA.out')
+
+
+@pytest.fixture(scope='module')
+def casscf_state_specific_archive() -> EntryArchive:
+    return parse_large_orca('CoPc_CASSCF_SS.out')
 
 
 @pytest.fixture(scope='module')

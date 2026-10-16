@@ -11,7 +11,6 @@ from nomad_simulations.schema_packages.model_method import (
     MultireferencePT,
     OrbitalLocalization,
     PerturbationMethod,
-    RelativityModel,
 )
 from nomad_simulations.schema_packages.numerical_settings import (
     LocalCorrelationSettings,
@@ -41,6 +40,7 @@ class TestRIMP2Water(OrcaParserIntegrationSuite):
         assert isinstance(method, PerturbationMethod)
         assert method.type == 'MP'
         assert method.order == 2
+        assert method.relativity is None
 
         basis_sets = [
             settings
@@ -96,6 +96,14 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
     required_simulation_sections = ('model_method', 'model_system')
 
     @pytest.mark.integration
+    def test_casci_qd_archive_identity(self, archive):
+        assert archive.data.program.version == '4.2.1'
+
+        system = archive.data.model_system[0]
+        assert system.total_charge == 0
+        assert system.total_spin_multiplicity == 2
+
+    @pytest.mark.integration
     def test_multireference_methods_basis_sets_and_relativity(self, archive):
         casci = next(
             method
@@ -146,14 +154,29 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
             # universally and the mapper injected a hollow DFT here; DFT stays
             # root-anchored to avoid it.
             assert not any(isinstance(c, DFT) for c in method.contributions)
-            relativity = next(
-                contribution
-                for contribution in method.contributions
-                if isinstance(contribution, RelativityModel)
-            )
+            relativity = method.relativity
             assert relativity.level == 'scalar'
             assert relativity.approximation == 'DKH'
             assert relativity.dkh_order == 2
+
+
+@pytest.mark.large_fixture
+class CASSCFArchiveSuite(OrcaParserIntegrationSuite):
+    required_simulation_sections = ('model_method', 'model_system')
+
+    @pytest.mark.integration
+    def test_casscf_archive_identity(self, archive):
+        assert archive.data.program.version == '4.2.1'
+        assert len(archive.data.model_system) == 1
+        assert archive.data.model_method
+
+
+class TestCASSCFStateAveraged(CASSCFArchiveSuite):
+    archive_fixture = 'casscf_state_averaged_archive'
+
+
+class TestCASSCFStateSpecific(CASSCFArchiveSuite):
+    archive_fixture = 'casscf_state_specific_archive'
 
 
 class TestDLPNOCoupledCluster(OrcaParserIntegrationSuite, WorkflowTestSuite):

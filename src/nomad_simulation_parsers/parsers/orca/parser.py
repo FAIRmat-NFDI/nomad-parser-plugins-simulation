@@ -243,9 +243,7 @@ class OutParser(MappingTextParser):
             {
                 'is_representative': True,
                 'positions': positions,
-                'particle_states': [
-                    {'chemical_symbol': symbol} for symbol in symbols
-                ],
+                'particle_states': [{'chemical_symbol': symbol} for symbol in symbols],
                 **self._get_charge_and_multiplicity(src),
             }
         ]
@@ -603,7 +601,7 @@ class OutParser(MappingTextParser):
             self._method = 'HF'
         return [{'reference_form': reference_form}] if reference_form else []
 
-    def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any]:
+    def get_relativity_model(self, source: dict[str, Any]) -> dict[str, Any] | None:
         relativistic = self._parser_results(source.get('relativistic_hamiltonian'))
         scf_settings = self._get_scf_settings(source)
 
@@ -611,7 +609,7 @@ class OutParser(MappingTextParser):
             relativistic.get('method') or scf_settings.get('scalar_relativistic_method')
         )
         if not isinstance(raw_method, str):
-            return {}
+            return None
 
         normalized = raw_method.upper()
         approximation = next(
@@ -634,7 +632,7 @@ class OutParser(MappingTextParser):
             None,
         )
         if approximation is None:
-            return {}
+            return None
 
         model = {'level': 'scalar', 'approximation': approximation}
         dkh_order = self._to_scalar(
@@ -642,27 +640,11 @@ class OutParser(MappingTextParser):
         )
         if approximation == 'DKH' and dkh_order is not None:
             model['dkh_order'] = int(dkh_order)
-        # TODO implement support in mapping parser
         return model
 
-    def get_relativity_models(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        method = self._method
-        electronic_methods = (
-            'DFT',
-            'HF',
-            'PerturbationMethod',
-            'CC',
-            'MultireferenceSCF',
-            'MultireferenceCI',
-            'MultireferencePT',
-        )
-        if method not in electronic_methods:
-            return []
-        model = self.get_relativity_model(source)
-        model.setdefault('basis_set', {})
-        return [model]
-
     def get_basis_set_components(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+        if source is None:
+            return []
         source = source.get('basis_set', self.data)
         if not source:
             return []
