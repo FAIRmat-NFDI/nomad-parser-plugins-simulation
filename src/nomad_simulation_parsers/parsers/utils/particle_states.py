@@ -104,7 +104,6 @@ def particle_state_payloads_from_parameters(
             }
         else:
             payload = {
-                'm_def': CGBeadState.m_def.qualified_name(),
                 'label': label,
             }
             if label:

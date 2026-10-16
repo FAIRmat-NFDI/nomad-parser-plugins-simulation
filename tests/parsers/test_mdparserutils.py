@@ -35,12 +35,11 @@ def test_particle_state_payloads_from_labels_falls_back_to_cg_for_missing_labels
 
     assert payloads == [
         {
-            'm_def': CGBeadState.m_def.qualified_name(),
             'label': 'H',
             'bead_symbol': 'H',
         },
-        {'m_def': CGBeadState.m_def.qualified_name(), 'label': None},
-        {'m_def': CGBeadState.m_def.qualified_name(), 'label': ''},
+        {'label': None},
+        {'label': ''},
     ]
 
 

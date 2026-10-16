@@ -8,7 +8,11 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad_simulations.schema_packages.atoms_state import AtomsState, ParticleState
+from nomad_simulations.schema_packages.atoms_state import (
+    AtomsState,
+    CGBeadState,
+    ParticleState,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
@@ -177,8 +181,8 @@ class H5MDH5Parser(HDF5Parser):
         # H5MD maps the abstract ParticleState subsection and therefore still
         # needs a concrete section discriminator. Concrete GROMACS mappings do not.
         for payload in payloads:
-            if 'chemical_symbol' in payload:
-                payload['m_def'] = AtomsState.m_def.qualified_name()
+            state_type = AtomsState if 'chemical_symbol' in payload else CGBeadState
+            payload['m_def'] = state_type.m_def.qualified_name()
         return payloads
 
     def get_top_system_quantity(
