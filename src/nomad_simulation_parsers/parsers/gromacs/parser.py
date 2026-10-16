@@ -776,7 +776,7 @@ class GromacsMDAnalysisParser(MappingParser):
         return [
             {**payload, '__index': index}
             for index, payload in enumerate(
-                MDParser.particle_state_payloads_from_parameters(parameters)
+                MDParser.particle_states_from_parameters(parameters, return_type=dict)
             )
             if 'chemical_symbol' in payload
         ]
@@ -788,7 +788,7 @@ class GromacsMDAnalysisParser(MappingParser):
         return [
             {**payload, '__index': index}
             for index, payload in enumerate(
-                MDParser.particle_state_payloads_from_parameters(parameters)
+                MDParser.particle_states_from_parameters(parameters, return_type=dict)
             )
             if 'chemical_symbol' not in payload
         ]

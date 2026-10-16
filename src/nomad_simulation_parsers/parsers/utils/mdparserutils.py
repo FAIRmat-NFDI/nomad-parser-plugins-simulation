@@ -110,19 +110,24 @@ class MDParser(ArchiveWriter):
             return None
 
     @classmethod
-    def particle_state_payloads_from_parameters(
+    def particle_states_from_parameters(
         cls,
         parameters: Iterable[Mapping[str, Any]] | None,
-    ) -> list[dict[str, Any]]:
-        """Build polymorphic particle-state payloads from parser-provided evidence.
+        return_type: type[dict] | type[ParticleState] = ParticleState,
+    ) -> list[dict[str, Any]] | list[ParticleState]:
+        """Build particle-state sections or mapping payloads from parser evidence.
 
         ``chemical_symbol`` must represent an element identity established by the
         parser, rather than a guess from ``label``. Invalid or absent symbols produce
         :class:`CGBeadState` payloads. Numeric masses are interpreted as atomic mass
         units; unit-bearing masses retain their units. Other source properties, such
         as force-field partial charges, are intentionally not copied into intrinsic
-        particle-state fields.
+        particle-state fields. Set ``return_type`` to ``dict`` for mapping payloads or
+        leave it as ``ParticleState`` for concrete metainfo sections.
         """
+        if return_type not in (dict, ParticleState):
+            raise ValueError('return_type must be dict or ParticleState')
+
         payloads: list[dict[str, Any]] = []
         if parameters is None:
             return payloads
@@ -150,16 +155,11 @@ class MDParser(ArchiveWriter):
                 payload['mass'] = mass
             payloads.append(payload)
 
-        return payloads
+        if return_type is dict:
+            return payloads
 
-    @classmethod
-    def particle_states_from_parameters(
-        cls,
-        parameters: Iterable[Mapping[str, Any]] | None,
-    ) -> list[ParticleState]:
-        """Instantiate particle states from parser-provided identity parameters."""
         particle_states: list[ParticleState] = []
-        for payload in cls.particle_state_payloads_from_parameters(parameters):
+        for payload in payloads:
             common = {'label': payload.get('label')}
             if payload.get('mass') is not None:
                 common['mass'] = payload['mass']

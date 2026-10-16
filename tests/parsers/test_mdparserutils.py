@@ -26,7 +26,7 @@ def test_particle_states_from_labels_falls_back_to_cg():
 
 def test_particle_state_payloads_from_labels_falls_back_to_cg_for_missing_labels():
     parameters = MDParser.particle_parameters_from_labels(['H', None, ''])
-    payloads = MDParser.particle_state_payloads_from_parameters(parameters)
+    payloads = MDParser.particle_states_from_parameters(parameters, return_type=dict)
 
     assert payloads == [
         {
@@ -40,7 +40,7 @@ def test_particle_state_payloads_from_labels_falls_back_to_cg_for_missing_labels
 
 def test_particle_state_payloads_from_numpy_array_labels():
     parameters = MDParser.particle_parameters_from_labels(np.array(['H', 'O']))
-    payloads = MDParser.particle_state_payloads_from_parameters(parameters)
+    payloads = MDParser.particle_states_from_parameters(parameters, return_type=dict)
 
     assert payloads == [
         {

@@ -172,7 +172,9 @@ class H5MDH5Parser(HDF5Parser):
         source_data = self.get_source(self.data, kwargs['path'])
 
         parameters = MDParser.particle_parameters_from_labels(source_data)
-        payloads = MDParser.particle_state_payloads_from_parameters(parameters)
+        payloads = MDParser.particle_states_from_parameters(
+            parameters, return_type=dict
+        )
         # H5MD maps the abstract ParticleState subsection and therefore still
         # needs a concrete section discriminator. Concrete GROMACS mappings do not.
         for payload in payloads:
