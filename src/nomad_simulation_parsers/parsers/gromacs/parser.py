@@ -11,9 +11,6 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
 )
-from nomad_simulations.schema_packages.force_field import (
-    ParticleParametersContainer,
-)
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimization,
@@ -729,7 +726,7 @@ class GromacsMDAnalysisParser(MappingParser):
 
         Each dict contains:
         - 'label' (str): raw force-field site name (e.g. 'OW', 'HW1', 'CA')
-        - 'element' (str): chemical element symbol (e.g. 'O', 'H', 'C'),
+        - 'chemical_symbol' (str): source-provided chemical element symbol,
           absent for coarse-grained or unresolvable particles
         - 'mass' (float, amu): particle mass when available from MDAnalysis
         - 'charge' (float, elementary charge): partial charge when available
@@ -738,7 +735,11 @@ class GromacsMDAnalysisParser(MappingParser):
         if self.data_object is not None:
             particles_info = self.data_object.get('atoms_info') or {}
         raw_names = particles_info.get('names', []) or []
-        elements = particles_info.get('elements', []) or []
+        elements = (
+            particles_info.get('elements', [])
+            if particles_info.get('elements_are_explicit', True)
+            else []
+        ) or []
         # Fall back to get_particle_labels when particles_info is not populated
         # (e.g. in tests)
         if not raw_names and not elements:
@@ -752,7 +753,7 @@ class GromacsMDAnalysisParser(MappingParser):
             element = elements[i] if i < len(elements) else None
             entry: dict[str, Any] = {'label': label or element or 'CGX'}
             if element and element != 'CGX':
-                entry['element'] = element
+                entry['chemical_symbol'] = element
             result.append(entry)
         universe = getattr(self.data_object, 'universe', None)
         if universe is not None:
@@ -767,6 +768,30 @@ class GromacsMDAnalysisParser(MappingParser):
             except Exception:
                 pass
         return result
+
+    def get_atomic_particle_parameters(
+        self, parameters: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        """Select validated atomic particle payloads for the TPR mapping."""
+        return [
+            {**payload, '__index': index}
+            for index, payload in enumerate(
+                MDParser.particle_states_from_parameters(parameters, return_type=dict)
+            )
+            if 'chemical_symbol' in payload
+        ]
+
+    def get_bead_particle_parameters(
+        self, parameters: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        """Select validated coarse-grained particle payloads for the TPR mapping."""
+        return [
+            {**payload, '__index': index}
+            for index, payload in enumerate(
+                MDParser.particle_states_from_parameters(parameters, return_type=dict)
+            )
+            if 'chemical_symbol' not in payload
+        ]
 
     def get_particle_parameters_by_type(self) -> list[dict[str, Any]]:
         """Return per-type particle parameters grouped from per-particle data.
@@ -1110,16 +1135,6 @@ class GromacsArchiveWriter(MDParser):
             self._simulation_parser.mapper = None
             self._mdanalysis_parser.convert(self._simulation_parser)
             self._simulation_parser.data_object = self.archive.data
-
-        # ParticleParametersContainer: no annotation path from Simulation to
-        # model_method for PARTICLE_PARAM_KEY; target directly.
-        if self.archive.data.model_method:
-            ppc = ParticleParametersContainer()
-            self._simulation_parser.data_object = ppc
-            self._simulation_parser.annotation_key = gromacs.PARTICLE_PARAM_KEY
-            self._mdanalysis_parser.convert(self._simulation_parser)
-            if ppc.particle_parameters:
-                self.archive.data.model_method[-1].numerical_settings.append(ppc)
 
     def write_to_archive(self):
         self._simulation_parser.logger = self.logger

@@ -8,14 +8,14 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad_simulations.schema_packages.atoms_state import ParticleState
+from nomad_simulations.schema_packages.atoms_state import (
+    AtomsState,
+    CGBeadState,
+    ParticleState,
+)
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.utils.mdparserutils import (
-    MDParser,
-    particle_state_payloads_from_labels,
-    particle_states_from_labels,
-)
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
 
 
@@ -171,7 +171,16 @@ class H5MDH5Parser(HDF5Parser):
 
         source_data = self.get_source(self.data, kwargs['path'])
 
-        return particle_state_payloads_from_labels(source_data)
+        parameters = MDParser.particle_parameters_from_labels(source_data)
+        payloads = MDParser.particle_states_from_parameters(
+            parameters, return_type=dict
+        )
+        # H5MD maps the abstract ParticleState subsection and therefore still
+        # needs a concrete section discriminator. Concrete GROMACS mappings do not.
+        for payload in payloads:
+            state_type = AtomsState if 'chemical_symbol' in payload else CGBeadState
+            payload['m_def'] = state_type.m_def.qualified_name()
+        return payloads
 
     def get_top_system_quantity(
         self, source: dict[str, Any], **kwargs
@@ -529,7 +538,10 @@ class H5MDArchiveWriter(MDParser):
                     particle_state.label
                     for particle_state in model_system.particle_states
                 ]
-                model_system.particle_states = particle_states_from_labels(labels)
+                parameters = MDParser.particle_parameters_from_labels(labels)
+                model_system.particle_states = MDParser.particle_states_from_parameters(
+                    parameters
+                )
 
             # assign simulation to archive data
             self.archive.data = self.simulation_parser.data_object

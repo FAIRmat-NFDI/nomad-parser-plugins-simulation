@@ -101,6 +101,16 @@ class StubMDAnalysisDataObject:
         return default
 
 
+class StubParticleInfoDataObject:
+    universe = None
+
+    def __init__(self, atoms_info):
+        self.atoms_info = atoms_info
+
+    def get(self, key, default=None):
+        return self.atoms_info if key == 'atoms_info' else default
+
+
 @pytest.mark.unit
 class TestGromacsMDAnalysisMapping:
     @pytest.fixture
@@ -118,6 +128,35 @@ class TestGromacsMDAnalysisMapping:
         assert 'labels' not in configurations[1]
         assert configurations[0]['positions'].shape == (2, 3)
         assert_approx(configurations[0]['bond_list'], [[0, 1]])
+
+    def test_uses_only_explicit_topology_elements(self, parser):
+        parser.data_object = StubParticleInfoDataObject(
+            {
+                'names': ['C', 'WN1'],
+                'elements': ['C', 'WN1'],
+                'elements_are_explicit': False,
+            }
+        )
+
+        parameters = parser.get_particle_parameters()
+
+        assert parameters == [{'label': 'C'}, {'label': 'WN1'}]
+
+    def test_preserves_explicit_topology_elements(self, parser):
+        parser.data_object = StubParticleInfoDataObject(
+            {
+                'names': ['CA', 'OW'],
+                'elements': ['C', 'O'],
+                'elements_are_explicit': True,
+            }
+        )
+
+        parameters = parser.get_particle_parameters()
+
+        assert parameters == [
+            {'label': 'CA', 'chemical_symbol': 'C'},
+            {'label': 'OW', 'chemical_symbol': 'O'},
+        ]
 
     def test_maps_force_field_contributions_by_interaction_type(self, parser):
         parser.data_object = StubTrajectory()
@@ -166,6 +205,22 @@ class TestGromacsMDAnalysisMapping:
             assert simulation.model_system[0].positions is not None
         else:
             assert len(parser.get_configurations()) == 2
+
+    def test_indexes_mixed_particle_state_payloads(self, parser):
+        parameters = [
+            {'label': 'OW', 'chemical_symbol': 'O'},
+            {'label': 'B1'},
+            {'label': 'HW', 'chemical_symbol': 'H'},
+        ]
+
+        atoms = parser.get_atomic_particle_parameters(parameters)
+        beads = parser.get_bead_particle_parameters(parameters)
+
+        assert [(state['label'], state['__index']) for state in atoms] == [
+            ('OW', 0),
+            ('HW', 2),
+        ]
+        assert [(state['label'], state['__index']) for state in beads] == [('B1', 1)]
 
     def test_groups_force_field_interactions(self, parser):
         parser.data_object = StubInteractionsDataObject(
