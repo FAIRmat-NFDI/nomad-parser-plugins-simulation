@@ -167,7 +167,7 @@ class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(
         numerical_settings.KMesh.n_points,
         INFO_KEY,
-        '.n_points',
+        '.n_total_points',
     )
 
     add_mapping_annotation(
@@ -175,34 +175,6 @@ class KMesh(numerical_settings.KMesh):
         INFO_KEY,
         '.dimensionality',
     )
-
-
-#class KMesh(numerical_settings.KMesh):
-#    add_mapping_annotation(
-#        numerical_settings.KMesh.m_def,
-#        INFO_KEY,
-#        '.@',
-#    )
-
-#    add_mapping_annotation(
-#        numerical_settings.KMesh.grid,
-#        INFO_KEY,
-#        'initialization.kpoint_grid',
-#    )
-
-    # I am not sure we want to annotate the number of reduced k-points 
-    # or that of total k-points. In my opinion it makes more sense to have the reduced
-    # k-point, but it should be make clear in the schema.
-#    add_mapping_annotation(
-#        numerical_settings.KMesh.n_points,
-#        INFO_KEY,
-#        'initialization.x_exciting_number_kpoints',
-#    )
-#    add_mapping_annotation(
-#        numerical_settings.KMesh.dimensionality,
-#        INFO_KEY,
-#        ('get_k_mesh_dimensionality', ['initialization.kpoint_grid']),
-#    )
 
 class BasisSetContainer(basis_set.BasisSetContainer):
     add_mapping_annotation(
@@ -226,6 +198,7 @@ class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
 
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
+    add_mapping_annotation(model_system.ModelSystem.n_particles, INFO_KEY, 'initialization.x_exciting_number_of_atoms')
 
 
 class Representation(model_system.Representation):
@@ -237,6 +210,7 @@ class Representation(model_system.Representation):
             INFO_KEY,
             '.periodic_boundary_conditions',
         ),
+        (model_system.Representation.volume, INFO_KEY, 'initialization.x_exciting_unit_cell_volume'),
     )
 
 class AtomsState(atoms_state.AtomsState):

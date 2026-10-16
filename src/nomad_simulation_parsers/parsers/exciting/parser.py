@@ -323,17 +323,6 @@ class InfoParser(TextParser):
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
 
-    #def get_k_mesh_dimensionality(self, grid) -> int | None:
-    #    if grid is None:
-    #        return None
-    #    return len(grid)
-
-    #Not used for the moment, since I used the reduced number of k-points written in the INFO.OUT file. 
-    #def get_total_number_of_kpoints(self, grid) -> int | None:
-    #    if grid is None:
-    #        return None
-    #    return int(np.prod(grid))
-    
     def get_k_mesh(self) -> list[dict[str, Any]]:
         initialization = self.data.get('initialization', {})
         grid = initialization.get('kpoint_grid')
@@ -341,7 +330,8 @@ class InfoParser(TextParser):
         return [
             {
                 'grid': grid if grid is not None else None, 
-                'n_points': n_points if n_points is not None else None,
+                'n_total_points': np.prod(grid) if grid is not None else None,
+                'n_reduced_points': n_points if n_points is not None else None,
                 'dimensionality': len(grid) if grid is not None else None,
             }
         ]
