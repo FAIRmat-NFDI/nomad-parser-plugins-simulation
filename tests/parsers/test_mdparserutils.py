@@ -50,12 +50,10 @@ def test_particle_state_payloads_from_numpy_array_labels():
 
     assert payloads == [
         {
-            'm_def': AtomsState.m_def.qualified_name(),
             'chemical_symbol': 'H',
             'label': 'H',
         },
         {
-            'm_def': AtomsState.m_def.qualified_name(),
             'chemical_symbol': 'O',
             'label': 'O',
         },

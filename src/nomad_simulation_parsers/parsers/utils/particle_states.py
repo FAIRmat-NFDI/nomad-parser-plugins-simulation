@@ -99,7 +99,6 @@ def particle_state_payloads_from_parameters(
 
         if chemical_symbol in atomic_numbers:
             payload: dict[str, Any] = {
-                'm_def': AtomsState.m_def.qualified_name(),
                 'chemical_symbol': chemical_symbol,
                 'label': label,
             }
