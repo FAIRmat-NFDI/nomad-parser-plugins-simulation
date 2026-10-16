@@ -16,11 +16,6 @@ from nomad_simulations.schema_packages.atoms_state import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
-from nomad_simulation_parsers.parsers.utils.particle_states import (
-    particle_parameters_from_labels,
-    particle_state_payloads_from_parameters,
-    particle_states_from_parameters,
-)
 from nomad_simulation_parsers.schema_packages import h5md
 
 
@@ -176,8 +171,8 @@ class H5MDH5Parser(HDF5Parser):
 
         source_data = self.get_source(self.data, kwargs['path'])
 
-        parameters = particle_parameters_from_labels(source_data)
-        payloads = particle_state_payloads_from_parameters(parameters)
+        parameters = MDParser.particle_parameters_from_labels(source_data)
+        payloads = MDParser.particle_state_payloads_from_parameters(parameters)
         # H5MD maps the abstract ParticleState subsection and therefore still
         # needs a concrete section discriminator. Concrete GROMACS mappings do not.
         for payload in payloads:
@@ -541,8 +536,8 @@ class H5MDArchiveWriter(MDParser):
                     particle_state.label
                     for particle_state in model_system.particle_states
                 ]
-                parameters = particle_parameters_from_labels(labels)
-                model_system.particle_states = particle_states_from_parameters(
+                parameters = MDParser.particle_parameters_from_labels(labels)
+                model_system.particle_states = MDParser.particle_states_from_parameters(
                     parameters
                 )
 

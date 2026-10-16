@@ -21,9 +21,6 @@ from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
-from nomad_simulation_parsers.parsers.utils.particle_states import (
-    particle_state_payloads_from_parameters,
-)
 from nomad_simulation_parsers.schema_packages import gromacs
 
 from .edr_parser import GromacsEDRParser as GromacsEDRFileParser
@@ -779,7 +776,7 @@ class GromacsMDAnalysisParser(MappingParser):
         return [
             {**payload, '__index': index}
             for index, payload in enumerate(
-                particle_state_payloads_from_parameters(parameters)
+                MDParser.particle_state_payloads_from_parameters(parameters)
             )
             if 'chemical_symbol' in payload
         ]
@@ -791,7 +788,7 @@ class GromacsMDAnalysisParser(MappingParser):
         return [
             {**payload, '__index': index}
             for index, payload in enumerate(
-                particle_state_payloads_from_parameters(parameters)
+                MDParser.particle_state_payloads_from_parameters(parameters)
             )
             if 'chemical_symbol' not in payload
         ]
