@@ -8,7 +8,7 @@ The items follow the order of the work: the text is read first, then mapped, wit
 
 **Text processing**
 
-1. **Extraction.** One inline fragment per source block the quantity comes from, in `test_reader.py`, asserting that the regex pulls the right value out of the text ([layer 2](how_to/test_parsers.md#layer-2-source-extraction)). This tests extraction only: the fragment is written into `tmp_path`, the lowest-level reader runs on it, and the result is the reader's own dictionary, compared with literals read off the fragment. No schema is involved; whether the value ends up in the right schema field is the question of item 4, which inspects the archive after the whole parser has run. ORCA:
+1. **Extraction.** In `test_reader.py`, write a few lines of output text that contain the quantity, run the reader on them, and check that the regex extracted the right value. If the quantity is assembled from several blocks of the output, write one such test per block ([layer 2](how_to/test_parsers.md#layer-2-source-extraction)). Only extraction is tested: the text goes into a file under `tmp_path`, the reader turns it into its dictionary, and the test compares entries of that dictionary with the numbers and strings visible in the text. The schema is not involved. Whether the value then lands in the right schema field is checked in item 4, on the archive the whole parser produces. ORCA:
 
 ````python
 # implementation: parsers/orca/text_parser.py
@@ -35,7 +35,7 @@ class TestOrcaReader:
 
 **Mapping**
 
-2. **Mapped value.** One hand-built source dictionary per case in `test_mapping.py`, calling the transformer directly and asserting the mapped value, unit and shape ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). Absent, empty, zero and `False` are separate cases where the quantity can take them; several cases go into one `pytest.mark.parametrize` with descriptive `ids` ([parameterized tests](#specific-testing-patterns)). VASP, a pure function with a table of cases:
+2. **Mapped value.** In `test_mapping.py`, call the transformer function directly on a small dictionary that stands in for the reader's output, and check the value, unit and shape it returns ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). Each input dictionary with its expected result is one row of a `pytest.mark.parametrize` table, with an `ids` entry naming the case ([parameterized tests](#specific-testing-patterns)). Add rows for the quantity being absent, empty, zero or `False` wherever the source can produce them, because these are the inputs that mapping code most often drops silently. VASP, a pure function with a table of cases:
 
 ````python
 # implementation: parsers/vasp/common.py
@@ -70,7 +70,7 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
 
    LAMMPS and phonopy have no `test_mapping.py` yet; a change to their mapping adds the file.
 
-3. **Failure visibility.** One test that feeds the transformer a value it cannot map and asserts that the failure is visible, as an exception or an error-level log entry; a quantity that stays empty, or carries the bad value through, without either is a silent failure ([assertion strength](#axes)). No parser has such a test yet. The ORCA exact-exchange fraction shows why the item exists: the implementation passes whatever the reader captured straight through, so a non-numeric value surfaces only later, at schema assignment, if at all. The test states what should happen instead:
+3. **Failure visibility.** Give the transformer a value it cannot map, for example a string where a number is expected, and check that something visible happens: an exception, or a log entry at error level ([assertion strength](#axes)). If the quantity just comes out empty, or the bad value is passed on unchanged, and nothing is reported, the failure is silent, and that is what this test exists to catch. No parser has such a test yet. The ORCA exact-exchange fraction shows why the item exists: the implementation passes whatever the reader captured straight through, so a non-numeric value surfaces only later, at schema assignment, if at all. The test states what should happen instead:
 
 ````python
 # implementation: parsers/orca/parser.py, _build_xc
@@ -87,7 +87,7 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
 
    At the entry point the same idea uses `monkeypatch` to replace the reader's output with a malformed subtree and `caplog` to check that `parse` reports it at error level rather than producing a thinner archive silently.
 
-4. **Integration.** Add the value to the integration class of the fixture only if it identifies the calculation, so that a wrong file, unit or ordering would change it; otherwise it belongs in item 2 ([layer 4](how_to/test_parsers.md#layer-4-parser-integration), [scope](#scope-different-test-types-serve-different-purposes-and-catch-different-categories-of-bugs)). Most integration classes today assert lengths and shapes; where a class has no identifying values yet, this item starts the list. VASP, where the whole entry point runs on one fixture and the chemical symbols and the SCF step count identify it:
+4. **Integration.** The integration test runs the whole parser on a real output file and checks a few values in the resulting archive. Add the new quantity there only if it identifies the calculation, meaning a wrong file, a wrong unit or a wrong ordering would change it; if it does not, the mapping test of item 2 is the right place ([layer 4](how_to/test_parsers.md#layer-4-parser-integration), [scope](#scope-different-test-types-serve-different-purposes-and-catch-different-categories-of-bugs)). Most integration classes check only lengths and shapes so far; where a class has no identifying values yet, this item adds the first ones. VASP, where the whole entry point runs on one fixture and the chemical symbols and the SCF step count identify it:
 
 ````python
 # implementation: parsers/vasp/parser.py
@@ -107,7 +107,7 @@ class TestAgacRelaxOutcarArchive(VASPIntegrationSuite):
 
 **Helper functions**
 
-5. **Shared helpers.** A function added to `parsers/utils` or hoisted out of a parser gets its own tests in `tests/parsers/test_general_utils.py` or a sibling file: inputs and expected outputs as literals, the empty input as a case ([unit tests](#unit-tests)). A helper used by one parser only stays inside that parser and is covered by item 2. The mapping-table helper, with the expected table written out rather than derived:
+5. **Shared helpers.** A function that is added to `parsers/utils`, or moved there because a second parser needs it, gets its own tests in `tests/parsers/test_general_utils.py` or a file next to it: a `parametrize` table of inputs and expected outputs, written out as literals, with the empty input as one row ([unit tests](#unit-tests)). A helper that only one parser uses stays in that parser and is covered by its mapping tests (item 2). The mapping-table helper, with the expected table written out rather than derived:
 
 ````python
 # implementation: parsers/utils/general.py
@@ -127,7 +127,7 @@ def test_create_mapping_table_compares_file_quantities_with_mapper_paths():
 
 **Before the pull request**
 
-6. **Markers.** `unit` on the reader, mapping and helper tests, `integration` on the entry-point class, `pipeline` only on the shared normalization contract, `large_fixture` on a class whose fixture lives in the fixture bundle; the markers decide which gate runs the test ([markers and CI](how_to/test_parsers.md#pytest-markers-and-ci), [selective execution](#performance-optimization)). The fast gate is `pytest -m 'unit and not large_fixture'`.
+6. **Markers.** Mark reader, mapping and helper tests `unit`, the integration class `integration`, and only the shared normalization suite `pipeline`; add `large_fixture` to a class whose input file lives in the fixture bundle. The markers decide in which CI stage a test runs ([markers and CI](how_to/test_parsers.md#pytest-markers-and-ci), [selective execution](#performance-optimization)). The fast gate is `pytest -m 'unit and not large_fixture'`.
 
 ````toml
 # definition: pyproject.toml
@@ -147,7 +147,7 @@ class TestCASCIQuantumDots(OrcaParserIntegrationSuite):
     archive_fixture = 'casci_qd_archive'
 ````
 
-7. **Fixture.** Prefer a synthetic fragment. If a real output is added, keep it small, record its origin, program version and licence next to it (the fixture's `conftest.py` entry or a `README` in its `tests/data` directory), and put it in the fixture bundle when it is large ([fixtures and manifests](how_to/test_parsers.md#fixtures-and-expected-data-manifests), [synthetic minimal data](#specific-testing-patterns)). ORCA, where small files stay in `tests/data` and the bundle root comes from the environment:
+7. **Fixture.** Prefer a few lines of made-up output text, as in item 1. If a real output file is added, keep it small, note where it came from, which program version wrote it and under which licence it may be redistributed (in the fixture's `conftest.py` entry or a `README` in its `tests/data` directory), and put it in the fixture bundle when it is large ([fixtures and manifests](how_to/test_parsers.md#fixtures-and-expected-data-manifests), [synthetic minimal data](#specific-testing-patterns)). ORCA, where small files stay in `tests/data` and the bundle root comes from the environment:
 
 ````python
 # fixtures: tests/parsers/orca/conftest.py
@@ -167,22 +167,22 @@ def casscf_state_averaged_archive() -> EntryArchive:
     return parse_large_orca('CoPc_CASSCF_SA.out')  # in the bundle
 ````
 
-8. **Output check.** Run the additive-output check against `develop`; every changed or removed leaf is a finding to explain in the pull request, every added leaf is expected ([additive-output check](how_to/test_parsers.md#additive-output-check), [the role of snapshots](#the-role-of-snapshots)).
+8. **Output check.** Run the additive-output check against `develop`. It parses the fixtures with both revisions and compares the archives value by value: new values are expected, every changed or removed value has to be explained in the pull request ([additive-output check](how_to/test_parsers.md#additive-output-check), [the role of snapshots](#the-role-of-snapshots)).
 
 ````bash
 tests/parsers/check_additivity.sh develop HEAD orca
 ````
 
-9. **Matrix.** Start or extend the parser's feature matrix (reader case, mapping case, integration case per advertised feature) in the parser's tests or documentation; no parser maintains one yet ([test ownership and minimum coverage](how_to/test_parsers.md#test-ownership-and-minimum-coverage)).
+9. **Matrix.** Add the quantity to the parser's feature matrix, the table that lists per supported feature which reader, mapping and integration test covers it, in the parser's tests or documentation; no parser has started this table yet, so the first change creates it ([test ownership and minimum coverage](how_to/test_parsers.md#test-ownership-and-minimum-coverage)).
 
 ### Schema: adding or changing normalization logic
 
 1. **Is a test due?** Yes unless the logic is trivial. The test is worth writing when it states the behaviour in terms simpler than the code: a table of input and expected output, a law the result obeys. A test that only re-reads a default, an IRI or a type (a guard) does not meet that bar and is not added ([assertion strength](#axes), [testing the framework instead of your code](#common-testing-anti-patterns-to-avoid)).
-2. **Cases.** One `pytest.mark.parametrize` with descriptive `ids`, expected values given as literals per case, never computed in the test. Include the empty input, the unset quantity and the undetermined result as cases ([parameterized tests](#specific-testing-patterns), [oracle](#axes)).
-3. **Negative.** The inputs that must warn or raise, asserted on the captured log or with `pytest.raises` ([unit tests, when to write](#unit-tests)).
-4. **Visibility.** Where the logic catches exceptions, one test that injects a failure and asserts it is logged at error level or re-raised ([assertion strength](#axes)).
+2. **Cases.** Write the cases as rows of one `pytest.mark.parametrize` table with an `ids` entry per row, and write each expected value out as a literal, never as a formula that repeats the rule under test. Include rows for the empty input, the unset quantity and the undetermined result ([parameterized tests](#specific-testing-patterns), [oracle](#axes)).
+3. **Negative.** For every input that must produce a warning or an exception, one test that checks the captured log or uses `pytest.raises` ([unit tests, when to write](#unit-tests)).
+4. **Visibility.** Where the code catches exceptions, one test that forces a failure inside the protected block and checks that it is logged at error level or raised again ([assertion strength](#axes)).
 5. **Docs.** Regenerate the schema documentation and commit it with the change.
-6. **Recurring constraints.** A constraint that appears for the third time (a shape, a length, a bounded range) is not another test; raise it as a mechanism, in the metainfo definition, the bounded types, or a contract ([maintainability](#key-principles-summary)).
+6. **Recurring constraints.** When the same kind of constraint (a shape, a length, a bounded range) needs a test for the third time, do not write the third test; propose a mechanism that enforces it everywhere, in the metainfo definition, in the bounded types, or as a contract ([maintainability](#key-principles-summary)).
 
 ## Fundamentals
 
