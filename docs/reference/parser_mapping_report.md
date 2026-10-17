@@ -668,7 +668,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `dftd3` | Unmapped | — |
 | `dftd3.version` | Unmapped | — |
 | `grimme` | Unmapped | — |
-| `dft` | Mapped | `dft.dft.dft.name`<br>`dft.dft.name`<br>`dft.name` |
+| `dft` | Mapped | `dft.name` |
 | `dft.exchange` | Unmapped | — |
 | `dft.correlation` | Unmapped | — |
 | `dft.exchange_correlation` | Unmapped | — |
@@ -804,7 +804,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `hash_id` | Unmapped | — |
-| `initialization` | Mapped | `initialization.xc_functional.initialization.xc_functional.initialization.xc_functional.type.libxc`<br>`initialization.xc_functional.initialization.xc_functional.type.libxc`<br>`initialization.xc_functional.type.libxc` |
+| `initialization` | Mapped | `initialization.xc_functional.type.libxc` |
 | `initialization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_configurations(lattice_vectors)` |
 | `initialization.lattice_vectors_reciprocal` | Unmapped | — |
 | `initialization.x_exciting_unit_cell_volume` | Unmapped | — |
@@ -848,7 +848,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `initialization.species.positions_format` | Mapped | `get_configurations(positions_format)` |
 | `initialization.species.positions` | Mapped | `positions`<br>`get_configurations(positions)` |
 | `initialization.potential_mixing` | Unmapped | — |
-| `initialization.xc_functional` | Mapped | `initialization.xc_functional.initialization.xc_functional.initialization.xc_functional.type.libxc`<br>`initialization.xc_functional.initialization.xc_functional.type.libxc`<br>`initialization.xc_functional.type.libxc` |
+| `initialization.xc_functional` | Mapped | `initialization.xc_functional.type.libxc` |
 | `initialization.xc_functional.type` | Mapped | `initialization.xc_functional.type.libxc` |
 | `initialization.xc_functional.name_reference` | Unmapped | — |
 | `initialization.xc_functional.parameters` | Unmapped | — |
@@ -2468,7 +2468,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
+| `header` | Mapped | `header`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
 | `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
 | `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
 | `header.compile_parallel_version` | Mapped | `header` |
@@ -2640,7 +2640,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
-| `header` | Mapped | `header`<br>`header.header.header.xc_functional`<br>`header.header.xc_functional`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
+| `header` | Mapped | `header`<br>`header.program_name_version`<br>`header.start_date_time`<br>`header.xc_functional` |
 | `header.program_name_version` | Mapped | `header`<br>`header.program_name_version` |
 | `header.start_date_time` | Mapped | `header`<br>`header.start_date_time` |
 | `header.compile_parallel_version` | Mapped | `header` |
@@ -3198,6 +3198,15 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `module.dyson.g0w0.input.key_value` | Unmapped | — |
 | `module.dyson.g0w0.input.file` | Unmapped | — |
 | `module.dyson.g0w0.input.sn` | Unmapped | — |
+
+## Yambo / Spectra
+
+**Summary:** 2 mapped, 0 unmapped quantities (100.00% coverage).
+
+| File-parser quantity | Status | Archive mapper source |
+| --- | --- | --- |
+| `sp_type` | Mapped | `sp_type` |
+| `n_energies` | Mapped | `n_energies` |
 
 ## Wannier90 / wout
 

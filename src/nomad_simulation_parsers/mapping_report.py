@@ -203,6 +203,13 @@ PARSER_REPORT_SPECS = (
         'NETCDF_KEY',
     ),
     ParserReportSpec(
+        'Yambo / Spectra',
+        'nomad_simulation_parsers.parsers.yambo.file_parsers',
+        'SpectraParser',
+        'nomad_simulation_parsers.schema_packages.yambo',
+        'SPECTRA_KEY',
+    ),
+    ParserReportSpec(
         'Wannier90 / wout',
         'nomad_simulation_parsers.parsers.wannier90.file_parsers',
         'WOutParser',
