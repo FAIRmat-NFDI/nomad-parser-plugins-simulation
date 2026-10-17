@@ -3199,6 +3199,15 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `module.dyson.g0w0.input.file` | Unmapped | — |
 | `module.dyson.g0w0.input.sn` | Unmapped | — |
 
+## Yambo / Spectra
+
+**Summary:** 2 mapped, 0 unmapped quantities (100.00% coverage).
+
+| File-parser quantity | Status | Archive mapper source |
+| --- | --- | --- |
+| `sp_type` | Mapped | `sp_type` |
+| `n_energies` | Mapped | `n_energies` |
+
 ## Wannier90 / wout
 
 **Summary:** 14 mapped, 9 unmapped quantities (60.87% coverage).
