@@ -54,7 +54,7 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
         assert functional_key_from_params(parameters) == expected
 ````
 
-   The absent case, ORCA:
+   The absent case, ORCA. The transformer is the function named in the mapping annotation of the `DFT` section, `('get_dft_methods', ['.@'])`, and it runs on every ORCA output because the SCF-settings block it reads is written for every calculation. Without a functional in that block it must return nothing, otherwise a Hartree-Fock run would get a DFT method section:
 
 ````python
 # implementation: parsers/orca/parser.py
