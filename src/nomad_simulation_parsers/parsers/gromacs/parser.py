@@ -61,22 +61,29 @@ class GromacsThermodynamicsParser(MappingParser):
     }
 
     def get_outputs(self, source: dict[str, Any] = {}) -> list[dict[str, Any]]:
+        def value_at(values: Any, index: int) -> Any:
+            try:
+                return values[index]
+            except (IndexError, KeyError, TypeError):
+                return None
+
         outputs = []
         if not source:
             source = self.data
         times = source.get('Time', [])
         outputs = []
         for n, step in enumerate(self._thermodynamic_steps):
+            time = value_at(times, n)
             data: dict[str, Any] = dict(
                 step=step,
-                time=times[n] * ureg.picosecond if times[n] is not None else None,
+                time=time * ureg.picosecond if time is not None else None,
             )
             for key in source.keys():
-                val = source.get(key)
-                if val is None or val[n] is None:
+                val_n = value_at(source.get(key), n)
+                if val_n is None:
                     continue
                 if key in self._energy_label_map:
-                    val_n = val[n] * ENERGY_UNIT
+                    val_n = val_n * ENERGY_UNIT
                     if key == 'Total Energy':
                         data.setdefault('energy', {})['value'] = val_n
                     else:
@@ -84,7 +91,7 @@ class GromacsThermodynamicsParser(MappingParser):
                             'contributions', []
                         ).append(dict(value=val_n, label=self._energy_label_map[key]))
                 elif key in self._base_calc_unit_map:
-                    val_n = val[n] * self._base_calc_unit_map[key]
+                    val_n = val_n * self._base_calc_unit_map[key]
                     if key == 'Temperature':
                         data['temperatures'] = [{'value': val_n, 'name': 'Temperature'}]
                     else:

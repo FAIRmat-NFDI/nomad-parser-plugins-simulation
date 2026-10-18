@@ -309,6 +309,16 @@ class TestGromacsLogMapping:
         assert output['temperatures'][0]['name'] == 'Temperature'
         assert_approx(output['energy']['value'].magnitude, -8.0)
 
+    def test_maps_thermodynamic_step_with_missing_time(self, parser):
+        parser._data = {'Time': [], 'Potential': [-10.0]}
+        parser._thermodynamic_steps = [0]
+
+        output = parser.get_outputs()[0]
+
+        assert output['step'] == 0
+        assert output['time'] is None
+        assert_approx(output['energy']['contributions'][0]['value'].magnitude, -10.0)
+
     def test_maps_periodic_boundary_configurations(self, parser):
         parser._data = {'input_parameters': {'pbc': 'xy'}}
         parser._trajectory_steps_sampled = [0, 1, 2]
