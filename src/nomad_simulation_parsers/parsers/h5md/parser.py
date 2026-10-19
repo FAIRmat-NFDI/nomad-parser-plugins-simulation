@@ -8,7 +8,6 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
@@ -520,23 +519,6 @@ class H5MDArchiveWriter(MDParser):
             # map from h5 source to metainfo target
             self.h5_parser.convert(self.simulation_parser)
             self.h5_parser.convert(self.workflow_parser)
-
-            for model_system in self.simulation_parser.data_object.model_system:
-                if not model_system.particle_states:
-                    continue
-                if not all(
-                    type(particle_state) is ParticleState
-                    for particle_state in model_system.particle_states
-                ):
-                    continue
-                labels = [
-                    particle_state.label
-                    for particle_state in model_system.particle_states
-                ]
-                parameters = MDParser.particle_parameters_from_labels(labels)
-                model_system.particle_states = MDParser.particle_states_from_parameters(
-                    parameters
-                )
 
             # assign simulation to archive data
             self.archive.data = self.simulation_parser.data_object
