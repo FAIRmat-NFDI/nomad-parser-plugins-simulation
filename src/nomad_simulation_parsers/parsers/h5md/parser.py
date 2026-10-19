@@ -8,11 +8,7 @@ from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
-from nomad_simulations.schema_packages.atoms_state import (
-    AtomsState,
-    CGBeadState,
-    ParticleState,
-)
+from nomad_simulations.schema_packages.atoms_state import ParticleState
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
@@ -160,7 +156,7 @@ class H5MDH5Parser(HDF5Parser):
         return system_data
 
     def to_species_labels(
-        self, source: dict[str, Any], **kwargs
+        self, source: dict[str, Any], particle_type: str, **kwargs
     ) -> list[dict[str, Any]]:
         if source.get('step') is None:
             return []
@@ -175,12 +171,11 @@ class H5MDH5Parser(HDF5Parser):
         payloads = MDParser.particle_states_from_parameters(
             parameters, return_type=dict
         )
-        # H5MD maps the abstract ParticleState subsection and therefore still
-        # needs a concrete section discriminator. Concrete GROMACS mappings do not.
-        for payload in payloads:
-            state_type = AtomsState if 'chemical_symbol' in payload else CGBeadState
-            payload['m_def'] = state_type.m_def.qualified_name()
-        return payloads
+        return [
+            payload
+            for payload in payloads
+            if ('chemical_symbol' in payload) == (particle_type == 'atom')
+        ]
 
     def get_top_system_quantity(
         self, source: dict[str, Any], **kwargs

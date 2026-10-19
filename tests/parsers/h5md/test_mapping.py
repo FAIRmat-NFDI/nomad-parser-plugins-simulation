@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from nomad_simulations.schema_packages.atoms_state import CGBeadState
 
 from nomad_simulation_parsers.parsers.h5md.parser import H5MDH5Parser
 from tests.parsers.common import approx, assert_approx
@@ -98,31 +97,49 @@ class TestH5MDMapping:
         )
 
         result = parser.to_species_labels(
-            {'step': 0, 'frame_index': 0}, path='particles.all.species_label'
+            {'step': 0, 'frame_index': 0},
+            particle_type='atom',
+            path='particles.all.species_label',
         )
 
         assert [payload['chemical_symbol'] for payload in result] == ['H', 'O']
         assert (
             parser.to_species_labels(
-                {'step': 0, 'frame_index': 1}, path='particles.all.species_label'
+                {'step': 0, 'frame_index': 0},
+                particle_type='bead',
+                path='particles.all.species_label',
+            )
+            == []
+        )
+        assert (
+            parser.to_species_labels(
+                {'step': 0, 'frame_index': 1},
+                particle_type='atom',
+                path='particles.all.species_label',
             )
             == []
         )
 
-    def test_maps_cg_species_labels_with_concrete_definition(self):
+    def test_maps_cg_species_labels(self):
         parser = H5MDH5Parser(
             data={'particles': {'all': {'species_label': ['B1', 'monomer']}}}
         )
 
         result = parser.to_species_labels(
-            {'step': 0, 'frame_index': 0}, path='particles.all.species_label'
+            {'step': 0, 'frame_index': 0},
+            particle_type='bead',
+            path='particles.all.species_label',
         )
 
-        assert [payload['m_def'] for payload in result] == [
-            CGBeadState.m_def.qualified_name(),
-            CGBeadState.m_def.qualified_name(),
-        ]
         assert [payload['bead_symbol'] for payload in result] == ['B1', 'monomer']
+        assert (
+            parser.to_species_labels(
+                {'step': 0, 'frame_index': 0},
+                particle_type='atom',
+                path='particles.all.species_label',
+            )
+            == []
+        )
 
     def test_maps_top_level_system_quantity(self):
         parser = H5MDH5Parser(data={'connectivity': {'bonds': [[0, 1]]}})
