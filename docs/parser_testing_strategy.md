@@ -35,7 +35,7 @@ class TestOrcaReader:
 
 **Mapping**
 
-2. **Mapped value.** *unit, regression, explicit value.* In `test_mapping.py`, call the transformer function directly on a small dictionary that stands in for the reader's output, and check the value, unit and shape it returns ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). The transformer is the converter named in a mapping annotation of the parser's schema package, for example `('get_dft_methods', ['.@'])` on the ORCA `DFT` section or `get_functional_key` on the VASP `functional_key`: the mapping parser hands it the reader's dictionary for the annotated path and writes what it returns into the section. Calling it directly tests the conversion without the reader, the archive or the normalizer. Each input dictionary with its expected result is one row of a `pytest.mark.parametrize` table, with an `ids` entry naming the case ([parameterized tests](#specific-testing-patterns)). Add rows for the quantity being absent, empty, zero or `False` wherever the source can produce them, because these are the inputs that mapping code most often drops silently. VASP, a pure function with a table of cases:
+2. **Mapped value.** *unit, regression, explicit value.* In `test_mapping.py`, call the transformer function directly on a small dictionary that stands in for the reader's output, and check the value, unit and shape it returns ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). The transformer is the converter named in a mapping annotation of the parser's schema package, for example `('get_dft_methods', ['.@'])` on the ORCA `DFT` section or `get_functional_key` on the VASP `functional_key`: the mapping parser hands it the reader's dictionary for the annotated path and writes what it returns into the section. Calling it directly tests the conversion without the reader, the archive or the normalizer. Each input dictionary with its expected result is one row of a `pytest.mark.parametrize` table, with an `ids` entry naming the case ([parameterized tests](#specific-testing-patterns)). Add the falsy rows wherever the source can produce them: the quantity absent, empty, zero or `False`. Python's `if not value` cannot tell these four apart, which is how mapping code drops a legitimate zero or `False` together with a missing value, so each gets its own row with its own expected result. VASP, a pure function with a table of cases; the `ids` and the last row are added here to show the falsy case, the committed test has neither yet:
 
 ````python
 # implementation: parsers/vasp/common.py
@@ -48,24 +48,12 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
             ({'GGA': 'PE'}, 'PBE'),
             ({'LHFCALC': True, 'HFSCREEN': 0.2}, 'HSE06'),
             ({'LHFCALC': True, 'AEXX': 0.25, 'HFSCREEN': 0.5}, None),
+            ({}, 'PBE'),
         ],
+        ids=['gga-tag', 'screened-hybrid', 'unknown-hybrid', 'no-tags-default'],
     )
     def test_maps_xc_tags_to_canonical_functionals(self, parameters, expected):
         assert functional_key_from_params(parameters) == expected
-````
-
-   The absent case: the quantity is missing from the input altogether, here an SCF-settings dictionary with no functional in it. That is the normal input for every ORCA run that is not DFT, because ORCA writes the SCF-settings block regardless of the method, so the transformer must return nothing for it, or a Hartree-Fock run would get a DFT method section:
-
-````python
-# implementation: parsers/orca/parser.py
-    def get_dft(self, scf_settings: dict[str, Any]) -> dict[str, Any]:
-        xc = self._build_xc(scf_settings)
-        if not xc:
-            return {}
-
-# test: tests/parsers/orca/test_mapping.py
-    def test_absent_xc_yields_no_method(self):
-        assert OutParser().get_dft({}) == {}
 ````
 
    LAMMPS and phonopy have no `test_mapping.py` yet; a change to their mapping adds the file. A conversion shared by several parsers lives in `parsers/utils` and gets the same table in `tests/parsers/test_general_utils.py`; the test is the same, only its place differs.
