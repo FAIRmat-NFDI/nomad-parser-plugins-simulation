@@ -553,10 +553,15 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         sym = self.control_parser.get('symmetry_thresh', 1e-6)
 
         self.geometry_parser.mainfile = os.path.join(maindir, 'geometry.in')
-        unit_atoms = PhonopyAtoms(atoms=self.geometry_parser.get_atoms())
+        geometry = self.geometry_parser.get_atoms()
+        unit_atoms = PhonopyAtoms(
+            symbols=geometry.get_chemical_symbols(),
+            positions=geometry.get_positions(),
+            cell=geometry.get_cell(),
+        )
 
         phonopy_obj = Phonopy(
-            unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
+            unit_atoms, supercell_matrix, symprec=sym, calculator='aims'
         )
         phonopy_obj.generate_displacements(distance=displacement)
         supercells = phonopy_obj.supercells_with_displacements
@@ -564,9 +569,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         force_sets = []
         n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
         force_archives: dict[str, EntryArchive] = {}
-        supercell = supercells[0]
-        for n in range(3):
-            # for n, supercell in enumerate(supercells):
+        for n, supercell in enumerate(supercells):
             calc_dir = f'phonopy-FHI-aims-displacement-{str(n + 1).zfill(n_pad)}'
             calc_file = search_files(
                 '*out', os.path.join(maindir, calc_dir), re_pattern=f'{calc_dir}.out'
@@ -700,9 +703,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
             phonopy_obj, force_archives = self.build_phonopy_object()
             # run phonopy calculation and fill phonon archive
             try:
-                PhonopyArchiveWriter().write(
-                    phonopy_obj, phonon_archive, self.logger
-                )
+                PhonopyArchiveWriter().write(phonopy_obj, phonon_archive, self.logger)
             except Exception:
                 self.logger.error('Failed to run phonopy.')
             # link calculations and phonon workflow

@@ -1,6 +1,12 @@
+from pathlib import Path
+from shutil import copytree
+
 import numpy as np
 import pytest
+from nomad.datamodel import EntryArchive
+from nomad.utils import get_logger
 
+from nomad_simulation_parsers.parsers.fhiaims.parser import FHIAimsParser
 from tests.parsers.common import (
     SimulationParserTestSuite,
     WorkflowTestSuite,
@@ -14,6 +20,43 @@ class FHIAimsParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
     required_simulation_sections = None
+
+
+@pytest.mark.integration
+def test_ge_phonopy_child_archive(tmp_path):
+    source = Path(__file__).resolve().parents[2] / 'data' / 'fhiaims' / 'Ge_phonopy'
+    raw_directory = tmp_path / 'raw' / 'Ge'
+    copytree(source, raw_directory)
+    mainfile = (
+        raw_directory
+        / 'phonopy-FHI-aims-displacement-01'
+        / 'phonopy-FHI-aims-displacement-01.out'
+    )
+    archive = EntryArchive()
+    child_archives = {
+        'phonon': EntryArchive(),
+        'phonon_workflow': EntryArchive(),
+    }
+
+    FHIAimsParser().parse(str(mainfile), archive, get_logger(__name__), child_archives)
+
+    phonon_archive = child_archives['phonon']
+    simulation = phonon_archive.data
+    assert simulation.program.name == 'Phonopy'
+    assert [len(system.particle_states) for system in simulation.model_system] == [2, 8]
+    assert simulation.model_method[0].force_calculator == 'aims'
+    output = simulation.outputs[0]
+    assert output.force_constants[0].value.shape == (8, 8, 3, 3)
+    assert output.phonon_dos[0].value.shape == (201,)
+    assert len(output.phonon_band_structures) == 10
+    assert len(output.vibrational_free_energies) == 1
+    assert output.model_system_ref.m_proxy_value == '/data/model_system/1'
+    assert output.model_method_ref.m_proxy_value == '/data/model_method/0'
+
+    workflow = child_archives['phonon_workflow'].workflow2
+    assert workflow.m_def.name == 'Phonon'
+    assert workflow.inputs[0].section is simulation.model_system[0]
+    assert workflow.tasks[0].task is archive.workflow2
 
 
 class TestFeScfSpinPolarized(FHIAimsParserIntegrationSuite):
