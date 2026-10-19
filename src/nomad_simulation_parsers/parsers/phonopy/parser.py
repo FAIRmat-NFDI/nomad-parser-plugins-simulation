@@ -17,6 +17,10 @@ from nomad_simulations.schema_packages.model_system import (
     ModelSystem,
 )
 from nomad_simulations.schema_packages.variables import Energy2, Temperature
+from phonopy.interface.calculator import (
+    get_default_physical_units,
+    get_force_constant_conversion_factor,
+)
 from phonopy.physical_units import get_physical_units
 from structlog.stdlib import BoundLogger
 
@@ -36,6 +40,13 @@ from nomad_simulation_parsers.schema_packages.phonopy import (
 from .calculator import PhononProperties
 
 THzToEv = get_physical_units().THzToEv
+
+
+def _force_constants_in_eV_per_angstrom2(calculator, force_constants):
+    """Attach the correct units to calculator-native force constants."""
+    native_unit = get_default_physical_units(calculator)['force_constants_unit']
+    conversion_factor = get_force_constant_conversion_factor(native_unit, 'vasp')
+    return force_constants * conversion_factor * ureg.eV / ureg.angstrom**2
 
 
 class PhonopyYamlParser(MappingParser):
@@ -88,6 +99,16 @@ class PhonopyYamlParser(MappingParser):
     def get_program(self) -> dict[str, Any]:
         return {'name': 'Phonopy', 'version': phonopy.__version__}
 
+    def get_model_ref(self, key: str='system') -> str | None:
+        obj = self.data_object
+        if obj is None:
+            return
+        if key == 'system' and obj.unitcell:
+            return '/data/model_system/0'
+        if key == 'method' and self._phonon_properties is not None:
+            return '/data/model_method/0'
+        return None
+
     def get_model_system(self) -> list[dict[str, Any]]:
         obj = self.data_object
         if obj is None:
@@ -119,7 +140,10 @@ class PhonopyYamlParser(MappingParser):
             return []
         displacement = None
         try:
-            displacement = np.linalg.norm(obj.displacements[0][1:]) * ureg.angstrom
+            first_displacement = np.asarray(obj.displacements[0])
+            if first_displacement.ndim == 1:
+                first_displacement = first_displacement[1:]
+            displacement = np.linalg.norm(first_displacement) * ureg.angstrom
         except Exception:
             pass
         volume = abs(np.linalg.det(obj.unitcell.cell)) * ureg.angstrom**3
@@ -142,9 +166,21 @@ class PhonopyYamlParser(MappingParser):
             return []
         force_constants = obj.force_constants
         if force_constants is None:
-            obj.produce_force_constants()
-            force_constants = obj.force_constants
-        return [{'value': force_constants * ureg.eV / ureg.angstrom**2}]
+             try:
+                 obj.produce_force_constants()
+             except Exception as exc:
+                 self.logger.warning('Error producing force constants.', exc_info=exc)
+                 return []
+             force_constants = obj.force_constants
+        if force_constants is None:
+             return []
+        return [
+            {
+                'value': _force_constants_in_eV_per_angstrom2(
+                    obj.calculator, force_constants
+                )
+            }
+        ]
 
     def get_phonon_band_structures(
         self,
@@ -411,7 +447,10 @@ def phonopy_obj_to_archive(
     super_sym = phonopy_obj.supercell.symbols
 
     try:
-        displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
+        first_displacement = np.asarray(phonopy_obj.displacements[0])
+        if first_displacement.ndim == 1:
+            first_displacement = first_displacement[1:]
+        displacement = np.linalg.norm(first_displacement)
         displacement = displacement * ureg.angstrom
     except Exception:
         displacement = None
@@ -433,7 +472,9 @@ def phonopy_obj_to_archive(
         if force_constants is None:
             phonopy_obj.produce_force_constants()
             force_constants = phonopy_obj.force_constants
-        force_constants = force_constants * ureg.eV / ureg.angstrom**2
+        force_constants = _force_constants_in_eV_per_angstrom2(
+            phonopy_obj.calculator, force_constants
+        )
     except Exception:
         logger.error('Error producing force constants.')
         return
@@ -544,16 +585,9 @@ class PhonopyMappingArchiveWriter(PhonopyArchiveWriter):
         source_parser.convert(parser)
         self.archive.data = parser.data_object
 
-        # References are intentionally linked after conversion: the generic
-        # mapper cannot resolve object references between freshly-created list
-        # elements from a plain source dictionary.
-        if self.archive.data.outputs:
-            self.archive.data.outputs[
-                0
-            ].model_system_ref = self.archive.data.model_system[-1]
-            self.archive.data.outputs[
-                0
-            ].model_method_ref = self.archive.data.model_method[0]
+        # close parsers
+        source_parser.close()
+        parser.close()
 
 
 class PhonopyParser(MatchingParser):

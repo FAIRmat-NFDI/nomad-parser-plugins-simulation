@@ -29,7 +29,7 @@ def source_parser():
         unitcell=unitcell,
         supercell=supercell,
         supercell_matrix=np.diag([2, 2, 2]),
-        displacements=np.array([[[0.0, 0.0, 0.0], [0.01, 0.0, 0.0]]]),
+        displacements=np.array([[[0.01, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
         symmetry=SimpleNamespace(tolerance=1e-5),
         calculator='vasp',
         nac_params=None,
@@ -155,6 +155,16 @@ class TestPhonopyYamlMapping:
         )
         assert source_parser.get_vibrational_thermodynamics() is thermal
         assert source_parser.get_imaginary_frequencies() == 1
+
+    def test_converts_calculator_native_force_constants(self, source_parser):
+        source_parser.data_object.calculator = 'cp2k'
+
+        force_constants = source_parser.get_force_constants()[0]['value']
+
+        np.testing.assert_allclose(
+            force_constants.to('eV / angstrom ** 2').magnitude,
+            np.ones((2, 2, 3, 3)) * 51.422090462576755,
+        )
 
     def test_annotations_convert_to_phonopy_simulation(
         self, source_parser, monkeypatch

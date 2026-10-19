@@ -42,7 +42,7 @@ class FakePhonopyObject:
     unitcell = FakeAtoms()
     supercell = FakeAtoms()
     supercell_matrix = np.diag([1, 1, 1])
-    displacements = np.array([[[0.0, 0.0, 0.0], [0.01, 0.0, 0.0]]])
+    displacements = np.array([[[0.01, 0.0, 0.0], [0.0, 0.0, 0.0]]])
     force_constants = np.zeros((2, 2, 3, 3))
     symmetry = SimpleNamespace(tolerance=1e-5)
     calculator = 'vasp'
@@ -82,6 +82,9 @@ def test_phonopy_obj_to_archive_creates_simulation_systems(monkeypatch):
     assert archive.data.model_system[1].positions.shape == (2, 3)
     assert len(archive.data.model_method) == 1
     assert archive.data.model_method[0].name == 'harmonic lattice dynamics'
+    assert archive.data.model_method[0].displacement.to('angstrom').magnitude == pytest.approx(
+        0.01
+    )
     assert len(archive.data.outputs) == 1
     assert archive.data.outputs[0].model_method_ref is archive.data.model_method[0]
     assert archive.data.outputs[0].force_constants[0].value.shape == (2, 2, 3, 3)

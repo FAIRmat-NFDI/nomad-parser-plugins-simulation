@@ -177,6 +177,16 @@ add_mapping_annotation(
 
 
 class PhonopyOutputs(Outputs):
+    add_mapping_annotation(
+        Outputs.model_system_ref,
+        PHONOPY_KEY,
+        ('get_model_ref', [], {'key': 'system'}),
+    )
+    add_mapping_annotation(
+        Outputs.model_method_ref,
+        PHONOPY_KEY,
+        ('get_model_ref', [], {'key': 'method'}),
+    )
     force_constants = SubSection(sub_section=ForceConstants.m_def, repeats=True)
     add_mapping_annotation(force_constants, PHONOPY_KEY, ('get_force_constants', []))
     phonon_band_structures = SubSection(
@@ -220,13 +230,13 @@ class PhonopyOutputs(Outputs):
 
 
 class PhonopySimulation(general.Simulation):
-    add_mapping_annotation(PhonopyMethod.m_def, PHONOPY_KEY, ('get_model_method', []))
+    add_mapping_annotation(PhonopyMethod.m_def, PHONOPY_KEY, ('get_model_method', []), cache=True)
     add_mapping_annotation(PhonopyOutputs.m_def, PHONOPY_KEY, '.@')
 
 
 add_mapping_annotation(PhonopySimulation.program, PHONOPY_KEY, ('get_program', []))
 add_mapping_annotation(
-    PhonopySimulation.model_system, PHONOPY_KEY, ('get_model_system', [])
+    PhonopySimulation.model_system, PHONOPY_KEY, ('get_model_system', []), cache=True
 )
 add_mapping_annotation(PhonopySimulation.m_def, PHONOPY_KEY, '@')
 

@@ -68,4 +68,5 @@ class TestNoncanonicalHexagonalArchive(PhonopyParserIntegrationSuite):
         assert len(outputs.phonon_band_structures) == 9
         assert len(outputs.phonon_dos) == 1
         assert len(outputs.vibrational_free_energies) == 1
-        assert outputs.model_system_ref is simulation.model_system[1]
+        assert outputs.model_system_ref.m_proxy_value == '/data/model_system/1'
+        assert outputs.model_method_ref.m_proxy_value == '/data/model_method/0'
