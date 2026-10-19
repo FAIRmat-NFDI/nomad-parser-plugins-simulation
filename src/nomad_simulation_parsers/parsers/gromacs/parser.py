@@ -663,6 +663,8 @@ class GromacsMDAnalysisParser(MappingParser):
         self._thermodynamic_steps: list[int] = []
         self._subsystems_hierarchy: list[dict[str, Any]] = []
         self._hierarchy_returned: bool = False
+        self._particle_state_parameters: list[dict[str, Any]] | None = None
+        self._particle_state_payloads: list[dict[str, Any]] = []
         super().__init__(**kwargs)
 
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
@@ -776,15 +778,29 @@ class GromacsMDAnalysisParser(MappingParser):
                 pass
         return result
 
+    def _get_particle_state_payloads(
+        self, parameters: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        """Create and cache indexed particle-state payloads for TPR mappings."""
+        if parameters is not self._particle_state_parameters:
+            self._particle_state_parameters = parameters
+            self._particle_state_payloads = [
+                {**payload, '__index': index}
+                for index, payload in enumerate(
+                    MDParser.particle_states_from_parameters(
+                        parameters, return_type=dict
+                    )
+                )
+            ]
+        return self._particle_state_payloads
+
     def get_atomic_particle_parameters(
         self, parameters: list[dict[str, Any]] | None
     ) -> list[dict[str, Any]]:
         """Select validated atomic particle payloads for the TPR mapping."""
         return [
-            {**payload, '__index': index}
-            for index, payload in enumerate(
-                MDParser.particle_states_from_parameters(parameters, return_type=dict)
-            )
+            payload
+            for payload in self._get_particle_state_payloads(parameters)
             if 'chemical_symbol' in payload
         ]
 
@@ -793,10 +809,8 @@ class GromacsMDAnalysisParser(MappingParser):
     ) -> list[dict[str, Any]]:
         """Select validated coarse-grained particle payloads for the TPR mapping."""
         return [
-            {**payload, '__index': index}
-            for index, payload in enumerate(
-                MDParser.particle_states_from_parameters(parameters, return_type=dict)
-            )
+            payload
+            for payload in self._get_particle_state_payloads(parameters)
             if 'chemical_symbol' not in payload
         ]
 

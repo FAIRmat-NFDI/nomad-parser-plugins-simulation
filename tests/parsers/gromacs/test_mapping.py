@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -19,6 +20,7 @@ from nomad_simulation_parsers.parsers.gromacs.parser import (
 from nomad_simulation_parsers.parsers.gromacs.xvg_parser import (
     GromacsXvgParser as GromacsXvgFileParser,
 )
+from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from tests.parsers.common import assert_approx
 
 
@@ -213,14 +215,20 @@ class TestGromacsMDAnalysisMapping:
             {'label': 'HW', 'chemical_symbol': 'H'},
         ]
 
-        atoms = parser.get_atomic_particle_parameters(parameters)
-        beads = parser.get_bead_particle_parameters(parameters)
+        with patch.object(
+            MDParser,
+            'particle_states_from_parameters',
+            wraps=MDParser.particle_states_from_parameters,
+        ) as converter:
+            atoms = parser.get_atomic_particle_parameters(parameters)
+            beads = parser.get_bead_particle_parameters(parameters)
 
         assert [(state['label'], state['__index']) for state in atoms] == [
             ('OW', 0),
             ('HW', 2),
         ]
         assert [(state['label'], state['__index']) for state in beads] == [('B1', 1)]
+        assert converter.call_count == 1
 
     def test_groups_force_field_interactions(self, parser):
         parser.data_object = StubInteractionsDataObject(
