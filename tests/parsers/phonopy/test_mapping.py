@@ -3,10 +3,17 @@ from types import SimpleNamespace
 import numpy as np
 import phonopy
 import pytest
+from nomad.datamodel import EntryArchive
+from nomad.units import ureg
 from nomad_file_parser.mapping_parser import MetainfoParser
+from phonopy.physical_units import get_physical_units
+from phonopy.structure.atoms import PhonopyAtoms
 
 from nomad_simulation_parsers.parsers.phonopy import parser as parser_module
-from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyYamlParser
+from nomad_simulation_parsers.parsers.phonopy.parser import (
+    PhonopyArchiveWriter,
+    PhonopyYamlParser,
+)
 from nomad_simulation_parsers.schema_packages.phonopy import (
     PHONOPY_KEY,
     PhonopySimulation,
@@ -37,7 +44,17 @@ def source_parser():
     )
     parser = PhonopyYamlParser(data_object=phonopy_obj)
     parser._phonon_properties = SimpleNamespace(
-        mesh=[2, 2, 2], frequencies=np.array([-1.0, 0.0, 1.0])
+        mesh=[2, 2, 2],
+        frequencies=np.array([-1.0, 0.0, 1.0]),
+        phonopy_obj=SimpleNamespace(unitcell=[None] * 2, supercell=[None] * 2),
+        get_bandstructure=lambda: (None, None, None),
+        get_dos=lambda: (np.array([0.0, 1.0]), np.array([1.0, 1.0])),
+        get_thermodynamical_properties=lambda: (
+            np.array([300.0]),
+            np.array([2.0]),
+            None,
+            np.array([3.0]),
+        ),
     )
     return parser
 
@@ -91,35 +108,25 @@ class TestPhonopyYamlMapping:
             '1 / angstrom ** 3'
         ).magnitude == pytest.approx(1.0)
 
-    def test_maps_force_constants_and_calculated_outputs(
-        self, source_parser, monkeypatch
-    ):
-        monkeypatch.setattr(
-            parser_module,
-            'get_bandstructures',
-            lambda _: [
-                {
-                    'frequencies': np.array([[1.0, 2.0]]),
-                    'kpoints': np.array([[0.0, 0.0, 0.0]]),
-                    'labels': ['Γ', 'X'],
-                }
-            ],
+    def test_maps_force_constants_and_calculated_outputs(self, source_parser):
+        properties = source_parser._phonon_properties
+        properties.get_bandstructure = lambda: (
+            np.array([[[1.0, 2.0]]]),
+            np.array([[[0.0, 0.0, 0.0]]]),
+            [['Γ', 'X']],
         )
-        monkeypatch.setattr(
-            parser_module,
-            'get_dos',
-            lambda _: [
-                {'frequencies': np.array([1.0, 2.0]), 'dos': np.array([3.0, 4.0])}
-            ],
+        properties.get_dos = lambda: (
+            np.array([1.0, 2.0]),
+            np.array([3.0, 4.0]),
         )
-        monkeypatch.setattr(
-            parser_module,
-            'get_thermodynamic_properties',
-            lambda _: [
-                {'temperature': 100.0, 'free_energy': 2.0, 'heat_capacity': 3.0},
-                {'temperature': 300.0, 'free_energy': 4.0, 'heat_capacity': 5.0},
-            ],
+        properties.get_thermodynamical_properties = lambda: (
+            np.array([100.0, 300.0]),
+            np.array([2.0, 4.0]),
+            None,
+            np.array([3.0, 5.0]),
         )
+        joules_per_thz = (get_physical_units().THzToEv * ureg.eV).to('joule').magnitude
+        joules_per_ev = (1 * ureg.eV).to('joule').magnitude
 
         force_constants = source_parser.get_force_constants()[0]['value']
         np.testing.assert_allclose(
@@ -129,23 +136,30 @@ class TestPhonopyYamlMapping:
         bands = source_parser.get_phonon_band_structures()[0]
         assert bands['n_bands'] == 2
         assert bands['endpoints_labels'] == ['Γ', 'X']
-        np.testing.assert_allclose(bands['value'].to('joule').magnitude, [[1, 2]])
+        np.testing.assert_allclose(
+            bands['value'].to('joule').magnitude,
+            [[1, 2]] * np.array(joules_per_thz),
+        )
         np.testing.assert_allclose(bands['q_path']['points'], [[0, 0, 0]])
         dos = source_parser.get_phonon_dos()[0]
-        np.testing.assert_allclose(dos['value'].to('1 / joule').magnitude, [3, 4])
         np.testing.assert_allclose(
-            dos['frequencies']['points'].to('joule').magnitude, [1, 2]
+            dos['value'].to('1 / joule').magnitude,
+            np.array([3, 4]) / joules_per_thz,
+        )
+        np.testing.assert_allclose(
+            dos['frequencies']['points'].to('joule').magnitude,
+            np.array([1, 2]) * joules_per_thz,
         )
         thermal = source_parser.get_vibrational_thermodynamics()
         np.testing.assert_allclose(
             thermal['vibrational_free_energies'][0]['value'].to('joule').magnitude,
-            [2, 4],
+            np.array([2, 4]) / 2 * joules_per_ev,
         )
         np.testing.assert_allclose(
             thermal['vibrational_heat_capacities'][0]['value']
             .to('joule / kelvin')
             .magnitude,
-            [3, 5],
+            np.array([3, 5]) * joules_per_ev,
         )
         np.testing.assert_allclose(
             thermal['vibrational_free_energies'][0]['temperatures']['points']
@@ -166,12 +180,7 @@ class TestPhonopyYamlMapping:
             np.ones((2, 2, 3, 3)) * 51.422090462576755,
         )
 
-    def test_annotations_convert_to_phonopy_simulation(
-        self, source_parser, monkeypatch
-    ):
-        monkeypatch.setattr(parser_module, 'get_bandstructures', lambda _: [])
-        monkeypatch.setattr(parser_module, 'get_dos', lambda _: [])
-        monkeypatch.setattr(parser_module, 'get_thermodynamic_properties', lambda _: [])
+    def test_annotations_convert_to_phonopy_simulation(self, source_parser):
         target = MetainfoParser(data_object=PhonopySimulation())
         target.annotation_key = PHONOPY_KEY
 
@@ -193,3 +202,32 @@ class TestPhonopyYamlMapping:
             np.ones((2, 2, 3, 3)),
         )
         assert simulation.outputs[0].n_imaginary_frequencies == 1
+
+
+@pytest.mark.unit
+def test_mapping_writer_write_accepts_phonopy_object(source_parser, monkeypatch):
+    phonopy_obj = phonopy.Phonopy(
+        PhonopyAtoms(symbols=['Si'], cell=np.eye(3) * 2, scaled_positions=[[0, 0, 0]]),
+        np.eye(3, dtype=int),
+        calculator='vasp',
+    )
+    phonopy_obj.generate_displacements(distance=0.01)
+    phonopy_obj.force_constants = np.ones((1, 1, 3, 3))
+    properties = source_parser._phonon_properties
+    properties.phonopy_obj = phonopy_obj
+    monkeypatch.setattr(parser_module, 'PhononProperties', lambda *_: properties)
+    archive = EntryArchive()
+
+    PhonopyArchiveWriter().write(phonopy_obj, archive)
+
+    assert archive.data.program.name == 'Phonopy'
+    assert len(archive.data.model_system) == 2
+    assert len(archive.data.model_method) == 1
+    np.testing.assert_allclose(
+        archive.data.outputs[0]
+        .force_constants[0]
+        .value.to('eV / angstrom ** 2')
+        .magnitude,
+        np.ones((1, 1, 3, 3)),
+    )
+    assert archive.m_validate() == ([], [])

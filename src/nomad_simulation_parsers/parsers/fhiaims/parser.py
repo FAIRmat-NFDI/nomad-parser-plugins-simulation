@@ -42,7 +42,7 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParser,
     FHIAimsOutFileParserLine,
 )
-from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
+from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyArchiveWriter
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -696,11 +696,13 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         )
         if phonon_archive is not None:
             # TODO generalize this to a parser/normalizer
-            # create phonony object
+            # create phonopy object
             phonopy_obj, force_archives = self.build_phonopy_object()
             # run phonopy calculation and fill phonon archive
             try:
-                phonopy_obj_to_archive(phonopy_obj, phonon_archive, self.logger)
+                PhonopyArchiveWriter().write(
+                    phonopy_obj, phonon_archive, self.logger
+                )
             except Exception:
                 self.logger.error('Failed to run phonopy.')
             # link calculations and phonon workflow
