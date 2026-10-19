@@ -715,6 +715,7 @@ class GromacsMDAnalysisParser(MappingParser):
         raise NotImplementedError
 
     def load_file(self) -> GromacsMDAnalysisFileParser:
+        self._particle_state_payloads = None
         if self.filepath:
             self.mdanalysis_parser.mainfile = self.filepath
             if self.aux_files:

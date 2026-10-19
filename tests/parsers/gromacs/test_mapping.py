@@ -230,6 +230,17 @@ class TestGromacsMDAnalysisMapping:
         assert [(state['label'], state['__index']) for state in beads] == [('B1', 1)]
         assert converter.call_count == 1
 
+    def test_invalidates_particle_state_payloads_when_loading_file(self, parser):
+        atoms = parser.get_atomic_particle_parameters(
+            [{'label': 'OW', 'chemical_symbol': 'O'}]
+        )
+
+        parser.load_file()
+        beads = parser.get_bead_particle_parameters([{'label': 'B1'}])
+
+        assert [state['label'] for state in atoms] == ['OW']
+        assert [state['label'] for state in beads] == ['B1']
+
     def test_groups_force_field_interactions(self, parser):
         parser.data_object = StubInteractionsDataObject(
             [
