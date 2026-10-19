@@ -782,6 +782,9 @@ class GromacsMDAnalysisParser(MappingParser):
         self, parameters: list[dict[str, Any]] | None
     ) -> list[dict[str, Any]]:
         """Create and cache indexed particle-state payloads for TPR mappings."""
+        if not parameters:
+            return []
+
         if self._particle_state_payloads is None:
             self._particle_state_payloads = [
                 {**payload, '__index': index}

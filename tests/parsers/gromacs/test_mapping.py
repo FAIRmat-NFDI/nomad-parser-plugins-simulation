@@ -220,9 +220,13 @@ class TestGromacsMDAnalysisMapping:
             'particle_states_from_parameters',
             wraps=MDParser.particle_states_from_parameters,
         ) as converter:
+            empty_before = parser.get_atomic_particle_parameters(None)
             atoms = parser.get_atomic_particle_parameters(parameters)
             beads = parser.get_bead_particle_parameters(parameters)
+            empty_after = parser.get_atomic_particle_parameters(None)
 
+        assert empty_before == []
+        assert empty_after == []
         assert [(state['label'], state['__index']) for state in atoms] == [
             ('OW', 0),
             ('HW', 2),
