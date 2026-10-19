@@ -35,7 +35,7 @@ class TestOrcaReader:
 
 **Mapping**
 
-2. **Mapped value.** In `test_mapping.py`, call the transformer function directly on a small dictionary that stands in for the reader's output, and check the value, unit and shape it returns ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). Each input dictionary with its expected result is one row of a `pytest.mark.parametrize` table, with an `ids` entry naming the case ([parameterized tests](#specific-testing-patterns)). Add rows for the quantity being absent, empty, zero or `False` wherever the source can produce them, because these are the inputs that mapping code most often drops silently. VASP, a pure function with a table of cases:
+2. **Mapped value.** In `test_mapping.py`, call the transformer function directly on a small dictionary that stands in for the reader's output, and check the value, unit and shape it returns ([layer 3](how_to/test_parsers.md#layer-3-mapping-contract)). The transformer is the converter named in a mapping annotation of the parser's schema package, for example `('get_dft_methods', ['.@'])` on the ORCA `DFT` section or `get_functional_key` on the VASP `functional_key`: the mapping parser hands it the reader's dictionary for the annotated path and writes what it returns into the section. Calling it directly tests the conversion without the reader, the archive or the normalizer. Each input dictionary with its expected result is one row of a `pytest.mark.parametrize` table, with an `ids` entry naming the case ([parameterized tests](#specific-testing-patterns)). Add rows for the quantity being absent, empty, zero or `False` wherever the source can produce them, because these are the inputs that mapping code most often drops silently. VASP, a pure function with a table of cases:
 
 ````python
 # implementation: parsers/vasp/common.py
@@ -54,7 +54,7 @@ def functional_key_from_params(parameters: dict[str, Any]) -> str | None:
         assert functional_key_from_params(parameters) == expected
 ````
 
-   The absent case, ORCA. The transformer is the function named in the mapping annotation of the `DFT` section, `('get_dft_methods', ['.@'])`, and it runs on every ORCA output because the SCF-settings block it reads is written for every calculation. Without a functional in that block it must return nothing, otherwise a Hartree-Fock run would get a DFT method section:
+   The absent case, ORCA. The `DFT` transformer runs on every ORCA output because the SCF-settings block it reads is written for every calculation. Without a functional in that block it must return nothing, otherwise a Hartree-Fock run would get a DFT method section:
 
 ````python
 # implementation: parsers/orca/parser.py
