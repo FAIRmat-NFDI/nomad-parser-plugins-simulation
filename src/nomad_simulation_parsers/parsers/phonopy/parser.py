@@ -16,6 +16,7 @@ from phonopy.interface.calculator import (
 from phonopy.physical_units import get_physical_units
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.workflow import create_phonon_workflow
 from nomad_simulation_parsers.schema_packages.phonopy import (
     PHONOPY_KEY,
     PhonopySimulation,
@@ -312,3 +313,5 @@ class PhonopyParser(MatchingParser):
 
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger):
         self.archive_writer.write(mainfile, archive, logger)
+        if archive.data is not None:
+            archive.workflow2 = create_phonon_workflow(archive)

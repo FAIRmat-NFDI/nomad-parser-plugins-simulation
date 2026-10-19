@@ -37,8 +37,9 @@ def test_ge_phonopy_child_archive(tmp_path):
         'phonon': EntryArchive(),
         'phonon_workflow': EntryArchive(),
     }
+    logger = get_logger(__name__)
 
-    FHIAimsParser().parse(str(mainfile), archive, get_logger(__name__), child_archives)
+    FHIAimsParser().parse(str(mainfile), archive, logger, child_archives)
 
     phonon_archive = child_archives['phonon']
     simulation = phonon_archive.data
@@ -53,10 +54,16 @@ def test_ge_phonopy_child_archive(tmp_path):
     assert output.model_system_ref.m_proxy_value == '/data/model_system/1'
     assert output.model_method_ref.m_proxy_value == '/data/model_method/0'
 
-    workflow = child_archives['phonon_workflow'].workflow2
+    workflow_archive = child_archives['phonon_workflow']
+    workflow = workflow_archive.workflow2
     assert workflow.m_def.name == 'Phonon'
     assert workflow.inputs[0].section is simulation.model_system[0]
     assert workflow.tasks[0].task is archive.workflow2
+    assert workflow.tasks[1].outputs[0].section is output
+    assert workflow.method.force_calculator == 'aims'
+    assert workflow.method.phonon_calculator == 'Phonopy'
+    workflow.normalize(workflow_archive, logger)
+    assert workflow_archive.m_validate() == ([], [])
 
 
 class TestFeScfSpinPolarized(FHIAimsParserIntegrationSuite):
