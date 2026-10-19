@@ -663,8 +663,7 @@ class GromacsMDAnalysisParser(MappingParser):
         self._thermodynamic_steps: list[int] = []
         self._subsystems_hierarchy: list[dict[str, Any]] = []
         self._hierarchy_returned: bool = False
-        self._particle_state_parameters: list[dict[str, Any]] | None = None
-        self._particle_state_payloads: list[dict[str, Any]] = []
+        self._particle_state_payloads: list[dict[str, Any]] | None = None
         super().__init__(**kwargs)
 
     def to_dict(self, **kwargs) -> dict[str | int, Any]:
@@ -782,8 +781,7 @@ class GromacsMDAnalysisParser(MappingParser):
         self, parameters: list[dict[str, Any]] | None
     ) -> list[dict[str, Any]]:
         """Create and cache indexed particle-state payloads for TPR mappings."""
-        if parameters is not self._particle_state_parameters:
-            self._particle_state_parameters = parameters
+        if self._particle_state_payloads is None:
             self._particle_state_payloads = [
                 {**payload, '__index': index}
                 for index, payload in enumerate(
