@@ -247,7 +247,7 @@ class TestPbIHybridsArchive(ExcitingParserIntegrationSuite):
         method = archive.data.model_method[0]
         assert method.xc is not None
         assert any(
-            component.canonical_label == 'HYB_GGA_XC_HSE03'
+            component.canonical_label == 'HYB_GGA_XC_HSE06'
             for component in method.xc.components
         )
         assert archive.data.outputs[0].total_energies[0].value.to(
