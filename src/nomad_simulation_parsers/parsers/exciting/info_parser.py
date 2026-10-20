@@ -119,7 +119,7 @@ class InfoFileParser(TextParser):
                 1 / ureg.bohr**3,
             ),
             'x_exciting_number_of_atoms': ('Total number of atoms per unit cell', None),
-            'spin_treatment': ('Spin treatment', None),
+            'x_exciting_spin_treatment': ('Spin treatment', None),
             'x_exciting_number_of_bravais_lattice_symmetries': (
                 'Number of Bravais lattice symmetries',
                 None,

@@ -798,19 +798,20 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## Exciting / INFO.OUT
 
-**Summary:** 47 mapped, 100 unmapped quantities (31.97% coverage).
+**Summary:** 51 mapped, 96 unmapped quantities (34.69% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `hash_id` | Unmapped | — |
-| `initialization` | Mapped | `initialization.xc_functional.type.libxc` |
+
+| `initialization` | Mapped | `initialization.smearing_kind`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.xc_functional`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_configurations(lattice_vectors)` |
 | `initialization.lattice_vectors_reciprocal` | Unmapped | — |
 | `initialization.x_exciting_unit_cell_volume` | Unmapped | — |
 | `initialization.x_exciting_brillouin_zone_volume` | Unmapped | — |
 | `initialization.x_exciting_number_of_atoms` | Unmapped | — |
-| `initialization.x_exciting_spin_treatment` | Unmapped | — |
+| `initialization.x_exciting_spin_treatment` | Mapped | `initialization.x_exciting_spin_treatment` |
 | `initialization.x_exciting_number_of_bravais_lattice_symmetries` | Unmapped | — |
 | `initialization.x_exciting_number_of_crystal_symmetries` | Unmapped | — |
 | `initialization.kpoint_grid` | Unmapped | — |
@@ -833,7 +834,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `initialization.x_exciting_hamiltonian_size` | Unmapped | — |
 | `initialization.x_exciting_pw` | Unmapped | — |
 | `initialization.x_exciting_lo` | Unmapped | — |
-| `initialization.smearing_kind` | Unmapped | — |
+| `initialization.smearing_kind` | Mapped | `initialization.smearing_kind` |
 | `initialization.smearing_width` | Unmapped | — |
 | `initialization.species` | Mapped | `get_configurations(species)` |
 | `initialization.species.number` | Unmapped | — |
