@@ -346,8 +346,12 @@ class InfoParser(TextParser):
         return {
             'Fermi-Dirac': 'Fermi-Dirac',
             'Gaussian': 'Gaussian',
-            'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': 'Methfessel-Paxton 1',
-            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': 'Methfessel-Paxton 2',
+            'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': (
+                'Methfessel-Paxton 1',
+            ), 
+            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
+                'Methfessel-Paxton 2',
+            ),
             'Extended linear tetrahedron method': 'Tetrahedra-extended',
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
