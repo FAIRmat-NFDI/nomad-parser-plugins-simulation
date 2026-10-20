@@ -125,15 +125,30 @@ add_mapping_annotation(general.Program.version, HDF5_KEY, r'."@version"')
 
 # SIMULATION.MODEL_SYSTEM --> archive.data.model_system
 
-# Use parser-side fallback from species labels to AtomsState or CGBeadState
-# payloads before schema normalization runs.
-### class ParticleState(atoms_state.ParticleState):
 add_mapping_annotation(
-    atoms_state.ParticleState.m_def,
+    atoms_state.AtomsState.m_def,
     HDF5_KEY,
-    ('to_species_labels', ['.@'], dict(path='particles.all.species_label')),
+    (
+        'to_species_labels',
+        ['.@'],
+        dict(path='particles.all.species_label', particle_type='atom'),
+    ),
 )
-add_mapping_annotation(atoms_state.ParticleState.label, HDF5_KEY, '.label')
+add_mapping_annotation(
+    atoms_state.CGBeadState.m_def,
+    HDF5_KEY,
+    (
+        'to_species_labels',
+        ['.@'],
+        dict(path='particles.all.species_label', particle_type='bead'),
+    ),
+)
+add_mapping_annotation(atoms_state.AtomsState.label, HDF5_KEY, '.label')
+add_mapping_annotation(
+    atoms_state.AtomsState.chemical_symbol, HDF5_KEY, '.chemical_symbol'
+)
+add_mapping_annotation(atoms_state.CGBeadState.label, HDF5_KEY, '.label')
+add_mapping_annotation(atoms_state.CGBeadState.bead_symbol, HDF5_KEY, '.bead_symbol')
 
 ### Geometric properties now on ModelSystem directly (handled in get_traj_data)
 

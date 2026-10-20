@@ -170,6 +170,14 @@ class MDAnalysisParser(FileParser):
             value = value * unit_map.get(key, 1) if value is not None else value
             self._results['atoms_info'][name_map.get(key, f'{key}s')] = value
 
+        # Preserve whether chemical elements came from the topology. Some consumers
+        # still use the label fallback below for display/formula generation, but
+        # particle identity classification must not mistake a bead named e.g. `C`
+        # for an explicitly identified carbon atom.
+        self._results['atoms_info']['elements_are_explicit'] = (
+            self._results['atoms_info'].get('elements') is not None
+        )
+
         # Fallbacks/substitutions for missing atom info
         substitutions = [
             ('names', lambda: ['CGX'] * self.universe.atoms.n_atoms),

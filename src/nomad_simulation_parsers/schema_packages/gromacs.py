@@ -1,5 +1,6 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import (
+    atoms_state,
     force_field,
     general,
     model_system,
@@ -22,7 +23,6 @@ m_package = SchemaPackage()
 LOG_KEY = 'gromacs_log'
 TPR_KEY = 'gromacs_tpr'
 EDR_KEY = 'gromacs_edr'
-PARTICLE_PARAM_KEY = 'gromacs_particle_params'
 XVG_KEY = 'gromacs_xvg'
 
 
@@ -102,12 +102,6 @@ class Program(general.Program):
     )
 
 
-class AtomsState(model_system.AtomsState):
-    add_mapping_annotation(model_system.AtomsState.label, TPR_KEY, '.label')
-    add_mapping_annotation(model_system.AtomsState.chemical_symbol, TPR_KEY, '.element')
-    add_mapping_annotation(model_system.AtomsState.mass, TPR_KEY, '.mass', unit='amu')
-
-
 add_mapping_annotation(
     model_system.ModelSystem.lattice_vectors, TPR_KEY, '.lattice_vectors'
 )
@@ -123,7 +117,7 @@ class ModelSystem(model_system.ModelSystem):
     IMPLEMENTED:
     - positions, velocities: Particle coordinates and velocities
     - bond_list: Bond topology (atom index pairs) extracted from MDAnalysis
-    - particle_states (AtomsState): Atom labels and types
+    - particle_states: Atomic or coarse-grained particle identities
     - sub_systems: Hierarchical molecular structure (molecule groups → molecules →
       monomers)
     """
@@ -134,13 +128,35 @@ class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.velocities, TPR_KEY, '.velocities')
     add_mapping_annotation(model_system.ModelSystem.positions, TPR_KEY, '.positions')
     add_mapping_annotation(model_system.ModelSystem.bond_list, TPR_KEY, '.bond_list')
-    add_mapping_annotation(model_system.AtomsState.m_def, TPR_KEY, '.labels')
 
 
 # ROOT annotation for nested ModelSystem instances
 # When MappingParser creates ModelSystem from subsystems list,
 # use that dict as source root
 add_mapping_annotation(model_system.ModelSystem.m_def, TPR_KEY, '@')
+
+# The first configuration carries the topology's particle parameters. Map each
+# concrete ParticleState separately so atoms and coarse-grained beads retain
+# their appropriate schema types.
+add_mapping_annotation(
+    atoms_state.AtomsState.m_def,
+    TPR_KEY,
+    ('get_atomic_particle_parameters', ['.labels']),
+)
+add_mapping_annotation(atoms_state.AtomsState.label, TPR_KEY, '.label')
+add_mapping_annotation(
+    atoms_state.AtomsState.chemical_symbol, TPR_KEY, '.chemical_symbol'
+)
+add_mapping_annotation(atoms_state.AtomsState.mass, TPR_KEY, '.mass')
+
+add_mapping_annotation(
+    atoms_state.CGBeadState.m_def,
+    TPR_KEY,
+    ('get_bead_particle_parameters', ['.labels']),
+)
+add_mapping_annotation(atoms_state.CGBeadState.label, TPR_KEY, '.label')
+add_mapping_annotation(atoms_state.CGBeadState.bead_symbol, TPR_KEY, '.bead_symbol')
+add_mapping_annotation(atoms_state.CGBeadState.mass, TPR_KEY, '.mass')
 
 # Subsystem hierarchy annotations (apply to all ModelSystem instances including
 # subsystems)
@@ -506,7 +522,8 @@ add_mapping_annotation(molecular_dynamics.MolecularDynamics.m_def, LOG_KEY, '@')
 #   model_method[0] (the existing ForceField instance) directly as data_object and
 #   runs a dedicated convert with TPR_KEY. This mirrors the XVG/FEP pattern and
 #   avoids depending on from_dict's in-place sub-section update behaviour.
-# ParticleParametersContainer uses a dedicated PARTICLE_PARAM_KEY pass in parser.py.
+# ParticleParametersContainer is populated through numerical_settings in the same
+# direct TPR pass.
 class ForceField(force_field.ForceField):
     add_mapping_annotation(
         force_field.ForceField.contributions,
@@ -556,32 +573,32 @@ add_mapping_annotation(
 # triggers a numpy ambiguous-truth-value error on `if keyword:`.
 add_mapping_annotation(force_field.ForceCalculations.m_def, LOG_KEY, '@')
 
-# ParticleParametersContainer is populated via a dedicated PARTICLE_PARAM_KEY convert
-# pass that targets a fresh ParticleParametersContainer() as data_object, then
-# appended to ForceField.numerical_settings in parser.py.
 add_mapping_annotation(
-    force_field.ParticleParametersContainer.m_def, PARTICLE_PARAM_KEY, '@'
+    force_field.ParticleParametersContainer.m_def,
+    TPR_KEY,
+    '@',
+    update_mode='append',
 )
 add_mapping_annotation(
     force_field.ParticleParametersContainer.particle_parameters,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     ('get_particle_parameters_by_type', []),
 )
-add_mapping_annotation(force_field.ParticleParameters.m_def, PARTICLE_PARAM_KEY, '@')
+add_mapping_annotation(force_field.ParticleParameters.m_def, TPR_KEY, '@')
 add_mapping_annotation(
     force_field.ParticleParameters.particle_type,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.particle_type',
 )
 add_mapping_annotation(
     force_field.ParticleParameters.partial_charge,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.partial_charge',
     unit='elementary_charge',
 )
 add_mapping_annotation(
     force_field.ParticleParameters.effective_mass,
-    PARTICLE_PARAM_KEY,
+    TPR_KEY,
     '.effective_mass',
     unit='amu',
 )

@@ -17,11 +17,13 @@
 # limitations under the License.
 #
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 import numpy as np
+from ase.data import atomic_numbers
 from ase.symbols import symbols2numbers
+from nomad.units import ureg
 from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 from nomad_simulations.schema_packages import workflow
@@ -43,73 +45,6 @@ from nomad_simulations.schema_packages.properties.forces import BaseForce
 # from runschema.method import Interaction, Model
 
 
-def particle_state_payloads_from_labels(
-    labels: Iterable[str | None] | None,
-) -> list[dict[str, str | None]]:
-    """
-    Build parser-side particle-state payloads from a sequence of particle labels.
-
-    If all labels are valid element symbols, atomic payloads are emitted.
-    Otherwise the whole set falls back to CG bead payloads to avoid mixing
-    semantic meanings across particle-state subclasses.
-    """
-    label_list = [] if labels is None else list(labels)
-    if not label_list:
-        return []
-
-    is_atomic = False
-    if all(label not in (None, '') for label in label_list):
-        try:
-            symbols2numbers(label_list)
-            is_atomic = True
-        except (KeyError, TypeError, ValueError):
-            is_atomic = False
-
-    if is_atomic:
-        return [
-            {
-                'm_def': AtomsState.m_def.qualified_name(),
-                'chemical_symbol': label,
-                'label': label,
-            }
-            for label in label_list
-        ]
-
-    payloads = []
-    for label in label_list:
-        payload = {'m_def': CGBeadState.m_def.qualified_name(), 'label': label}
-        if label:
-            payload['bead_symbol'] = label
-        payloads.append(payload)
-    return payloads
-
-
-def particle_states_from_labels(
-    labels: Iterable[str | None] | None,
-) -> list[ParticleState]:
-    """
-    Instantiate parser-side particle states from labels using the shared fallback
-    policy.
-    """
-    particle_states: list[ParticleState] = []
-    for payload in particle_state_payloads_from_labels(labels):
-        if 'chemical_symbol' in payload:
-            particle_states.append(
-                AtomsState(
-                    chemical_symbol=payload.get('chemical_symbol'),
-                    label=payload.get('label'),
-                )
-            )
-        else:
-            particle_states.append(
-                CGBeadState(
-                    bead_symbol=payload.get('bead_symbol'),
-                    label=payload.get('label'),
-                )
-            )
-    return particle_states
-
-
 class MDParser(ArchiveWriter):
     def __init__(self, **kwargs) -> None:
         self.info: dict[str, Any] = {}
@@ -129,6 +64,120 @@ class MDParser(ArchiveWriter):
     @logger.setter
     def logger(self, value):
         self._logger = value
+
+    @staticmethod
+    def particle_parameters_from_labels(
+        labels: Iterable[str | None] | None,
+    ) -> list[dict[str, Any]]:
+        """Create particle identity parameters from otherwise unqualified labels.
+
+        Label-only formats do not provide enough information to classify individual
+        particles independently. Preserve their established collection-wide policy:
+        labels describe atoms only when every label is a valid element symbol;
+        otherwise they all describe coarse-grained beads.
+        """
+        label_list = [] if labels is None else list(labels)
+        if not label_list:
+            return []
+
+        is_atomic = False
+        if all(label not in (None, '') for label in label_list):
+            try:
+                symbols2numbers(label_list)
+                is_atomic = True
+            except (KeyError, TypeError, ValueError):
+                pass
+
+        return [
+            {
+                'label': label,
+                **({'chemical_symbol': label} if is_atomic else {}),
+            }
+            for label in label_list
+        ]
+
+    @staticmethod
+    def _valid_mass(mass: Any) -> Any | None:
+        """Return a positive finite mass with units, or ``None`` when invalid."""
+        if mass is None:
+            return None
+        try:
+            magnitude = mass.magnitude if hasattr(mass, 'magnitude') else mass
+            if not np.isfinite(magnitude) or magnitude <= 0:
+                return None
+            return mass if hasattr(mass, 'units') else float(mass) * ureg.amu
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def particle_states_from_parameters(
+        cls,
+        parameters: Iterable[Mapping[str, Any]] | None,
+        return_type: type[dict] | type[ParticleState] = ParticleState,
+    ) -> list[dict[str, Any]] | list[ParticleState]:
+        """Build particle-state sections or mapping payloads from parser evidence.
+
+        ``chemical_symbol`` must represent an element identity established by the
+        parser, rather than a guess from ``label``. Invalid or absent symbols produce
+        :class:`CGBeadState` payloads. Numeric masses are interpreted as atomic mass
+        units; unit-bearing masses retain their units. Other source properties, such
+        as force-field partial charges, are intentionally not copied into intrinsic
+        particle-state fields. Set ``return_type`` to ``dict`` for mapping payloads or
+        leave it as ``ParticleState`` for concrete metainfo sections.
+        """
+        if return_type not in (dict, ParticleState):
+            raise ValueError('return_type must be dict or ParticleState')
+
+        payloads: list[dict[str, Any]] = []
+        if parameters is None:
+            return payloads
+
+        for parameter in parameters:
+            label = parameter.get('label')
+            label = str(label) if label is not None else None
+            chemical_symbol = parameter.get('chemical_symbol')
+            chemical_symbol = (
+                str(chemical_symbol) if chemical_symbol is not None else None
+            )
+
+            if chemical_symbol in atomic_numbers:
+                payload: dict[str, Any] = {
+                    'chemical_symbol': chemical_symbol,
+                    'label': label,
+                }
+            else:
+                payload = {'label': label}
+                if label:
+                    payload['bead_symbol'] = str(label)
+
+            mass = cls._valid_mass(parameter.get('mass'))
+            if mass is not None:
+                payload['mass'] = mass
+            payloads.append(payload)
+
+        if return_type is dict:
+            return payloads
+
+        particle_states: list[ParticleState] = []
+        for payload in payloads:
+            common = {'label': payload.get('label')}
+            if payload.get('mass') is not None:
+                common['mass'] = payload['mass']
+            if 'chemical_symbol' in payload:
+                particle_states.append(
+                    AtomsState(
+                        chemical_symbol=payload.get('chemical_symbol'),
+                        **common,
+                    )
+                )
+            else:
+                particle_states.append(
+                    CGBeadState(
+                        bead_symbol=payload.get('bead_symbol'),
+                        **common,
+                    )
+                )
+        return particle_states
 
     @property
     def steps(self) -> list[int]:
@@ -235,12 +284,13 @@ class MDParser(ArchiveWriter):
         # for the topology frame; other trajectory frames get no `particle_states`.
         # This avoids storing `n_particles` identity records per frame, which
         # otherwise bloats the archive and the Elasticsearch index doc (see
-        # FAIRmat-NFDI/nomad-simulations#474). `particle_states_from_labels` returns
-        # [] for missing/empty labels, so no guard is needed.
+        # FAIRmat-NFDI/nomad-simulations#474). The shared constructor returns []
+        # for missing/empty labels, so no guard is needed.
         particle_labels = data.pop('labels', [])
         dimensions = data.pop('dimensions')
 
-        for particle_state in particle_states_from_labels(particle_labels):
+        parameters = self.particle_parameters_from_labels(particle_labels)
+        for particle_state in self.particle_states_from_parameters(parameters):
             model_system.particle_states.append(particle_state)
 
         model_system.lattice_vectors = lattice_vectors

@@ -97,13 +97,46 @@ class TestH5MDMapping:
         )
 
         result = parser.to_species_labels(
-            {'step': 0, 'frame_index': 0}, path='particles.all.species_label'
+            {'step': 0, 'frame_index': 0},
+            particle_type='atom',
+            path='particles.all.species_label',
         )
 
         assert [payload['chemical_symbol'] for payload in result] == ['H', 'O']
         assert (
             parser.to_species_labels(
-                {'step': 0, 'frame_index': 1}, path='particles.all.species_label'
+                {'step': 0, 'frame_index': 0},
+                particle_type='bead',
+                path='particles.all.species_label',
+            )
+            == []
+        )
+        assert (
+            parser.to_species_labels(
+                {'step': 0, 'frame_index': 1},
+                particle_type='atom',
+                path='particles.all.species_label',
+            )
+            == []
+        )
+
+    def test_maps_cg_species_labels(self):
+        parser = H5MDH5Parser(
+            data={'particles': {'all': {'species_label': ['B1', 'monomer']}}}
+        )
+
+        result = parser.to_species_labels(
+            {'step': 0, 'frame_index': 0},
+            particle_type='bead',
+            path='particles.all.species_label',
+        )
+
+        assert [payload['bead_symbol'] for payload in result] == ['B1', 'monomer']
+        assert (
+            parser.to_species_labels(
+                {'step': 0, 'frame_index': 0},
+                particle_type='atom',
+                path='particles.all.species_label',
             )
             == []
         )
