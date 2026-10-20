@@ -64,18 +64,18 @@ class Simulation(general.Simulation):
         m_def=model_method.DFT.m_def,
     )
 
-    add_mapping_annotation(
-           general.Simulation.model_method,
-           INPUT_XML_KEY,
-           '.input.groundstate',
-           m_def=model_method.DFT.m_def,
-     )
+    #add_mapping_annotation(
+    #       general.Simulation.model_method,
+    #       INPUT_XML_KEY,
+    #       '.input.groundstate',
+    #       m_def=model_method.DFT.m_def,
+    # )
 
-    add_mapping_annotation(
-        model_method.DFT.m_def,
-         INPUT_XML_KEY,
-         '.input.groundstate',
-     )
+    #add_mapping_annotation(
+    #    model_method.DFT.m_def,
+    #     INPUT_XML_KEY,
+    #     '.input.groundstate',
+    # )
 
     add_mapping_annotations(
         (

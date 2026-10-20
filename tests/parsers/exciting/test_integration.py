@@ -68,6 +68,72 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         )
 
     @pytest.mark.integration
+    def test_program_mapping(self, archive):
+        program = archive.data.program
+        method = archive.data.model_method[0]
+        assert program.name == self.expected_program_name
+        assert program.version == 'SODIUM'
+        assert program.version_internal == 'c71435148380004635d32fdbcc20adbad59a105'
+
+
+    @pytest.mark.integration
+    def test_xc_functional_mapping(self, archive):
+
+        method = archive.data.model_method[0]
+        assert method is not None
+        assert method.xc is not None
+        assert method.xc.functional_key == 'PBESOL'
+
+        components = method.xc.components
+        assert len(components) == 2
+
+    @pytest.mark.integration
+    def test_kspace_mapping(self, archive):
+        method = archive.data.model_method[0]
+
+        kspaces = [
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'KSpace'
+        ]
+
+        assert len(kspaces) == 1
+
+        kspace = kspaces[0]
+        assert kspace.name == 'KSpace'
+
+        assert len(kspace.k_mesh) == 1
+
+        kmesh = kspace.k_mesh[0]
+
+        assert kmesh.n_points == 64
+        assert kmesh.dimensionality == 3
+        assert len(kmesh.grid) == 3
+        assert list(kmesh.grid) == [4, 4, 4]
+
+    @pytest.mark.integration
+    def test_smearing_mapping(self, archive):
+        method = archive.data.model_method[0]
+
+        smearing = next(
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'Smearing'
+        )
+
+        assert smearing.kind == "Gaussian"
+        assert smearing.width is not None
+
+        assert smearing.width.to('hartree').magnitude == approx(0.001, rel=1e-6, abs=0)
+        
+    @pytest.mark.integration
+    def test_spin_treatment_mapping(self, archive):
+        method = archive.data.model_method[0]
+        assert method is not None
+        assert method.is_spin_polarized is False
+
+
+    @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
         output = archive.data.outputs[0]
 
