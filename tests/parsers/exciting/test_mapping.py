@@ -14,7 +14,9 @@ from nomad_simulation_parsers.parsers.exciting.parser import (
 class TestInfoParserMapping:
     def test_maps_xc_functionals_used_by_example_assertions(self):
         parser = InfoParser()
-        assert parser.get_xc_functionals_components(408) == [{'libxc': 'HYB_GGA_XC_HSE06'}]
+        assert parser.get_xc_functionals_components(408) == [
+            {'libxc': 'HYB_GGA_XC_HSE06'}
+        ]
         assert parser.get_xc_functionals_components(20) == [
             {'libxc': 'GGA_C_PBE'},
             {'libxc': 'GGA_X_PBE'},

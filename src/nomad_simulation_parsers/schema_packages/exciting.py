@@ -1,11 +1,11 @@
 from nomad.metainfo import SchemaPackage
 from nomad_simulations.schema_packages import (
     atoms_state,
+    basis_set,
     general,
     model_method,
     model_system,
     numerical_settings,
-    basis_set,
     outputs,
     properties,
     variables,
@@ -46,6 +46,7 @@ add_mapping_annotations(
     (general.Simulation.m_def, DOS_XML_KEY, '@'),
     (general.Simulation.m_def, GEO_OPT_KEY, '@'),
 )
+
 
 class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
@@ -133,29 +134,35 @@ class XCComponent(model_method.XCComponent):
 
 
 class Smearing(numerical_settings.Smearing):
-    add_mapping_annotation(
-         numerical_settings.Smearing.m_def,
-         INFO_KEY,
-         '.@'
-    )
+    add_mapping_annotation(numerical_settings.Smearing.m_def, INFO_KEY, '.@')
     add_mapping_annotation(
         numerical_settings.Smearing.kind,
         INFO_KEY,
-        ('get_smearing_kind', ['initialization.smearing_kind'])
+        ('get_smearing_kind', ['initialization.smearing_kind']),
     )
     add_mapping_annotation(
-         numerical_settings.Smearing.width,
-         INFO_KEY,
-         'initialization.smearing_width')
+        numerical_settings.Smearing.width, INFO_KEY, 'initialization.smearing_width'
+    )
 
 
 class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(numerical_settings.KSpace.m_def,INFO_KEY,'.@',)
+    add_mapping_annotation(
+        numerical_settings.KSpace.m_def,
+        INFO_KEY,
+        '.@',
+    )
     add_mapping_annotation(
         numerical_settings.KSpace.k_mesh,
         INFO_KEY,
         ('get_k_mesh', []),
     )
+    add_mapping_annotation(numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@')
+    add_mapping_annotation(
+        numerical_settings.KSpace.k_line_path,
+        BANDSTRUCTURE_XML_KEY,
+        '.@',
+    )
+
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotation(
@@ -176,12 +183,14 @@ class KMesh(numerical_settings.KMesh):
         '.dimensionality',
     )
 
+
 class BasisSetContainer(basis_set.BasisSetContainer):
     add_mapping_annotation(
         basis_set.BasisSetContainer.m_def,
         INFO_KEY,
         '.@',
     )
+
 
 class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
     add_mapping_annotation(
@@ -196,9 +205,14 @@ class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
         'initialization.x_exciting_rgkmax',
     )
 
+
 class ModelSystem(model_system.ModelSystem):
     add_mapping_annotation(model_system.ModelSystem.positions, INFO_KEY, '.positions')
-    add_mapping_annotation(model_system.ModelSystem.n_particles, INFO_KEY, 'initialization.x_exciting_number_of_atoms')
+    add_mapping_annotation(
+        model_system.ModelSystem.n_particles,
+        INFO_KEY,
+        'initialization.x_exciting_number_of_atoms',
+    )
 
 
 class Representation(model_system.Representation):
@@ -210,8 +224,13 @@ class Representation(model_system.Representation):
             INFO_KEY,
             '.periodic_boundary_conditions',
         ),
-        (model_system.Representation.volume, INFO_KEY, 'initialization.x_exciting_unit_cell_volume'),
+        (
+            model_system.Representation.volume,
+            INFO_KEY,
+            'initialization.x_exciting_unit_cell_volume',
+        ),
     )
+
 
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
@@ -267,11 +286,14 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
         outputs.ElectronicBandGap.value, EIGVAL_KEY, '.value', unit='eV'
     )
 
+
 class ElectronicBandStructure(outputs.ElectronicBandStructure):
     add_mapping_annotations(
         (outputs.ElectronicBandStructure.n_levels, BANDSTRUCTURE_XML_KEY, '.n_states'),
         (outputs.ElectronicBandStructure.value, BANDSTRUCTURE_XML_KEY, '.energies'),
-        (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),)
+        (outputs.ElectronicBandStructure.k_path, BANDSTRUCTURE_XML_KEY, '.k_path'),
+    )
+
 
 class VariablesEnergy2(variables.Energy2):
     add_mapping_annotation(
@@ -282,17 +304,7 @@ class VariablesEnergy2(variables.Energy2):
     )
     add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
-class KSpace(numerical_settings.KSpace):
-    add_mapping_annotation(
-        numerical_settings.KSpace.m_def,
-        BANDSTRUCTURE_XML_KEY,
-        '.@'
-    )
-    add_mapping_annotation(
-        numerical_settings.KSpace.k_line_path,
-        BANDSTRUCTURE_XML_KEY,
-        '.@',
-    )
+
 
 class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotations(
@@ -311,16 +323,21 @@ class KLinePath(numerical_settings.KLinePath):
         ),
     )
 
+
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value,
-        DOS_XML_KEY,
-        ('to_float', [r'.point[*]."@dos"']),
-        unit='1/hartree'),
+    (
+        add_mapping_annotation(
+            outputs.ElectronicDensityOfStates.value,
+            DOS_XML_KEY,
+            ('to_float', [r'.point[*]."@dos"']),
+            unit='1/hartree',
+        ),
+    )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.projected_dos,
-            DOS_XML_KEY,
-            'dos.partialdos.diagram')
+        DOS_XML_KEY,
+        'dos.partialdos.diagram',
+    )
 
 
 class OutputsSCFSteps(outputs.SCFSteps):

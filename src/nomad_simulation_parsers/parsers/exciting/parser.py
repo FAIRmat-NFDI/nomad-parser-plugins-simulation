@@ -1,6 +1,6 @@
 import os
 from typing import Any
-import sys
+
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
@@ -60,19 +60,56 @@ convergence_threshold_mapping = {
 }
 
 XC_FUNCTIONAL_MAP = {
-    2: {'key': 'LDA_PZ', 'components': ['LDA_C_PZ', 'LDA_X'],},
-    3: {'key': 'LDA_PW','components': ['LDA_C_PW', 'LDA_X'],},
-    4: {'key': 'XALPHA','components': ['LDA_C_XALPHA'],},
-    5: {'key': 'VBH','components': ['LDA_C_VBH'],},
-    20: {'key': 'PBE','components': ['GGA_C_PBE', 'GGA_X_PBE'],},
-    21: {'key': 'PBE_R','components': ['GGA_C_PBE', 'GGA_X_PBE_R'],},
-    22: {'key': 'PBESOL','components': ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],},
-    26: {'key': 'WC','components': ['GGA_C_PBE', 'GGA_X_WC'],},
-    30: {'key': 'AM05','components': ['GGA_C_AM05', 'GGA_X_AM05'],},
-    300: {'key': 'AC_PBE','components': ['GGA_C_BGCP', 'GGA_X_PBE'],},
-    406: {'key': 'PBE0','components': ['HYB_GGA_XC_PBEH'],},
-    408: {'key': 'HSE06','components': ['HYB_GGA_XC_HSE06'], },
+    2: {
+        'key': 'LDA_PZ',
+        'components': ['LDA_C_PZ', 'LDA_X'],
+    },
+    3: {
+        'key': 'LDA_PW',
+        'components': ['LDA_C_PW', 'LDA_X'],
+    },
+    4: {
+        'key': 'XALPHA',
+        'components': ['LDA_C_XALPHA'],
+    },
+    5: {
+        'key': 'VBH',
+        'components': ['LDA_C_VBH'],
+    },
+    20: {
+        'key': 'PBE',
+        'components': ['GGA_C_PBE', 'GGA_X_PBE'],
+    },
+    21: {
+        'key': 'PBE_R',
+        'components': ['GGA_C_PBE', 'GGA_X_PBE_R'],
+    },
+    22: {
+        'key': 'PBESOL',
+        'components': ['GGA_C_PBE_SOL', 'GGA_X_PBE_SOL'],
+    },
+    26: {
+        'key': 'WC',
+        'components': ['GGA_C_PBE', 'GGA_X_WC'],
+    },
+    30: {
+        'key': 'AM05',
+        'components': ['GGA_C_AM05', 'GGA_X_AM05'],
+    },
+    300: {
+        'key': 'AC_PBE',
+        'components': ['GGA_C_BGCP', 'GGA_X_PBE'],
+    },
+    406: {
+        'key': 'PBE0',
+        'components': ['HYB_GGA_XC_PBEH'],
+    },
+    408: {
+        'key': 'HSE06',
+        'components': ['HYB_GGA_XC_HSE06'],
+    },
 }
+
 
 class ExcitingMetainfoParser(MetainfoParser):
     pass
@@ -80,22 +117,17 @@ class ExcitingMetainfoParser(MetainfoParser):
 
 class InfoParser(TextParser):
     def get_xc_functional_key(self, xc_type: int) -> str | None:
-        #return self.get_xc_functionals(xc_type).get('functional_key')
+        # return self.get_xc_functionals(xc_type).get('functional_key')
         functional = XC_FUNCTIONAL_MAP.get(xc_type)
         return functional['key'] if functional else None
 
-    def get_xc_functional_components(
-        self, xc_type: int
-        ) -> list[dict[str, Any]]:
+    def get_xc_functional_components(self, xc_type: int) -> list[dict[str, Any]]:
         functional = XC_FUNCTIONAL_MAP.get(xc_type)
         if functional is None:
             return []
 
-        return [
-            {'libxc': name}
-            for name in functional['components']
-        ]
-        #return self.get_xc_functionals(xc_type).get('components', [])
+        return [{'libxc': name} for name in functional['components']]
+        # return self.get_xc_functionals(xc_type).get('components', [])
 
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         return dict(
@@ -299,7 +331,6 @@ class InfoParser(TextParser):
             'spin-polarised': True,
         }.get(spin_treatment)
 
-
     def get_smearing_kind(self, smearing_kind: str | None) -> str | None:
         """
         Map the smearing kind from the input to a standardized representation.
@@ -311,14 +342,12 @@ class InfoParser(TextParser):
             smearing_kind = ' '.join(str(item) for item in smearing_kind)
 
         smearing_kind = ' '.join(smearing_kind.split())
-        
+
         return {
             'Fermi-Dirac': 'Fermi-Dirac',
             'Gaussian': 'Gaussian',
-            'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': 
-            'Methfessel-Paxton 1',
-            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': 
-            'Methfessel-Paxton 2',
+            'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': 'Methfessel-Paxton 1',
+            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': 'Methfessel-Paxton 2',
             'Extended linear tetrahedron method': 'Tetrahedra-extended',
             'Square-wave impulse': 'Square-wave impulse',
         }.get(smearing_kind)
@@ -329,12 +358,14 @@ class InfoParser(TextParser):
         n_points = initialization.get('x_exciting_number_kpoints')
         return [
             {
-                'grid': grid if grid is not None else None, 
+                'grid': grid if grid is not None else None,
                 'n_total_points': np.prod(grid) if grid is not None else None,
                 'n_reduced_points': n_points if n_points is not None else None,
                 'dimensionality': len(grid) if grid is not None else None,
             }
         ]
+
+
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
@@ -503,7 +534,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = exciting.INFO_KEY
 
         info_parser.convert(data_parser)
-        
+
         # Legacy exciting behavior uses INFO.OUT as the canonical source for
         # reference energy metadata. If the selected mainfile is GW_INFO.OUT
         # and parsing yields no payload, fallback to sibling INFO.OUT.
@@ -639,7 +670,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             # Set the workflow with populated method
             workflow.method = data_parser.data_object
             self.archive.workflow2 = workflow
-    
+
         # close parsers
         info_parser.close()
         data_parser.close()
@@ -651,7 +682,7 @@ class ExcitingParser(MatchingParser):
     """
 
     archive_writer = ExcitingArchiveWriter()
-    
+
     def parse(
         self,
         mainfile: str,
