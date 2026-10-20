@@ -129,7 +129,6 @@ class InfoFileParser(TextParser):
                 None,
             ),
             'kpoint_grid': (r'k\-point grid', None),
-            #'kpoint_offset': (r'k\-point offset', None),
             'x_exciting_number_kpoints': (r'Total number of k\-points', None),
             'x_exciting_rgkmax': (r'R\^MT\_min \* \|G\+k\|\_max \(rgkmax\)', None),
             'x_exciting_species_rtmin': (r'Species with R\^MT\_min', None),
