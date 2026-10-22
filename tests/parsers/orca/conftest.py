@@ -62,6 +62,7 @@ class _UploadForTest:
     def __init__(self, upload_id: str, upload_files: files.StagingUploadFiles) -> None:
         self.upload_id = upload_id
         self.upload_files = upload_files
+        self.staging_upload_files = upload_files
 
 
 @pytest.fixture(scope='module')
