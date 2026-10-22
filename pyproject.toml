@@ -140,6 +140,7 @@ line-ending = "auto"
 "tests/*" = ['PLR2004']
 
 [tool.pytest.ini_options]
+addopts = "-m 'not large_fixture'"
 markers = [
     "unit: recognition, source-reader, utility, and mapping-contract tests",
     "integration: tests of the public parser entry point",
