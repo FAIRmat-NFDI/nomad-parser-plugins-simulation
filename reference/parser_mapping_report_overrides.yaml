@@ -1,0 +1,16 @@
+# Optional overrides for parser_mapping_report.md.
+# Generate the report with:
+#   nomad-sim-parser mapping-report --override this-file.yaml
+
+parsers:
+  # Parser section names must match the report headings.
+  # Exciting / INFO.OUT:
+  #   quantities:
+  #     quantity_name:
+  #       mapped: true
+  #       mapping: "manual_mapping_description"
+
+  # Parsers whose coverage cannot be generated reliably can be kept in the
+  # skipped-parser section explicitly:
+  # LAMMPS:
+  #   skip: true
