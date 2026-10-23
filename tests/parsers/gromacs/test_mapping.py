@@ -130,6 +130,7 @@ class TestGromacsMDAnalysisMapping:
         assert 'labels' not in configurations[1]
         assert configurations[0]['positions'].shape == (2, 3)
         assert_approx(configurations[0]['bond_list'], [[0, 1]])
+        assert 'bond_list' not in configurations[1]
 
     def test_uses_only_explicit_topology_elements(self, parser):
         parser.data_object = StubParticleInfoDataObject(
@@ -187,6 +188,11 @@ class TestGromacsMDAnalysisMapping:
         assert_approx(configurations[0]['positions'], np.zeros((3, 3)))
         assert_approx(configurations[1]['positions'], np.ones((3, 3)))
         assert_approx(configurations[0]['lattice_vectors'], np.eye(3))
+        assert_approx(configurations[1]['lattice_vectors'], np.eye(3) * 2)
+        assert [configuration['n_particles'] for configuration in configurations] == [
+            3,
+            3,
+        ]
         assert 'labels' in configurations[0]
 
     def test_converts_stub_configurations_to_simulation(self, parser):
