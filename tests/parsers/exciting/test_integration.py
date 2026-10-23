@@ -61,10 +61,110 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         output = simulation.outputs[0]
         output.scf_steps.delta_energies_total[9].to('hartree').magnitude == 0.991184e-07
         output.scf_steps.delta_potential_rms[9].to('hartree').magnitude == 0.324873e-08
-        output.scf_steps.delta_charge_abs[9].to('coulomb').magnitude == 0.235501e-08
+        output.scf_steps.delta_charge_abs[9].to(
+            'elementary_charge').magnitude == 0.235501e-08
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
+
+    @pytest.mark.integration
+    def test_program_mapping(self, archive):
+        program = archive.data.program
+        method = archive.data.model_method[0]
+        assert program.name == self.expected_program_name
+        assert program.version == 'SODIUM'
+        assert program.version_internal == 'c71435148380004635d32fdbcc20adbad59a105'
+
+    @pytest.mark.integration
+    def test_model_method_mapping(self, archive):
+        method = archive.data.model_method[0]
+        assert method is not None
+        assert method.m_def.name == 'DFT'
+        assert method.is_spin_polarized is False
+        assert method.numerical_settings is not None
+        assert len(method.numerical_settings) == (3)
+        assert method.xc is not None
+
+    @pytest.mark.integration
+    def test_kspace_mapping(self, archive):
+        method = archive.data.model_method[0]
+        kspaces = [
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'KSpace'
+        ]
+        assert len(kspaces) == 1
+        kspace = kspaces[0]
+        assert kspace.name == 'KSpace'
+        assert len(kspace.k_mesh) == 1
+        kmesh = kspace.k_mesh[0]
+        assert kmesh.n_points == 64
+        assert kmesh.dimensionality == 3
+        assert len(kmesh.grid) == 3
+        assert list(kmesh.grid) == [4, 4, 4]
+
+    @pytest.mark.integration
+    def test_smearing_mapping(self, archive):
+        method = archive.data.model_method[0]
+        smearing = next(
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'Smearing'
+        )
+        assert smearing.kind == "Gaussian"
+        assert smearing.width is not None
+        assert smearing.width.to('hartree').magnitude == approx(0.001)
+
+    @pytest.mark.integration
+    def test_basis_set_mapping(self, archive):
+        method = archive.data.model_method[0]
+        containers = [
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'BasisSetContainer'
+        ]
+        assert len(containers) == 1
+        components = [
+            component
+            for component in containers[0].basis_set_components
+            if component.m_def.name == 'APWPlaneWaveBasisSet'
+        ]       
+        assert len(components) == 1
+        assert components[0].cutoff_fractional == approx(7.0)
+
+
+    @pytest.mark.integration
+    def test_xc_functional_mapping(self, archive):
+        method = archive.data.model_method[0]
+        assert method is not None
+        assert method.xc is not None
+        assert method.xc.functional_key == 'PBESOL'
+        components = method.xc.components
+        assert len(components) == 2
+
+    @pytest.mark.integration
+    def test_atomic_states_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.particle_states is not None
+        assert len(system.particle_states) == 2
+        assert system.particle_states[0].chemical_symbol == 'C'
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(21894.16673000)
+
+    @pytest.mark.integration
+    def test_model_system_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.lattice_vectors.shape == (3, 3)
+        assert system.lattice_vectors[0][1].to('bohr').magnitude == approx(3.3637)
+        assert list(system.periodic_boundary_conditions) == [True] * 3
+        assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
+        assert system.n_particles == 2
+        assert system.positions.shape == (2, 3)
+        assert system.positions[1][0].to('bohr').magnitude == approx(
+            0.25*system.lattice_vectors[:][0].to('bohr').magnitude.sum())
+        
+
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
@@ -171,7 +271,8 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
         assert output.scf_steps.delta_potential_rms[23].to(
             'hartree'
         ).magnitude == approx(0.489106e-07)
-        assert output.scf_steps.delta_charge_abs[23].to('coulomb').magnitude == approx(
+        assert output.scf_steps.delta_charge_abs[23].to(
+            'elementary_charge').magnitude == approx(
             4.16073e-08
         )
         assert output.scf_steps.delta_force_abs[23].to(
@@ -245,7 +346,7 @@ class TestPbIHybridsArchive(ExcitingParserIntegrationSuite):
         method = archive.data.model_method[0]
         assert method.xc is not None
         assert any(
-            component.canonical_label == 'HYB_GGA_XC_HSE03'
+            component.canonical_label == 'HYB_GGA_XC_HSE06'
             for component in method.xc.components
         )
         assert archive.data.outputs[0].total_energies[0].value.to(
