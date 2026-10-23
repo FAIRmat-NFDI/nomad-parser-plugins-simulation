@@ -1,5 +1,8 @@
+import importlib
+
 import numpy as np
 import pytest
+from nomad.client import parse as client_parse
 
 from tests.parsers.common import (
     SimulationParserTestSuite,
@@ -7,6 +10,7 @@ from tests.parsers.common import (
     approx,
     assert_approx,
 )
+from tests.parsers.fhiaims.conftest import DATA_DIR, parse_fhiaims
 
 
 class FHIAimsParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
@@ -303,6 +307,41 @@ class TestSiGeometryOptimization(FHIAimsParserIntegrationSuite):
                 atol=1e-6,
             )
             assert eigenvalue_section.occupation[0][0] == approx(2.0)
+
+
+@pytest.mark.integration
+class TestNumericalSettingsCrossParserIsolation:
+    """`numerical_settings` must stay typed when other plugins' schema packages
+    are loaded in the same process (#257). Parses fresh rather than through the
+    shared fixture, so the other packages are imported before parsing."""
+
+    mainfile = DATA_DIR / 'Si_geomopt' / 'out.out'
+
+    @staticmethod
+    def assert_numerical_settings_intact(archive) -> None:
+        settings = archive.data.model_method[0].numerical_settings
+        by_type = sorted(type(s).__name__ for s in settings)
+        assert by_type == [
+            'KSpace',
+            'SelfConsistency',
+            'SelfConsistency',
+            'SelfConsistency',
+        ], by_type
+
+        kspace = next(s for s in settings if type(s).__name__ == 'KSpace')
+        assert list(kspace.k_mesh[0].grid) == [8, 8, 8]
+        for criterion in settings:
+            if type(criterion).__name__ == 'SelfConsistency':
+                assert criterion.threshold_change is not None
+
+    def test_with_other_schema_packages_loaded(self):
+        importlib.import_module('nomad_simulation_parsers.schema_packages.orca')
+        self.assert_numerical_settings_intact(parse_fhiaims(self.mainfile))
+
+    def test_through_full_plugin_loading(self):
+        """Same through `nomad.client.parse`, i.e. with every plugin entry point
+        loaded as in `nomad parse` or an Oasis."""
+        self.assert_numerical_settings_intact(client_parse(str(self.mainfile))[0])
 
 
 class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
