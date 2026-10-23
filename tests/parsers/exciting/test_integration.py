@@ -75,37 +75,29 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert program.version == 'SODIUM'
         assert program.version_internal == 'c71435148380004635d32fdbcc20adbad59a105'
 
-
     @pytest.mark.integration
-    def test_xc_functional_mapping(self, archive):
-
+    def test_model_method_mapping(self, archive):
         method = archive.data.model_method[0]
         assert method is not None
+        assert method.m_def.name == 'DFT'
+        assert method.is_spin_polarized is False
+        assert method.numerical_settings is not None
+        assert len(method.numerical_settings) == (3)
         assert method.xc is not None
-        assert method.xc.functional_key == 'PBESOL'
-
-        components = method.xc.components
-        assert len(components) == 2
 
     @pytest.mark.integration
     def test_kspace_mapping(self, archive):
         method = archive.data.model_method[0]
-
         kspaces = [
             setting
             for setting in method.numerical_settings
             if setting.m_def.name == 'KSpace'
         ]
-
         assert len(kspaces) == 1
-
         kspace = kspaces[0]
         assert kspace.name == 'KSpace'
-
         assert len(kspace.k_mesh) == 1
-
         kmesh = kspace.k_mesh[0]
-
         assert kmesh.n_points == 64
         assert kmesh.dimensionality == 3
         assert len(kmesh.grid) == 3
@@ -114,23 +106,64 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
     @pytest.mark.integration
     def test_smearing_mapping(self, archive):
         method = archive.data.model_method[0]
-
         smearing = next(
             setting
             for setting in method.numerical_settings
             if setting.m_def.name == 'Smearing'
         )
-
         assert smearing.kind == "Gaussian"
         assert smearing.width is not None
+        assert smearing.width.to('hartree').magnitude == approx(0.001)
 
-        assert smearing.width.to('hartree').magnitude == approx(0.001, rel=1e-6, abs=0)
-        
     @pytest.mark.integration
-    def test_spin_treatment_mapping(self, archive):
+    def test_basis_set_mapping(self, archive):
+        method = archive.data.model_method[0]
+        containers = [
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'BasisSetContainer'
+        ]
+        assert len(containers) == 1
+        components = [
+            component
+            for component in containers[0].basis_set_components
+            if component.m_def.name == 'APWPlaneWaveBasisSet'
+        ]       
+        assert len(components) == 1
+        assert components[0].cutoff_fractional == approx(7.0)
+
+
+    @pytest.mark.integration
+    def test_xc_functional_mapping(self, archive):
         method = archive.data.model_method[0]
         assert method is not None
-        assert method.is_spin_polarized is False
+        assert method.xc is not None
+        assert method.xc.functional_key == 'PBESOL'
+        components = method.xc.components
+        assert len(components) == 2
+
+    @pytest.mark.integration
+    def test_atomic_state_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.particle_states is not None
+        assert len(system.particle_states) == 2
+        assert system.particle_states[0].chemical_symbol == 'C'
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(21894.16673000)
+
+    @pytest.mark.integration
+    def test_model_system_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.lattice_vectors.shape == (3, 3)
+        assert system.lattice_vectors[0][1].to('bohr').magnitude == approx(3.3637)
+        assert list(system.periodic_boundary_conditions) == [True] * 3
+        assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
+        assert system.n_particles == 2
+        assert system.positions.shape == (2, 3)
+        assert system.positions[1][0].to('bohr').magnitude == approx(
+            0.25*system.lattice_vectors[:][0].to('bohr').magnitude.sum())
+        
 
 
     @pytest.mark.integration
