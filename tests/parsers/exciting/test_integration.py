@@ -143,7 +143,7 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert len(components) == 2
 
     @pytest.mark.integration
-    def test_atomic_state_mapping(self, archive):
+    def test_atomic_states_mapping(self, archive):
         system = archive.data.model_system[0]
         assert system is not None
         assert system.particle_states is not None
