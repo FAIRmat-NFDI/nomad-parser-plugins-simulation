@@ -71,10 +71,10 @@ class TestSinglePointArchive(CrystalParserIntegrationSuite):
             'Si',
             'Si',
         ]
-        assert {
+        assert [
             component.canonical_label
             for component in simulation.model_method[0].xc.components
-        } == {'LDA_C_PZ', 'GGA_X_B88'}
+        ] == ['GGA_X_B88', 'LDA_C_PZ']
         assert len(simulation.outputs) == 1
         output = simulation.outputs[0]
         assert len(output.scf_steps.energies_total) == 8
