@@ -1,12 +1,24 @@
+from collections import namedtuple
+
 import numpy as np
 from nomad.units import ureg
 from nomad_file_parser import Quantity, TextParser
+
+GOConv = namedtuple("GOConv", "key tol_pattern step_pattern unit")
+geometry_optimization_conv_params = [
+    GOConv('energy_change',      'Energy Change'    , 'Energy change', 'hartree'),
+    GOConv('max_gradient',       'Max. Gradient'    , 'MAX gradient', 'hartree/bohr'),
+    GOConv('rms_gradient',       'RMS Gradient'     , 'RMS gradient', 'hartree/bohr'),
+    GOConv('max_displacement',   'Max. Displacement', 'MAX step', 'bohr'),
+    GOConv('rms_displacement',   'RMS Displacement' , 'RMS step', 'bohr'),
+]
 
 
 class OutReader(TextParser):
     def init_quantities(self):
         re_float = r'[-+]?\d+\.?\d*(?:[Ee][-+]\d+)?'
         re_n = r'\r*\n'
+
         self._energy_mapping = {
             'Total Energy': 'energy_total',
             'Nuclear Repulsion': 'energy_nuclear_repulsion',
@@ -442,6 +454,21 @@ class OutReader(TextParser):
             ]
         ]
 
+        # Orbital energies quantity
+        orbital_energies_quantity = Quantity(
+                'orbital_energies',
+                (
+                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
+                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
+                    rf'{re_float}\s*\n)+)'
+                ),
+                str_operation=lambda x: np.array(
+                    [v.split()[:4] for v in x.splitlines() if v.strip()],
+                    dtype=float,
+                ),
+                repeats=True,
+        )
+
         # Population analysis quantities
         population_quantities = [
             Quantity(
@@ -646,19 +673,30 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'scf_iterations',
-                r'SCF ITERATIONS\s*\-+([\s\S]+?)\*{10}',
-                sub_parser=TextParser(
-                    quantities=[
-                        Quantity(
-                            'energy',
-                            rf'\n *\d+\s*({re_float})\s*{re_float}',
-                            repeats=True,
-                            dtype=float,
-                            unit=ureg.hartree,
-                        )
-                    ]
+                r'((?:Iteration|ITER)\b[\s\S]*?)(?='
+                r'(?:Iteration|ITER)\b|\*{10,}|\Z)',
+                repeats=True,
+                sub_parser = TextParser(
+                    quantities=
+                    [
+                    Quantity(
+                        'header',
+                        r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
+                        repeats=False,
+                        dtype=str,
+                        ),
+                    Quantity(
+                        'values',
+                        rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'[ \t]+({re_float})[ \t]+({re_float})'
+                        rf'(?:[ \t]+({re_float}))?',
+                        repeats=True,
+                        dtype=float,
+                        ),
+                    ],
+                    ),
                 ),
-            ),
             Quantity(
                 'final_grid',
                 r'Setting up the final grid:([\s\S]+?)\-{10}',
@@ -706,19 +744,7 @@ class OutReader(TextParser):
                 r'SCF CONVERGENCE\s*\-+([\s\S]+?)\-{10}',
                 sub_parser=TextParser(quantities=scf_convergence_quantities),
             ),
-            Quantity(
-                'orbital_energies',
-                (
-                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
-                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
-                    rf'{re_float}\s*\n)+)'
-                ),
-                str_operation=lambda x: np.array(
-                    [v.split()[:4] for v in x.splitlines() if v.strip()],
-                    dtype=float,
-                ),
-                repeats=True,
-            ),
+            orbital_energies_quantity,
             Quantity(
                 'molecular_orbital_coefficients',
                 r'MOLECULAR ORBITALS\s*\-+([\s\S]+?)(?=\n\s*\*{10})',
@@ -1104,6 +1130,12 @@ class OutReader(TextParser):
 
         calculation_quantities = [
             Quantity(
+                'energy_total',
+                rf'FINAL SINGLE POINT ENERGY\s+({re_float})',
+                dtype=float,
+                unit=ureg.hartree,
+            ),
+            Quantity(
                 'cartesian_coordinates',
                 rf'CARTESIAN COORDINATES \(ANGSTROEM\)\s*\-+\s*([\s\S]+?){re_n}{re_n}',
                 # str_operation=str_to_cartesian_coordinates,
@@ -1126,7 +1158,19 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'self_consistent',
-                r'((?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z))',
+                # In older versions, the block starts with ORCA SCF or
+                # DFT GRID GENERATION and ends with a long dash line.
+                # However, ORCA 6 added several subheaders that also have long dash
+                # lines before the end of the SCF block.
+                # Thus we first try to find version 6-specific block beginning with
+                # the SHARK header and ending with timing info.
+                (
+                r'('
+                r'-+\r?\nSHARK INTEGRAL PACKAGE\r?\n-+[\s\S]*?Total SCF time:'
+                r'|'
+                r'(?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z)'
+                r')'
+                ),
                 sub_parser=TextParser(quantities=self_consistent_quantities),
             ),
             Quantity(
@@ -1241,6 +1285,17 @@ class OutReader(TextParser):
                 ),
             ),
             Quantity(
+                'casscf_results',
+                # for now, capture only orbinal energies
+                r'-+\r?\nCASSCF RESULTS\r?\n-+([\s\S]*?)'
+                r'-{45}\r?\nCAS-SCF STATES FOR BLOCK',
+                sub_parser=TextParser(
+                    quantities=[
+                        orbital_energies_quantity,
+                    ]
+                ),
+            ),
+            Quantity(
                 'loc',
                 r'\n *ORCA ORBITAL LOCALIZATION\s*\-+([\s\S]+?)\-{10}',
                 repeats=True,
@@ -1248,25 +1303,40 @@ class OutReader(TextParser):
             ),
         ]
 
+        calculation_quantities += [  # for geometry optimization
+            Quantity(
+                f'geom_opt_{par.key}',
+                rf'{par.step_pattern}\s+({re_float})\s+{re_float}\s+(?:YES|NO)',
+                dtype=float,
+                unit=par.unit,
+            )
+            for par in geometry_optimization_conv_params
+        ]
+
         geometry_optimization_quantities = [
             Quantity(
-                f'{key.lower().replace(" ", "_").replace(".", "")}_tol',
-                rf'{key}\s*(\w+)\s*\.+\s*({re_float})',
+                f'{par.key}_tol',
+                rf'{par.tol_pattern}\s*(\w+)\s*\.+\s*({re_float})',
                 dtype=float,
+                unit=par.unit,
             )
-            for key in [
-                'Energy Change',
-                'Max. Gradient',
-                'RMS Gradient',
-                'Max. Displacement',
-                'RMS Displacement',
-            ]
+            for par in geometry_optimization_conv_params
         ]
 
         geometry_optimization_quantities += [
             Quantity('update_method', r'Update method\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('coords_choice', r'Choice of coordinates\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('initial_hessian', r'Initial Hessian\s*(\w+)\s*\.+\s*(.+)'),
+            Quantity(
+                'is_converged',
+                r'(THE OPTIMIZATION HAS CONVERGED)',
+                convert=False
+            ),
+            Quantity(
+                'is_not_converged',
+                r'(The optimization did not converge)',
+                convert=False
+            ),
         ]
 
         geometry_optimization_quantities += [
