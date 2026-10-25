@@ -1,12 +1,65 @@
 import numpy as np
 import pytest
+from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.datamodel.context import Context
+from nomad_simulations.schema_packages.workflow import Phonon
+from nomad_simulations.schema_packages.workflow.phonon import PhononMethod
 
+from nomad_simulation_parsers.parsers.vasp import common
 from nomad_simulation_parsers.parsers.vasp.chgcar_parser import CHGCARParser
 from nomad_simulation_parsers.parsers.vasp.common import functional_key_from_params
 from nomad_simulation_parsers.parsers.vasp.doscar_parser import DOSCARParser
-from nomad_simulation_parsers.parsers.vasp.outcar_parser import OutcarParser
-from nomad_simulation_parsers.parsers.vasp.xml_parser import VasprunParser
+from nomad_simulation_parsers.parsers.vasp.outcar_parser import (
+    OutcarArchiveWriter,
+    OutcarParser,
+)
+from nomad_simulation_parsers.parsers.vasp.xml_parser import (
+    VasprunParser,
+    XMLArchiveWriter,
+)
+from nomad_simulation_parsers.schema_packages.phonopy import PhonopySimulation
 from tests.parsers.common import assert_approx
+from tests.parsers.vasp.conftest import DATA_DIR
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('writer_class', 'filename'),
+    [(OutcarArchiveWriter, 'OUTCAR'), (XMLArchiveWriter, 'vasprun.xml.relax')],
+)
+def test_archive_writer_handles_phonopy_once(
+    writer_class, filename, tmp_path, monkeypatch
+):
+    for name in ('OUTCAR', 'vasprun.xml.relax'):
+        (tmp_path / name).symlink_to(DATA_DIR / 'AgAc_relax' / name)
+    calls = []
+    phonon_archive = EntryArchive(data=PhonopySimulation())
+    context = Context()
+    resolved_paths = []
+
+    def resolve_archive(url):
+        resolved_paths.append(url)
+        return phonon_archive
+
+    monkeypatch.setattr(context, 'resolve_archive', resolve_archive)
+
+    def create_workflow(*args):
+        calls.append(args)
+        return Phonon(method=PhononMethod())
+
+    monkeypatch.setattr(common, 'create_phonon_workflow', create_workflow)
+    monkeypatch.setattr(XMLArchiveWriter, '_has_electronic_outputs', lambda self: False)
+    archive = EntryArchive(m_context=context, metadata=EntryMetadata(mainfile=filename))
+    children = {'phonon_workflow:phonopy.yaml': EntryArchive()}
+
+    writer_class().write(str(tmp_path / filename), archive, child_archives=children)
+
+    assert archive.workflow2 is not None
+    assert len(calls) == 1
+    assert resolved_paths == ['../upload/archive/mainfile/phonopy.yaml']
+    assert calls[0][0] is phonon_archive
+    assert calls[0][1] == [archive]
+    assert children['phonon_workflow:phonopy.yaml'].workflow2 is not None
 
 
 @pytest.mark.unit

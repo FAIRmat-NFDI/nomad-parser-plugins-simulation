@@ -1,10 +1,49 @@
 """Shared VASP helpers used by both the OUTCAR and vasprun.xml parsers."""
 
+import posixpath
 from typing import Any
 
 from nomad.utils import get_logger
+from nomad_file_parser import ArchiveWriter
+
+from nomad_simulation_parsers.parsers.utils.workflow import create_phonon_workflow
 
 LOGGER = get_logger(__name__)
+
+
+class VASPArchiveWriter(ArchiveWriter):
+    """Write a VASP calculation and its associated Phonopy workflow."""
+
+    def write(self, mainfile, archive, logger=None, child_archives=None) -> None:
+        super().write(mainfile, archive, logger, child_archives)
+        if not self.child_archives:
+            return
+        for key, workflow_archive in self.child_archives.items():
+            if not key.startswith('phonon_workflow:'):
+                continue
+            yaml_key = key.removeprefix('phonon_workflow:')
+            if not self.archive.m_context or not self.archive.metadata:
+                self.logger.warning(
+                    'Cannot resolve the Phonopy archive without upload context.'
+                )
+                continue
+            yaml_file = posixpath.normpath(
+                posixpath.join(
+                    posixpath.dirname(self.archive.metadata.mainfile), yaml_key
+                )
+            )
+            try:
+                phonon_archive = self.archive.m_context.resolve_archive(
+                    f'../upload/archive/mainfile/{yaml_file}'
+                )
+                if phonon_archive is not None and phonon_archive.data is not None:
+                    workflow = create_phonon_workflow(phonon_archive, [self.archive])
+                    if not workflow.method.force_calculator:
+                        workflow.method.force_calculator = 'vasp'
+                    workflow_archive.workflow2 = workflow
+            except Exception:
+                self.logger.exception('Failed to resolve the Phonopy archive.')
+
 
 VASP_TAG_TO_FUNCTIONAL = {
     # GGA tag (`--` = POTCAR default is handled by the `PE` fallback)

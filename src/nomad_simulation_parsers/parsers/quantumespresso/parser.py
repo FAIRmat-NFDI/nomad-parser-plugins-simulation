@@ -504,6 +504,7 @@ class QuantumEspressoParser(MatchingParser):
 
     _supported_exts = ['out', 'log', 'xml']
     _supported_programs = {'pwscf', 'phonon', 'epw', 'xspectra', 'gipaw'}
+    creates_children = True
 
     def is_mainfile(
         self,
@@ -556,7 +557,8 @@ class QuantumEspressoParser(MatchingParser):
                     ]
                 )
 
-            self.creates_children = len(children) > 0
+            print(f'FFF{children}')
+            # self.creates_children = len(children) > 0
 
             return children or True
 

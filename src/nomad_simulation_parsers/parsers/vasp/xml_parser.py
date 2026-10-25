@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 from nomad.datamodel import EntryArchive
 from nomad.units import ureg
-from nomad_file_parser import ArchiveWriter
 from nomad_file_parser.mapping_parser import MetainfoParser, Path, XMLParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow import (
@@ -31,7 +30,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 )
 from nomad_simulation_parsers.schema_packages import vasp
 
-from .common import functional_key_from_params
+from .common import VASPArchiveWriter, functional_key_from_params
 from .outcar_parser import OutcarArchiveWriter
 
 N_SPIN_CHANNELS = 2
@@ -482,7 +481,7 @@ class VasprunParser(XMLParser):
         return functional_key_from_params(params)
 
 
-class XMLArchiveWriter(ArchiveWriter):
+class XMLArchiveWriter(VASPArchiveWriter):
     def _has_electronic_outputs(self) -> bool:
         outputs = getattr(getattr(self.archive, 'data', None), 'outputs', None) or []
         for output in outputs:
@@ -508,9 +507,7 @@ class XMLArchiveWriter(ArchiveWriter):
             return
 
         outcar_archive = EntryArchive()
-        OutcarArchiveWriter().write(
-            outcar_path, outcar_archive, self.logger, self.child_archives
-        )
+        OutcarArchiveWriter().write(outcar_path, outcar_archive, self.logger)
 
         outcar_outputs = (
             getattr(getattr(outcar_archive, 'data', None), 'outputs', None) or []

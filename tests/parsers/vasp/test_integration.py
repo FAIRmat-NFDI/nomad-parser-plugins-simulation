@@ -1,13 +1,19 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
-from nomad.datamodel import EntryArchive
+from nomad.datamodel import EntryArchive, EntryMetadata
+from nomad.datamodel.context import Context
 from nomad.utils import get_logger
 
+from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyParser
+from nomad_simulation_parsers.parsers.vasp.parser import VASPParser
 from tests.parsers.common import (
     SimulationParserTestSuite,
     WorkflowTestSuite,
     assert_approx,
 )
+from tests.parsers.phonopy.conftest import LARGE_DATA_DIR as PHONOPY_LARGE_DATA_DIR
 
 LOGGER = get_logger(__name__)
 
@@ -416,3 +422,42 @@ class TestBooleanMixedCaseArchive(BasicVASPIntegrationSuite):
 
 class TestBooleanLowercaseArchive(BasicVASPIntegrationSuite):
     archive_fixture = 'boolean_lowercase_archive'
+
+
+@pytest.mark.large_fixture
+@pytest.mark.integration
+def test_vasp_phonopy_workflow(tmp_path, monkeypatch):
+    phonopy_dir = PHONOPY_LARGE_DATA_DIR / 'vasp'
+    for name in ('phonopy.yaml', 'force_constants.hdf5'):
+        (tmp_path / name).symlink_to(phonopy_dir / name)
+
+    displacement_dir = tmp_path / 'disp-001'
+    displacement_dir.mkdir()
+    mainfile = displacement_dir / 'vasprun.xml'
+    vasp_data_dir = Path(__file__).resolve().parents[2] / 'data' / 'vasp'
+    mainfile.symlink_to(vasp_data_dir / 'Si_GW' / 'vasprun.xml')
+
+    phonon_archive = EntryArchive()
+    PhonopyParser().parse(str(tmp_path / 'phonopy.yaml'), phonon_archive, LOGGER)
+    assert phonon_archive.workflow2 is None
+    context = Context()
+    resolved_paths = []
+
+    def resolve_archive(path):
+        resolved_paths.append(path)
+        return phonon_archive
+
+    monkeypatch.setattr(context, 'resolve_archive', resolve_archive)
+    archive = EntryArchive(
+        m_context=context, metadata=EntryMetadata(mainfile='disp-001/vasprun.xml')
+    )
+    children = {'phonon_workflow:../phonopy.yaml': EntryArchive()}
+    VASPParser().parse(str(mainfile), archive, LOGGER, children)
+
+    assert archive.workflow2 is not None
+    assert resolved_paths == ['../upload/archive/mainfile/phonopy.yaml']
+    workflow = children['phonon_workflow:../phonopy.yaml'].workflow2
+    assert workflow.m_def.name == 'Phonon'
+    assert workflow.method.force_calculator == 'vasp'
+    assert workflow.tasks[0].task is archive.workflow2
+    assert workflow.tasks[1].outputs[0].section is phonon_archive.data.outputs[0]

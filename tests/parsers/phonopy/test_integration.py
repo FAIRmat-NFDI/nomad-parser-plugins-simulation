@@ -1,13 +1,12 @@
 import numpy as np
 import pytest
 
-from tests.parsers.common import SimulationParserTestSuite, WorkflowTestSuite
+from tests.parsers.common import SimulationParserTestSuite
 
 
-class PhonopyParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
+class PhonopyParserIntegrationSuite(SimulationParserTestSuite):
     expected_program_name = 'Phonopy'
     required_simulation_sections = ('model_system',)
-    workflow_name = 'Phonon'
 
 
 @pytest.mark.large_fixture
@@ -73,14 +72,5 @@ class TestNoncanonicalHexagonalArchive(PhonopyParserIntegrationSuite):
         assert outputs.model_method_ref.m_proxy_value == '/data/model_method/0'
 
     @pytest.mark.integration
-    def test_phonon_workflow_without_force_archives(self, archive):
-        workflow = archive.workflow2
-        assert workflow.m_def.name == 'Phonon'
-        assert workflow.inputs[0].section is archive.data.model_system[0]
-        assert [task.name for task in workflow.tasks] == [
-            'Force calculation',
-            'Phonopy analysis',
-        ]
-        assert workflow.tasks[-1].outputs[0].section is archive.data.outputs[0]
-        assert workflow.method.force_calculator == 'cp2k'
-        assert workflow.method.phonon_calculator == 'Phonopy'
+    def test_does_not_create_a_workflow(self, archive):
+        assert archive.workflow2 is None

@@ -7,7 +7,7 @@ import re
 
 import numpy as np
 from nomad.units import ureg
-from nomad_file_parser import ArchiveWriter, Quantity, TextParser
+from nomad_file_parser import Quantity, TextParser
 from nomad_file_parser.mapping_parser import MetainfoParser, Path
 from nomad_file_parser.mapping_parser import TextParser as MappingTextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
@@ -31,7 +31,7 @@ from nomad_simulation_parsers.parsers.utils.general import (
 from nomad_simulation_parsers.schema_packages import vasp
 
 from .chgcar_parser import CHGCARParser
-from .common import functional_key_from_params
+from .common import VASPArchiveWriter, functional_key_from_params
 from .doscar_parser import DOSCARParser
 
 RE_N = r'[\n\r]'
@@ -521,7 +521,7 @@ class OutcarParser(MappingTextParser):
         return [True, True, True]
 
 
-class OutcarArchiveWriter(ArchiveWriter):
+class OutcarArchiveWriter(VASPArchiveWriter):
     def _get_single_point_convergence(
         self, parameters: dict[str, Any]
     ) -> list[EnergyConvergenceTarget]:
