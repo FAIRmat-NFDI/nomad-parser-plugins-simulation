@@ -70,7 +70,6 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
     @pytest.mark.integration
     def test_program_mapping(self, archive):
         program = archive.data.program
-        method = archive.data.model_method[0]
         assert program.name == self.expected_program_name
         assert program.version == 'SODIUM'
         assert program.version_internal == 'c71435148380004635d32fdbcc20adbad59a105'
