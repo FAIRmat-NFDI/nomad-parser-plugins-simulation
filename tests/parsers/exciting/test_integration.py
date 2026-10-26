@@ -111,7 +111,7 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             for setting in method.numerical_settings
             if setting.m_def.name == 'Smearing'
         )
-        assert smearing.kind == "Gaussian"
+        assert smearing.kind == 'Gaussian'
         assert smearing.width is not None
         assert smearing.width.to('hartree').magnitude == approx(0.001)
 
@@ -149,7 +149,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.particle_states is not None
         assert len(system.particle_states) == 2
         assert system.particle_states[0].chemical_symbol == 'C'
-        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(21894.16673000)
+        assert system.particle_states[0].mass.to(
+            'electron_mass'
+            ).magnitude == approx(21894.16673000)
 
     @pytest.mark.integration
     def test_model_system_mapping(self, archive):
@@ -162,7 +164,7 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.n_particles == 2
         assert system.positions.shape == (2, 3)
         assert system.positions[1][0].to('bohr').magnitude == approx(
-            0.25*system.lattice_vectors[:][0].to('bohr').magnitude.sum())
+            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum())
         
 
 

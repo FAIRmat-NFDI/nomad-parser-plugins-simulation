@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from nomad.units import ureg
-
+from unittest.mock import PropertyMock, patch
 from nomad_simulation_parsers.parsers.exciting.parser import (
     BandstructureXMLParser,
     DosXMLParser,
@@ -53,6 +53,39 @@ class TestInfoParserMapping:
             'hartree'
         ).magnitude == pytest.approx(5e-6)
 
+
+    def test_maps_smearing_kind(self):
+        parser = InfoParser()
+        assert parser.get_smearing_kind('Extended linear tetrahedron method'
+            ) == 'Tetrahedra-extended'
+
+    def test_maps_k_mesh(self):
+        parser = InfoParser()
+        source = {
+            'initialization': {
+                'kpoint_grid': [4, 4, 4],
+                'x_exciting_number_kpoints': 8,
+            }
+        }
+
+        with patch.object(
+            InfoParser, 'data', new_callable=PropertyMock
+        ) as mock_data:
+            mock_data.return_value = source
+            result = parser.get_k_mesh()
+
+        assert result  == [
+            {'grid': [4, 4, 4], 
+            'n_total_points': 64, 
+            'n_reduced_points': 8, 
+            'dimensionality': 3}
+            ]
+        print(result)
+
+    def test_maps_is_spin_polarization(self):
+        parser = InfoParser()
+        assert parser.get_is_spin_polarized('spin-unpolarised') == False
+        assert parser.get_is_spin_polarized('spin-polarised') == True
 
 @pytest.mark.unit
 class TestBandstructureXMLParserMapping:
