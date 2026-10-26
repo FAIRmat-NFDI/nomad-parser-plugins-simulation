@@ -5,6 +5,7 @@ from nomad.utils import get_logger
 
 from tests.parsers.common import SimulationParserPipelineTestSuite
 
+
 @pytest.mark.large_fixture
 class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
     archive_fixture = 'c_minimal_archive'
