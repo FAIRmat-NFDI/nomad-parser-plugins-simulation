@@ -117,7 +117,6 @@ class ExcitingMetainfoParser(MetainfoParser):
 
 class InfoParser(TextParser):
     def get_xc_functional_key(self, xc_type: int) -> str | None:
-        # return self.get_xc_functionals(xc_type).get('functional_key')
         functional = XC_FUNCTIONAL_MAP.get(xc_type)
         return functional['key'] if functional else None
 
@@ -125,10 +124,8 @@ class InfoParser(TextParser):
         functional = XC_FUNCTIONAL_MAP.get(xc_type)
         if functional is None:
             return []
-
         return [{'libxc': name} for name in functional['components']]
-        # return self.get_xc_functionals(xc_type).get('components', [])
-
+       
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         return dict(
             forces=source.get('forces'),
@@ -323,26 +320,17 @@ class InfoParser(TextParser):
         return None
 
     def get_is_spin_polarized(self, spin_treatment: str | None) -> bool:
-        """
-        Determine if the calculation is spin-polarized based on the spin treatment.
-        """
         return {
             'spin-unpolarised': False,
             'spin-polarised': True,
         }.get(spin_treatment)
 
     def get_smearing_kind(self, smearing_kind: str | None) -> str | None:
-        """
-        Map the smearing kind from the input to a standardized representation.
-        """
         if smearing_kind is None:
             return None
-
         if isinstance(smearing_kind, (list, tuple)):
             smearing_kind = ' '.join(str(item) for item in smearing_kind)
-
         smearing_kind = ' '.join(smearing_kind.split())
-
         return {
             'Fermi-Dirac': 'Fermi-Dirac',
             'Gaussian': 'Gaussian',

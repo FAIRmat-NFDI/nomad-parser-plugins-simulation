@@ -1,10 +1,9 @@
 import pytest
-
-from tests.parsers.common import SimulationParserPipelineTestSuite
 from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
 
+from tests.parsers.common import SimulationParserPipelineTestSuite
 
 @pytest.mark.large_fixture
 class TestCMinimalPipeline(SimulationParserPipelineTestSuite):

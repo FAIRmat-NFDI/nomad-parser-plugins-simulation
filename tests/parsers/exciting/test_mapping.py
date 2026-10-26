@@ -1,7 +1,9 @@
+from unittest.mock import PropertyMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import PropertyMock, patch
 from nomad.units import ureg
+
 from nomad_simulation_parsers.parsers.exciting.parser import (
     BandstructureXMLParser,
     DosXMLParser,
@@ -84,8 +86,8 @@ class TestInfoParserMapping:
 
     def test_maps_is_spin_polarization(self):
         parser = InfoParser()
-        assert not parser.get_is_spin_polarized('spin-unpolarised') 
-        assert parser.get_is_spin_polarized('spin-polarised') 
+        assert parser.get_is_spin_polarized('spin-unpolarised') is False
+        assert parser.get_is_spin_polarized('spin-polarised') is True
 
 @pytest.mark.unit
 class TestBandstructureXMLParserMapping:
