@@ -39,6 +39,7 @@ def test_reads_fractional_band_path_file(tmp_path):
 
 
 class FakePhonopyObject:
+    calculator = 'vasp'
     unitcell = [1, 2, 3, 4]
     supercell = list(range(32))
 
@@ -64,7 +65,10 @@ class FakeSymmetry:
 
 
 class FakeBandStructure:
+    last_factor = None
+
     def __init__(self, bands, dynamical_matrix, with_eigenvectors, factor):
+        type(self).last_factor = factor
         self.bands = bands
         self.dynamical_matrix = dynamical_matrix
         self.with_eigenvectors = with_eigenvectors
@@ -73,6 +77,7 @@ class FakeBandStructure:
 
 
 class FakePropertiesObject:
+    calculator = 'cp2k'
     unitcell = FakeCell()
     supercell = [1, 2, 3, 4]
     symmetry = FakeSymmetry()
@@ -99,6 +104,7 @@ def test_get_bandstructure_uses_generated_kpath(monkeypatch):
     assert frequencies.shape == (1, 2, 1)
     assert bands.shape == (1, 2, 3)
     assert labels.tolist() == [['G', 'X']]
+    assert FakeBandStructure.last_factor == pytest.approx(112.10515666024465)
 
 
 class FakeDosResult:

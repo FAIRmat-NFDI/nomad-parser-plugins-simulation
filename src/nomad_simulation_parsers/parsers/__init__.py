@@ -237,6 +237,7 @@ vasp_parser = EntryPoint(
     parser_class_name='nomad_simulation_parsers.parsers.vasp.parser.VASPParser',
     python_package='nomad_simulation_parsers',
     code_name='VASP',
+    execution_order=1,
     mainfile_contents_re=(
         r'^\s*<\?xml version="1\.0" encoding="ISO-8859-1"\?>\s*?\s*<modeling>?\s*'
         r'<generator>?\s*<i name="program" type="string">\s*vasp\s*</i>?|'

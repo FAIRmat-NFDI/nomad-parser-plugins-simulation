@@ -31,12 +31,12 @@ from ase.dft.kpoints import (
     special_paths,
 )
 from phonopy import Phonopy
+from phonopy.interface.calculator import get_calculator_physical_units
 from phonopy.phonon.band_structure import BandStructure
 from phonopy.physical_units import get_physical_units
 
 _PHONOPY_UNITS = get_physical_units()
 EvTokJmol = _PHONOPY_UNITS.EvTokJmol
-VaspToTHz = _PHONOPY_UNITS.DefaultToTHz
 
 
 def generate_kpath_parameters(
@@ -178,7 +178,9 @@ class PhononProperties:
     def get_bandstructure(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         phonopy_obj = self.phonopy_obj
 
-        frequency_unit_factor = VaspToTHz
+        frequency_unit_factor = get_calculator_physical_units(
+            phonopy_obj.calculator
+        ).factor
         is_eigenvectors = False
 
         unit_cell = phonopy_obj.unitcell.cell

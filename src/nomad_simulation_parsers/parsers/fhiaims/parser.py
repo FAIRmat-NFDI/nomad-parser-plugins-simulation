@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from ase import Atoms
 from nomad.datamodel.datamodel import EntryArchive
-from nomad.datamodel.metainfo.workflow import Link, TaskReference
+from nomad.datamodel.metainfo.workflow import TaskReference
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
 from nomad_file_parser import ArchiveWriter
@@ -17,13 +17,11 @@ from nomad_simulations.schema_packages.workflow import (
     DFTGWWorkflow,
     GeometryOptimization,
     MolecularDynamics,
-    Phonon,
     SinglePoint,
 )
 from nomad_simulations.schema_packages.workflow.general import (
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
-    SimulationTaskReference,
 )
 from nomad_simulations.schema_packages.workflow.geometry_optimization import (
     GeometryOptimizationMethod,
@@ -42,7 +40,8 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParser,
     FHIAimsOutFileParserLine,
 )
-from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
+from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyArchiveWriter
+from nomad_simulation_parsers.parsers.phonopy.utils import create_phonon_workflow
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -553,10 +552,15 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         sym = self.control_parser.get('symmetry_thresh', 1e-6)
 
         self.geometry_parser.mainfile = os.path.join(maindir, 'geometry.in')
-        unit_atoms = PhonopyAtoms(atoms=self.geometry_parser.get_atoms())
+        geometry = self.geometry_parser.get_atoms()
+        unit_atoms = PhonopyAtoms(
+            symbols=geometry.get_chemical_symbols(),
+            positions=geometry.get_positions(),
+            cell=geometry.get_cell(),
+        )
 
         phonopy_obj = Phonopy(
-            unit_atoms, supercell_matrix, symprec=sym, calculator='fhi-aims'
+            unit_atoms, supercell_matrix, symprec=sym, calculator='aims'
         )
         phonopy_obj.generate_displacements(distance=displacement)
         supercells = phonopy_obj.supercells_with_displacements
@@ -564,9 +568,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         force_sets = []
         n_pad = int(np.ceil(np.log10(len(supercells) + 1))) + 1
         force_archives: dict[str, EntryArchive] = {}
-        supercell = supercells[0]
-        for n in range(3):
-            # for n, supercell in enumerate(supercells):
+        for n, supercell in enumerate(supercells):
             calc_dir = f'phonopy-FHI-aims-displacement-{str(n + 1).zfill(n_pad)}'
             calc_file = search_files(
                 '*out', os.path.join(maindir, calc_dir), re_pattern=f'{calc_dir}.out'
@@ -696,43 +698,18 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         )
         if phonon_archive is not None:
             # TODO generalize this to a parser/normalizer
-            # create phonony object
+            # create phonopy object
             phonopy_obj, force_archives = self.build_phonopy_object()
             # run phonopy calculation and fill phonon archive
             try:
-                phonopy_obj_to_archive(phonopy_obj, phonon_archive, self.logger)
+                PhonopyArchiveWriter().write(phonopy_obj, phonon_archive, self.logger)
             except Exception:
                 self.logger.error('Failed to run phonopy.')
             # link calculations and phonon workflow
             phonon_workflow_archive = self.child_archives.get('phonon_workflow')
-            phonon_workflow_archive.workflow2 = Phonon(
-                # unit cell
-                inputs=[
-                    Link(
-                        name='Input system', section=phonon_archive.data.model_system[0]
-                    )
-                ],
-                tasks=[
-                    # SimulationTask(name='Supercell generation'),
-                    *[
-                        SimulationTaskReference(
-                            task=a.workflow2,
-                        )
-                        for k, a in force_archives.items()
-                        if a.workflow2
-                    ],
-                    SimulationTaskReference(task=phonon_archive.workflow2),
-                ],
-            )
-            phonon_workflow_archive.workflow2.tasks[0].inputs.extend(
-                phonon_workflow_archive.workflow2.inputs
-            )
-            for archive in force_archives.values():
-                if not archive.workflow2:
-                    continue
-                archive.workflow2.normalize(archive, self.logger)
-                phonon_workflow_archive.workflow2.tasks[0].outputs.extend(
-                    archive.workflow2.inputs
+            if phonon_archive.data is not None and phonon_workflow_archive is not None:
+                phonon_workflow_archive.workflow2 = create_phonon_workflow(
+                    phonon_archive, force_archives.values()
                 )
 
         # close file contexts

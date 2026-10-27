@@ -3,220 +3,308 @@ from typing import Any
 
 import numpy as np
 import phonopy
+import yaml
 from nomad.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
-from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
-from nomad_simulations.schema_packages.general import Program, Simulation
-from nomad_simulations.schema_packages.model_system import (
-    AlternativeRepresentation,
-    AtomsState,
-    ModelSystem,
+from nomad_file_parser.mapping_parser import MappingParser, MetainfoParser
+from phonopy.interface.calculator import (
+    get_default_physical_units,
+    get_force_constant_conversion_factor,
 )
-from nomad_simulations.schema_packages.outputs import Outputs
 from phonopy.physical_units import get_physical_units
 from structlog.stdlib import BoundLogger
+
+from nomad_simulation_parsers.schema_packages.phonopy import (
+    PHONOPY_KEY,
+    PhonopySimulation,
+)
 
 from .calculator import PhononProperties
 
 THzToEv = get_physical_units().THzToEv
 
 
-def get_bandstructures(properties: PhononProperties) -> list[dict[str, Any]]:
-    freqs, bands, bands_labels = properties.get_bandstructure()
-    if freqs is None:
-        return []
+class PhonopyYamlParser(MappingParser):
+    """Read a Phonopy YAML file into the mapping parser's dictionary form."""
 
-    # convert THz to eV
-    freqs = freqs * THzToEv
+    _phonon_properties: PhononProperties | None = None
+    _thermodynamic_properties: dict[str, list[dict[str, Any]]] | None = None
 
-    # convert eV to J
-    freqs = (freqs * ureg.eV).to('joules').magnitude
-    return [
-        dict(frequencies=freq, kpoints=bands[n], labels=bands_labels[n])
-        for n, freq in enumerate(freqs)
-    ]
-
-
-def get_dos(properties: PhononProperties) -> list[dict[str, Any]]:
-    freq, dos = properties.get_dos()
-
-    # convert THz to eV to Joules
-    freq = freq * THzToEv
-    freq = (freq * ureg.eV).to('joules').magnitude
-    return [dict(frequencies=freq, dos=dos)]
-
-
-def get_thermodynamic_properties(properties: PhononProperties) -> list[dict[str, Any]]:
-    temperatures, free_energies, _, heat_capacties = (
-        properties.get_thermodynamical_properties()
-    )
-    n_atoms = len(properties.phonopy_obj.unitcell)
-    n_atoms_supercell = len(properties.phonopy_obj.supercell)
-
-    free_energies = free_energies / n_atoms
-
-    # The thermodynamic properties are reported by phonopy for the base
-    # system. Since the values in the metainfo are stored per the referenced
-    # system, we need to multiple by the size factor between the base system
-    # and the supersystem used in the calculations.
-    heat_capacties = heat_capacties * (n_atoms_supercell / n_atoms)
-
-    # convert to SI units
-    free_energies = (free_energies * ureg.eV).to('joules').magnitude
-
-    heat_capacties = (heat_capacties * ureg.eV / ureg.K).to('joules/K').magnitude
-    return [
-        dict(
-            temperature=temperature,
-            free_energy=free_energies[n],
-            heat_capacity=heat_capacties[n],
-        )
-        for n, temperature in enumerate(temperatures)
-    ]
-
-
-def create_system(
-    cell: np.ndarray,
-    symbols: list[str],
-    positions: np.ndarray,
-    supercell: np.ndarray = None,
-) -> ModelSystem:
-    sec_system = ModelSystem()
-    sec_representation = AlternativeRepresentation()
-    sec_system.representations.append(sec_representation)
-
-    sec_representation.periodic_boundary_conditions = [True, True, True]
-    for symbol in symbols:
-        sec_system.particle_states.append(AtomsState(chemical_symbol=symbol))
-
-    sec_system.positions = positions * ureg.angstrom
-    sec_representation.lattice_vectors = cell * ureg.angstrom
-    sec_representation.supercell_matrix = supercell
-    return sec_system
-
-
-def phonopy_obj_to_archive(
-    phonopy_obj: phonopy.Phonopy,
-    archive: EntryArchive = None,
-    logger: BoundLogger = None,
-    **kwargs,
-):
-    """
-    Run phonopy with an input phonopy object and write the results on a nomad archive.
-    """
-
-    logger = logger if logger is not None else get_logger(__name__)
-    archive = archive if archive is not None else EntryArchive()
-
-    unit_cell = phonopy_obj.unitcell.cell
-    unit_pos = phonopy_obj.unitcell.positions
-    unit_sym = phonopy_obj.unitcell.symbols
-
-    super_cell = phonopy_obj.supercell.cell
-    super_pos = phonopy_obj.supercell.positions
-    super_sym = phonopy_obj.supercell.symbols
-
-    try:
-        displacement = np.linalg.norm(phonopy_obj.displacements[0][1:])
-        displacement = displacement * ureg.angstrom
-    except Exception:
-        displacement = None
-
-    supercell_matrix = phonopy_obj.supercell_matrix
-    # sym_tol = phonopy_obj.symmetry.tolerance
-
-    data = Simulation()
-    archive.data = data
-
-    data.program = Program(name='Phonopy', version=phonopy.__version__)
-
-    sec_system_unit = create_system(unit_cell, unit_sym, unit_pos)
-    data.model_system.append(sec_system_unit)
-
-    sec_system = create_system(super_cell, super_sym, super_pos, supercell_matrix)
-    data.model_system.append(sec_system)
-
-    try:
-        force_constants = phonopy_obj.force_constants
-        force_constants = (
-            (force_constants * ureg.eV / ureg.angstrom**2).to('J/(m**2)').magnitude
-        )
-    except Exception:
-        logger.error('Error producing force constants.')
-        return
-
-    sec_outputs = Outputs()
-    sec_outputs.model_system_ref = sec_system
-
-    # run Phonopy
-    # properties = PhononProperties(phonopy_obj, logger, **kwargs)
-    # TODO write outputs
-
-    return archive
-
-
-def phonopy_obj_to_dict(
-    phonopy_obj: phonopy.Phonopy, logger: BoundLogger = None, **kwargs
-) -> dict[str, Any]:
-    logger = logger if logger is not None else get_logger(__name__)
-
-    results = dict(program=dict(name='Phonopy', version=phonopy.__version__))
-
-    system = results.setdefault('model_system', [])
-    for atoms in [phonopy_obj.unitcell, phonopy_obj.supercell]:
-        system.append(
-            dict(
-                positions=atoms.positions * ureg.angstrom,
-                cell=atoms.cell * ureg.angstrom,
-                particle_states=[dict(chemical_symbol=sym) for sym in atoms.symbols],
+    def load_file(self) -> Any:
+        if not self.filepath:
+            return {}
+        phonopy_obj = None
+        self._phonon_properties = None
+        self._thermodynamic_properties = None
+        try:
+            mainfile_dir = os.path.dirname(self.filepath)
+            force_constants_file = os.path.join(mainfile_dir, 'force_constants.hdf5')
+            kwargs = (
+                {'force_constants_filename': force_constants_file}
+                if os.path.isfile(force_constants_file)
+                else {}
             )
+            cwd = os.getcwd()
+            os.chdir(mainfile_dir)
+            try:
+                phonopy_obj = phonopy.load(self.filepath, **kwargs)
+            finally:
+                os.chdir(cwd)
+        except Exception:
+            return None
+
+        try:
+            self._phonon_properties = PhononProperties(phonopy_obj, self.logger)
+        except Exception as exc:
+            self.logger.warning('Error initializing phonon properties.', exc_info=exc)
+        return phonopy_obj
+
+    def to_dict(self) -> dict[str, Any]:
+        # Keep the source representation declarative.  The Phonopy object is
+        # retained by ``load_file`` for the transform methods below, while
+        # the mapping engine receives the YAML dictionary as its source.
+        if self.filepath:
+            try:
+                with open(self.filepath, encoding='utf-8') as handle:
+                    return yaml.safe_load(handle) or {}
+            except Exception:
+                self.logger.error('Error reading phonopy YAML data.')
+        return self.data_object if isinstance(self.data_object, dict) else {}
+
+    def get_program(self) -> dict[str, Any]:
+        return {'name': 'Phonopy', 'version': phonopy.__version__}
+
+    def get_model_ref(self, key: str = 'system') -> str | None:
+        obj = self.data_object
+        if obj is None:
+            return
+        if key == 'system' and obj.unitcell:
+            return '/data/model_system/1'
+        if key == 'method' and self._phonon_properties is not None:
+            return '/data/model_method/0'
+        return None
+
+    def get_model_system(self) -> list[dict[str, Any]]:
+        obj = self.data_object
+        if obj is None:
+            return []
+
+        return [
+            {
+                'positions': atoms.positions * ureg.angstrom,
+                'particle_states': [
+                    {'chemical_symbol': symbol} for symbol in atoms.symbols
+                ],
+                'representations': [
+                    {
+                        'lattice_vectors': atoms.cell * ureg.angstrom,
+                        'periodic_boundary_conditions': [True, True, True],
+                        'supercell_matrix': supercell_matrix,
+                    }
+                ],
+            }
+            for atoms, supercell_matrix in (
+                (obj.unitcell, None),
+                (obj.supercell, obj.supercell_matrix),
+            )
+        ]
+
+    def get_model_method(self) -> list[dict[str, Any]]:
+        obj = self.data_object
+        if obj is None:
+            return []
+        properties = self._phonon_properties
+        if properties is None:
+            return []
+        displacement = None
+        try:
+            first_displacement = np.asarray(obj.displacements[0])
+            if first_displacement.ndim == 1:
+                first_displacement = first_displacement[1:]
+            displacement = np.linalg.norm(first_displacement) * ureg.angstrom
+        except Exception:
+            pass
+        volume = abs(np.linalg.det(obj.unitcell.cell)) * ureg.angstrom**3
+        return [
+            {
+                'name': 'harmonic lattice dynamics',
+                'type': 'finite displacement',
+                'displacement': displacement,
+                'symmetry_tolerance': obj.symmetry.tolerance * ureg.angstrom,
+                'force_calculator': obj.calculator,
+                'mesh_density': np.prod(properties.mesh) / volume,
+                'with_non_analytic_correction': bool(obj.nac_params),
+                'contributions': [],
+            }
+        ]
+
+    def get_force_constants(self) -> list[dict[str, Any]]:
+        obj = self.data_object
+        if obj is None:
+            return []
+        force_constants = obj.force_constants
+        if force_constants is None:
+            try:
+                obj.produce_force_constants()
+            except Exception as exc:
+                self.logger.warning('Error producing force constants.', exc_info=exc)
+                return []
+            force_constants = obj.force_constants
+        if force_constants is None:
+            return []
+        native_unit = get_default_physical_units(obj.calculator)['force_constants_unit']
+        conversion_factor = get_force_constant_conversion_factor(native_unit, 'vasp')
+        return [
+            {'value': force_constants * conversion_factor * ureg.eV / ureg.angstrom**2}
+        ]
+
+    def get_phonon_band_structures(
+        self,
+    ) -> list[dict[str, Any]]:
+        self.data_object
+        properties = self._phonon_properties
+        if properties is None:
+            return []
+        frequencies, bands, labels = properties.get_bandstructure()
+        if frequencies is None:
+            return []
+        frequencies = (frequencies * THzToEv * ureg.eV).to('joule').magnitude
+        return [
+            {
+                'n_bands': segment.shape[-1],
+                'value': segment * ureg.joule,
+                'endpoints_labels': [str(label) for label in labels[index]],
+                'q_path': {'points': bands[index]},
+            }
+            for index, segment in enumerate(frequencies)
+        ]
+
+    def get_phonon_dos(self) -> list[dict[str, Any]]:
+        self.data_object
+        properties = self._phonon_properties
+        if properties is None:
+            return []
+        frequencies, dos = properties.get_dos()
+        joules_per_thz = (THzToEv * ureg.eV).to('joule').magnitude
+        return [
+            {
+                'value': dos / joules_per_thz / ureg.joule,
+                'frequencies': {'points': frequencies * joules_per_thz * ureg.joule},
+            }
+        ]
+
+    def get_vibrational_thermodynamics(
+        self,
+        key: str | None = None,
+    ) -> dict[str, list[dict[str, Any]]] | list[dict[str, Any]]:
+        self.data_object
+        if self._thermodynamic_properties is not None:
+            return (
+                self._thermodynamic_properties
+                if key is None
+                else self._thermodynamic_properties[key]
+            )
+        properties = self._phonon_properties
+        if properties is None:
+            self._thermodynamic_properties = {
+                'vibrational_free_energies': [],
+                'vibrational_heat_capacities': [],
+            }
+            return (
+                self._thermodynamic_properties
+                if key is None
+                else self._thermodynamic_properties[key]
+            )
+        temperatures, free_energies, _, heat_capacities = (
+            properties.get_thermodynamical_properties()
         )
-    if system:
-        system[-1]['supercell_matrix'] = phonopy_obj.supercell_matrix
+        n_atoms = len(properties.phonopy_obj.unitcell)
+        n_atoms_supercell = len(properties.phonopy_obj.supercell)
+        free_energies = (free_energies / n_atoms * ureg.eV).to('joule').magnitude
+        heat_capacities = (
+            (heat_capacities * (n_atoms_supercell / n_atoms) * ureg.eV / ureg.kelvin)
+            .to('joule / kelvin')
+            .magnitude
+        )
+        temperature_data = {'points': temperatures * ureg.kelvin}
+        self._thermodynamic_properties = {
+            'vibrational_free_energies': [
+                {
+                    'value': free_energies * ureg.joule,
+                    'temperatures': temperature_data,
+                }
+            ],
+            'vibrational_heat_capacities': [
+                {
+                    'value': heat_capacities * ureg.joule / ureg.kelvin,
+                    'temperatures': temperature_data,
+                }
+            ],
+        }
+        return (
+            self._thermodynamic_properties
+            if key is None
+            else self._thermodynamic_properties[key]
+        )
 
-    # run Phonopy
-    properties = PhononProperties(phonopy_obj, logger, **kwargs)
-    results['outputs'] = dict(
-        dos=get_dos(properties),
-        bandstructures=get_bandstructures(properties),
-        thermodynamics=get_thermodynamic_properties(properties),
-    )
+    def get_imaginary_frequencies(self) -> int:
+        self.data_object
+        properties = self._phonon_properties
+        if properties is None:
+            return 0
+        if not hasattr(properties, 'frequencies'):
+            properties.get_dos()
+        return int(np.count_nonzero(properties.frequencies < 0))
 
-    return results
+    def from_dict(self, dct: dict[str, Any]) -> None:
+        # This parser is used as a source parser; it has no mutable target
+        # representation to reconstruct.
+        self._data = dct
 
 
 class PhonopyArchiveWriter(ArchiveWriter):
+    """Archive writer using annotation-driven mapping into the simulation schema."""
+
+    def write(
+        self,
+        source: str | os.PathLike[str] | phonopy.Phonopy,
+        archive: EntryArchive,
+        logger: BoundLogger | None = None,
+        child_archives=None,
+    ) -> None:
+        """Write a Phonopy YAML file or an in-memory Phonopy calculation."""
+        super().write(source, archive, logger, child_archives)
+
     def write_to_archive(self):
-        mainfile = os.path.abspath(self.mainfile)
-        mainfile_dir = os.path.dirname(mainfile)
-        cwd = os.getcwd()
-        os.chdir(mainfile_dir)
-        try:
-            # ``phonopy.yaml`` commonly stores the structure and references a
-            # neighbouring HDF5 force-constant file.  ``phonopy.load`` does
-            # not discover that sidecar automatically, so make the parser's
-            # public entry point behave like the usual phonopy directory
-            # layout.
-            force_constants_file = os.path.join(mainfile_dir, 'force_constants.hdf5')
-            if os.path.isfile(force_constants_file):
-                phonopy_obj = phonopy.load(
-                    mainfile,
-                    force_constants_filename=force_constants_file,
+        if isinstance(self.mainfile, phonopy.Phonopy):
+            source_parser = PhonopyYamlParser(
+                data_object=self.mainfile, logger=self.logger
+            )
+            try:
+                source_parser._phonon_properties = PhononProperties(
+                    self.mainfile, self.logger
                 )
-            else:
-                phonopy_obj = phonopy.load(mainfile)
-        except Exception:
-            self.logger.error('Error loading phonopy file.')
-            phonopy_obj = None
-        finally:
-            os.chdir(cwd)
+            except Exception as exc:
+                self.logger.warning(
+                    'Error initializing phonon properties.', exc_info=exc
+                )
+        else:
+            mainfile = os.path.abspath(self.mainfile)
+            source_parser = PhonopyYamlParser(filepath=mainfile, logger=self.logger)
+            if not source_parser.data:
+                self.logger.error('Error parsing phonopy YAML file.')
+                return
 
-        if phonopy_obj is None:
-            return
+        parser = MetainfoParser(data_object=PhonopySimulation(), logger=self.logger)
+        parser.annotation_key = PHONOPY_KEY
+        source_parser.convert(parser)
+        self.archive.data = parser.data_object
 
-        phonopy_obj_to_archive(phonopy_obj, self.archive, self.logger)
+        # close parsers
+        source_parser.close()
+        parser.close()
 
 
 class PhonopyParser(MatchingParser):
