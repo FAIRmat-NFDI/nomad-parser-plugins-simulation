@@ -57,9 +57,10 @@ class TestVASPRecognition:
         mainfile.write_text(contents)
         parser = vasp_parser.load()
 
-        assert parser.is_mainfile(
-            str(mainfile), 'text/plain', contents.encode(), contents
-        ) is True
+        assert (
+            parser.is_mainfile(str(mainfile), 'text/plain', contents.encode(), contents)
+            is True
+        )
         assert parser.creates_children
 
     def test_phonopy_workflow_key_creates_child_archive(self, tmp_path, monkeypatch):

@@ -41,11 +41,11 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParserLine,
 )
 from nomad_simulation_parsers.parsers.phonopy.parser import PhonopyArchiveWriter
+from nomad_simulation_parsers.parsers.phonopy.utils import create_phonon_workflow
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
 )
-from nomad_simulation_parsers.parsers.utils.workflow import create_phonon_workflow
 from nomad_simulation_parsers.schema_packages import fhiaims
 
 from .common import ControlParser, GeometryParser

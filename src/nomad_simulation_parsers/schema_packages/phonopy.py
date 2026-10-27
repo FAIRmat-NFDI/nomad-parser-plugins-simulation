@@ -230,7 +230,9 @@ class PhonopyOutputs(Outputs):
 
 
 class PhonopySimulation(general.Simulation):
-    add_mapping_annotation(PhonopyMethod.m_def, PHONOPY_KEY, ('get_model_method', []), cache=True)
+    add_mapping_annotation(
+        PhonopyMethod.m_def, PHONOPY_KEY, ('get_model_method', []), cache=True
+    )
     add_mapping_annotation(PhonopyOutputs.m_def, PHONOPY_KEY, '.@')
 
 

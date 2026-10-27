@@ -6,7 +6,7 @@ from typing import Any
 from nomad.utils import get_logger
 from nomad_file_parser import ArchiveWriter
 
-from nomad_simulation_parsers.parsers.utils.workflow import create_phonon_workflow
+from nomad_simulation_parsers.parsers.phonopy.utils import create_phonon_workflow
 
 LOGGER = get_logger(__name__)
 

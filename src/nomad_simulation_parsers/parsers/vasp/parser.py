@@ -16,6 +16,9 @@ from .xml_parser import XMLArchiveWriter
 
 
 class VASPParser(MatchingParser):
+    level = 2
+    creates_children = True
+
     def is_mainfile(
         self,
         filename: str,
@@ -30,7 +33,6 @@ class VASPParser(MatchingParser):
         if matched:
             yaml_file = find_phonopy_yaml(filename, 'vasp')
             if yaml_file:
-                self.creates_children = True
                 yaml_key = os.path.relpath(yaml_file, os.path.dirname(filename))
                 return [f'phonon_workflow:{yaml_key}']
 
