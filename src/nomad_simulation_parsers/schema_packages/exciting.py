@@ -22,7 +22,7 @@ EIGVAL_KEY = 'eigval'
 BANDSTRUCTURE_XML_KEY = 'bandstructure_xml'
 DOS_XML_KEY = 'dos_xml'
 GEO_OPT_KEY = 'geo_opt'
-
+SPECIES_XML_KEY = 'species_xml'
 
 def add_mapping_annotations(*args):
     for mapping_tuple in args:
@@ -36,6 +36,7 @@ add_mapping_annotations(
     (general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@'),
     (general.Simulation.m_def, DOS_XML_KEY, '@'),
     (general.Simulation.m_def, GEO_OPT_KEY, '@'),
+    (general.Simulation.m_def, SPECIES_XML_KEY, '@'),
 )
 
 
@@ -153,11 +154,15 @@ class KMesh(numerical_settings.KMesh):
 
 
 class BasisSetContainer(basis_set.BasisSetContainer):
-    add_mapping_annotation(
-        basis_set.BasisSetContainer.m_def,
+    add_mapping_annotations(
+        (basis_set.BasisSetContainer.m_def,
         INFO_KEY,
-        '.@',
-    )
+        '.@',),
+         (basis_set.BasisSetContainer.m_def,
+            SPECIES_XML_KEY,
+            '.@',
+        ))
+
 
 
 class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
@@ -202,11 +207,19 @@ class Representation(model_system.Representation):
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
         (atoms_state.AtomsState.m_def, INFO_KEY, '.atoms'),
+        # (atoms_state.AtomsState.atomic_number, INFO_KEY, '.atomic_number'),
+        # (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.chemical_symbol'),
+        # (atoms_state.AtomsState.mass, INFO_KEY, '.mass'),)
+        (atoms_state.AtomsState.atomic_number, INFO_KEY, ''),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
         (atoms_state.AtomsState.mass, INFO_KEY, '.atomic_mass'),
     )
 
-
+class MuffinTinRegion(basis_set.MuffinTinRegion):
+    add_mapping_annotations(
+        (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, 'spdb.sp.muffinTin'),
+        (basis_set.MuffinTinRegion.radius, SPECIES_XML_KEY, '.@radius'),
+    )
 class Outputs(outputs.Outputs):
     add_mapping_annotations(
         (outputs.Outputs.total_energies, INFO_KEY, '.@'),
