@@ -48,6 +48,12 @@ ams_schema_package = EntryPoint(
     module='nomad_simulation_parsers.schema_packages.ams',
 )
 
+cp2k_schema_package = EntryPoint(
+    name='CP2KSchemaPackage',
+    description='Schema package for CP2K.',
+    module='nomad_simulation_parsers.schema_packages.cp2k',
+)
+
 crystal_schema_package = EntryPoint(
     name='CrystalSchemaPackage',
     description='Schema package for Crystal.',

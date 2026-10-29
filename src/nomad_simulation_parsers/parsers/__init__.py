@@ -64,6 +64,24 @@ ams_parser = EntryPoint(
     code_homepage='https://www.scm.com',
 )
 
+cp2k_parser = EntryPoint(
+    name='parsers/cp2k',
+    aliases=['parsers/cp2k'],
+    description='NOMAD parser for CP2K.',
+    python_package='nomad_simulation_parsers',
+    mainfile_contents_re=(
+        r'\*\*\*\* \*\*\*\* \*\*\*\*\*\*  \*\*  PROGRAM STARTED '
+        r'AT\s.*\n \*\*\*\*\* \*\* \*\*\*  \*\*\* \*\*   PROGRAM STARTED ON\s*.*\n'
+        r' \*\*    \*\*\*\*   \*\*\*\*\*\*    PROGRAM STARTED BY .*\n'
+        r' \*\*\*\*\* \*\*    \*\* \*\* \*\*   PROGRAM PROCESS ID .*\n'
+        r'  \*\*\*\* \*\*  \*\*\*\*\*\*\*  \*\*  PROGRAM STARTED IN .*\n'
+    ),
+    parser_class_name='nomad_simulation_parsers.parsers.cp2k.parser.CP2KParser',
+    code_name='CP2K',
+    code_homepage='https://www.cp2k.org/',
+    code_category='Atomistic code',
+)
+
 crystal_parser = EntryPoint(
     name='parsers/crystal',
     aliases=['parsers/crystal'],
