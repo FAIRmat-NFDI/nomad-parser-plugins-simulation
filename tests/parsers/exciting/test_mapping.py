@@ -1,5 +1,3 @@
-from unittest.mock import PropertyMock, patch
-
 import numpy as np
 import pytest
 from nomad.units import ureg
@@ -14,15 +12,28 @@ from nomad_simulation_parsers.parsers.exciting.parser import (
 
 @pytest.mark.unit
 class TestInfoParserMapping:
-    def test_maps_xc_functionals_used_by_example_assertions(self):
+    @pytest.mark.parametrize(
+        ('xc_type', 'expected_key', 'expected_components'),
+        [
+            (20, 'PBE', [{'libxc': 'GGA_C_PBE'}, {'libxc': 'GGA_X_PBE'}]),
+            (
+                22,
+                'PBESOL',
+                [{'libxc': 'GGA_C_PBE_SOL'}, {'libxc': 'GGA_X_PBE_SOL'}],
+            ),
+            (408, 'HSE06', [{'libxc': 'HYB_GGA_XC_HSE06'}]),
+            (100, None, []),
+            (0, None, []),
+            (None, None, []),
+        ],
+        ids=['pbe', 'pbesol', 'hse06', 'libxc-from-input-xml', 'zero', 'absent'],
+    )
+    def test_maps_xc_type_to_functional(
+        self, xc_type, expected_key, expected_components
+    ):
         parser = InfoParser()
-        assert parser.get_xc_functional_components(408) == [
-            {'libxc': 'HYB_GGA_XC_HSE06'}
-        ]
-        assert parser.get_xc_functional_components(20) == [
-            {'libxc': 'GGA_C_PBE'},
-            {'libxc': 'GGA_X_PBE'},
-        ]
+        assert parser.get_xc_functional_key(xc_type) == expected_key
+        assert parser.get_xc_functional_components(xc_type) == expected_components
 
     def test_maps_scf_convergence_quantities_with_units(self):
         parser = InfoParser()
@@ -55,39 +66,91 @@ class TestInfoParserMapping:
             'hartree'
         ).magnitude == pytest.approx(5e-6)
 
-
-    def test_maps_smearing_kind(self):
+    @pytest.mark.parametrize(
+        ('smearing_kind', 'expected', 'warns'),
+        [
+            ('Gaussian', 'Gaussian', False),
+            ('Fermi-Dirac', 'Fermi-Dirac', False),
+            (
+                ['Methfessel-Paxton', 'order', '1,', 'Phys.', 'Rev.', 'B', '40,']
+                + [3616, '(1989)'],
+                'Methfessel-Paxton 1',
+                False,
+            ),
+            (
+                ['Methfessel-Paxton', 'order', '2,', 'Phys.', 'Rev.', 'B', '40,']
+                + [3616, '(1989)'],
+                'Methfessel-Paxton 2',
+                False,
+            ),
+            (['Extended', 'linear', 'tetrahedron', 'method'], 'Tetrahedra', False),
+            (['Square-wave', 'impulse'], 'Square-wave', False),
+            ('Unknown-scheme', None, True),
+            ('', None, False),
+            ([], None, False),
+            (None, None, False),
+        ],
+        ids=[
+            'gaussian',
+            'fermi-dirac',
+            'methfessel-paxton-order-1',
+            'methfessel-paxton-order-2',
+            'tetrahedra',
+            'square-wave',
+            'unknown-warns',
+            'empty-string',
+            'empty-tokens',
+            'absent',
+        ],
+    )
+    def test_maps_smearing_kind(self, caplog, smearing_kind, expected, warns):
         parser = InfoParser()
-        assert parser.get_smearing_kind('Extended linear tetrahedron method'
-            ) == 'Tetrahedra-extended'
+        assert parser.get_smearing_kind(smearing_kind) == expected
+        assert [record.levelname for record in caplog.records] == (
+            ['WARNING'] if warns else []
+        )
 
-    def test_maps_k_mesh(self):
+    @pytest.mark.parametrize(
+        ('spin_treatment', 'expected', 'warns'),
+        [
+            ('spin-polarised', True, False),
+            ('spin-unpolarised', False, False),
+            ('spin-orbit coupling', None, True),
+            (None, None, False),
+        ],
+        ids=['polarised', 'unpolarised', 'unknown-warns', 'absent'],
+    )
+    def test_maps_spin_treatment(self, caplog, spin_treatment, expected, warns):
         parser = InfoParser()
-        source = {
-            'initialization': {
-                'kpoint_grid': [4, 4, 4],
-                'x_exciting_number_kpoints': 8,
-            }
-        }
+        assert parser.get_is_spin_polarized(spin_treatment) is expected
+        assert [record.levelname for record in caplog.records] == (
+            ['WARNING'] if warns else []
+        )
 
-        with patch.object(
-            InfoParser, 'data', new_callable=PropertyMock
-        ) as mock_data:
-            mock_data.return_value = source
-            result = parser.get_k_mesh()
+    @pytest.mark.parametrize(
+        ('initialization', 'expected'),
+        [
+            (
+                {'kpoint_grid': np.array([4, 4, 4]), 'x_exciting_number_kpoints': 8},
+                [{'grid': [4, 4, 4], 'n_total_points': 64, 'dimensionality': 3}],
+            ),
+            (
+                {'kpoint_grid': np.array([6, 6, 4])},
+                [{'grid': [6, 6, 4], 'n_total_points': 144, 'dimensionality': 3}],
+            ),
+            (
+                {'kpoint_grid': np.array([1, 1, 1])},
+                [{'grid': [1, 1, 1], 'n_total_points': 1, 'dimensionality': 3}],
+            ),
+            ({'x_exciting_number_kpoints': 8}, []),
+            ({}, []),
+        ],
+        ids=['cubic-grid', 'anisotropic-grid', 'gamma-only', 'no-grid', 'empty'],
+    )
+    def test_maps_k_mesh(self, initialization, expected):
+        k_mesh = InfoParser().get_k_mesh(initialization)
+        assert [{**mesh, 'grid': list(mesh['grid'])} for mesh in k_mesh] == expected
 
-        assert result  == [
-            {'grid': [4, 4, 4], 
-            'n_total_points': 64, 
-            'n_reduced_points': 8, 
-            'dimensionality': 3}
-            ]
-        print(result)
-
-    def test_maps_is_spin_polarization(self):
-        parser = InfoParser()
-        assert parser.get_is_spin_polarized('spin-unpolarised') is False
-        assert parser.get_is_spin_polarized('spin-polarised') is True
 
 @pytest.mark.unit
 class TestBandstructureXMLParserMapping:
