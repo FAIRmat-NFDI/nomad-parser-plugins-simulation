@@ -22,7 +22,7 @@ EIGVAL_KEY = 'eigval'
 BANDSTRUCTURE_XML_KEY = 'bandstructure_xml'
 DOS_XML_KEY = 'dos_xml'
 GEO_OPT_KEY = 'geo_opt'
-
+SPECIES_XML_KEY = 'species_xml'
 
 def add_mapping_annotations(*args):
     for mapping_tuple in args:
@@ -36,6 +36,7 @@ add_mapping_annotations(
     (general.Simulation.m_def, BANDSTRUCTURE_XML_KEY, '@'),
     (general.Simulation.m_def, DOS_XML_KEY, '@'),
     (general.Simulation.m_def, GEO_OPT_KEY, '@'),
+    (general.Simulation.m_def, SPECIES_XML_KEY, '@'),
 )
 
 
@@ -153,11 +154,26 @@ class KMesh(numerical_settings.KMesh):
 
 
 class BasisSetContainer(basis_set.BasisSetContainer):
-    add_mapping_annotation(
-        basis_set.BasisSetContainer.m_def,
+    add_mapping_annotations(
+        (basis_set.BasisSetContainer.m_def,
         INFO_KEY,
-        '.@',
-    )
+        '.@',),
+         (basis_set.BasisSetContainer.m_def,
+            SPECIES_XML_KEY,
+            '.@',
+        ))
+    # add_mapping_annotation(
+    #     basis_set.BasisSetContainer.basis_set_components,
+    #     SPECIES_XML_KEY,
+    #     'spdb.sp.muffinTin',
+    #     m_def=basis_set.MuffinTinRegion.m_def,
+    # )
+    # add_mapping_annotation(
+    #     basis_set.BasisSetContainer.basis_set_components,
+    #     SPECIES_XML_KEY,
+    #     '.spdb.sp.muffinTin',
+    #     m_def=basis_set.MuffinTinRegion.m_def,
+    # )
 
 
 class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
@@ -202,11 +218,186 @@ class Representation(model_system.Representation):
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
         (atoms_state.AtomsState.m_def, INFO_KEY, '.atoms'),
+        (atoms_state.AtomsState.atomic_number, INFO_KEY, '.atomic_number'),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
         (atoms_state.AtomsState.mass, INFO_KEY, '.atomic_mass'),
     )
 
+class MuffinTinRegion(basis_set.MuffinTinRegion):
+    add_mapping_annotations(
+        (basis_set.MuffinTinRegion.m_def, INFO_KEY, 'initialization.species'),
+        (basis_set.MuffinTinRegion.radius, INFO_KEY, '.muffin_tin_radius'),
+        (
+            basis_set.MuffinTinRegion.l_max,
+            INFO_KEY,
+            'initialization.x_exciting_lmaxapw',
+        ),
+        (
+            basis_set.MuffinTinRegion.species_scope,
+            INFO_KEY,
+            (
+                'get_muffin_tin_species_scope',
+                ['.symbol'],
+            ),
+        ),
+        )
 
+    add_mapping_annotations(
+         (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, '.@'),
+    #     (basis_set.MuffinTinRegion.radius, SPECIES_XML_KEY, ('get_muffin_tin_radius', ['spdb.sp.muffinTin."@radius"'],),),
+    # )
+    #     (
+    #     basis_set.MuffinTinRegion.l_max,
+    #     SPECIES_XML_KEY,
+    #     ('get_l_max', ['spdb.sp.basis']),
+    # ),
+    (
+    basis_set.MuffinTinRegion.l_channels,
+    SPECIES_XML_KEY,
+    ('get_l_channels',['spdb.sp.basis'] ) 
+),)
+class APWLChannel(basis_set.APWLChannel):
+    add_mapping_annotations(
+        (basis_set.APWLChannel.m_def, SPECIES_XML_KEY, '.@'),
+        (basis_set.APWLChannel.name, SPECIES_XML_KEY, '.name'),
+        # (
+        #     basis_set.APWLChannel.orbitals,
+        #     SPECIES_XML_KEY,
+        #     '.orbitals',
+        # ),)
+    )
+        #(basis_set.APWLChannel.name, SPECIES_XML_KEY, ('get_l_channel_name', ['."@l"']),),
+    #)
+class APWOrbital(basis_set.APWOrbital):
+    add_mapping_annotations(
+        (
+            basis_set.APWOrbital.m_def,
+            SPECIES_XML_KEY,
+            '.orbitals[?"@type"]',
+        ),
+        (
+            basis_set.APWOrbital.type,
+            SPECIES_XML_KEY,
+            '."@type"',
+        ),
+        # (
+        #     basis_set.APWOrbital.n_terms,
+        #     SPECIES_XML_KEY,
+        #     ('get_orbital_n_terms', ['.@']),
+        # ),
+        (
+            basis_set.APWOrbital.energy_parameter,
+            SPECIES_XML_KEY,
+            ('get_orbital_energy_parameter', ['.@']),
+        ),
+        (
+            basis_set.APWOrbital.differential_order,
+            SPECIES_XML_KEY,
+            ('get_orbital_differential_order', ['.@']),
+        ),
+                (
+            basis_set.APWOrbital.energy_status,
+            SPECIES_XML_KEY,
+            ('get_energy_status', ['.@']),
+        ),
+    )
+
+
+class APWLocalOrbital(basis_set.APWLocalOrbital):
+    add_mapping_annotations(
+        (
+            basis_set.APWLocalOrbital.m_def,
+            SPECIES_XML_KEY,
+            '.orbitals[?wf]',
+        ),
+        #   (
+        #     basis_set.APWOrbital.n_terms,
+        #     SPECIES_XML_KEY,
+        #     ('get_orbital_n_terms', ['.@']),
+        # ),
+        (
+            basis_set.APWOrbital.energy_parameter,
+            SPECIES_XML_KEY,
+            ('get_orbital_energy_parameter', ['.@']),
+        ),
+        (
+            basis_set.APWOrbital.differential_order,
+            SPECIES_XML_KEY,
+            ('get_orbital_differential_order', ['.@']),
+        ),
+    )
+# class APWOrbital(basis_set.APWOrbital):
+#     add_mapping_annotations(
+#         (basis_set.APWOrbital.m_def, SPECIES_XML_KEY, '.@'),
+#         (basis_set.APWOrbital.energy_parameter, SPECIES_XML_KEY, ('get_apw_orbital_energy_parameter', ['."@trialEnergy"']),),)
+
+# class APWLocalOrbital(basis_set.APWLocalOrbital):
+#     add_mapping_annotations(
+#         (basis_set.APWLocalOrbital.m_def, SPECIES_XML_KEY, '.@'),
+#                 (
+#             basis_set.APWLocalOrbital.energy_parameter,
+#             SPECIES_XML_KEY,
+#             ('get_local_orbital_energy_parameter', ['.wf']),
+#         ),
+#         (
+#             basis_set.APWLocalOrbital.differential_order,
+#             SPECIES_XML_KEY,
+#             ('get_local_orbital_differential_order', ['.wf']),
+#         ),
+#     )
+# class APWOrbital(basis_set.APWOrbital):
+#     add_mapping_annotations(
+#         (basis_set.APWOrbital.m_def, SPECIES_XML_KEY, '.@'),
+#         (basis_set.APWOrbital.type, SPECIES_XML_KEY, '."@type"'),
+#         (
+#             basis_set.APWOrbital.energy_parameter,
+#             SPECIES_XML_KEY,
+#             ('get_orbital_energy_parameter', ['.@']),
+#         ),
+#         (
+#             basis_set.APWOrbital.differential_order,
+#             SPECIES_XML_KEY,
+#             ('get_orbital_differential_order', ['.@']),
+#         ),
+#     )
+
+
+# class APWLocalOrbital(basis_set.APWLocalOrbital):
+#     add_mapping_annotations(
+#         (basis_set.APWLocalOrbital.m_def, SPECIES_XML_KEY, '.@'),
+#          (
+#             basis_set.APWOrbital.energy_parameter,
+#             SPECIES_XML_KEY,
+#             ('get_orbital_energy_parameter', ['.@']),
+#         ),
+#         (
+#             basis_set.APWOrbital.differential_order,
+#             SPECIES_XML_KEY,
+#             ('get_orbital_differential_order', ['.@']),
+#         ),
+#     )
+
+# class APWLChannel(basis_set.APWLChannel): 
+#     add_mapping_annotations(
+#         (basis_set.APWLChannel.m_def, SPECIES_XML_KEY, '.@'),
+#         (basis_set.APWLChannel.name, SPECIES_XML_KEY, '.name'),
+#     )
+
+
+# class APWLocalOrbital(basis_set.APWLocalOrbital):
+#     add_mapping_annotations(
+#         (basis_set.APWLocalOrbital.m_def, SPECIES_XML_KEY, '.@'),
+#         (
+#             basis_set.APWLocalOrbital.differential_order,
+#             SPECIES_XML_KEY,
+#             '.differential_order',
+#         ),
+#         (
+#             basis_set.APWLocalOrbital.energy_parameter,
+#             SPECIES_XML_KEY,
+#             '.energy_parameter',
+#         ),
+#     )
 class Outputs(outputs.Outputs):
     add_mapping_annotations(
         (outputs.Outputs.total_energies, INFO_KEY, '.@'),

@@ -1,6 +1,10 @@
 import os
 from typing import Any
+import sys
+import json
 
+from pathlib import Path
+import xml.etree.ElementTree as ET
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
@@ -29,7 +33,16 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 from structlog.stdlib import (
     BoundLogger,
 )
-
+from nomad_simulations.schema_packages.basis_set import (
+    APWPlaneWaveBasisSet,
+    BasisSetContainer,
+    MuffinTinRegion,
+)
+from nomad_simulations.schema_packages.basis_set import (
+    APWOrbital,
+    APWLocalOrbital,
+)
+from nomad_simulations.schema_packages import basis_set
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -182,13 +195,15 @@ class InfoParser(TextParser):
                     )
                 positions.extend(positions_specie)
             positions = positions * lattice_vectors.units
+
         atoms = []
         exclude = ['positions', 'positions_format', 'radial_points']
         for species in initial.get('species', []):
             atom = {k: v for k, v in species.items() if k not in exclude}
             atoms.extend([atom] * len(species.get('positions', [])))
         if not atoms:
-            atoms = [dict(symbol=s) for s in source.get('symbols')]
+             atoms = [dict(symbol=s) for s in source.get('symbols')]
+
         return dict(
             positions=(
                 np.array(positions, dtype=np.float64) * ureg.bohr
@@ -356,7 +371,33 @@ class InfoParser(TextParser):
                 'dimensionality': len(grid) if grid is not None else None,
             }
         ]
+    def get_muffin_tin_species_scope(
+        self,
+        species_symbol: str | None,
+    ) -> list[str]:
+        if species_symbol is None:
+            return []
 
+        initialization = self.data.get('initialization', {})
+        species_list = initialization.get('species', [])
+
+        references = []
+        atom_index = 0
+
+        for species in species_list:
+            symbol = species.get('symbol')
+            positions = species.get('positions')
+            n_atoms = len(positions) if positions is not None else 0
+
+            if symbol == species_symbol:
+                references.extend(
+                    f'#/data/model_system/0/particle_states/{i}'
+                    for i in range(atom_index, atom_index + n_atoms)
+                )
+
+            atom_index += n_atoms
+
+        return references
 
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
@@ -510,6 +551,299 @@ class EigvalParser(TextParser):
 
         return band_gaps
 
+class SpeciesXMLParser(XMLParser):
+
+    # def get_l_channels(self, basis: dict | None) -> list[dict]:
+    #     if not basis:
+    #         return []
+
+    #     print('DEBUG basis:', basis)
+    #     def as_list(value):
+    #         if value is None:
+    #             return []
+    #         return value if isinstance(value, list) else [value]
+
+    #     channels = {}
+
+    #     for custom in as_list(basis.get('custom')):
+    #         l = int(custom['@l'])
+
+    #         channel = channels.setdefault(
+    #             l, {'name': l, 'orbitals': []}
+    #         )
+
+    #         channel['orbitals'].append({
+    #             'm_def': basis_set.APWOrbital.m_def.qualified_name(),
+    #             **custom,
+    #         })
+
+    #     for lo in as_list(basis.get('lo')):
+    #         l = int(lo['@l'])
+
+    #         channel = channels.setdefault(
+    #             l, {'name': l, 'orbitals': []}
+    #         )
+
+    #         channel['orbitals'].append({
+    #             'm_def': basis_set.APWLocalOrbital.m_def.qualified_name(),
+    #             **lo,
+    #         })
+
+    #     return [channels[l] for l in sorted(channels)]
+
+    # def get_l_max(self, basis: dict | None) -> int | None:
+    #     if not basis:
+    #         return None
+
+    #     l_values = []
+
+    #     for key in ('custom', 'lo'):
+    #         items = basis.get(key, [])
+
+    #         if isinstance(items, dict):
+    #             items = [items]
+
+    #         for item in items:
+    #             if item.get('@l') is not None:
+    #                 l_values.append(int(item['@l']))
+
+    #     return max(l_values) if l_values else None 
+    def get_l_channels(self, basis: dict | None) -> list[dict]:
+        if not basis:
+            return []
+
+        l_max = getattr(self, 'lmaxapw', None)
+        if l_max is None:
+            return []
+        def as_list(value):
+                if value is None:
+                    return []
+                return value if isinstance(value, list) else [value]
+
+        default = basis.get('default')
+
+        customs = {
+            int(item['@l']): item
+            for item in as_list(basis.get('custom'))
+        }
+
+        local_orbitals = {}
+        for lo in as_list(basis.get('lo')):
+            l = int(lo['@l'])
+            local_orbitals.setdefault(l, []).append(lo)
+
+        channels = []
+
+        for l in range(int(l_max) + 1):
+            orbitals = []
+
+            # Use custom if present, otherwise default
+            apw = customs.get(l, default)
+
+            if apw is not None:
+                orbitals.append({
+                    '@type': 'lapw',
+                    **apw,
+                    '@l': str(l),
+                })
+
+            # Add all explicit local orbitals for this l
+            orbitals.extend(local_orbitals.get(l, []))
+
+            channels.append({
+                'name': l,
+                'orbitals': orbitals,
+            })
+
+        return channels
+        # def as_list(value):
+        #     if value is None:
+        #         return []
+        #     return value if isinstance(value, list) else [value]
+
+        # channels = {}
+
+        # for key in ('custom', 'lo'):
+        #     for orbital in as_list(basis.get(key)):
+        #         l = int(orbital['@l'])
+
+        #         channel = channels.setdefault(
+        #             l, {'name': l, 'orbitals': []}
+        #         )
+
+        #         channel['orbitals'].append(orbital)
+
+        # return [channels[l] for l in sorted(channels)]
+        
+    def get_l_channel_name(self, l: str | None) -> int | None:
+        return int(l) if l is not None else None
+
+    # def get_apw_orbital_energy_parameter(
+    #     self, trial_energy: str | None
+    # ):
+    #     if trial_energy is None:
+    #         return None
+
+    #     return np.array([float(trial_energy)]) * ureg.hartree
+
+#     def get_apw_orbital_differential_order(
+#     self, custom: dict | None
+# ) -> np.ndarray | None:
+#     if not custom:
+#         return None
+
+#     orbital_type = custom.get('@type')
+
+#     orders = {
+#         'apw': [0],
+#         'lapw': [0, 1],
+#         'slapw': [0, 1, 2],
+#     }.get(orbital_type)
+
+#     if orders is None:
+#         return None
+
+#     return np.array(orders, dtype=np.int32)
+
+
+#     def get_apw_orbital_energy_parameter(
+#         self, custom: dict | None
+#     ):
+#         if not custom or custom.get('@trialEnergy') is None:
+#             return None
+
+#         orders = self.get_apw_orbital_differential_order(custom)
+
+#         if orders is None:
+#             return None
+
+#         return (
+#             np.full(len(orders), float(custom['@trialEnergy']))
+#             * ureg.hartree
+#         )
+
+    def get_local_orbital_energy_parameter(
+        self, wf: dict | list[dict] | None
+    ):
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return np.array(
+            [float(item['@trialEnergy']) for item in wf]
+        ) * ureg.hartree
+
+    def get_local_orbital_differential_order(
+        self, wf: dict | list[dict] | None
+    ):
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return np.array(
+            [int(item['@matchingOrder']) for item in wf],
+            dtype=np.int32,
+        )
+
+    def get_local_orbital_energy_status(
+        self, wf: dict | list[dict] | None
+    ):
+        mapping = {
+            'false': 'fixed',
+            'true': 'post-optimization',
+        }
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return [
+                mapping.get(str(item.get('@searchE')))
+                for item in wf
+            ]
+
+    def get_energy_status(self, orbital: dict | None):
+
+        if not orbital:
+            return None
+        mapping = {
+            'false': 'fixed',
+            'true': 'post-optimization',
+        }
+
+        print('DEBUG energy_status 1:')
+        if 'wf' in orbital:
+            return self.get_local_orbital_energy_status(orbital['wf'])
+
+        energy_status = orbital.get('@searchE')
+        n_terms = {'apw': 1,'lapw': 2,}.get(orbital.get('@type'))
+        status = mapping.get(str(orbital.get('@searchE')).lower())
+
+        if status is None or n_terms is None:
+            return None
+
+        print('DEBUG energy_status:', energy_status)
+        return [status] * n_terms
+
+    def get_orbital_energy_parameter(self, orbital: dict | None):
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            return self.get_local_orbital_energy_parameter(orbital['wf'])
+
+        energy = orbital.get('@trialEnergy')
+        orbital_type = orbital.get('@type')
+
+        n_terms = {'apw': 1, 'lapw': 2}.get(orbital_type)
+
+        if energy is None or n_terms is None:
+            return None
+
+        return np.full(n_terms, float(energy)) * ureg.hartree
+
+
+    def get_orbital_differential_order(self, orbital: dict | None):
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            return self.get_local_orbital_differential_order(orbital['wf'])
+
+        orders = {
+            'apw': [0],
+            'lapw': [0, 1],
+        }.get(orbital.get('@type'))
+
+        return np.array(orders, dtype=np.int32) if orders is not None else None
+
+    # def get_l_channels(self, basis):
+    #     channels = {}
+
+    #     for apw in basis.get('custom', []):
+    #         l = int(apw['@l'])
+    #         channels.setdefault(l, {'name': l, 'orbitals': []})
+
+    #         channels[l]['orbitals'].append({
+    #             'kind': 'apw',
+    #             'type': apw['@type'],
+    #             'trial_energy': float(apw['@trialEnergy']),
+    #         })
+
+    #     for lo in basis.get('lo', []):
+    #         l = int(lo['@l'])
+    #         channels.setdefault(l, {'name': l, 'orbitals': []})
+
+    #         wavefunctions = lo['wf']
+    #         if isinstance(wavefunctions, dict):
+    #             wavefunctions = [wavefunctions]
+
+   
 
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
@@ -524,22 +858,95 @@ class ExcitingArchiveWriter(ArchiveWriter):
             logger=self.logger, data_object=Simulation(program=Program(name='exciting'))
         )
         data_parser.annotation_key = exciting.INFO_KEY
-
         info_parser.convert(data_parser)
+        species_list = info_parser.data.get('initialization', {}).get('species', [])
 
-        # Legacy exciting behavior uses INFO.OUT as the canonical source for
-        # reference energy metadata. If the selected mainfile is GW_INFO.OUT
-        # and parsing yields no payload, fallback to sibling INFO.OUT.
+        for i, species in enumerate(species_list):
+            print(f'DEBUG species {i}:', species.get('symbol'))
+            print(
+                f'DEBUG muffin-tin radius {i}:',
+                species.get('muffin_tin_radius'),
+            )   
         if not info_parser.data:
             info_out = os.path.join(maindir, 'INFO.OUT')
-            if os.path.isfile(info_out) and os.path.abspath(
-                info_out
-            ) != os.path.abspath(self.mainfile):
-                info_parser.filepath = info_out
-                info_parser.convert(data_parser, update_mode='merge')
 
-        # read xc functionals from input.xml only if INFO.OUT did not already
-        # populate them
+            if (
+                os.path.isfile(info_out)
+                and os.path.abspath(info_out)
+                != os.path.abspath(self.mainfile)
+            ):
+                info_parser.filepath = info_out
+
+                info_parser.convert(
+                    data_parser,
+                    update_mode='merge',
+                )
+
+
+        simulation = data_parser.data_object
+
+        regions = [
+            component
+            for method in simulation.model_method or []
+            for setting in method.numerical_settings or []
+            if isinstance(setting, BasisSetContainer)
+            for component in setting.basis_set_components or []
+            if isinstance(component, MuffinTinRegion)
+        ]
+
+        species_list = info_parser.data.get('initialization', {}).get('species', [])
+
+        if len(regions) != len(species_list):
+            self.logger.warning('Muffin-tin regions and species count do not match.')
+        else:
+            for species, region in zip(species_list, regions):
+                filename = species.get('file')
+
+                if not filename:
+                    continue
+
+                xml_path = Path(maindir) / filename.strip()
+
+                if not xml_path.is_file():
+                    continue
+
+                xml_parser = SpeciesXMLParser(filepath=str(xml_path))
+                xml_parser.lmaxapw = info_parser.data[
+                    'initialization'
+                ]['x_exciting_lmaxapw']
+                xml_target = ExcitingMetainfoParser(
+                    logger=self.logger,
+                    data_object=MuffinTinRegion(),
+                )
+                xml_target.annotation_key = exciting.SPECIES_XML_KEY
+                xml_parser.convert(xml_target, update_mode='merge')
+                xml_region = xml_target.data_object
+
+                print(
+                    'DEBUG XML l_channels:',
+                    [(channel.name, channel.m_def.name) for channel in xml_region.l_channels],
+                )
+                try:
+                    #xml_parser.convert(xml_target)
+                    xml_region = xml_target.data_object
+
+                    # l_max = xml_target.data_object.l_max
+
+                    # if l_max is not None:
+                    #     region.l_max = l_max
+                    # xml_region = xml_target.data_object
+
+                    if xml_region.l_max is not None:
+                        region.l_max = xml_region.l_max
+
+                    region.l_channels.clear()
+
+                    for channel in xml_region.l_channels:
+                        region.l_channels.append(channel)
+
+                finally:
+                    xml_parser.close()
+                    xml_target.close()
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
             if not self.archive.m_xpath('data.model_method[0].xc.components')
