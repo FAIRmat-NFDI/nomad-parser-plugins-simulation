@@ -320,6 +320,14 @@ class InfoParser(TextParser):
         return None
 
     def get_is_spin_polarized(self, spin_treatment: str | None) -> bool | None:
+        """
+        Map the exciting spin treatment onto `ModelMethod.is_spin_polarized`.
+
+        Returns:
+            `True` or `False` for `'spin-polarised'` or `'spin-unpolarised'`.
+            `None` without a warning when `spin_treatment` is absent.
+            `None` with a warning when the `spin_treatment` is not recognised.
+        """
         if spin_treatment is None:
             return None
         is_spin_polarized = {
@@ -331,6 +339,14 @@ class InfoParser(TextParser):
         return is_spin_polarized
 
     def get_smearing_kind(self, smearing_kind: str | list[str] | None) -> str | None:
+        """
+        Map the exciting smearing scheme onto `Smearing.kind`.
+
+        Returns:
+            The matching `Smearing.kind` value for a recognised scheme.
+            `None` without a warning when the scheme is absent or empty.
+            `None` with a warning when the scheme is not recognised.
+        """
         # the reader returns a multi-word scheme as a list of tokens
         if isinstance(smearing_kind, list):
             smearing_kind = ' '.join(str(token) for token in smearing_kind)
@@ -354,6 +370,14 @@ class InfoParser(TextParser):
         return kind
 
     def get_k_mesh(self, initialization: dict[str, Any]) -> list[dict[str, Any]]:
+        """
+        Map the exciting k-point grid onto `KSpace.k_mesh`.
+
+        Returns:
+            A one-element list with the `KMesh` `grid`, `n_total_points` and
+            `dimensionality` when `initialization` holds a `kpoint_grid`.
+            An empty list, so that no `KMesh` is created, when the grid is absent.
+        """
         grid = initialization.get('kpoint_grid')
         if grid is None:
             return []
