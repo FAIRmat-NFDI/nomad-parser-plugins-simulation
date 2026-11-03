@@ -38,6 +38,11 @@ from nomad_simulations.schema_packages.basis_set import (
     BasisSetContainer,
     MuffinTinRegion,
 )
+from nomad_simulations.schema_packages.basis_set import (
+    APWOrbital,
+    APWLocalOrbital,
+)
+from nomad_simulations.schema_packages import basis_set
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -190,23 +195,6 @@ class InfoParser(TextParser):
                     )
                 positions.extend(positions_specie)
             positions = positions * lattice_vectors.units
-        # atoms = []
-        # exclude = ['positions', 'positions_format', 'radial_points']
-
-        # species_xml_by_number = getattr(self, 'species_xml_by_number', {})
-
-        # for specie in initial.get('species', []):
-        #     atom = {k: v for k, v in specie.items() if k not in exclude}
-
-        #     xml_data = species_xml_by_number.get(int(specie['number']))
-        #     if xml_data:
-        #         atom.update({
-        #             'atomic_number': xml_data['atomic_number'],
-        #             'chemical_symbol': xml_data['chemical_symbol'],
-        #             'mass': xml_data['mass'],
-        #         })
-
-        # atoms.extend([atom.copy() for _ in specie.get('positions', [])])
 
         atoms = []
         exclude = ['positions', 'positions_format', 'radial_points']
@@ -215,9 +203,7 @@ class InfoParser(TextParser):
             atoms.extend([atom] * len(species.get('positions', [])))
         if not atoms:
              atoms = [dict(symbol=s) for s in source.get('symbols')]
-        # print('DEBUG get_atoms called')
-        # print('DEBUG XML species:', species_xml_by_number)
-        # print('DEBUG INFO species:', initial.get('species', []))
+
         return dict(
             positions=(
                 np.array(positions, dtype=np.float64) * ureg.bohr
@@ -385,7 +371,33 @@ class InfoParser(TextParser):
                 'dimensionality': len(grid) if grid is not None else None,
             }
         ]
+    def get_muffin_tin_species_scope(
+        self,
+        species_symbol: str | None,
+    ) -> list[str]:
+        if species_symbol is None:
+            return []
 
+        initialization = self.data.get('initialization', {})
+        species_list = initialization.get('species', [])
+
+        references = []
+        atom_index = 0
+
+        for species in species_list:
+            symbol = species.get('symbol')
+            positions = species.get('positions')
+            n_atoms = len(positions) if positions is not None else 0
+
+            if symbol == species_symbol:
+                references.extend(
+                    f'#/data/model_system/0/particle_states/{i}'
+                    for i in range(atom_index, atom_index + n_atoms)
+                )
+
+            atom_index += n_atoms
+
+        return references
 
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
@@ -539,97 +551,213 @@ class EigvalParser(TextParser):
 
         return band_gaps
 
-class SpeciesXMLParser:
-    def parse(self, filepath: Path) -> dict:
-        root = ET.parse(filepath).getroot()
-        sp = root.find('sp')
+class SpeciesXMLParser(XMLParser):
 
-        if sp is None:
-            return {}
+    # def get_l_channels(self, basis: dict | None) -> list[dict]:
+    #     if not basis:
+    #         return []
 
-        muffin_tin = sp.find('muffinTin')
+    #     print('DEBUG basis:', basis)
+    #     def as_list(value):
+    #         if value is None:
+    #             return []
+    #         return value if isinstance(value, list) else [value]
 
-        return {
-            'atomic_number': abs(int(float(sp.get('z')))),
-            'chemical_symbol': sp.get('chemicalSymbol'),
-            'mass': float(sp.get('mass')) * ureg.electron_mass,
-            'muffin_tin': {
-                'radius': float(muffin_tin.get('radius')) * ureg.bohr,
-            } if muffin_tin is not None else {},
-        }
+    #     channels = {}
 
-    def parse_all(
-            self,
-            calculation_dir: Path,
-            species: list,
-        ) -> dict[int, dict]:
-            calculation_dir = Path(calculation_dir).resolve()
-            species_data = {}
+    #     for custom in as_list(basis.get('custom')):
+    #         l = int(custom['@l'])
 
-            for specie in species:
-                number = int(specie['number'])
-                symbol = specie['symbol']
-                filename = specie['file'].strip()
+    #         channel = channels.setdefault(
+    #             l, {'name': l, 'orbitals': []}
+    #         )
 
-                filepath = (calculation_dir / filename).resolve()
+    #         channel['orbitals'].append({
+    #             'm_def': basis_set.APWOrbital.m_def.qualified_name(),
+    #             **custom,
+    #         })
 
-                if not filepath.is_relative_to(calculation_dir):
-                    raise ValueError(f'Invalid species XML path: {filename}')
+    #     for lo in as_list(basis.get('lo')):
+    #         l = int(lo['@l'])
 
-                if not filepath.is_file():
-                    raise FileNotFoundError(
-                        f'Species XML file not found: {filepath}'
-                    )
+    #         channel = channels.setdefault(
+    #             l, {'name': l, 'orbitals': []}
+    #         )
 
-                data = self.parse(filepath)
+    #         channel['orbitals'].append({
+    #             'm_def': basis_set.APWLocalOrbital.m_def.qualified_name(),
+    #             **lo,
+    #         })
 
-                if data['chemical_symbol'] != symbol:
-                    raise ValueError(
-                        f'Species mismatch in {filename}: '
-                        f'expected {symbol}, '
-                        f"found {data['chemical_symbol']}"
-                    )
+    #     return [channels[l] for l in sorted(channels)]
 
-                if number in species_data:
-                    raise ValueError(
-                        f'Duplicate species number: {number}'
-                    )
+    # def get_l_max(self, basis: dict | None) -> int | None:
+    #     if not basis:
+    #         return None
 
-                species_data[number] = data
+    #     l_values = []
 
-                print(
-                    f'Species {number}: {symbol}, '
-                    f'file={filepath}, '
-                    f"MT radius={data['muffin_tin'].get('radius')}"
+    #     for key in ('custom', 'lo'):
+    #         items = basis.get(key, [])
+
+    #         if isinstance(items, dict):
+    #             items = [items]
+
+    #         for item in items:
+    #             if item.get('@l') is not None:
+    #                 l_values.append(int(item['@l']))
+
+    #     return max(l_values) if l_values else None 
+    def get_l_channels(self, basis: dict | None) -> list[dict]:
+        if not basis:
+            return []
+
+        def as_list(value):
+            if value is None:
+                return []
+            return value if isinstance(value, list) else [value]
+
+        channels = {}
+
+        for key in ('custom', 'lo'):
+            for orbital in as_list(basis.get(key)):
+                l = int(orbital['@l'])
+
+                channel = channels.setdefault(
+                    l, {'name': l, 'orbitals': []}
                 )
 
-            return species_data
-        # for specie in sorted(species, key=lambda s: int(s['number'])):
-        #     filename = specie['file'].strip()
-        #     filepath = calculation_dir / filename
+                channel['orbitals'].append(orbital)
 
-        #     if not filepath.is_file():
-        #         species_data.append(None)
-        #         continue
+        return [channels[l] for l in sorted(channels)]
+        
+    def get_l_channel_name(self, l: str | None) -> int | None:
+        return int(l) if l is not None else None
 
-        #     data = self.parse(filepath)
+    # def get_apw_orbital_energy_parameter(
+    #     self, trial_energy: str | None
+    # ):
+    #     if trial_energy is None:
+    #         return None
 
-        #     if data['chemical_symbol'] != specie['symbol']:
-        #         raise ValueError(
-        #             f'Species mismatch in {filename}: '
-        #             f"expected {specie['symbol']}, "
-        #             f"found {data['chemical_symbol']}"
-        #         )
+    #     return np.array([float(trial_energy)]) * ureg.hartree
 
-        #     species_data.append(data)
-        # for specie in species:
-        #     print(
-        #         'Species:', specie['number'],
-        #         'Symbol:', specie['symbol'],
-        #         'File:', specie['file'],
-        #     )
-        # return species_data
+#     def get_apw_orbital_differential_order(
+#     self, custom: dict | None
+# ) -> np.ndarray | None:
+#     if not custom:
+#         return None
 
+#     orbital_type = custom.get('@type')
+
+#     orders = {
+#         'apw': [0],
+#         'lapw': [0, 1],
+#         'slapw': [0, 1, 2],
+#     }.get(orbital_type)
+
+#     if orders is None:
+#         return None
+
+#     return np.array(orders, dtype=np.int32)
+
+
+#     def get_apw_orbital_energy_parameter(
+#         self, custom: dict | None
+#     ):
+#         if not custom or custom.get('@trialEnergy') is None:
+#             return None
+
+#         orders = self.get_apw_orbital_differential_order(custom)
+
+#         if orders is None:
+#             return None
+
+#         return (
+#             np.full(len(orders), float(custom['@trialEnergy']))
+#             * ureg.hartree
+#         )
+
+    def get_local_orbital_energy_parameter(
+        self, wf: dict | list[dict] | None
+    ):
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return np.array(
+            [float(item['@trialEnergy']) for item in wf]
+        ) * ureg.hartree
+
+    def get_local_orbital_differential_order(
+        self, wf: dict | list[dict] | None
+    ):
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return np.array(
+            [int(item['@matchingOrder']) for item in wf],
+            dtype=np.int32,
+        )
+    def get_orbital_energy_parameter(self, orbital: dict | None):
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            return self.get_local_orbital_energy_parameter(orbital['wf'])
+
+        energy = orbital.get('@trialEnergy')
+        orbital_type = orbital.get('@type')
+
+        n_terms = {'apw': 1, 'lapw': 2}.get(orbital_type)
+
+        if energy is None or n_terms is None:
+            return None
+
+        return np.full(n_terms, float(energy)) * ureg.hartree
+
+
+    def get_orbital_differential_order(self, orbital: dict | None):
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            return self.get_local_orbital_differential_order(orbital['wf'])
+
+        orders = {
+            'apw': [0],
+            'lapw': [0, 1],
+        }.get(orbital.get('@type'))
+
+        return np.array(orders, dtype=np.int32) if orders is not None else None
+
+    # def get_l_channels(self, basis):
+    #     channels = {}
+
+    #     for apw in basis.get('custom', []):
+    #         l = int(apw['@l'])
+    #         channels.setdefault(l, {'name': l, 'orbitals': []})
+
+    #         channels[l]['orbitals'].append({
+    #             'kind': 'apw',
+    #             'type': apw['@type'],
+    #             'trial_energy': float(apw['@trialEnergy']),
+    #         })
+
+    #     for lo in basis.get('lo', []):
+    #         l = int(lo['@l'])
+    #         channels.setdefault(l, {'name': l, 'orbitals': []})
+
+    #         wavefunctions = lo['wf']
+    #         if isinstance(wavefunctions, dict):
+    #             wavefunctions = [wavefunctions]
+
+   
 
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
@@ -643,36 +771,16 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser = ExcitingMetainfoParser(
             logger=self.logger, data_object=Simulation(program=Program(name='exciting'))
         )
-
-        
-        # ---------------------------------------------------------
-        # 1. Convert INFO.OUT
-        # ---------------------------------------------------------
         data_parser.annotation_key = exciting.INFO_KEY
         info_parser.convert(data_parser)
-        
-    
+        species_list = info_parser.data.get('initialization', {}).get('species', [])
 
-        simulation = data_parser.data_object
-
-        print('\nDEBUG MODEL SYSTEM STRUCTURE START', file=sys.stderr)
-
-        for i, model_system in enumerate(simulation.model_system or []):
-            print(f'\nMODEL SYSTEM [{i}]', file=sys.stderr)
-
+        for i, species in enumerate(species_list):
+            print(f'DEBUG species {i}:', species.get('symbol'))
             print(
-                json.dumps(
-                    model_system.m_to_dict(),
-                    indent=2,
-                    default=str,
-                ),
-                file=sys.stderr,
-            )
-
-        print('\nDEBUG MODEL SYSTEM STRUCTURE END', file=sys.stderr)
-
-        # Legacy fallback: if mainfile is GW_INFO.OUT and contains
-        # no data, try the sibling INFO.OUT file.
+                f'DEBUG muffin-tin radius {i}:',
+                species.get('muffin_tin_radius'),
+            )   
         if not info_parser.data:
             info_out = os.path.join(maindir, 'INFO.OUT')
 
@@ -683,291 +791,74 @@ class ExcitingArchiveWriter(ArchiveWriter):
             ):
                 info_parser.filepath = info_out
 
-                data_parser.annotation_key = exciting.INFO_KEY
                 info_parser.convert(
                     data_parser,
                     update_mode='merge',
                 )
-         # ---------------------------------------------------------
-        # 2. Read species XML files
-        # ---------------------------------------------------------
-        initial = info_parser.data.get('initialization', {})
-        species = initial.get('species', [])
-        print(
-            f'DEBUG number of species: {len(species)}',
-            file=sys.stderr,
-        )
-        for specie in species:
-            symbol = specie.get('symbol', '?')
-            filename = specie.get('file', '').strip()
 
-            if not filename:
-                print(
-                    f'DEBUG missing filename for species {symbol}',
-                    file=sys.stderr,
+
+        simulation = data_parser.data_object
+
+        regions = [
+            component
+            for method in simulation.model_method or []
+            for setting in method.numerical_settings or []
+            if isinstance(setting, BasisSetContainer)
+            for component in setting.basis_set_components or []
+            if isinstance(component, MuffinTinRegion)
+        ]
+
+        species_list = info_parser.data.get('initialization', {}).get('species', [])
+
+        if len(regions) != len(species_list):
+            self.logger.warning('Muffin-tin regions and species count do not match.')
+        else:
+            for species, region in zip(species_list, regions):
+                filename = species.get('file')
+
+                if not filename:
+                    continue
+
+                xml_path = Path(maindir) / filename.strip()
+
+                if not xml_path.is_file():
+                    continue
+
+                xml_parser = SpeciesXMLParser(filepath=str(xml_path))
+
+                xml_target = ExcitingMetainfoParser(
+                    logger=self.logger,
+                    data_object=MuffinTinRegion(),
                 )
-                continue
+                xml_target.annotation_key = exciting.SPECIES_XML_KEY
+                xml_parser.convert(xml_target, update_mode='merge')
+                xml_region = xml_target.data_object
 
-            xml_path = Path(maindir) / filename
-
-            if not xml_path.is_file():
                 print(
-                    f'DEBUG XML file not found: {xml_path}',
-                    file=sys.stderr,
+                    'DEBUG XML l_channels:',
+                    [(channel.name, channel.m_def.name) for channel in xml_region.l_channels],
                 )
-                continue
+                try:
+                    #xml_parser.convert(xml_target)
+                    xml_region = xml_target.data_object
 
-            xml_parser = XMLParser()
-            xml_parser.filepath = str(xml_path)
+                    # l_max = xml_target.data_object.l_max
 
-            # -----------------------------------------------------
-            # 3. Inspect XML data before conversion
-            # -----------------------------------------------------
-            xml_data = xml_parser.data
+                    # if l_max is not None:
+                    #     region.l_max = l_max
+                    # xml_region = xml_target.data_object
 
-            muffin_tin = (
-                xml_data
-                .get('spdb', {})
-                .get('sp', {})
-                .get('muffinTin', {})
-            )
+                    if xml_region.l_max is not None:
+                        region.l_max = xml_region.l_max
 
-            radius_raw = muffin_tin.get('@radius')
+                    region.l_channels.clear()
 
-            print(
-                f'\nDEBUG BEFORE XML CONVERSION',
-                file=sys.stderr,
-            )
-            print(
-                f'  species: {symbol}',
-                file=sys.stderr,
-            )
-            print(
-                f'  file: {xml_path}',
-                file=sys.stderr,
-            )
-            print(
-                f'  radius raw: {radius_raw}',
-                file=sys.stderr,
-            )
+                    for channel in xml_region.l_channels:
+                        region.l_channels.append(channel)
 
-            if radius_raw is None:
-                print(
-                    f'  WARNING: muffinTin radius missing for {symbol}',
-                    file=sys.stderr,
-                )
-                continue
-
-            # -----------------------------------------------------
-            # 4. Convert XML using SPECIES_XML_KEY
-            # -----------------------------------------------------
-            data_parser.annotation_key = exciting.SPECIES_XML_KEY
-
-            xml_parser.convert(
-                data_parser,
-                update_mode='merge',
-            )
-            radius = float(radius_raw) * ureg.bohr
-
-            simulation = data_parser.data_object
-
-            for method in simulation.model_method or []:
-                for setting in method.numerical_settings or []:
-                    if not isinstance(setting, BasisSetContainer):
-                        continue
-
-                    # Seleziona il contenitore che contiene APWPlaneWaveBasisSet
-                    if not any(
-                        isinstance(comp, APWPlaneWaveBasisSet)
-                        for comp in setting.basis_set_components
-                    ):
-                        continue
-
-                    # muffin_tin_region = MuffinTinRegion(
-                    #     radius=radius,
-                    # )
-
-                    # setting.basis_set_components.append(muffin_tin_region)
-
-                    # Recupera gli AtomsState già presenti nella simulazione
-                    matching_atoms_states = []
-
-                    for model_system in data_parser.data_object.model_system or []:
-                        for atoms_state in model_system.particle_states or []:
-                            if atoms_state.chemical_symbol == 'C':
-                                matching_atoms_states.append(atoms_state)
-
-                    # Crea il MuffinTinRegion con il raggio e i riferimenti agli atomi
-                    muffin_tin_region = MuffinTinRegion(
-                        radius=radius,
-                        species_scope=matching_atoms_states,
-                    )
-
-                    # Aggiunge il componente al BasisSetContainer esistente
-                    setting.basis_set_components.append(muffin_tin_region)
-
-                    print(
-                        f'DEBUG ADDED MuffinTinRegion: '
-                        f'species={"C"}, '
-                        f'radius={radius}, '
-                        f'number of linked atoms={len(matching_atoms_states)}',
-                        file=sys.stderr,
-                    )
-                    print(
-                        f'DEBUG ADDED MuffinTinRegion: '
-                        f'species={symbol}, radius={muffin_tin_region.radius}',
-                        file=sys.stderr,
-                    )
-
-                    break
-            print(
-                f'DEBUG AFTER XML CONVERSION: {symbol}',
-                file=sys.stderr,
-            )
-
-            # -----------------------------------------------------
-            # 5. Inspect resulting BasisSetContainer objects
-            # -----------------------------------------------------
-            simulation = data_parser.data_object
-
-            for method_index, method in enumerate(
-                simulation.model_method or []
-            ):
-                numerical_settings = getattr(
-                    method,
-                    'numerical_settings',
-                    [],
-                ) or []
-
-                for basis_index, basis in enumerate(
-                    numerical_settings
-                ):
-                    if not hasattr(basis, 'basis_set_components'):
-                        continue
-
-                    print(
-                        f'  BASIS [{method_index}, {basis_index}]: '
-                        f'name={basis.name}',
-                        file=sys.stderr,
-                    )
-
-                    components = basis.basis_set_components or []
-
-                    print(
-                        f'  number of components: {len(components)}',
-                        file=sys.stderr,
-                    )
-
-                    for component in components:
-                        if isinstance(
-                            component,
-                            APWPlaneWaveBasisSet,
-                        ):
-                            print(
-                                '    APWPlaneWaveBasisSet: '
-                                f'cutoff_fractional='
-                                f'{component.cutoff_fractional}',
-                                file=sys.stderr,
-                            )
-
-                        elif isinstance(
-                            component,
-                            MuffinTinRegion,
-                        ):
-                            print(
-                                '    MuffinTinRegion: '
-                                f'radius={component.radius}',
-                                file=sys.stderr,
-                            )
-
-                        else:
-                            print(
-                                '    OTHER COMPONENT: '
-                                f'{component.m_def.name}',
-                                file=sys.stderr,
-                            )
-
-            print(
-                'DEBUG END SPECIES\n',
-                file=sys.stderr,
-            )
-
-        # for specie in species:
-        #     xml_path = Path(maindir) / specie['file'].strip()
-
-        #     if not xml_path.is_file():
-        #         continue
-
-        #     xml_parser = XMLParser()
-        #     xml_parser.filepath = str(xml_path)
-
-        # print('DEBUG species:', specie['symbol'])
-        # print('DEBUG XML data:', xml_parser.data)
-        # print(xml_parser.data['spdb']['sp']['muffinTin']['@radius'])
-        # # # 2. Load species XML data
-        # # species_xml_data = SpeciesXMLParser().parse_all(
-        # #     calculation_dir=Path(maindir),
-        # #     species=species,
-        # # )
-
-        # # # 4. Convert INFO.OUT after attaching XML data
-        # data_parser.annotation_key = exciting.INFO_KEY
-        # info_parser.convert(data_parser)
-
-        # radius = xml_parser.data['spdb']['sp']['muffinTin']['@radius']
-
-        # print('DEBUG radius:', radius, file=sys.stderr)
-
-        # data_parser.annotation_key = exciting.SPECIES_XML_KEY
-
-        # xml_parser.convert(
-        #     data_parser,
-        #     update_mode='merge',
-        # )
-
-        # # Parse species XML
-        # species_xml_data = SpeciesXMLParser().parse_all(    
-        #     calculation_dir=Path(maindir),
-        #     species=species,)
-
-        # species_xml_mapping_data = {
-        #     'muffin_tin_regions': [
-        #         {
-        #             'species_number': number,
-        #             'chemical_symbol': data['chemical_symbol'],
-        #             'radius': data['muffin_tin']['radius'],
-        #         }
-        #         for number, data in sorted(species_xml_data.items())
-        #         if data.get('muffin_tin')
-        #     ]
-        # }
-
-        # print('DEBUG species XML mapping:', species_xml_mapping_data)
-        # # Map species XML into MuffinTinRegion
-        # data_parser.annotation_key = exciting.SPECIES_XML_KEY
-        # print('DEBUG annotation key:', data_parser.annotation_key)
-        # print('DEBUG XML data:', species_xml_mapping_data)
-        # Legacy exciting behavior uses INFO.OUT as the canonical source for
-        # reference energy metadata. If the selected mainfile is GW_INFO.OUT
-        # and parsing yields no payload, fallback to sibling INFO.OUT.
-        # if not info_parser.data:
-        #     info_out = os.path.join(maindir, 'INFO.OUT')
-        #     if os.path.isfile(info_out) and os.path.abspath(
-        #         info_out
-        #     ) != os.path.abspath(self.mainfile):
-        #         info_parser.filepath = info_out
-        #         info_parser.convert(data_parser, update_mode='merge')
-        
-        # Read species XML files
-        # species = info_parser.data.get('initialization', {}).get('species', [])
-        # species_xml_data = SpeciesXMLParser().parse_all(
-        #     calculation_dir=maindir,
-        #     species=species,
-        # )
-        # info_parser.species_xml_data = species_xml_data
-        
-        # read xc functionals from input.xml only if INFO.OUT did not already
-        # populate them
+                finally:
+                    xml_parser.close()
+                    xml_target.close()
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
             if not self.archive.m_xpath('data.model_method[0].xc.components')
