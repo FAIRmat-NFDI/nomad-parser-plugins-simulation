@@ -612,24 +612,68 @@ class SpeciesXMLParser(XMLParser):
         if not basis:
             return []
 
+        l_max = getattr(self, 'lmaxapw', None)
+        if l_max is None:
+            return []
         def as_list(value):
-            if value is None:
-                return []
-            return value if isinstance(value, list) else [value]
+                if value is None:
+                    return []
+                return value if isinstance(value, list) else [value]
 
-        channels = {}
+        default = basis.get('default')
 
-        for key in ('custom', 'lo'):
-            for orbital in as_list(basis.get(key)):
-                l = int(orbital['@l'])
+        customs = {
+            int(item['@l']): item
+            for item in as_list(basis.get('custom'))
+        }
 
-                channel = channels.setdefault(
-                    l, {'name': l, 'orbitals': []}
-                )
+        local_orbitals = {}
+        for lo in as_list(basis.get('lo')):
+            l = int(lo['@l'])
+            local_orbitals.setdefault(l, []).append(lo)
 
-                channel['orbitals'].append(orbital)
+        channels = []
 
-        return [channels[l] for l in sorted(channels)]
+        for l in range(int(l_max) + 1):
+            orbitals = []
+
+            # Use custom if present, otherwise default
+            apw = customs.get(l, default)
+
+            if apw is not None:
+                orbitals.append({
+                    '@type': 'lapw',
+                    **apw,
+                    '@l': str(l),
+                })
+
+            # Add all explicit local orbitals for this l
+            orbitals.extend(local_orbitals.get(l, []))
+
+            channels.append({
+                'name': l,
+                'orbitals': orbitals,
+            })
+
+        return channels
+        # def as_list(value):
+        #     if value is None:
+        #         return []
+        #     return value if isinstance(value, list) else [value]
+
+        # channels = {}
+
+        # for key in ('custom', 'lo'):
+        #     for orbital in as_list(basis.get(key)):
+        #         l = int(orbital['@l'])
+
+        #         channel = channels.setdefault(
+        #             l, {'name': l, 'orbitals': []}
+        #         )
+
+        #         channel['orbitals'].append(orbital)
+
+        # return [channels[l] for l in sorted(channels)]
         
     def get_l_channel_name(self, l: str | None) -> int | None:
         return int(l) if l is not None else None
@@ -704,6 +748,48 @@ class SpeciesXMLParser(XMLParser):
             [int(item['@matchingOrder']) for item in wf],
             dtype=np.int32,
         )
+
+    def get_local_orbital_energy_status(
+        self, wf: dict | list[dict] | None
+    ):
+        mapping = {
+            'false': 'fixed',
+            'true': 'post-optimization',
+        }
+        if wf is None:
+            return None
+
+        if isinstance(wf, dict):
+            wf = [wf]
+
+        return [
+                mapping.get(str(item.get('@searchE')))
+                for item in wf
+            ]
+
+    def get_energy_status(self, orbital: dict | None):
+
+        if not orbital:
+            return None
+        mapping = {
+            'false': 'fixed',
+            'true': 'post-optimization',
+        }
+
+        print('DEBUG energy_status 1:')
+        if 'wf' in orbital:
+            return self.get_local_orbital_energy_status(orbital['wf'])
+
+        energy_status = orbital.get('@searchE')
+        n_terms = {'apw': 1,'lapw': 2,}.get(orbital.get('@type'))
+        status = mapping.get(str(orbital.get('@searchE')).lower())
+
+        if status is None or n_terms is None:
+            return None
+
+        print('DEBUG energy_status:', energy_status)
+        return [status] * n_terms
+
     def get_orbital_energy_parameter(self, orbital: dict | None):
         if not orbital:
             return None
@@ -825,7 +911,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
                     continue
 
                 xml_parser = SpeciesXMLParser(filepath=str(xml_path))
-
+                xml_parser.lmaxapw = info_parser.data[
+                    'initialization'
+                ]['x_exciting_lmaxapw']
                 xml_target = ExcitingMetainfoParser(
                     logger=self.logger,
                     data_object=MuffinTinRegion(),
