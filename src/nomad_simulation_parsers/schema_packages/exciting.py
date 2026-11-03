@@ -218,9 +218,6 @@ class Representation(model_system.Representation):
 class AtomsState(atoms_state.AtomsState):
     add_mapping_annotations(
         (atoms_state.AtomsState.m_def, INFO_KEY, '.atoms'),
-        # (atoms_state.AtomsState.atomic_number, INFO_KEY, '.atomic_number'),
-        # (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.chemical_symbol'),
-        # (atoms_state.AtomsState.mass, INFO_KEY, '.mass'),)
         (atoms_state.AtomsState.atomic_number, INFO_KEY, '.atomic_number'),
         (atoms_state.AtomsState.chemical_symbol, INFO_KEY, '.symbol'),
         (atoms_state.AtomsState.mass, INFO_KEY, '.atomic_mass'),
@@ -230,23 +227,30 @@ class MuffinTinRegion(basis_set.MuffinTinRegion):
     add_mapping_annotations(
         (basis_set.MuffinTinRegion.m_def, INFO_KEY, 'initialization.species'),
         (basis_set.MuffinTinRegion.radius, INFO_KEY, '.muffin_tin_radius'),
-             (
+        (
+            basis_set.MuffinTinRegion.l_max,
+            INFO_KEY,
+            'initialization.x_exciting_lmaxapw',
+        ),
+        (
             basis_set.MuffinTinRegion.species_scope,
             INFO_KEY,
             (
                 'get_muffin_tin_species_scope',
                 ['.symbol'],
             ),
-        ),)
+        ),
+        )
+
     add_mapping_annotations(
-        (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, '.@'),
+         (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, '.@'),
     #     (basis_set.MuffinTinRegion.radius, SPECIES_XML_KEY, ('get_muffin_tin_radius', ['spdb.sp.muffinTin."@radius"'],),),
     # )
-        (
-        basis_set.MuffinTinRegion.l_max,
-        SPECIES_XML_KEY,
-        ('get_l_max', ['spdb.sp.basis']),
-    ),
+    #     (
+    #     basis_set.MuffinTinRegion.l_max,
+    #     SPECIES_XML_KEY,
+    #     ('get_l_max', ['spdb.sp.basis']),
+    # ),
     (
     basis_set.MuffinTinRegion.l_channels,
     SPECIES_XML_KEY,
@@ -290,6 +294,11 @@ class APWOrbital(basis_set.APWOrbital):
             basis_set.APWOrbital.differential_order,
             SPECIES_XML_KEY,
             ('get_orbital_differential_order', ['.@']),
+        ),
+                (
+            basis_set.APWOrbital.energy_status,
+            SPECIES_XML_KEY,
+            ('get_energy_status', ['.@']),
         ),
     )
 
