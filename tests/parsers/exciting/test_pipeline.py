@@ -18,6 +18,7 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
         normalize_all(normalized, logger=get_logger(__name__))
         return normalized
 
+
     @pytest.mark.pipeline
     def test_xc_functional_normalization(self, normalized_archive):
         method = normalized_archive.data.model_method[0]
@@ -27,7 +28,7 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
         assert xc is not None
         assert xc.functional_key == 'PBESOL'
         assert len(xc.components) == 2
-
+        
         components = {
             component.canonical_label: component for component in xc.components
         }
@@ -48,6 +49,7 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
         assert exchange.family == 'GGA'
         assert exchange.kind == 'exchange'
 
+
     @pytest.mark.pipeline
     def test_basis_set_container_normalization(self, normalized_archive):
         method = normalized_archive.data.model_method[0]
@@ -65,9 +67,8 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
             if component.m_def.name == 'APWPlaneWaveBasisSet'
         ]
         assert len(components) == 1
-        assert components[0].label == 'g-mesh'
-
-    @pytest.mark.pipeline
+        assert components[0].label == "g-mesh"
+    
     def test_model_system_normalization(self, normalized_archive):
         system = normalized_archive.data.model_system[0]
         assert system is not None
@@ -75,3 +76,5 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
         assert system.branch_depth == 0
         assert system.composition_formula == 'C(2)'
         assert system.particle_states[0].atomic_number == 6
+       
+

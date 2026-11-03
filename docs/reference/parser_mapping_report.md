@@ -804,7 +804,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `hash_id` | Mapped | `hash_id` |
-| `initialization` | Mapped | `initialization.dimensionality`<br>`initialization.grid`<br>`initialization.n_total_points`<br>`initialization.smearing_kind`<br>`initialization.smearing_width`<br>`initialization.x_exciting_number_of_atoms`<br>`initialization.x_exciting_rgkmax`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.x_exciting_unit_cell_volume`<br>`initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
+| `initialization` | Mapped | `initialization.smearing_kind`<br>`initialization.smearing_width`<br>`initialization.x_exciting_number_of_atoms`<br>`initialization.x_exciting_rgkmax`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.x_exciting_unit_cell_volume`<br>`initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_configurations(lattice_vectors)` |
 | `initialization.lattice_vectors_reciprocal` | Unmapped | — |
 | `initialization.x_exciting_unit_cell_volume` | Mapped | `initialization.x_exciting_unit_cell_volume` |
