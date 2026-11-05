@@ -57,6 +57,15 @@ def add_mapping_annotation(
     ``annotation_key``, consumed by the ``nomad_file_parser`` mapping parser to
     populate the archive from parsed data.
 
+    ``m_def`` only redirects where the annotation is stored. If ``property`` is a
+    ``SubSection`` and ``m_def`` is one of the sections inheriting from its declared
+    type, the annotation is stored on that section definition instead, as if the
+    helper had been called with ``m_def`` as ``property``; the subsection itself is
+    left without an annotation, and the mapping parser finds the subclass through
+    its scan of inheriting sections under the same ``annotation_key``. If ``m_def``
+    matches none of them, or ``property`` is not a ``SubSection``, ``m_def`` is
+    ignored and the annotation is stored on ``property``.
+
     Caveat for polymorphic subsections: the mapping conversion builds subsections
     by instantiating their *declared* type
     (``section.sub_section.section_cls()`` in ``nomad_file_parser``
