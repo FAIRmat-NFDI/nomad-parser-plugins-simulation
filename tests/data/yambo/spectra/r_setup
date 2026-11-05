@@ -1,0 +1,279 @@
+                                                                          
+    :   :::   :::     ::::    ::::  :::::::::   ::::::::                  
+    :+:   :+: :+: :+:   +:+:+: :+:+:+ :+:    :+: :+:    :+                
+     +:+ +:+ +:+   +:+  +:+ +:+:+ +:+ +:+    +:+ +:+    +:+               
+      +#++: +#++:++#++: +#+  +:+  +#+ +#++:++#+  +#+    +:+               
+       +#+  +#+     +#+ +#+       +#+ +#+    +#+ +#+    +#+               
+       #+#  #+#     #+# #+#       #+# #+#    #+# #+#    #+#               
+       ###  ###     ### ###       ### #########   ########                
+                                                                          
+                                                                          
+          Version 5.1.0 Revision 19888 Hash d3ddb0bb3                     
+                   Branch is devel-dichroism                              
+            MPI+OpenMP+SLK+SLEPC+HDF5_MPI_IO Build                        
+                   http://www.yambo-code.org                              
+ 
+ 11/04/2021 at 15:22 yambo @ frontend
+ ==================================================
+
+ Cores-Threads       : 1(CPU)-10(threads)
+ MPI Cores           :  1
+ Threads per core    :  10
+ Threads total       :  10
+ Nodes Computing     :  1
+ Nodes IO            :  1
+
+ Fragmented WFs      : yes
+ CORE databases      : .
+ Additional I/O      : .
+ Communications      : .
+ Input file          : (none)
+ Report file         : ./r_setup
+ Verbose log/report  : no
+
+ Precision           : SINGLE
+  
+ [RD./SAVE//ns.db1]--------------------------------------------------------------
+  Bands                                            :  1000
+  K-points                                         :  1
+  G-vectors                                        :   5087685 [RL space]
+  Components                                       :   635761 [wavefunctions]
+  Symmetries                                       :  2 [spatial+T-reV]
+  Spinor components                                :  1
+  Spin polarizations                               :  1
+  Temperature                                      :  0.000000 [eV]
+  Electrons                                        :  24.00000
+  WF G-vectors                                     :   635761
+  Max atoms/species                                :   6
+  No. of atom species                              :  3
+  Exact exchange fraction in XC                    :  0.000000
+  Exact exchange screening in XC                   :  0.000000
+  Magnetic symmetries                              : no
+ - S/N 001864 ---------------------------------------------- v.05.01.00 r.19888 -
+
+ [02] CORE Variables Setup
+ =========================
+
+
+  [02.01] Unit cells
+  ==================
+
+  Cell kind             :  FCC
+  Atoms in the cell     :  O  C  H
+  number of O  atoms    :  1
+  number of C  atoms    :  3
+  number of H  atoms    :   6
+
+  List of atomic coordinates    : [cc]
+  O1       :  1.556198 -1.555133 -0.535894
+  C1       :  1.962393  1.152418 -0.097577
+  C2       : -0.291114 -0.097230  0.942596
+  C3       : -2.824855  0.209792 -0.263268
+  H1       :  1.744174  2.338181 -1.788107
+  H2       :  3.567994  1.601251  1.136265
+  H3       : -0.268175 -0.576677  2.965649
+  H4       : -3.939547 -1.548505 -0.099994
+  H5       : -3.901788  1.745595  0.660017
+  H6       : -2.597372  0.667929 -2.287006
+
+  Alat factors          :  28.04358  28.04358  28.04358 [a.u.]
+  Direct lattice volume :   44109.3    [a.u.]
+  Direct lattice vectors:  A[ 1 ]  A[ 2 ]  A[ 3 ]
+   A[ 1 ]: -1.000000  0.000000  1.000000  [iru]
+  -28.04358   0.00000  28.04358  [cc]
+   A[ 2 ]:  0.000000  1.000000  1.000000  [iru]
+    0.00000  28.04358  28.04358  [cc]
+   A[ 3 ]: -1.000000  1.000000  0.000000  [iru]
+  -28.04358  28.04358   0.00000  [cc]
+
+  Recip. lattice volume :  0.005624 [a.u.]
+  Recip. lattice vectors:  B[ 1 ]  B[ 2 ]  B[ 3 ]
+   B[ 1 ]: -0.500000 -0.500000  0.500000  [iku]
+  -0.112025 -0.112025  0.112025  [cc]
+   B[ 2 ]:  0.500000  0.500000  0.500000  [iku]
+   0.112025  0.112025  0.112025  [cc]
+   B[ 3 ]: -0.500000  0.500000 -0.500000  [iku]
+  -0.112025  0.112025 -0.112025  [cc]
+
+  [02.02] Symmetries
+  ==================
+
+  Inversion symmetry    : yes
+  Spatial inversion     : no
+  Inversion index       :  2
+  K-space Time-reversal : yes
+  Magnetic symmetries   : no
+  Time-reversal derived K-space symmetries:  2  2
+  Group table correct   : yes
+  Symmetries units      :  [cc]
+
+   [S 1]:  1.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  1.000000
+   [S*2]: -1.000000 -0.000000 -0.000000 -0.000000 -1.000000 -0.000000 -0.000000 -0.000000 -1.000000
+
+  [02.03] Reciprocal space
+  ========================
+
+  nG shells         :   9564
+  nG charge         :   5087685
+  nG WFs            :   635761
+  nC WFs            :   635761
+  G-vecs. in first 80 shells:  [ Number ]
+     1    9   15   27   51   59   65   89  113
+    137   169   181   229   259   283   307   331   339
+    387   411   459   531   537   561   609   645   701
+    725   749   821   869   893   941   965  1037  1067
+   1139  1211  1243  1291  1363  1411  1459  1471  1591
+   1639  1687  1759  1807  1837  1893  1917  1989  2085
+   2109  2133  2229  2277  2397  2421  2445  2565  2637
+   2685  2733  2741  2837  2891  2975  3071  3119  3143
+    3215   3287   3383   3479   3527   3647   3695   3719
+  ...
+  Shell energy in first 80 shells:  [ mHa ]
+     0.0000   18.8245   25.0994   50.1988   69.0233   75.2981  100.3975  119.2221  125.4969
+   150.5963  169.4208  200.7950  219.6196  225.8944  250.9938  269.8183  276.0932  301.1925
+   320.0171  326.2920  351.3913  370.2158  401.5901  420.4146  426.6894  451.7888  470.6133
+   476.8882  501.9875  520.8120  527.0869  552.1863  571.0109  602.3851  621.2095  627.4844
+   652.5839  671.4083  677.6831  721.6072  727.8819  752.9813  771.8056  803.1801  822.0045
+   828.2794  853.3787  872.2032  878.4783  903.5777  922.4020  928.6769  953.7763  972.6008
+    1003.98      1022.80      1029.07      1054.17      1073.00      1079.27      1104.37      1123.20      1129.47   
+    1154.57      1173.40      1204.77      1223.59      1229.87      1254.97      1273.79      1280.07      1305.17   
+    1323.99      1330.27      1355.37      1374.19      1405.57      1424.39      1430.66      1455.76   
+  ...
+
+  [02.04] K-grid lattice
+  ======================
+
+  Compatible Grid is   : 0D
+  K lattice UC volume  :  0.005624 [a.u.]
+
+  IBZ K-points :  1
+  BZ  K-points :  1
+
+  K/Q-points units:
+  rlu = crystal or reduced units; cc = cartesian coordinates; iku = interal k-units
+
+  K [1]:  0.000000  0.000000  0.000000 [rlu]
+        : wf components:   635761
+
+  [02.05] Energies & Occupations
+  ==============================
+
+  [X] === General ===
+  [X] Electronic Temperature                        :  0.000000  0.000000 [eV K]
+  [X] Bosonic    Temperature                        :  0.000000  0.000000 [eV K]
+  [X] Finite Temperature mode                       : no
+  [X] El. density                                   :  0.36718E+22 [cm-3]
+  [X] Fermi Level                                   : -6.177278 [eV]
+
+  [X] === Gaps and Widths ===
+  [X] Conduction Band Min                           :  5.766824 [eV]
+  [X] Valence Band Max                              :  0.000000 [eV]
+  [X] Filled Bands                                  :  12
+  [X] Empty Bands                                   :    13  1000
+  [X] Direct Gap                                    :  5.766824 [eV]
+  [X] Direct Gap localized at k-point               :  1
+   
+   
+  E @ K [1]:  [eV]
+  -20.04276 -12.20026  -9.96220  -8.28554  -6.23577  -5.24111  -4.24215  -3.60510
+  -2.944038 -2.628870 -1.270462  0.000000  5.766824  6.203421  6.233593  6.290872
+   6.399767  6.683777  6.700388  6.720004  6.758808  6.789207  6.835250  6.840110
+  occ @ K [1]
+   2.000000  2.000000  2.000000  2.000000  2.000000  2.000000  2.000000  2.000000
+   2.000000  2.000000  2.000000  2.000000  0.000000  0.000000  0.000000  0.000000
+   0.000000  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000
+
+ Timing [Min/Max/Average]: 19s/19s/19s
+
+ [03] Transferred momenta grid and indexing
+ ==========================================
+
+
+ IBZ Q-points :  1
+ BZ  Q-points :  1
+
+ K/Q-points units:
+ rlu = crystal or reduced units; cc = cartesian coordinates; iku = interal k-units
+
+ Q [1]:  0.000000  0.000000  0.000000 [rlu]
+
+  [03.01] X indexes
+  =================
+
+
+   [03.01.01] Sigma indexes
+   ========================
+
+   [WR./SAVE//ndb.kindx]-----------------------------------------------------------
+    Fragmentation                                    : no
+    Polarization last K                              :  1
+    QP states                                        :  1  1
+    X grid is uniform                                : yes
+    Grids                                            : X S
+    BS scattering                                    : no
+    COLL scattering                                  : no
+    Sigma scattering                                 : yes
+    X scattering                                     : yes
+   - S/N 001864 ---------------------------------------------- v.05.01.00 r.19888 -
+
+ [04] Timing Overview
+ ====================
+
+ Clock: global
+      io_ATMPROJ_pwscf :      0.0001s CPU
+          io_KB_abinit :      0.0001s CPU
+                 io_BS :      0.0003s CPU
+            io_DIPOLES :      0.0005s CPU
+            io_COL_CUT :      0.0005s CPU
+        io_Double_Grid :      0.0008s CPU
+                 io_HF :      0.0010s CPU
+                 io_WF :      0.0048s CPU
+           io_KB_pwscf :      0.0064s CPU
+              io_QINDX :      0.0249s CPU (3 calls,   8.291 msec avg)
+       bz_samp_indexes :      0.0278s CPU
+               io_GROT :      0.0948s CPU (3 calls,  31.617 msec avg)
+
+ [05] Memory Overview
+ ====================
+
+ Memory Usage: global (Only MASTER cpu here). [O] stands for group 'O'
+ Memory treshold are: 496.6880 [Mb] (basic treshold)  4.966880 [Gb] (SAVEs treshold)
+
+
+         Max memory used   :  161.6980 [Mb]
+
+ [06] Game Over & Game summary
+ =============================
+
+ 11/04/2021 at 15:22 yambo @ frontend [start]
+ 11/04/2021 at 15:22                  [end]
+
+ Timing   [Min/Max/Average]: 19s/19s/19s
+             [Time-Profile]: 19s
+
+ .-ACKNOWLEDGMENT
+ |
+ | The users of YAMBO have little formal obligations with respect to
+ | the YAMBO group (those specified in the GNU General Public
+ | License, http://www.gnu.org/copyleft/gpl.txt). However, it is
+ | common practice in the scientific literature, to acknowledge the
+ | efforts of people that have made the research possible. In this
+ | spirit, please find below the reference we kindly ask you to use
+ | in order to acknowledge YAMBO
+ |
+ | Many-body perturbation theory calculations using the yambo code
+ | D. Sangalli, A. Ferretti, H. Miranda, C. Attaccalite, I. Marri, E. Cannuccia, P. Melo,
+ | M Marsili, F Paleari, A Marrazzo, G Prandini, P Bonfà, M O Atambo, F Affinito,
+ | M Palummo, A Molina-Sánchez, C Hogan, M Grüning, D Varsano and A Marini.
+ | J. Phys.: Condens. Matter 31, 325902 (2019).
+ |
+ | Yambo: An ab initio tool for excited state calculations
+ | A. Marini, C. Hogan, M. Grüning, D. Varsano
+ | Computer Physics Communications 180, 1392 (2009).
+ |
+  
+ .-Input file  (none)
+ | BoseTemp= 0.000000         eV    # Bosonic Temperature
+ | K_grids= "X S"                   # [KPT] Select the grids (X=response, S=sigma, C=collisions, B=bse) [default X S C B]
+ | %QptCoord                        # [KPT] [iku] Q-points coordinates (compatibility)
+ | %
