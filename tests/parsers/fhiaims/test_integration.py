@@ -308,15 +308,6 @@ class TestSiGeometryOptimization(FHIAimsParserIntegrationSuite):
             )
             assert eigenvalue_section.occupation[0][0] == approx(2.0)
 
-
-@pytest.mark.integration
-class TestNumericalSettingsCrossParserIsolation:
-    """`numerical_settings` must stay typed when other plugins' schema packages
-    are loaded in the same process (#257). Parses fresh rather than through the
-    shared fixture, so the other packages are imported before parsing."""
-
-    mainfile = DATA_DIR / 'Si_geomopt' / 'out.out'
-
     @staticmethod
     def assert_numerical_settings_intact(archive) -> None:
         settings = archive.data.model_method[0].numerical_settings
@@ -334,14 +325,23 @@ class TestNumericalSettingsCrossParserIsolation:
             if type(criterion).__name__ == 'SelfConsistency':
                 assert criterion.threshold_change is not None
 
-    def test_with_other_schema_packages_loaded(self):
+    @pytest.mark.integration
+    def test_numerical_settings_with_other_schema_packages_loaded(self):
+        """`numerical_settings` must stay typed when other plugins' schema
+        packages are loaded in the same process (#257). Parses fresh rather than
+        through the shared fixture, so the other packages are imported first."""
         importlib.import_module('nomad_simulation_parsers.schema_packages.orca')
-        self.assert_numerical_settings_intact(parse_fhiaims(self.mainfile))
+        self.assert_numerical_settings_intact(
+            parse_fhiaims(DATA_DIR / 'Si_geomopt' / 'out.out')
+        )
 
-    def test_through_full_plugin_loading(self):
+    @pytest.mark.integration
+    def test_numerical_settings_through_full_plugin_loading(self):
         """Same through `nomad.client.parse`, i.e. with every plugin entry point
         loaded as in `nomad parse` or an Oasis."""
-        self.assert_numerical_settings_intact(client_parse(str(self.mainfile))[0])
+        self.assert_numerical_settings_intact(
+            client_parse(str(DATA_DIR / 'Si_geomopt' / 'out.out'))[0]
+        )
 
 
 class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
