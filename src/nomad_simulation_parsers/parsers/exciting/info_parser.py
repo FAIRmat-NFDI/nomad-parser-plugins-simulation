@@ -129,7 +129,6 @@ class InfoFileParser(TextParser):
                 None,
             ),
             'kpoint_grid': (r'k\-point grid', None),
-            'kpoint_offset': (r'k\-point offset', None),
             'x_exciting_number_kpoints': (r'Total number of k\-points', None),
             'x_exciting_rgkmax': (r'R\^MT\_min \* \|G\+k\|\_max \(rgkmax\)', None),
             'x_exciting_species_rtmin': (r'Species with R\^MT\_min', None),
@@ -167,7 +166,7 @@ class InfoFileParser(TextParser):
 
         self._method_keys_mapping = {
             'smearing_kind': ('Smearing scheme', None),
-            'smearing_width': ('Smearing width', None),
+            'smearing_width': ('Smearing width', ureg.hartree),
         }
 
         for name, key_unit in self._system_keys_mapping.items():
@@ -186,7 +185,7 @@ class InfoFileParser(TextParser):
             initialization_quantities.append(
                 Quantity(
                     name,
-                    rf'{key_unit[1]}\s*:\s*([\s\S]*?)\n',
+                    rf'{key_unit[0]}\s*:\s*([\s\S]*?)\n',
                     unit=key_unit[1],
                     repeats=False,
                 )
@@ -356,7 +355,7 @@ class InfoFileParser(TextParser):
             ),
             'x_exciting_charge_convergence': (
                 r'Charge distance\s*\(target\)',
-                ureg.coulomb,
+                ureg.elementary_charge,
             ),
             'x_exciting_IBS_force_convergence': (
                 r'Abs\. change in max\-nonIBS\-force\s*\(target\)',
