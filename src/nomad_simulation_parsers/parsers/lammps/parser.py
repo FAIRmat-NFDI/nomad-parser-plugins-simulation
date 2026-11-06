@@ -10,7 +10,6 @@ from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
 from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
     MolecularDynamics,
-    MolecularDynamicsResults,
 )
 from structlog.stdlib import BoundLogger
 
@@ -509,7 +508,6 @@ class LammpsArchiveWriter(MDParser):
         units = self._log_parser.units if unit_style != 'lj' else {}
         self.archive.workflow2 = MolecularDynamics(
             method=build_md_method(settings, units),
-            results=MolecularDynamicsResults(calculate_derived_properties=False),
         )
 
     def _configure_parsers(self) -> None:
