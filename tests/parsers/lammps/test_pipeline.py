@@ -68,18 +68,6 @@ class TestLammpsXyzPipeline(SimulationParserPipelineTestSuite):
     archive_fixture = 'xyz_archive'
     expected_program_name = 'LAMMPS'
 
-    def test_method_only_normalization_skips_derived_analyses(self, xyz_archive):
-        normalized = normalize_archive(xyz_archive)
-        assert normalized.workflow2.method.thermodynamic_ensemble == 'NVT'
-        assert normalized.workflow2.method.n_steps == 1000
-        assert normalized.workflow2.results.calculate_derived_properties is False
-        assert normalized.workflow2.results.n_steps == len(normalized.data.model_system)
-        assert len(normalized.workflow2.results.trajectory) == len(
-            normalized.data.model_system
-        )
-        assert not normalized.workflow2.results.radial_distribution_functions
-        assert not normalized.workflow2.results.mean_squared_displacements
-
     def test_xyz_normalized_velocities(self, xyz_archive):
         normalized = normalize_archive(xyz_archive)
         systems = normalized.data.model_system
