@@ -4,6 +4,7 @@ from nomad.utils import get_logger
 
 from tests.parsers.common import (
     SimulationParserTestSuite,
+    WorkflowTestSuite,
     approx,
     assert_identity_populated_once,
 )
@@ -20,8 +21,12 @@ class LammpsParserIntegrationSuite(SimulationParserTestSuite):
         assert representative.positions is not None
 
 
+class LammpsMDIntegrationSuite(LammpsParserIntegrationSuite, WorkflowTestSuite):
+    workflow_name = 'MolecularDynamics'
+
+
 @pytest.mark.integration
-class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethylNaphthaleneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methyl_naphthalene_archive'
 
     def test_npt_method_from_main_and_auxiliary_logs(self, archive):
@@ -54,7 +59,7 @@ class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
+class TestLammpsHexaneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'hexane_archive'
 
     def test_nvt_method_from_main_and_auxiliary_logs(self, archive):
@@ -83,7 +88,7 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsXyzArchive(LammpsParserIntegrationSuite):
+class TestLammpsXyzArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'xyz_archive'
 
     def test_archive_contains_velocities(self, archive):
@@ -127,7 +132,7 @@ class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
+class TestLammpsDcdArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_dcd_archive'
 
     def test_reads_dcd_trajectory(self, archive):
@@ -145,7 +150,7 @@ class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsMethaneXyzArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethaneXyzArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_xyz_archive'
 
     def test_reads_xyz_trajectory(self, archive):
