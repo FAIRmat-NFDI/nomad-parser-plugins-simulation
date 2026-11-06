@@ -62,3 +62,17 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert monomers[0].composition_formula == 'C(11)H(10)'
         assert monomers[0].particle_indices[20] == 20
         assert monomers[0].is_molecule() is True
+
+    def test_method_only_normalization_skips_derived_analyses(
+        self, methyl_naphthalene_archive
+    ):
+        normalized = normalize_archive(methyl_naphthalene_archive)
+        assert normalized.workflow2.method.thermodynamic_ensemble == 'NPT'
+        assert normalized.workflow2.method.n_steps == 30000
+        assert normalized.workflow2.results.calculate_derived_properties is False
+        assert normalized.workflow2.results.n_steps == len(normalized.data.model_system)
+        assert len(normalized.workflow2.results.trajectory) == len(
+            normalized.data.model_system
+        )
+        assert not normalized.workflow2.results.radial_distribution_functions
+        assert not normalized.workflow2.results.mean_squared_displacements
