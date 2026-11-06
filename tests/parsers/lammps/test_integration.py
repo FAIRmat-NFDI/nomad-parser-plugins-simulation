@@ -4,6 +4,7 @@ from nomad.utils import get_logger
 
 from tests.parsers.common import (
     SimulationParserTestSuite,
+    WorkflowTestSuite,
     approx,
     assert_identity_populated_once,
 )
@@ -20,9 +21,25 @@ class LammpsParserIntegrationSuite(SimulationParserTestSuite):
         assert representative.positions is not None
 
 
+class LammpsMDIntegrationSuite(LammpsParserIntegrationSuite, WorkflowTestSuite):
+    workflow_name = 'MolecularDynamics'
+
+
 @pytest.mark.integration
-class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethylNaphthaleneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methyl_naphthalene_archive'
+
+    def test_npt_method_from_main_and_auxiliary_logs(self, archive):
+        method = archive.workflow2.method
+        assert method.thermodynamic_ensemble == 'NPT'
+        assert method.integrator_type == 'velocity_verlet'
+        assert method.integration_timestep.to('fs').magnitude == approx(2)
+        assert method.n_steps == 30000
+        assert method.coordinate_save_frequency == 10000
+        assert method.thermodynamics_save_frequency == 100
+        assert method.barostat_parameters[0].reference_pressure.to(
+            'atm'
+        ).magnitude == approx(np.eye(3) * 800)
 
     def test_archive_contains_trajectory_and_topology(self, archive):
         simulation = archive.data
@@ -42,8 +59,18 @@ class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
+class TestLammpsHexaneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'hexane_archive'
+
+    def test_nvt_method_from_main_and_auxiliary_logs(self, archive):
+        method = archive.workflow2.method
+        assert method.thermodynamic_ensemble == 'NVT'
+        assert method.n_steps == 80000
+        assert method.coordinate_save_frequency == 400
+        assert method.thermodynamics_save_frequency == 400
+        assert method.thermostat_parameters[0].reference_temperature.to(
+            'K'
+        ).magnitude == approx(300)
 
     def test_archive_contains_nvt_structure(self, archive):
         simulation = archive.data
@@ -61,7 +88,7 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsXyzArchive(LammpsParserIntegrationSuite):
+class TestLammpsXyzArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'xyz_archive'
 
     def test_archive_contains_velocities(self, archive):
@@ -105,7 +132,7 @@ class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
+class TestLammpsDcdArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_dcd_archive'
 
     def test_reads_dcd_trajectory(self, archive):
@@ -123,7 +150,7 @@ class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsMethaneXyzArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethaneXyzArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_xyz_archive'
 
     def test_reads_xyz_trajectory(self, archive):

@@ -28,6 +28,8 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         normalized = normalize_archive(methyl_naphthalene_archive)
         systems = normalized.data.model_system
 
+        assert normalized.workflow2.m_def.name == 'MolecularDynamics'
+        assert normalized.workflow2.method.thermodynamic_ensemble == 'NPT'
         assert len(systems) == 4
         assert np.shape(systems[0].positions) == (1134, 3)
         assert systems[0].n_particles == 1134
