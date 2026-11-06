@@ -8,6 +8,10 @@ from nomad.parsing.parser import MatchingParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
+    MolecularDynamics,
+    MolecularDynamicsResults,
+)
 from structlog.stdlib import BoundLogger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import (
@@ -15,6 +19,7 @@ from nomad_simulation_parsers.parsers.lammps.file_parsers import (
     LogParser,
     get_unit,
 )
+from nomad_simulation_parsers.parsers.lammps.method import build_md_method, selected_run
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,
@@ -484,33 +489,28 @@ class LammpsArchiveWriter(MDParser):
         pass
 
     def parse_workflow(self, simulation: Simulation) -> None:
-        """
-        Parse workflow information for geometry optimization runs.
+        """Attach method settings for the last MD run echoed in the log files."""
 
-        TODO: Migrate from legacy parser
-        - Detect minimization runs from log file (minimization_stats)
-        - Create GeometryOptimization workflow:
-          * Extract minimization method (cg, hftn, sd, quickmin, fire, spin)
-          * Map to standard method names (polak_ribiere_conjugant_gradient,
-            hessian_free_truncated_newton, steepest_descent, damped_dynamics)
-          * Parse optimization parameters (max steps, force convergence)
-        - Extract optimization results:
-          * Final energy difference
-          * Final force maximum
-        - Parse minimize/minimize/kk parameters:
-          * optimization_steps_maximum
-          * convergence_tolerance_force_maximum
-        - Handle unit conversions using self._log_parser.units
+        def log_lines():
+            for log_parser in (self._log_parser, self._aux_log_parser):
+                if log_parser.mainfile and os.path.isfile(log_parser.mainfile):
+                    with open(
+                        log_parser.mainfile, encoding='utf-8', errors='replace'
+                    ) as source:
+                        yield from source
 
-        Legacy implementation: lines 1037-1120 in
-        atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Determine which simulation workflow schema to use from nomad_simulations
-        - Check if GeometryOptimization is available in nomad_simulations
-        - Adapt to simulation.workflow structure if different from sec_run.workflow
-        - Update unit conversion to use apply_unit method
-        """
-        pass
+        settings = selected_run(log_lines())
+        if settings is None or settings['kind'] != 'md':
+            return
+
+        # LJ quantities are reduced and cannot be assigned SI schema units
+        # without user-provided mass, energy, and length scales.
+        unit_style = self._log_parser.get('units', ['lj'])[0]
+        units = self._log_parser.units if unit_style != 'lj' else {}
+        self.archive.workflow2 = MolecularDynamics(
+            method=build_md_method(settings, units),
+            results=MolecularDynamicsResults(calculate_derived_properties=False),
+        )
 
     def _configure_parsers(self) -> None:
         """Configure all parsers with loggers and basic settings."""
@@ -660,7 +660,6 @@ class LammpsArchiveWriter(MDParser):
         # TODO: uncomment when implemented
         # self.parse_input(self.archive.data)
         # self.parse_thermodynamic_data(self.archive.data)
-        # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
         self._resolved_unit_style = self._require_physical_unit_style()
@@ -677,11 +676,11 @@ class LammpsArchiveWriter(MDParser):
 
         # Set up and parse trajectory files
         parsers = self._parse_trajectory_files()
-        if not self.traj_parsers or self.traj_parsers[0] is None:
-            return
+        self.parse_workflow(self.archive.data)
 
         # Parse system, method, parameters, thermodynamic data, etc.
-        self._parse_content_sections()
+        if parsers:
+            self._parse_content_sections()
 
         # Close all parser instances
         self._mdanalysistraj_parser.close()
