@@ -143,44 +143,6 @@ def get_unit(
             density=ureg.ag / ureg.nm**dimension,
         )
 
-    # TODO: Add support for lj systems
-    # elif units_type == 'lj':
-    #    units = dict(
-    #        mass=ureg('dimensionless'),
-    #        distance=ureg('dimensionless'),
-    #        time=ureg('dimensionless'),
-    #        energy=ureg('dimensionless'),
-    #        velocity=ureg('dimensionless'),
-    #        force=ureg('dimensionless'),
-    #        torque=ureg('dimensionless'),
-    #        temperature=ureg('dimensionless'),
-    #        pressure=ureg('dimensionless'),
-    #        dynamic_viscosity=ureg('dimensionless'),
-    #        charge=ureg('dimensionless'),
-    #        dipole=ureg('dimensionless'),
-    #        electric_field=ureg('dimensionless'),
-    #        density=ureg('dimensionless'),
-    #    )
-    #
-    # ! Temporary, untested fix
-    # LJ units according to the LAMMPS documentation
-    elif units_type == 'lj':
-        units = dict(
-            mass=1,
-            distance=1,
-            time=1,
-            energy=1,
-            velocity=1,
-            force=1,
-            torque=1,
-            temperature=1,
-            pressure=1,
-            dynamic_viscosity=1,
-            charge=1,
-            dipole=1,
-            electric_field=1,
-            density=1,
-        )
     else:
         units = dict()
 

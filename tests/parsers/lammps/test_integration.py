@@ -61,25 +61,6 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsXyzArchive(LammpsParserIntegrationSuite):
-    archive_fixture = 'xyz_archive'
-
-    def test_archive_contains_velocities(self, archive):
-        system = archive.data.model_system[0]
-        assert system.positions.shape == (500, 3)
-        assert system.velocities.shape == (500, 3)
-        assert archive.data.model_system[100].velocities[250][2].to(
-            'angstrom/ps'
-        ).magnitude == approx(0.0256726)
-        assert archive.data.model_system[1].positions[452][2].to(
-            'meter'
-        ).magnitude == approx(5.99898)
-        assert archive.data.model_system[2].velocities[457][-2].to(
-            'meter/second'
-        ).magnitude == approx(-0.928553)
-
-
-@pytest.mark.integration
 @pytest.mark.large_fixture
 class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
     archive_fixture = 'polymer_melt_minimization_archive'
