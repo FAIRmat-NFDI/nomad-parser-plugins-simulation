@@ -186,6 +186,7 @@ def _add_pressure_control(
     barostat = BarostatParameters(barostat_type='nose_hoover')
     pressure = _control_values(fix, 'iso')
     if pressure is not None:
+        barostat.coupling_type = 'isotropic'
         start, end, damping = pressure
         if units.get('pressure') is not None:
             if start == end:
