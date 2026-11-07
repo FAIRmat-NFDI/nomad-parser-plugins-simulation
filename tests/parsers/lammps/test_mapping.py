@@ -66,6 +66,7 @@ def test_maps_controlled_npt_settings_without_reading_a_log():
     assert thermostat.reference_temperature_end.to('K').magnitude == approx(310)
     assert thermostat.coupling_constant.to('fs').magnitude == approx(100)
     barostat = method.barostat_parameters[0]
+    assert barostat.coupling_type == 'isotropic'
     assert barostat.pressure_profile == 'linear'
     np.testing.assert_allclose(
         barostat.reference_pressure_start.to('atm').magnitude,

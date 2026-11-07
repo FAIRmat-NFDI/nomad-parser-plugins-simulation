@@ -37,6 +37,13 @@ class TestLammpsMethylNaphthaleneArchive(LammpsMDIntegrationSuite):
         assert method.n_steps == 30000
         assert method.coordinate_save_frequency == 10000
         assert method.thermodynamics_save_frequency == 100
+        assert method.thermostat_parameters[0].coupling_constant.to(
+            'fs'
+        ).magnitude == approx(100)
+        assert method.barostat_parameters[0].coupling_type == 'isotropic'
+        assert np.diag(
+            method.barostat_parameters[0].coupling_constant.to('fs').magnitude
+        ) == approx([1000, 1000, 1000])
         assert method.barostat_parameters[0].reference_pressure.to(
             'atm'
         ).magnitude == approx(np.eye(3) * 800)
@@ -65,12 +72,17 @@ class TestLammpsHexaneArchive(LammpsMDIntegrationSuite):
     def test_nvt_method_from_main_and_auxiliary_logs(self, archive):
         method = archive.workflow2.method
         assert method.thermodynamic_ensemble == 'NVT'
+        assert method.integration_timestep.to('fs').magnitude == approx(0.25)
         assert method.n_steps == 80000
         assert method.coordinate_save_frequency == 400
         assert method.thermodynamics_save_frequency == 400
+        assert method.thermostat_parameters[0].thermostat_type == 'nose_hoover'
         assert method.thermostat_parameters[0].reference_temperature.to(
             'K'
         ).magnitude == approx(300)
+        assert method.thermostat_parameters[0].coupling_constant.to(
+            'fs'
+        ).magnitude == approx(100)
 
     def test_archive_contains_nvt_structure(self, archive):
         simulation = archive.data
