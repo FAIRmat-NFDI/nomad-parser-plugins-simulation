@@ -31,6 +31,40 @@ class LammpsArchiveWriter(MDParser):
         )
         self._data_parser = DataParser()
 
+    def _require_physical_unit_style(self) -> None:
+        """Reject reduced or unresolved units before creating a simulation."""
+        unit_reader = LogParser()
+        unit_reader.mainfile = self.mainfile
+        try:
+            declared_units = unit_reader.get('units')
+        finally:
+            unit_reader.close()
+
+        if not declared_units:
+            raise ValueError(
+                'LAMMPS unit style is unresolved in the log. Reduced LJ units '
+                'are the LAMMPS default, and this parser cannot assign physical '
+                'units without an explicit, supported unit style.'
+            )
+
+        unit_styles = {style.lower() for style in declared_units}
+        if len(unit_styles) != 1:
+            raise ValueError(
+                f'Conflicting LAMMPS unit styles in the log: {sorted(unit_styles)}.'
+            )
+
+        unit_style = unit_styles.pop()
+        if unit_style == 'lj':
+            raise ValueError(
+                'LAMMPS units lj are reduced and cannot be mapped to NOMAD '
+                'physical units without system-specific scales. Parsing stopped '
+                'before writing a simulation archive.'
+            )
+
+        physical_styles = {'real', 'metal', 'si', 'cgs', 'electron', 'micro', 'nano'}
+        if unit_style not in physical_styles:
+            raise ValueError(f'Unsupported LAMMPS unit style: {unit_style}.')
+
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
             value = value * self._log_parser.units.get(unit, 1)
@@ -606,6 +640,7 @@ class LammpsArchiveWriter(MDParser):
         # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
+        self._require_physical_unit_style()
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
         # LAMMPS mainfile is the main log file
         self.basename = os.path.basename(self.mainfile)

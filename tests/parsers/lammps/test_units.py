@@ -1,0 +1,70 @@
+"""Reject reduced LAMMPS units before assigning physical schema quantities."""
+
+from pathlib import Path
+
+import pytest
+from nomad.datamodel import EntryArchive
+from nomad.utils import get_logger
+
+from nomad_simulation_parsers.parsers.lammps.file_parsers import get_unit
+from nomad_simulation_parsers.parsers.lammps.parser import (
+    LammpsArchiveWriter,
+    LammpsParser,
+)
+
+LOGGER = get_logger(__name__)
+DATA_DIR = Path(__file__).resolve().parents[2] / 'data' / 'lammps'
+
+
+@pytest.mark.integration
+def test_rejects_lj_fixture_before_writing_archive():
+    archive = EntryArchive()
+    mainfile = DATA_DIR / '1_xyz_files' / 'log.lammps'
+
+    with pytest.raises(ValueError, match='LAMMPS units lj are reduced'):
+        LammpsParser().parse(str(mainfile), archive, LOGGER)
+
+    assert archive.data is None
+    assert archive.workflow2 is None
+    assert get_unit('lj') == {}
+
+
+@pytest.mark.unit
+def test_writer_cannot_bypass_lj_rejection():
+    archive = EntryArchive()
+    mainfile = DATA_DIR / '1_xyz_files' / 'log.lammps'
+
+    with pytest.raises(ValueError, match='LAMMPS units lj are reduced'):
+        LammpsArchiveWriter().write(str(mainfile), archive, LOGGER)
+
+    assert archive.data is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('contents', 'message'),
+    [
+        ('LAMMPS (test)\nrun 10\n', 'unit style is unresolved'),
+        ('LAMMPS (test)\nunits real\nunits metal\n', 'Conflicting LAMMPS'),
+        ('LAMMPS (test)\nunits imaginary\n', 'Unsupported LAMMPS'),
+    ],
+)
+def test_rejects_ambiguous_units_before_writing_archive(tmp_path, contents, message):
+    mainfile = tmp_path / 'log.lammps'
+    mainfile.write_text(contents)
+    archive = EntryArchive()
+
+    with pytest.raises(ValueError, match=message):
+        LammpsParser().parse(str(mainfile), archive, LOGGER)
+
+    assert archive.data is None
+    assert archive.workflow2 is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('unit_style', 'expected_velocity'), [('real', 20000), ('metal', 20)]
+)
+def test_physical_unit_styles_keep_velocity_scales(unit_style, expected_velocity):
+    velocity = 0.2 * get_unit(unit_style, 'velocity')
+    assert velocity.to('meter/second').magnitude == pytest.approx(expected_velocity)
