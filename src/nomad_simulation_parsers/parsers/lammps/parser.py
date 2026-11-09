@@ -440,6 +440,87 @@ class LammpsArchiveWriter(MDParser):
         if simulation.model_system:
             simulation.model_system[-1].is_representative = True
 
+    def _parse_input_structure(self, simulation: Simulation) -> None:
+        """Store a known input structure when no trajectory was found.
+
+        This is the structure supplied to LAMMPS by ``read_data``, not an
+        inferred post-run or post-minimization configuration.
+        """
+        data_file = self._data_parser.mainfile
+        if data_file is None or not os.path.isfile(data_file):
+            self.logger.warning('No readable trajectory or input data file found.')
+            return
+
+        read_data_commands = []
+        for log_parser in (self._log_parser, self._aux_log_parser):
+            commands = log_parser.get('read_data') or []
+            read_data_commands.extend(
+                [commands] if isinstance(commands, str) else commands
+            )
+        if not any(command != 'CPU' for command in read_data_commands):
+            self.logger.warning(
+                'An input data file was found without a matching read_data command.'
+            )
+            return
+
+        atom_styles = self._log_parser.get('atom_style') or self._aux_log_parser.get(
+            'atom_style'
+        )
+        if not atom_styles or atom_styles[-1] != 'atomic':
+            self.logger.warning(
+                'Cannot reconstruct an input structure for LAMMPS atom style '
+                f'{atom_styles}.'
+            )
+            return
+
+        data_reader = MDAnalysisParser(format='DATA', atom_style='id type x y z')
+        data_reader.logger = self.logger
+        data_reader.mainfile = data_file
+        try:
+            data_reader.parse()
+            frame = data_reader.get_frame_data(0)
+            if frame['positions'] is None:
+                self.logger.warning('Input data file has no readable atom positions.')
+                return
+
+            # MDAnalysis assigns angstrom to DATA coordinates regardless of the
+            # LAMMPS unit style. The numeric values have the log's distance unit.
+            distance_unit = self._log_parser.units.get('distance')
+            if distance_unit is None:
+                self.logger.warning('Cannot resolve the input structure distance unit.')
+                return
+            lattice_vectors = frame['lattice_vectors']
+            if lattice_vectors is not None:
+                lattice_vectors = lattice_vectors.magnitude * distance_unit
+
+            boundary = self._log_parser.get('boundary') or self._aux_log_parser.get(
+                'boundary'
+            )
+            boundary = boundary[-1] if boundary else ['p', 'p', 'p']
+            particle_types = data_reader.get('atoms_info', {}).get('types')
+            self.parse_trajectory_step(
+                {
+                    'lattice_vectors': lattice_vectors,
+                    'periodic_boundary_conditions': [
+                        value == 'p' for value in boundary
+                    ],
+                    # Type identifiers are labels, not evidence of elements.
+                    'labels': particle_types,
+                    'n_particles': data_reader.get_n_atoms(0),
+                    'positions': frame['positions'].magnitude * distance_unit,
+                    'dimensions': 3,
+                },
+                simulation,
+                model_system=ModelSystem(
+                    name='Input structure', is_representative=False
+                ),
+            )
+            self.logger.warning(
+                'Stored the LAMMPS input structure; no final structure is available.'
+            )
+        finally:
+            data_reader.close()
+
     def parse_input(self, simulation: Simulation) -> None:
         """
         Parse input/control parameters from log file.
@@ -541,7 +622,15 @@ class LammpsArchiveWriter(MDParser):
 
     def _set_data_files(self) -> None:
         """Parse and configure data file(s) associated with calculation."""
-        data_files = self._log_parser.get_data_files()
+        log_parser = self._log_parser
+        if (
+            not log_parser.get('read_data')
+            and self._aux_log_parser.mainfile
+            and os.path.isfile(self._aux_log_parser.mainfile)
+            and self._aux_log_parser.get('read_data')
+        ):
+            log_parser = self._aux_log_parser
+        data_files = log_parser.get_data_files()
 
         if len(data_files) > 1:
             self.logger.warning('Multiple data files are specified')
@@ -550,7 +639,11 @@ class LammpsArchiveWriter(MDParser):
             self._data_parser.mainfile = data_files[0]
 
     def _create_trajectory_parser(
-        self, traj_file: str, index: int, data_file: str
+        self,
+        traj_file: str,
+        index: int,
+        data_file: str,
+        dump_commands: list | None = None,
     ) -> TrajParser | XYZTrajParser | MDAnalysisParser:
         """
         Create appropriate trajectory parser based on file type.
@@ -578,7 +671,7 @@ class LammpsArchiveWriter(MDParser):
             """Create parser for custom or atom LAMMPS dump formats."""
             custom_options = None
             if file_type == 'custom':
-                custom_options = self._log_parser.get('dump')[index][5:]
+                custom_options = dump_commands[index][5:]
                 # Convert unwrapped coordinates (xu, yu, zu) to regular (x, y, z)
                 custom_options = [
                     option.replace('xu', 'x').replace('yu', 'y').replace('zu', 'z')
@@ -609,7 +702,8 @@ class LammpsArchiveWriter(MDParser):
             return traj_parser
 
         # Determine file type from dump command or file extension
-        dump_commands = self._log_parser.get('dump')
+        if dump_commands is None:
+            dump_commands = self._log_parser.get('dump')
         if dump_commands:
             file_type = dump_commands[index][2]
         else:
@@ -618,11 +712,11 @@ class LammpsArchiveWriter(MDParser):
             file_type = traj_file.rsplit('.', maxsplit=1)[-1]
 
         # TODO: add support for other LAMMPS dump file formats (https://docs.lammps.org/dump.html)
-        if file_type == 'dcd' or file_type == 'xyz' and data_file:
+        if file_type in ('dcd', 'xyz') and data_file:
             return _create_formatted_parser(traj_file, file_type, data_file)
 
         # TODO: 'atom' keyword is a LB edit, test
-        elif file_type == 'custom' or file_type == 'atom' and data_file:
+        elif file_type in ('custom', 'atom') and data_file:
             return _create_custom_parser(traj_file, index, data_file, file_type)
 
         else:
@@ -636,7 +730,16 @@ class LammpsArchiveWriter(MDParser):
         self,
     ) -> list[TrajParser | XYZTrajParser | MDAnalysisParser]:
         """Parse trajectory files and create appropriate parsers."""
-        traj_files = self._log_parser.get_traj_files()
+        log_parser = self._log_parser
+        if (
+            not log_parser.get('dump')
+            and self._aux_log_parser.mainfile
+            and os.path.isfile(self._aux_log_parser.mainfile)
+            and self._aux_log_parser.get('dump')
+        ):
+            log_parser = self._aux_log_parser
+        traj_files = log_parser.get_traj_files()
+        dump_commands = log_parser.get('dump')
 
         if len(traj_files) > 1:
             self.logger.warning('Multiple traj files are specified')
@@ -645,7 +748,14 @@ class LammpsArchiveWriter(MDParser):
         parsers = []
 
         for n, traj_file in enumerate(traj_files):
-            traj_parser = self._create_trajectory_parser(traj_file, n, data_file)
+            if not os.path.isfile(traj_file):
+                self.logger.warning(
+                    f'Referenced trajectory file is missing: {traj_file}'
+                )
+                continue
+            traj_parser = self._create_trajectory_parser(
+                traj_file, n, data_file, dump_commands
+            )
             parsers.append(traj_parser)
 
         self.traj_parsers = TrajParsers(parsers)
@@ -679,6 +789,8 @@ class LammpsArchiveWriter(MDParser):
         # Parse system, method, parameters, thermodynamic data, etc.
         if parsers:
             self._parse_content_sections()
+        else:
+            self._parse_input_structure(self.archive.data)
 
         # Close all parser instances
         self._mdanalysistraj_parser.close()

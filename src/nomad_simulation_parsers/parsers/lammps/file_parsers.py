@@ -636,22 +636,24 @@ class LogParser(TextParser):
                 file_header_str = ''
             return re.search(regex_pattern, file_header_str)
 
-        read_data = self.get('read_data')
-        # TODO: Check in with Leo on the reasoning behind this change
-        # # Chop out 'CPU' before, then just check none
-        # if read_data is not None:
-        #     try:
-        #         read_data.remove('CPU')
-        #     except Exception:
-        #         pass
-        if read_data is None or 'CPU' in read_data:
+        read_data = self.get('read_data') or []
+        if isinstance(read_data, str):
+            read_data = [read_data]
+        # Runtime output can create a spurious `read_data CPU` match. Retain
+        # genuine commands instead of discarding them and scanning the directory.
+        read_data = [file for file in read_data if file != 'CPU']
+        if not read_data:
             self.logger.warning(self._file_scan_warning.format('Data'))
+            data_files = []
             for ext in self._data_file_patterns:
-                data_files = search_files(
-                    pattern=f'*{ext}*',
-                    basedir=self.maindir,
-                    deep=False,  # Only search current directory
+                data_files.extend(
+                    search_files(
+                        pattern=f'*{ext}*',
+                        basedir=self.maindir,
+                        deep=False,  # Only search current directory
+                    )
                 )
+            data_files = list(dict.fromkeys(data_files))
             if not data_files:
                 # Search any file for the LAMMPS data file header.
                 # Fallback to the LAMMPS input structure, if no run data file is found.
