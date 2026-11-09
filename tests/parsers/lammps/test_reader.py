@@ -288,7 +288,11 @@ class TestLogParser:
 
     @pytest.mark.parametrize(
         ('read_data', 'expected_files'),
-        [([], []), (['structure.data'], ['structure.data'])],
+        [
+            ([], []),
+            (['structure.data'], ['structure.data']),
+            (['structure.data', 'CPU'], ['structure.data']),
+        ],
     )
     def test_get_data_files(self, parser, tmp_dir, read_data, expected_files):
         mainfile = os.path.join(tmp_dir, 'log.test')
@@ -303,6 +307,22 @@ class TestLogParser:
         data_files = parser.get_data_files()
 
         assert [os.path.basename(filename) for filename in data_files] == expected_files
+
+    def test_get_data_files_scans_all_patterns_once(self, parser, tmp_path):
+        mainfile = tmp_path / 'log.lammps'
+        mainfile.write_text('LAMMPS (test)\n')
+        for filename in ('first.data', 'second.dat'):
+            (tmp_path / filename).write_text('LAMMPS data file\n')
+        parser.mainfile = str(mainfile)
+        parser.logger = LOGGER
+
+        data_files = parser.get_data_files()
+
+        assert {os.path.basename(filename) for filename in data_files} == {
+            'first.data',
+            'second.dat',
+        }
+        assert len(data_files) == 2
 
     @pytest.mark.parametrize(
         ('content', 'pattern', 'expected', 'binary'),
