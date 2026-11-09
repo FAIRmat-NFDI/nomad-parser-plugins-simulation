@@ -553,61 +553,6 @@ class EigvalParser(TextParser):
 
 class SpeciesXMLParser(XMLParser):
 
-    # def get_l_channels(self, basis: dict | None) -> list[dict]:
-    #     if not basis:
-    #         return []
-
-    #     print('DEBUG basis:', basis)
-    #     def as_list(value):
-    #         if value is None:
-    #             return []
-    #         return value if isinstance(value, list) else [value]
-
-    #     channels = {}
-
-    #     for custom in as_list(basis.get('custom')):
-    #         l = int(custom['@l'])
-
-    #         channel = channels.setdefault(
-    #             l, {'name': l, 'orbitals': []}
-    #         )
-
-    #         channel['orbitals'].append({
-    #             'm_def': basis_set.APWOrbital.m_def.qualified_name(),
-    #             **custom,
-    #         })
-
-    #     for lo in as_list(basis.get('lo')):
-    #         l = int(lo['@l'])
-
-    #         channel = channels.setdefault(
-    #             l, {'name': l, 'orbitals': []}
-    #         )
-
-    #         channel['orbitals'].append({
-    #             'm_def': basis_set.APWLocalOrbital.m_def.qualified_name(),
-    #             **lo,
-    #         })
-
-    #     return [channels[l] for l in sorted(channels)]
-
-    # def get_l_max(self, basis: dict | None) -> int | None:
-    #     if not basis:
-    #         return None
-
-    #     l_values = []
-
-    #     for key in ('custom', 'lo'):
-    #         items = basis.get(key, [])
-
-    #         if isinstance(items, dict):
-    #             items = [items]
-
-    #         for item in items:
-    #             if item.get('@l') is not None:
-    #                 l_values.append(int(item['@l']))
-
-    #     return max(l_values) if l_values else None 
     def get_l_channels(self, basis: dict | None) -> list[dict]:
         if not basis:
             return []
@@ -637,17 +582,44 @@ class SpeciesXMLParser(XMLParser):
         for l in range(int(l_max) + 1):
             orbitals = []
 
-            # Use custom if present, otherwise default
-            apw = customs.get(l, default)
+            is_custom = l in customs
+            apw = customs[l] if is_custom else default
 
             if apw is not None:
+                orbital_type = apw.get(
+                    '@type',
+                    'apw+lo' if is_custom else 'lapw',
+                )
+                trial_energy = apw.get('@trialEnergy', '0.15')
+                search_e = apw.get('@searchE', 'true')
+
+                # APW component
                 orbitals.append({
-                    '@type': 'lapw',
                     **apw,
                     '@l': str(l),
+                    '@type': (
+                        'apw' if orbital_type == 'apw+lo'
+                        else orbital_type
+                    ),
+                    '@trialEnergy': trial_energy,
+                    '@searchE': search_e,
                 })
 
-            # Add all explicit local orbitals for this l
+                # Automatically generated LO for APW+lo
+                if orbital_type == 'apw+lo':
+                    orbitals.append({
+                        '@l': str(l),
+                        'wf': [
+                            {
+                                '@matchingOrder': str(order),
+                                '@trialEnergy': trial_energy,
+                                '@searchE': search_e,
+                            }
+                            for order in (0, 1)
+                        ],
+                    })
+
+            # Explicit local orbitals from <lo>
             orbitals.extend(local_orbitals.get(l, []))
 
             channels.append({
@@ -655,72 +627,29 @@ class SpeciesXMLParser(XMLParser):
                 'orbitals': orbitals,
             })
 
+            # # Use custom if present, otherwise default
+            # apw = customs.get(l, default)
+
+            # if apw is not None:
+            #     orbitals.append({
+            #         '@type': 'lapw',
+            #         **apw,
+            #         '@l': str(l),
+            #     })
+
+            # # Add all explicit local orbitals for this l
+            # orbitals.extend(local_orbitals.get(l, []))
+
+            # channels.append({
+            #     'name': l,
+            #     'orbitals': orbitals,
+            # })
+
         return channels
-        # def as_list(value):
-        #     if value is None:
-        #         return []
-        #     return value if isinstance(value, list) else [value]
 
-        # channels = {}
-
-        # for key in ('custom', 'lo'):
-        #     for orbital in as_list(basis.get(key)):
-        #         l = int(orbital['@l'])
-
-        #         channel = channels.setdefault(
-        #             l, {'name': l, 'orbitals': []}
-        #         )
-
-        #         channel['orbitals'].append(orbital)
-
-        # return [channels[l] for l in sorted(channels)]
-        
     def get_l_channel_name(self, l: str | None) -> int | None:
         return int(l) if l is not None else None
 
-    # def get_apw_orbital_energy_parameter(
-    #     self, trial_energy: str | None
-    # ):
-    #     if trial_energy is None:
-    #         return None
-
-    #     return np.array([float(trial_energy)]) * ureg.hartree
-
-#     def get_apw_orbital_differential_order(
-#     self, custom: dict | None
-# ) -> np.ndarray | None:
-#     if not custom:
-#         return None
-
-#     orbital_type = custom.get('@type')
-
-#     orders = {
-#         'apw': [0],
-#         'lapw': [0, 1],
-#         'slapw': [0, 1, 2],
-#     }.get(orbital_type)
-
-#     if orders is None:
-#         return None
-
-#     return np.array(orders, dtype=np.int32)
-
-
-#     def get_apw_orbital_energy_parameter(
-#         self, custom: dict | None
-#     ):
-#         if not custom or custom.get('@trialEnergy') is None:
-#             return None
-
-#         orders = self.get_apw_orbital_differential_order(custom)
-
-#         if orders is None:
-#             return None
-
-#         return (
-#             np.full(len(orders), float(custom['@trialEnergy']))
-#             * ureg.hartree
-#         )
 
     def get_local_orbital_energy_parameter(
         self, wf: dict | list[dict] | None
@@ -821,27 +750,6 @@ class SpeciesXMLParser(XMLParser):
         }.get(orbital.get('@type'))
 
         return np.array(orders, dtype=np.int32) if orders is not None else None
-
-    # def get_l_channels(self, basis):
-    #     channels = {}
-
-    #     for apw in basis.get('custom', []):
-    #         l = int(apw['@l'])
-    #         channels.setdefault(l, {'name': l, 'orbitals': []})
-
-    #         channels[l]['orbitals'].append({
-    #             'kind': 'apw',
-    #             'type': apw['@type'],
-    #             'trial_energy': float(apw['@trialEnergy']),
-    #         })
-
-    #     for lo in basis.get('lo', []):
-    #         l = int(lo['@l'])
-    #         channels.setdefault(l, {'name': l, 'orbitals': []})
-
-    #         wavefunctions = lo['wf']
-    #         if isinstance(wavefunctions, dict):
-    #             wavefunctions = [wavefunctions]
 
    
 
