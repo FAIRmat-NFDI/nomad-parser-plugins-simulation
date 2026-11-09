@@ -100,6 +100,20 @@ fhiaims_parser = FHIAimsParserEntryPoint(
     mainfile_contents_re=r'^(.*\n)*?\s*Invoking FHI-aims \.\.\.',
 )
 
+gaussian_parser = EntryPoint(
+    name='parsers/gaussian',
+    aliases=['parsers/gaussian'],
+    description='NOMAD parser for Gaussian.',
+    python_package='nomad_simulation_parsers',
+    mainfile_name_re=r'^.*\.(log|out)$',
+    mainfile_contents_re=r'\s*Cite this work as:\s*Gaussian [0-9]+, '
+        r'Revision [A-Za-z0-9\.]*,',
+    parser_class_name='nomad_simulation_parsers.parsers.gaussian.parser.GaussianParser',
+    code_name='Gaussian',
+    code_homepage='https://gaussian.com/',
+    code_category='Atomistic code',
+)
+
 gpaw_parser = EntryPoint(
     name='parsers/gpaw',
     aliases=['parsers/gpaw'],
@@ -163,7 +177,6 @@ lammps_parser = EntryPoint(
     code_homepage='https://lammps.sandia.gov/',
     code_category='Atomistic code',
 )
-
 
 lobster_parser = EntryPoint(
     name='parsers/lobster',
