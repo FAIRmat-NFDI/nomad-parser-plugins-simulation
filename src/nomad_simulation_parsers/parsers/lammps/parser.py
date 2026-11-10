@@ -204,9 +204,48 @@ class LammpsArchiveWriter(MDParser):
             bonds = self._data_parser.get('Bonds', None)
             if bonds is None or bonds[0][1].size == 0:
                 self._bond_list = None
-            else:
-                # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
-                self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
+                return
+
+            # LAMMPS Bonds contain atom IDs, not zero-based indices into the
+            # sorted trajectory arrays. Do not guess a mapping when IDs are
+            # absent or inconsistent with the selected trajectory reader.
+            atoms_info = self.traj_parsers.eval('atoms_info')
+            if isinstance(atoms_info, list):
+                atoms_info = atoms_info[0] if atoms_info else None
+            raw_ids = atoms_info.get('id') if isinstance(atoms_info, dict) else None
+            if raw_ids is None:
+                self.logger.warning(
+                    'Cannot map LAMMPS bonds without trajectory atom IDs.'
+                )
+                return
+
+            atom_ids = np.asarray(raw_ids, dtype=float)
+            bond_ids = np.asarray(bonds[0][1][:, 2:4], dtype=float)
+            if (
+                len(atom_ids) != self.traj_parsers.eval('get_n_atoms', 0)
+                or not np.isfinite(atom_ids).all()
+                or not np.isfinite(bond_ids).all()
+                or not np.array_equal(atom_ids, atom_ids.astype(int))
+                or not np.array_equal(bond_ids, bond_ids.astype(int))
+            ):
+                self.logger.warning('Cannot map inconsistent LAMMPS bond atom IDs.')
+                return
+
+            atom_id_to_index = {
+                int(atom_id): index for index, atom_id in enumerate(atom_ids)
+            }
+            if len(atom_id_to_index) != len(atom_ids):
+                self.logger.warning('Cannot map duplicate LAMMPS trajectory atom IDs.')
+                return
+            try:
+                self._bond_list = [
+                    (atom_id_to_index[int(a)], atom_id_to_index[int(b)])
+                    for a, b in bond_ids
+                ]
+            except KeyError:
+                self.logger.warning(
+                    'Cannot map LAMMPS bond IDs missing from the trajectory.'
+                )
 
         for traj_n in range(
             0, self._trajectory_frame_count, self.archive_sampling_rate
