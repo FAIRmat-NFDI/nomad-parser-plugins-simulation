@@ -18,7 +18,10 @@ from nomad_simulation_parsers.parsers.lammps.file_parsers import (
     LogParser,
     get_unit,
 )
-from nomad_simulation_parsers.parsers.lammps.method import build_md_method, selected_run
+from nomad_simulation_parsers.parsers.lammps.md_workflow_method import (
+    build_md_method,
+    selected_run,
+)
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,

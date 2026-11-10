@@ -6,7 +6,10 @@ from nomad.datamodel import EntryArchive
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import get_unit
-from nomad_simulation_parsers.parsers.lammps.method import build_md_method, selected_run
+from nomad_simulation_parsers.parsers.lammps.md_workflow_method import (
+    build_md_method,
+    selected_run,
+)
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsParser
 from tests.parsers.common import approx
 

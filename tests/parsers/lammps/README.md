@@ -9,7 +9,7 @@ versioned test data.
 | --- | --- | --- | --- | --- | --- |
 | Mainfile recognition | `test_recognition.py` | not applicable | not applicable | not applicable | not applicable |
 | LAMMPS commands, units, and auxiliary-file selection | not applicable | `test_reader.py` | `test_units.py` | `test_units.py` | not applicable |
-| MD run selection and method settings | not applicable | `test_reader.py`, `test_method.py` | `test_mapping.py` | `test_integration.py` | representative normalization in `test_pipeline.py` |
+| MD run selection and workflow-method settings | not applicable | `test_reader.py`, `test_md_workflow_method.py` | `test_mapping.py` | `test_integration.py` | representative normalization in `test_pipeline.py` |
 | Archive-writer unit conversion | not applicable | not applicable | `test_archive_writer.py` | not applicable | not applicable |
 | Trajectory frames, positions, velocities, forces, and cells | not applicable | `test_reader.py` | not applicable | `test_integration.py` | `test_pipeline.py` |
 | Input structure when a declared dump is absent | not applicable | `test_reader.py` | not applicable | `test_input_structure.py` | not applicable |
@@ -27,7 +27,7 @@ quantities. `test_units.py` checks that rejection and the `real`/`metal`
 velocity scales; the methane XYZ archive covers a physical-unit XYZ input.
 
 LAMMPS populates a `MolecularDynamics` workflow and method for a selected MD
-run. `test_method.py` checks command-order selection and direct-parser edge
+run. `test_md_workflow_method.py` checks command-order selection and direct-parser edge
 cases; `test_mapping.py` maps controlled settings to schema quantities without
 reading a log. MD integration fixtures compose the shared workflow contract.
 The minimization fixture intentionally does not require an MD workflow; a

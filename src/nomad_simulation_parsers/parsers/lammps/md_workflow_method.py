@@ -1,4 +1,4 @@
-"""Extract MD method settings from the ordered commands echoed in LAMMPS logs."""
+"""Extract MD workflow-method settings from ordered LAMMPS log commands."""
 
 from collections.abc import Iterable
 from typing import Any
