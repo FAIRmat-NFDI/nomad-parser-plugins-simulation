@@ -9,7 +9,7 @@ import pytest
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
-from nomad_simulation_parsers.parsers.lammps.method import selected_run
+from nomad_simulation_parsers.parsers.lammps.md_workflow_method import selected_run
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,

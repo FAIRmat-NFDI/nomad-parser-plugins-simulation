@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import get_unit
-from nomad_simulation_parsers.parsers.lammps.method import build_md_method
+from nomad_simulation_parsers.parsers.lammps.md_workflow_method import build_md_method
 from tests.parsers.common import approx
 
 
