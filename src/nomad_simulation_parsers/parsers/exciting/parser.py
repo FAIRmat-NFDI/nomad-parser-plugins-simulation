@@ -1,10 +1,7 @@
 import os
-from typing import Any
-import sys
-import json
-
 from pathlib import Path
-import xml.etree.ElementTree as ET
+from typing import Any
+
 import numpy as np
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
@@ -14,6 +11,10 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
     XMLParser,
+)
+from nomad_simulations.schema_packages.basis_set import (
+    BasisSetContainer,
+    MuffinTinRegion,
 )
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import (
@@ -33,16 +34,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 from structlog.stdlib import (
     BoundLogger,
 )
-from nomad_simulations.schema_packages.basis_set import (
-    APWPlaneWaveBasisSet,
-    BasisSetContainer,
-    MuffinTinRegion,
-)
-from nomad_simulations.schema_packages.basis_set import (
-    APWOrbital,
-    APWLocalOrbital,
-)
-from nomad_simulations.schema_packages import basis_set
+
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -396,32 +388,6 @@ class InfoParser(TextParser):
             }
         ]
 
-
-    # def get_muffin_tin_species_scope(
-    #     self, species_file: str | None
-    # ) -> list[str]:
-    #     if species_file is None:
-    #         return []
-
-    #     species_list = self.data.get('initialization', {}).get('species', [])
-
-    #     references = []
-    #     atom_index = 0
-
-    #     for species in species_list:
-    #         positions = species.get('positions')
-    #         n_atoms = len(positions) if positions is not None else 0
-
-    #         if species.get('file') == species_file:
-    #             references.extend(
-    #                 f'#/data/model_system/0/particle_states/{i}'
-    #                 for i in range(atom_index, atom_index + n_atoms)
-    #             )
-
-    #         atom_index += n_atoms
-
-    #     return references
-
 class InputXMLParser(XMLParser):
     def get_xc_functionals(self, xc_funcs: dict[str, str]) -> list[dict[str, str]]:
         return [dict(libxc=val, type=key) for key, val in xc_funcs.items()]
@@ -577,11 +543,11 @@ class EigvalParser(TextParser):
 class SpeciesXMLParser(XMLParser):
 
     @staticmethod
-    def _expand_apw_plus_lo(apw: dict, l: int) -> list[dict]:
+    def _expand_apw_plus_lo(apw: dict, l_value: int) -> list[dict]:
 
         orbitals = [{
             **apw,
-            '@l': str(l),
+            '@l': str(l_value),
             '@type': 'apw',
         }]
 
@@ -592,7 +558,7 @@ class SpeciesXMLParser(XMLParser):
         }
 
         orbitals.append({
-            '@l': str(l),
+            '@l': str(l_value),
             'wf': [
                 {
                     '@matchingOrder': str(order),
@@ -625,28 +591,28 @@ class SpeciesXMLParser(XMLParser):
 
         local_orbitals = {}
         for lo in as_list(basis.get('lo')):
-            l = int(lo['@l'])
-            local_orbitals.setdefault(l, []).append(lo)
+            l_value = int(lo['@l'])
+            local_orbitals.setdefault(l_value, []).append(lo)
 
         channels = []
 
-        for l in range(int(l_max) + 1):
+        for l_value in range(int(l_max) + 1):
             orbitals = []
-            apw = customs.get(l, default)
+            apw = customs.get(l_value, default)
             if apw is not None:
                 if apw.get('@type') == 'apw+lo':
-                    orbitals.extend(self._expand_apw_plus_lo(apw, l))
+                    orbitals.extend(self._expand_apw_plus_lo(apw, l_value))
                 else:
-                    orbitals.append({**apw, '@l': str(l)})
-            orbitals.extend(local_orbitals.get(l, []))
+                    orbitals.append({**apw, '@l': str(l_value)})
+            orbitals.extend(local_orbitals.get(l_value, []))
             channels.append({
-                'name': l,
+                'name': l_value,
                 'orbitals': orbitals,
             })
         return channels
 
-    def get_l_channel_name(self, l: str | None) -> int | None:
-        return int(l) if l is not None else None
+    def get_l_channel_name(self, l_value: str | None) -> int | None:
+        return int(l_value) if l_value is not None else None
 
     @staticmethod
     def _get_orbital_values(orbital: dict | None, key: str):
