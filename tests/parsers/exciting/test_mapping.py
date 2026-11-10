@@ -1,3 +1,5 @@
+from unittest.mock import PropertyMock, patch
+
 import numpy as np
 import pytest
 from nomad.units import ureg
@@ -14,8 +16,10 @@ from nomad_simulation_parsers.parsers.exciting.parser import (
 class TestInfoParserMapping:
     def test_maps_xc_functionals_used_by_example_assertions(self):
         parser = InfoParser()
-        assert parser.get_xc_functionals(408) == [{'libxc': 'HYB_GGA_XC_HSE03'}]
-        assert parser.get_xc_functionals(20) == [
+        assert parser.get_xc_functional_components(408) == [
+            {'libxc': 'HYB_GGA_XC_HSE06'}
+        ]
+        assert parser.get_xc_functional_components(20) == [
             {'libxc': 'GGA_C_PBE'},
             {'libxc': 'GGA_X_PBE'},
         ]
@@ -51,6 +55,39 @@ class TestInfoParserMapping:
             'hartree'
         ).magnitude == pytest.approx(5e-6)
 
+
+    def test_maps_smearing_kind(self):
+        parser = InfoParser()
+        assert parser.get_smearing_kind('Extended linear tetrahedron method'
+            ) == 'Tetrahedra-extended'
+
+    def test_maps_k_mesh(self):
+        parser = InfoParser()
+        source = {
+            'initialization': {
+                'kpoint_grid': [4, 4, 4],
+                'x_exciting_number_kpoints': 8,
+            }
+        }
+
+        with patch.object(
+            InfoParser, 'data', new_callable=PropertyMock
+        ) as mock_data:
+            mock_data.return_value = source
+            result = parser.get_k_mesh()
+
+        assert result  == [
+            {'grid': [4, 4, 4], 
+            'n_total_points': 64, 
+            'n_reduced_points': 8, 
+            'dimensionality': 3}
+            ]
+        print(result)
+
+    def test_maps_is_spin_polarization(self):
+        parser = InfoParser()
+        assert parser.get_is_spin_polarized('spin-unpolarised') is False
+        assert parser.get_is_spin_polarized('spin-polarised') is True
 
 @pytest.mark.unit
 class TestBandstructureXMLParserMapping:
