@@ -46,7 +46,17 @@ def test_writer_cannot_bypass_lj_rejection():
     [
         ('LAMMPS (test)\nrun 10\n', 'unit style is unresolved'),
         ('LAMMPS (test)\nunits real\nunits metal\n', 'Conflicting LAMMPS'),
+        (
+            'LAMMPS (test)\nunits real\n  Unit style    : metal\n',
+            'Conflicting LAMMPS',
+        ),
+        (
+            'LAMMPS (test)\n  Unit style    : real\n  Unit style    : metal\n',
+            'Conflicting LAMMPS',
+        ),
+        ('LAMMPS (test)\n  Unit style    : lj\n', 'LAMMPS units lj are reduced'),
         ('LAMMPS (test)\nunits imaginary\n', 'Unsupported LAMMPS'),
+        ('LAMMPS (test)\n  Unit style    : imaginary\n', 'Unsupported LAMMPS'),
     ],
 )
 def test_rejects_ambiguous_units_before_writing_archive(tmp_path, contents, message):
@@ -68,3 +78,42 @@ def test_rejects_ambiguous_units_before_writing_archive(tmp_path, contents, mess
 def test_physical_unit_styles_keep_velocity_scales(unit_style, expected_velocity):
     velocity = 0.2 * get_unit(unit_style, 'velocity')
     assert velocity.to('meter/second').magnitude == pytest.approx(expected_velocity)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('unit_style', ['real', 'metal'])
+def test_same_log_runtime_units_are_used_for_conversion(tmp_path, unit_style):
+    mainfile = tmp_path / 'log.lammps'
+    mainfile.write_text(f'LAMMPS (test)\n  Unit style    : {unit_style}\n')
+    writer = LammpsArchiveWriter()
+    writer.mainfile = str(mainfile)
+
+    writer._resolved_unit_style = writer._require_physical_unit_style()
+    writer._configure_parsers()
+
+    assert writer._resolved_unit_style == unit_style
+    assert writer._log_parser.units == get_unit(unit_style)
+    writer._log_parser.close()
+
+
+@pytest.mark.unit
+def test_matching_command_and_runtime_units_are_accepted(tmp_path):
+    mainfile = tmp_path / 'log.lammps'
+    mainfile.write_text('LAMMPS (test)\nunits real\n  Unit style    : real\n')
+    writer = LammpsArchiveWriter()
+    writer.mainfile = str(mainfile)
+
+    assert writer._require_physical_unit_style() == 'real'
+
+
+@pytest.mark.unit
+def test_neighboring_input_does_not_resolve_log_units(tmp_path):
+    mainfile = tmp_path / 'log.lammps'
+    mainfile.write_text('LAMMPS (test)\nrun 10\n')
+    (tmp_path / 'in.lammps').write_text('units real\nrun 10\n')
+    archive = EntryArchive()
+
+    with pytest.raises(ValueError, match='unit style is unresolved'):
+        LammpsParser().parse(str(mainfile), archive, LOGGER)
+
+    assert archive.data is None

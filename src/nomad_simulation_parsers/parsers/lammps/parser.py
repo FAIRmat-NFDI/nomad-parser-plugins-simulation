@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any
 
 import numpy as np
@@ -9,7 +10,11 @@ from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
 from structlog.stdlib import BoundLogger
 
-from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
+from nomad_simulation_parsers.parsers.lammps.file_parsers import (
+    DataParser,
+    LogParser,
+    get_unit,
+)
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,
@@ -30,24 +35,39 @@ class LammpsArchiveWriter(MDParser):
             topology_format='DATA', format='LAMMPSDUMP'
         )
         self._data_parser = DataParser()
+        self._resolved_unit_style: str | None = None
 
-    def _require_physical_unit_style(self) -> None:
-        """Reject reduced or unresolved units before creating a simulation."""
+    def _require_physical_unit_style(self) -> str:
+        """Resolve units from commands or same-log runtime evidence.
+
+        A neighboring input is not sufficient evidence that it produced this
+        log. Different command and runtime styles are also unsafe to combine.
+        """
         unit_reader = LogParser()
         unit_reader.mainfile = self.mainfile
         try:
-            declared_units = unit_reader.get('units')
+            declared_units = unit_reader.get('units') or []
         finally:
             unit_reader.close()
 
-        if not declared_units:
+        if isinstance(declared_units, str):
+            declared_units = [declared_units]
+        runtime_units = []
+        runtime_pattern = re.compile(r'^\s*Unit\s+style\s*:\s*([A-Za-z]+)\b', re.I)
+        with open(self.mainfile, encoding='utf-8', errors='replace') as source:
+            for line in source:
+                match = runtime_pattern.match(line)
+                if match:
+                    runtime_units.append(match.group(1))
+
+        if not declared_units and not runtime_units:
             raise ValueError(
                 'LAMMPS unit style is unresolved in the log. Reduced LJ units '
                 'are the LAMMPS default, and this parser cannot assign physical '
-                'units without an explicit, supported unit style.'
+                'units without a supported command or same-log runtime unit style.'
             )
 
-        unit_styles = {style.lower() for style in declared_units}
+        unit_styles = {style.lower() for style in [*declared_units, *runtime_units]}
         if len(unit_styles) != 1:
             raise ValueError(
                 f'Conflicting LAMMPS unit styles in the log: {sorted(unit_styles)}.'
@@ -64,6 +84,7 @@ class LammpsArchiveWriter(MDParser):
         physical_styles = {'real', 'metal', 'si', 'cgs', 'electron', 'micro', 'nano'}
         if unit_style not in physical_styles:
             raise ValueError(f'Unsupported LAMMPS unit style: {unit_style}.')
+        return unit_style
 
     def apply_unit(self, value: Any, unit: str) -> float:
         if not hasattr(value, 'units'):
@@ -496,7 +517,9 @@ class LammpsArchiveWriter(MDParser):
         # Configure main log parser
         self._log_parser.mainfile = self.mainfile
         self._log_parser.logger = self.logger
-        self._log_parser._units = None
+        if self._resolved_unit_style is None:
+            raise RuntimeError('LAMMPS unit style must be resolved before setup.')
+        self._log_parser._units = get_unit(self._resolved_unit_style)
 
         # Set up auxiliary log parser if specified
         aux_log_files = self._log_parser.get('log')
@@ -640,7 +663,7 @@ class LammpsArchiveWriter(MDParser):
         # self.parse_workflow(self.archive.data)
 
     def write_to_archive(self) -> None:
-        self._require_physical_unit_style()
+        self._resolved_unit_style = self._require_physical_unit_style()
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
         # LAMMPS mainfile is the main log file
         self.basename = os.path.basename(self.mainfile)
