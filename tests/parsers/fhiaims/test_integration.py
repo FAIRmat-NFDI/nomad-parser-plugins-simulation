@@ -25,6 +25,20 @@ class TestFeScfSpinPolarized(FHIAimsParserIntegrationSuite):
     workflow_name = 'SinglePoint'
 
     @pytest.mark.integration
+    def test_workflow_contract(self, archive):
+        workflow = archive.workflow2
+
+        assert workflow.method is not None
+        assert workflow.method.m_def.name == 'SinglePointMethod'
+        assert not workflow.tasks
+
+        targets = workflow.method.convergence_targets
+        assert len(targets) == 1
+        assert targets[0].m_def.name == 'EnergyConvergenceTarget'
+        assert targets[0].threshold_type == 'absolute'
+        assert targets[0].threshold.to('eV').magnitude == approx(1e-5)
+
+    @pytest.mark.integration
     def test_method_and_eigenvalue_mapping(self, archive):
         method = archive.data.model_method[0]
         assert method.m_def.name == 'DFT'
@@ -72,6 +86,24 @@ class TestFeScfSpinPolarized(FHIAimsParserIntegrationSuite):
         np.testing.assert_allclose(
             eigenvalue_sections[0].occupation[0][:5], [1, 1, 1, 1, 1]
         )
+
+
+@pytest.mark.integration
+def test_single_point_n_max_iterations(tmp_path):
+    """SCF max-iterations is migrated onto `SinglePointMethod.n_max_iterations`."""
+    content = (DATA_DIR / 'Fe_scf_spinpol' / 'out.out').read_text(encoding='utf-8')
+    modified = content.replace(
+        'Maximum number of self-consistency iterations not provided.',
+        'Maximum number of self-consistency iterations: 40',
+        1,
+    )
+    assert modified != content, 'Failed to inject max-iterations line'
+    mainfile = tmp_path / 'aims_with_max_scf.out'
+    mainfile.write_text(modified, encoding='utf-8')
+
+    method = parse_fhiaims(mainfile).workflow2.method
+    assert method.m_def.name == 'SinglePointMethod'
+    assert method.n_max_iterations == 40
 
 
 class TestFeBandSpinPolarized(FHIAimsParserIntegrationSuite):
@@ -379,6 +411,13 @@ class TestH2OMolecularDynamics(FHIAimsParserIntegrationSuite):
             'ps'
         ).magnitude == approx(0.001)
         assert archive.workflow2.results.n_steps == 5
+
+    @pytest.mark.integration
+    def test_workflow_tasks_not_self_nested(self, archive):
+        # `tasks` must stay empty before normalization: the recursion guard
+        # (mapping `.tasks` to a nonexistent source) stops the workflow root `.@`
+        # mapper from nesting the workflow inside its own task list.
+        assert not archive.workflow2.tasks
 
 
 class TestGaAsHybrid(FHIAimsParserIntegrationSuite):
