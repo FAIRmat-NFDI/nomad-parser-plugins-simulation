@@ -43,6 +43,8 @@ class LammpsArchiveWriter(MDParser):
         )
         self._data_parser = DataParser()
         self._resolved_unit_style: str | None = None
+        self._bond_list: list[tuple[int, int]] | None = None
+        self._trajectory_frame_count = 0
 
     def _require_physical_unit_style(self) -> str:
         """Resolve units from commands or same-log runtime evidence.
@@ -167,6 +169,7 @@ class LammpsArchiveWriter(MDParser):
         if n_traj is None:
             return False
 
+        self._trajectory_frame_count = n_traj
         self.n_particles = [
             self.traj_parsers.eval('get_n_atoms', n) for n in range(n_traj)
         ]
@@ -175,6 +178,10 @@ class LammpsArchiveWriter(MDParser):
             for n in range(n_traj)
             if (step := self.traj_parsers.eval('get_step', n)) is not None
         ]
+        # MDParser deduplicates step IDs for its output lookup. A dump can
+        # legitimately contain multiple frames at the same step after a reset;
+        # sampling must use the physical frame count rather than unique steps.
+        self.info['n_frames'] = n_traj
         return True
 
     def _parse_trajectory_frames(self, simulation: Simulation) -> None:
@@ -201,9 +208,9 @@ class LammpsArchiveWriter(MDParser):
                 # Convert from List[Tuple[None, np.ndarray]] to List[Tuple[int, int]]
                 self._bond_list = list(map(tuple, bonds[0][1][:, 2:4].astype(int)))
 
-        for step in self.trajectory_steps:
-            traj_n = self.trajectory_steps.index(step)
-
+        for traj_n in range(
+            0, self._trajectory_frame_count, self.archive_sampling_rate
+        ):
             # Extract and apply units to trajectory data
             lattice_vectors = _get_quantity_with_units(
                 traj_n, 'lattice_vectors', 'distance'
@@ -773,6 +780,8 @@ class LammpsArchiveWriter(MDParser):
         # self.parse_thermodynamic_data(self.archive.data)
 
     def write_to_archive(self) -> None:
+        self._bond_list = None
+        self._trajectory_frame_count = 0
         self._resolved_unit_style = self._require_physical_unit_style()
         self.archive.data = Simulation(program=Program(name='LAMMPS'))
         # LAMMPS mainfile is the main log file
