@@ -10,6 +10,8 @@ from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
     ThermostatParameters,
 )
 
+N_CONTROL_VALUES = 3
+
 
 def _number(value: str) -> float | None:
     try:
@@ -23,6 +25,14 @@ def _frequency(value: str) -> int | None:
     if number is not None and number > 0 and number.is_integer():
         return int(number)
     return None
+
+
+def _fix_style(fix: list[str]) -> str:
+    """Ignore LAMMPS accelerator suffixes, which do not change fix semantics."""
+    style = fix[2].lower()
+    base, separator, suffix = style.rpartition('/')
+    accelerated = separator and suffix in ('gpu', 'intel', 'kk', 'omp', 'opt')
+    return base if accelerated else style
 
 
 def selected_run(lines: Iterable[str]) -> dict[str, Any] | None:  # noqa: PLR0912
@@ -147,60 +157,207 @@ def _control_values(fix: list[str], keyword: str) -> tuple[float, float, float] 
 def _add_temperature_control(
     method: MolecularDynamicsMethod, fix: list[str], units: dict[str, Any]
 ) -> None:
-    style = fix[2].lower()
+    style = _fix_style(fix)
     thermostat_type = {
         'nvt': 'nose_hoover',
         'npt': 'nose_hoover',
         'langevin': 'langevin_schneider',
         'temp/berendsen': 'berendsen',
+        'temp/csvr': 'velocity_rescaling',
+        'temp/csld': 'velocity_rescaling_langevin',
+        'brownian': 'brownian',
+        'brownian/sphere': 'brownian',
+        'brownian/asphere': 'brownian',
     }.get(style)
     if thermostat_type is None:
         return
-    temperature = (
-        _control_values(fix, 'temp')
-        if style in ('nvt', 'npt')
-        else tuple(_number(value) for value in fix[3:6])
-    )
-    if len(temperature) != 3 or any(value is None for value in temperature):  # noqa: PLR2004
-        return
-    start, end, damping = temperature
     thermostat = ThermostatParameters(thermostat_type=thermostat_type)
-    if units.get('temperature') is not None:
-        if start == end:
+    if style.startswith('brownian'):
+        # Brownian fixes take one temperature and a seed; gamma_t is a
+        # friction coefficient, not a temperature-coupling time constant.
+        temperature = _number(fix[3]) if len(fix) > 3 else None  # noqa: PLR2004
+        if temperature is not None and units.get('temperature') is not None:
             thermostat.temperature_profile = 'constant'
-            thermostat.reference_temperature = start * units['temperature']
-        else:
-            thermostat.temperature_profile = 'linear'
-            thermostat.reference_temperature_start = start * units['temperature']
-            thermostat.reference_temperature_end = end * units['temperature']
-    if units.get('time') is not None:
-        thermostat.coupling_constant = damping * units['time']
+            thermostat.reference_temperature = temperature * units['temperature']
+    else:
+        temperature = (
+            _control_values(fix, 'temp')
+            if style in ('nvt', 'npt')
+            else tuple(_number(value) for value in fix[3:6])
+        )
+        if (
+            temperature is not None
+            and len(temperature) == N_CONTROL_VALUES
+            and all(value is not None for value in temperature)
+        ):
+            start, end, damping = temperature
+            if units.get('temperature') is not None:
+                if start == end:
+                    thermostat.temperature_profile = 'constant'
+                    thermostat.reference_temperature = start * units['temperature']
+                else:
+                    thermostat.temperature_profile = 'linear'
+                    thermostat.reference_temperature_start = (
+                        start * units['temperature']
+                    )
+                    thermostat.reference_temperature_end = end * units['temperature']
+            if units.get('time') is not None:
+                thermostat.coupling_constant = damping * units['time']
     method.thermostat_parameters.append(thermostat)
+
+
+def _pressure_components(
+    fix: list[str], style: str
+) -> tuple[dict[str, tuple[float, float, float]], str | None]:
+    """Expand LAMMPS pressure shortcuts and retain explicit tensor components."""
+    components: dict[str, tuple[float, float, float]] = {}
+    coupling_type = None
+    for keyword in ('iso', 'aniso', 'tri'):
+        if keyword == 'tri' and style == 'press/berendsen':
+            continue
+        values = _control_values(fix, keyword)
+        if values is not None:
+            components.update({axis: values for axis in 'xyz'})
+            if keyword == 'tri':
+                components.update(
+                    {axis: (0.0, 0.0, values[2]) for axis in ('xy', 'xz', 'yz')}
+                )
+            coupling_type = 'isotropic' if keyword == 'iso' else 'anisotropic'
+
+    axes = (
+        ('x', 'y', 'z')
+        if style == 'press/berendsen'
+        else ('x', 'y', 'z', 'xy', 'xz', 'yz')
+    )
+    for axis in axes:
+        values = _control_values(fix, axis)
+        if values is not None:
+            components[axis] = values
+
+    if 'couple' in fix[3:]:
+        i = fix.index('couple', 3)
+        if i + 1 < len(fix):
+            coupling_type = {
+                'xyz': 'isotropic',
+                'xy': 'semi_isotropic',
+                'xz': 'semi_isotropic',
+                'yz': 'semi_isotropic',
+                'none': 'anisotropic',
+            }.get(fix[i + 1].lower())
+    elif components and coupling_type is None:
+        coupling_type = 'anisotropic'
+    return components, coupling_type
+
+
+def _pressure_matrices(
+    components: dict[str, tuple[float, float, float]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Represent controlled pressure directions in symmetric 3×3 arrays."""
+
+    matrix_positions = {
+        'x': ((0, 0),),
+        'y': ((1, 1),),
+        'z': ((2, 2),),
+        'xy': ((0, 1), (1, 0)),
+        'xz': ((0, 2), (2, 0)),
+        'yz': ((1, 2), (2, 1)),
+    }
+    starts, ends, damping = (np.zeros((3, 3)) for _ in range(3))
+    for axis, values in components.items():
+        for row, column in matrix_positions[axis]:
+            starts[row, column], ends[row, column], damping[row, column] = values
+    return starts, ends, damping
 
 
 def _add_pressure_control(
     method: MolecularDynamicsMethod, fix: list[str], units: dict[str, Any]
 ) -> None:
-    if fix[2].lower() not in ('npt', 'nph'):
+    style = _fix_style(fix)
+    if style not in ('npt', 'nph', 'press/berendsen'):
         return
-    barostat = BarostatParameters(barostat_type='nose_hoover')
-    pressure = _control_values(fix, 'iso')
-    if pressure is not None:
-        barostat.coupling_type = 'isotropic'
-        start, end, damping = pressure
-        if units.get('pressure') is not None:
-            if start == end:
-                barostat.pressure_profile = 'constant'
-                barostat.reference_pressure = np.eye(3) * start * units['pressure']
-            else:
-                barostat.pressure_profile = 'linear'
-                barostat.reference_pressure_start = (
-                    np.eye(3) * start * units['pressure']
-                )
-                barostat.reference_pressure_end = np.eye(3) * end * units['pressure']
-        if units.get('time') is not None:
-            barostat.coupling_constant = np.eye(3) * damping * units['time']
+    barostat = BarostatParameters(
+        barostat_type='berendsen' if style == 'press/berendsen' else 'nose_hoover'
+    )
+    components, coupling_type = _pressure_components(fix, style)
+    barostat.coupling_type = coupling_type
+    starts, ends, damping = _pressure_matrices(components)
+
+    # An absent target axis is not a target of zero pressure. Keep the target
+    # matrix unset unless all three diagonal components are known.
+    pressure_unit = units.get('pressure')
+    if pressure_unit is not None and all(axis in components for axis in 'xyz'):
+        if np.array_equal(starts, ends):
+            barostat.pressure_profile = 'constant'
+            barostat.reference_pressure = starts * pressure_unit
+        else:
+            barostat.pressure_profile = 'linear'
+            barostat.reference_pressure_start = starts * pressure_unit
+            barostat.reference_pressure_end = ends * pressure_unit
+    if units.get('time') is not None and components:
+        barostat.coupling_constant = damping * units['time']
+
+    if style == 'press/berendsen' and 'modulus' in fix[3:]:
+        i = fix.index('modulus', 3)
+        modulus = _number(fix[i + 1]) if i + 1 < len(fix) else None
+        if modulus is not None and modulus > 0 and pressure_unit is not None:
+            barostat.compressibility = np.eye(3) / (modulus * pressure_unit)
     method.barostat_parameters.append(barostat)
+
+
+def _set_integrator_and_ensemble(
+    method: MolecularDynamicsMethod, styles: list[str], run_style: str | None
+) -> None:
+    """Describe a unique all-particle integrator and its active controls."""
+    integrators = [
+        style
+        for style in styles
+        if style
+        in (
+            'nve',
+            'nvt',
+            'npt',
+            'nph',
+            'brownian',
+            'brownian/sphere',
+            'brownian/asphere',
+        )
+    ]
+    if len(integrators) != 1:
+        return
+
+    integrator = integrators[0]
+    temperature_styles = (
+        'nvt',
+        'npt',
+        'langevin',
+        'temp/berendsen',
+        'temp/csvr',
+        'temp/csld',
+    )
+    has_temperature = any(style in temperature_styles for style in styles)
+    has_pressure = any(style in ('npt', 'nph', 'press/berendsen') for style in styles)
+    if integrator.startswith('brownian'):
+        method.thermodynamic_ensemble = 'NPT' if has_pressure else 'NVT'
+        method.integrator_type = 'brownian'
+        return
+
+    ensemble = integrator.upper()
+    if integrator == 'nve':
+        if has_temperature and has_pressure:
+            ensemble = 'NPT'
+        elif has_temperature:
+            ensemble = 'NVT'
+        elif has_pressure:
+            ensemble = 'NPH'
+    elif (integrator == 'nvt' and has_pressure) or (
+        integrator == 'nph' and has_temperature
+    ):
+        ensemble = 'NPT'
+    method.thermodynamic_ensemble = ensemble
+    if run_style is None or run_style == 'verlet':
+        method.integrator_type = 'velocity_verlet'
+    elif run_style == 'respa':
+        method.integrator_type = 'rRESPA_multitimescale'
 
 
 def build_md_method(
@@ -210,22 +367,11 @@ def build_md_method(
     method = MolecularDynamicsMethod()
     fixes = settings['fixes']
     styles = [
-        str(fix[2]).lower()
+        _fix_style(fix)
         for fix in fixes
-        if len(fix) >= 3 and fix[1] == 'all'  # noqa: PLR2004
+        if len(fix) >= 3 and fix[1].lower() == 'all'  # noqa: PLR2004
     ]
-    integrators = [style for style in styles if style in ('nve', 'nvt', 'npt', 'nph')]
-    has_langevin = 'langevin' in styles
-    has_berendsen = 'temp/berendsen' in styles
-    if len(integrators) == 1:
-        ensemble = integrators[0].upper()
-        if ensemble == 'NVE' and (has_langevin or has_berendsen):
-            ensemble = 'NVT'
-        method.thermodynamic_ensemble = ensemble
-        if settings['run_style'] is None or settings['run_style'] == 'verlet':
-            method.integrator_type = 'velocity_verlet'
-        elif settings['run_style'] == 'respa':
-            method.integrator_type = 'rRESPA_multitimescale'
+    _set_integrator_and_ensemble(method, styles, settings['run_style'])
 
     time_unit = units.get('time')
     if settings['timestep'] is not None and time_unit is not None:
@@ -238,7 +384,7 @@ def build_md_method(
             setattr(method, f'{kind}_save_frequency', frequency)
 
     for fix in fixes:
-        if len(fix) < 4 or fix[1] != 'all':  # noqa: PLR2004
+        if len(fix) < 3 or fix[1].lower() != 'all':  # noqa: PLR2004
             continue
         _add_temperature_control(method, fix, units)
         _add_pressure_control(method, fix, units)
