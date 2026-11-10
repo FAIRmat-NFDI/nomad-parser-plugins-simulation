@@ -586,12 +586,12 @@ class LammpsArchiveWriter(MDParser):
         if settings is None or settings['kind'] != 'md':
             return
 
-        # LJ quantities are reduced and cannot be assigned SI schema units
-        # without user-provided mass, energy, and length scales.
-        unit_style = self._log_parser.get('units', ['lj'])[0]
-        units = self._log_parser.units if unit_style != 'lj' else {}
+        # The preflight resolved and validated units from this log, including
+        # runtime-only "Unit style" records when no command is echoed.
+        if self._resolved_unit_style is None:
+            raise RuntimeError('LAMMPS unit style must be resolved before parsing.')
         self.archive.workflow2 = MolecularDynamics(
-            method=build_md_method(settings, units),
+            method=build_md_method(settings, get_unit(self._resolved_unit_style)),
         )
 
     def _configure_parsers(self) -> None:
