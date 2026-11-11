@@ -374,8 +374,10 @@ class InfoParser(TextParser):
         Map the exciting k-point grid onto `KSpace.k_mesh`.
 
         Returns:
-            A one-element list with the `KMesh` `grid`, `n_total_points` and
-            `dimensionality` when `initialization` holds a `kpoint_grid`.
+            A one-element list with the `KMesh` `grid`, `n_total_points`,
+            `n_reduced_points` and `dimensionality` when `initialization` holds a
+            `kpoint_grid`; `n_reduced_points` awaits its `KMesh` quantity and is
+            `None` when the reduced count is absent.
             An empty list, so that no `KMesh` is created, when the grid is absent.
         """
         grid = initialization.get('kpoint_grid')
@@ -385,6 +387,7 @@ class InfoParser(TextParser):
             {
                 'grid': grid,
                 'n_total_points': int(np.prod(grid)),
+                'n_reduced_points': initialization.get('x_exciting_number_kpoints'),
                 'dimensionality': len(grid),
             }
         ]

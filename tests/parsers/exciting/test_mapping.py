@@ -132,15 +132,36 @@ class TestInfoParserMapping:
         [
             (
                 {'kpoint_grid': np.array([4, 4, 4]), 'x_exciting_number_kpoints': 8},
-                [{'grid': [4, 4, 4], 'n_total_points': 64, 'dimensionality': 3}],
+                [
+                    {
+                        'grid': [4, 4, 4],
+                        'n_total_points': 64,
+                        'n_reduced_points': 8,
+                        'dimensionality': 3,
+                    }
+                ],
             ),
             (
                 {'kpoint_grid': np.array([6, 6, 4])},
-                [{'grid': [6, 6, 4], 'n_total_points': 144, 'dimensionality': 3}],
+                [
+                    {
+                        'grid': [6, 6, 4],
+                        'n_total_points': 144,
+                        'n_reduced_points': None,
+                        'dimensionality': 3,
+                    }
+                ],
             ),
             (
                 {'kpoint_grid': np.array([1, 1, 1])},
-                [{'grid': [1, 1, 1], 'n_total_points': 1, 'dimensionality': 3}],
+                [
+                    {
+                        'grid': [1, 1, 1],
+                        'n_total_points': 1,
+                        'n_reduced_points': None,
+                        'dimensionality': 3,
+                    }
+                ],
             ),
             ({'x_exciting_number_kpoints': 8}, []),
             ({}, []),
