@@ -693,7 +693,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
         data_parser.annotation_key = exciting.INFO_KEY
         info_parser.convert(data_parser)
 
-        #species_list = info_parser.data.get('initialization', {}).get('species', [])
 
         if not info_parser.data:
             info_out = os.path.join(maindir, 'INFO.OUT')
@@ -723,7 +722,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
         initialization = info_parser.data.get('initialization', {})
         species_list = initialization.get('species', [])
-        lmaxapw = initialization.get('x_exciting_lmaxapw')
 
         if len(regions) == len(species_list):
             for species, region in zip(species_list, regions):
@@ -732,11 +730,12 @@ class ExcitingArchiveWriter(ArchiveWriter):
                     continue
 
                 xml_path = Path(maindir) / filename.strip()
+
                 if not xml_path.is_file():
                     continue
 
                 xml_parser = SpeciesXMLParser(filepath=str(xml_path))
-                xml_parser.lmaxapw = lmaxapw
+                xml_parser.lmaxapw = region.l_max
 
                 xml_target = ExcitingMetainfoParser(
                     logger=self.logger,
@@ -746,15 +745,14 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
                 try:
                     xml_parser.convert(xml_target, update_mode='merge')
-
                     region.l_channels.clear()
                     region.l_channels.extend(
                         xml_target.data_object.l_channels
                     )
-
                 finally:
                     xml_parser.close()
                     xml_target.close()
+
         
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
@@ -766,10 +764,11 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=input_xml_files[0], logger=self.logger
             )
             data_parser.annotation_key = exciting.INPUT_XML_KEY
+            data_parser.data_object = simulation
             input_xml_parser.convert(data_parser)
             input_xml_parser.close()
 
-        # eigenvalues from eigval.out
+
         eigval_files = search_files('EIGVAL.OUT', maindir, re_pattern=mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
@@ -778,6 +777,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 text_parser=EigvalFileParser(),
             )
             data_parser.annotation_key = exciting.EIGVAL_KEY
+            data_parser.data_object = data_parser.data_object
             eigval_parser.convert(data_parser, update_mode='merge')
             eigval_parser.close()
 
@@ -803,7 +803,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
             dos_parser.close()
 
         self.archive.data = data_parser.data_object
-
+        
         # Apply legacy-equivalent Fermi reference shift to electronic spectra.
         fermi_energy = info_parser.get_fermi_energy(info_parser.data)
         if fermi_energy is not None:
