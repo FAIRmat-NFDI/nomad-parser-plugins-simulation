@@ -115,7 +115,7 @@ class TestInfoParserMapping:
         [
             ('spin-polarised', True, False),
             ('spin-unpolarised', False, False),
-            ('spin-orbit coupling', None, True),
+            ('unknown', None, True),
             (None, None, False),
         ],
         ids=['polarised', 'unpolarised', 'unknown-warns', 'absent'],

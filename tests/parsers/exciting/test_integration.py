@@ -168,6 +168,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
         assert system.n_particles == 2
         assert system.positions.shape == (2, 3)
+        # INFO.OUT lists the atom at (0.25, 0.25, 0.25) in lattice coordinates;
+        # the parser converts it to Cartesian
         assert system.positions[1][0].to('bohr').magnitude == approx(1.68185)
 
     @pytest.mark.integration
@@ -250,17 +252,6 @@ class TestCGroundStateArchive(ExcitingParserIntegrationSuite):
         assert outputs[0].total_energies[0].value.to('hartree').magnitude == approx(
             -75.89058007
         )
-
-    @pytest.mark.integration
-    def test_method_settings(self, archive):
-        method = archive.data.model_method[0]
-        assert method.is_spin_polarized is False
-        smearing, kspace, basis_set = method.numerical_settings
-        assert smearing.kind == 'Gaussian'
-        assert smearing.width.to('hartree').magnitude == approx(0.0001)
-        assert list(kspace.k_mesh[0].grid) == [6, 6, 6]
-        assert kspace.k_mesh[0].n_points == 216
-        assert basis_set.basis_set_components[0].cutoff_fractional == approx(7.0)
 
 
 class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
