@@ -134,47 +134,65 @@ class LammpsArchiveWriter(MDParser):
             value = value * self._log_parser.units.get(unit, 1)
         return value
 
-    def parse_method(self, simulation: Simulation) -> None:
-        """Attach source-backed force-field terms and prepare trajectory topology."""
-
-        if self.traj_parsers[0].mainfile is None:
-            return
-
-        if self.traj_parsers.eval('n_frames') is None:
-            return
-
-        masses_data = self._data_parser.get('Masses', None)
-        # Extract array from DataParser format: [(None, np.ndarray)]
-        if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
-            masses = (
-                masses_data[0][1] if isinstance(masses_data[0], tuple) else masses_data
-            )
-        else:
-            masses = None
-
-        # Set masses on all trajectory parsers since eval() can return from any parser
-        for parser in self.traj_parsers._parsers:
-            if isinstance(parser, TrajParser):
-                parser.masses = masses
-
-        # TODO: find best place for first attempt to set _bond_list
-        # Extract bond list from MDAnalysis universe if available
-        if (
-            self._mdanalysistraj_parser.mainfile is not None
-            and self._mdanalysistraj_parser.universe is not None
-        ):
-            self._bond_list = [
-                tuple(interaction['atom_indices'])
-                for interaction in self._mdanalysistraj_parser.get_interactions()
-                if interaction['type'] == 'bond'
-            ]
-        else:
-            self._bond_list = None
-
+    def _trajectory_atom_ids(self) -> Any:
+        """Return IDs in trajectory order when the selected reader establishes them."""
         atoms_info = self.traj_parsers.eval('atoms_info')
         if isinstance(atoms_info, list):
             atoms_info = atoms_info[0] if atoms_info else None
-        atom_ids = atoms_info.get('id') if isinstance(atoms_info, dict) else None
+        if isinstance(atoms_info, dict) and atoms_info.get('id') is not None:
+            return atoms_info['id']
+
+        # DCD/XYZ files omit atom IDs. The DATA topology loaded with the
+        # selected MDAnalysis reader supplies IDs in that reader's atom order.
+        if len(self.traj_parsers._parsers) != 1:
+            return None
+        reader = self.traj_parsers._parsers[0]
+        if not (
+            isinstance(reader, MDAnalysisParser)
+            and reader.mainfile == self._data_parser.mainfile
+            and reader.universe is not None
+        ):
+            return None
+        try:
+            return reader.universe.atoms.ids
+        except AttributeError:
+            return None
+
+    def parse_method(self, simulation: Simulation) -> None:
+        """Attach source-backed force-field terms and prepare trajectory topology."""
+        has_trajectory = bool(self.traj_parsers._parsers) and (
+            self.traj_parsers.eval('n_frames') is not None
+        )
+        if has_trajectory:
+            masses_data = self._data_parser.get('Masses', None)
+            # Extract array from DataParser format: [(None, np.ndarray)]
+            if masses_data and isinstance(masses_data, list) and len(masses_data) > 0:
+                masses = (
+                    masses_data[0][1]
+                    if isinstance(masses_data[0], tuple)
+                    else masses_data
+                )
+            else:
+                masses = None
+
+            # eval() may select any trajectory parser, so give each its masses.
+            for parser in self.traj_parsers._parsers:
+                if isinstance(parser, TrajParser):
+                    parser.masses = masses
+
+            # TODO: find best place for first attempt to set _bond_list
+            # Extract bond list from MDAnalysis universe if available
+            if (
+                self._mdanalysistraj_parser.mainfile is not None
+                and self._mdanalysistraj_parser.universe is not None
+            ):
+                self._bond_list = [
+                    tuple(interaction['atom_indices'])
+                    for interaction in self._mdanalysistraj_parser.get_interactions()
+                    if interaction['type'] == 'bond'
+                ]
+
+        atom_ids = self._trajectory_atom_ids() if has_trajectory else None
         method = build_force_field(
             self._log_parser,
             self._data_parser,
@@ -182,7 +200,8 @@ class LammpsArchiveWriter(MDParser):
             get_unit(self._resolved_unit_style),
             self.logger,
         )
-        simulation.model_method.append(method or ModelMethod())
+        if method is not None or has_trajectory:
+            simulation.model_method.append(method or ModelMethod())
 
     def _source_trajectory_step(self, frame_index: int) -> int | None:
         """Return a LAMMPS step ID when the frame reader exposes one."""
@@ -1076,22 +1095,15 @@ class LammpsArchiveWriter(MDParser):
         return parsers
 
     def _parse_content_sections(self) -> None:
-        self.parse_method(self.archive.data)
         self.parse_system(self.archive.data)
         if self.archive.data.model_method and self.archive.data.model_system:
             method = self.archive.data.model_method[-1]
             if isinstance(method, ForceField):
-                atoms_info = self.traj_parsers.eval('atoms_info')
-                if isinstance(atoms_info, list):
-                    atoms_info = atoms_info[0] if atoms_info else None
-                atom_ids = (
-                    atoms_info.get('id') if isinstance(atoms_info, dict) else None
-                )
                 attach_particle_parameters(
                     method,
                     self._log_parser,
                     self._data_parser,
-                    atom_ids,
+                    self._trajectory_atom_ids(),
                     self.archive.data.model_system[0].particle_states,
                     get_unit(self._resolved_unit_style),
                 )
@@ -1117,6 +1129,7 @@ class LammpsArchiveWriter(MDParser):
         # Set up and parse trajectory files
         parsers = self._parse_trajectory_files()
         self.parse_workflow(self.archive.data)
+        self.parse_method(self.archive.data)
 
         # Parse system, method, parameters, thermodynamic data, etc.
         if parsers:

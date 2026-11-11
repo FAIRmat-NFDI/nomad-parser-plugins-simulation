@@ -104,7 +104,7 @@ def _typed_rows(  # noqa: PLR0911
 
 
 def _force_calculations(  # noqa: PLR0912
-    log: Any, units: dict[str, Any]
+    log: Any, data: Any, units: dict[str, Any]
 ) -> ForceCalculations | None:
     settings = ForceCalculations()
     style = _last_command(log, 'pair_style')
@@ -137,6 +137,16 @@ def _force_calculations(  # noqa: PLR0912
         for cutoff in (settings.vdw_cutoff, settings.coulomb_cutoff)
         if cutoff is not None
     ]
+    if style and str(style[0]).lower() in {
+        'lj/cut',
+        'lj/cut/coul/cut',
+        'lj/cut/coul/long',
+    }:
+        pair_style = str(style[0]).lower()
+        allowed_lengths = (2, 3, 4) if pair_style == 'lj/cut/coul/cut' else (2, 3)
+        for values in _pair_coefficients(log, data).values():
+            if len(values) in allowed_lengths:
+                cutoffs.extend(value * units['distance'] for value in values[2:])
     if neighbor and cutoffs:
         skin = _number(neighbor[0])
         if skin is not None:
@@ -334,7 +344,7 @@ def build_force_field(
                     f'LAMMPS {kind}_style {style[0]} is not mapped to '
                     'force-field contributions.'
                 )
-    settings = _force_calculations(log, units)
+    settings = _force_calculations(log, data, units)
     contributions = _pair_potentials(log, data, units)
     if logger is not None and log.get('pair_coeff') and not contributions:
         logger.warning(
@@ -394,7 +404,7 @@ def attach_particle_parameters(  # noqa: PLR0913, PLR0917, PLR0912
     ids = np.asarray(atom_ids)
     if (
         atoms.ndim != TABULAR_DIMENSIONS
-        or atoms.shape[1] != width
+        or atoms.shape[1] not in (width, width + 3)
         or len(atoms) != len(ids)
         or len(ids) != len(particle_states)
         or not np.isfinite(atoms).all()

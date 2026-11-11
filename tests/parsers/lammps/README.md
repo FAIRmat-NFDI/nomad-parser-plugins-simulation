@@ -58,8 +58,13 @@ source-like tests cover data-file coefficients, explicit log overrides,
 pair-specific cutoffs, and unsupported hybrid styles. For supported atom
 styles, it also checks effective masses and partial charges against exact
 particle references, retaining distinct charge groups within one LAMMPS
-type. The mapped subset does not include other bonded/pair styles, wildcard
-coefficients, or unsupported mixed-style parameterizations.
+type. DATA-backed DCD/XYZ cases check IDs from the selected MDAnalysis
+topology and optional image flags in `Atoms # full` rows. A physical-unit
+log-only case checks force-field values without inventing a system, while an
+explicit pair-cutoff override checks the neighbor radius. The mapped subset
+also has a normalized methyl-naphthalene assertion for typed settings,
+interaction rows, and particle scopes. It does not include other bonded/pair
+styles, wildcard coefficients, or unsupported mixed-style parameterizations.
 `test_input_structure.py` checks a source-backed, non-representative input
 system for data-only logs, redirected-log `read_data`, missing dumps, and
 non-angstrom physical units. It does not claim a final minimized or MD frame.
