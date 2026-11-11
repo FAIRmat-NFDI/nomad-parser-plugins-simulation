@@ -15,6 +15,7 @@ versioned test data.
 | Input structure when a declared dump is absent | not applicable | `test_reader.py` | not applicable | `test_input_structure.py` | not applicable |
 | Thermodynamic records and output mapping | not applicable | `test_reader.py`, `test_outputs.py` | not applicable | `test_outputs.py` | log-only round trip and normalization in `test_outputs.py` |
 | Molecular topology and particle identity | not applicable | not applicable | not applicable | `test_integration.py` | `test_pipeline.py` |
+| Source-backed force-field settings and typed interaction coefficients | not applicable | `test_reader.py` | `test_force_field.py` | hexane fixture in `test_force_field.py` | `test_pipeline.py` |
 | Archive and workflow validation and serialization | not applicable | not applicable | not applicable | `test_integration.py` | not applicable |
 
 The fixtures use the existing LAMMPS regression examples under
@@ -50,6 +51,15 @@ conservative normalization of sparse output/system references require the
 `lammps-thermo-output-properties` branch in `nomad-simulations`. Unrecognized
 thermo columns remain explicitly warned about; extra force-only dump frames
 without a matching thermo step are not yet promoted to separate outputs.
+`test_force_field.py` checks the bundled hexane log/data/dump for separate
+Lennard-Jones, harmonic bond/angle, and OPLS dihedral types. Its interaction
+rows use zero-based trajectory indices, not raw LAMMPS atom IDs. Small
+source-like tests cover data-file coefficients, explicit log overrides,
+pair-specific cutoffs, and unsupported hybrid styles. For supported atom
+styles, it also checks effective masses and partial charges against exact
+particle references, retaining distinct charge groups within one LAMMPS
+type. The mapped subset does not include other bonded/pair styles, wildcard
+coefficients, or unsupported mixed-style parameterizations.
 `test_input_structure.py` checks a source-backed, non-representative input
 system for data-only logs, redirected-log `read_data`, missing dumps, and
 non-angstrom physical units. It does not claim a final minimized or MD frame.

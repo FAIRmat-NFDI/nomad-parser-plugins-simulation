@@ -6,6 +6,7 @@ import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
 from nomad.units import ureg
+from nomad_simulations.schema_packages.force_field import ForceField
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
@@ -33,6 +34,10 @@ from nomad_simulation_parsers.parsers.lammps.file_parsers import (
     DataParser,
     LogParser,
     get_unit,
+)
+from nomad_simulation_parsers.parsers.lammps.force_field import (
+    attach_particle_parameters,
+    build_force_field,
 )
 from nomad_simulation_parsers.parsers.lammps.md_workflow_method import (
     build_md_method,
@@ -130,37 +135,13 @@ class LammpsArchiveWriter(MDParser):
         return value
 
     def parse_method(self, simulation: Simulation) -> None:
-        """
-        Parse method information from data file and log file.
+        """Attach source-backed force-field terms and prepare trajectory topology."""
 
-        TODO: Migrate from legacy parser
-        - Still extract and set masses and charges on AtomParameters, or deprecated?
-        - Parse interactions (bonds, angles, dihedrals, impropers, pair_coeffs,
-          bond_coeffs, angle_coeffs, etc.) using MDAnalysis
-        - Set ForceField with Model containing interactions
-        - Parse force calculation parameters:
-          * pair_style: extract vdw_cutoff, coulomb_cutoff
-          * kspace_style: set coulomb_type (ewald, particle_particle_particle_mesh,
-            multilevel_summation)
-        - Parse neighbor searching parameters:
-          * neighbor: set neighbor_update_cutoff (add to vdw_cutoff)
-          * neigh_modify: extract neighbor_update_frequency from 'every' parameter
-
-        Legacy implementation: lines 1531-1624 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations schemas instead of runschema
-        - Adapt to new ModelSystem structure
-        - Integrate with existing masses extraction (lines 47-57)
-        """
-
-        if self.traj_parsers[0].mainfile is None or self._data_parser.mainfile is None:
+        if self.traj_parsers[0].mainfile is None:
             return
 
         if self.traj_parsers.eval('n_frames') is None:
             return
-
-        method = ModelMethod()
-        # force_field = ForceField()
 
         masses_data = self._data_parser.get('Masses', None)
         # Extract array from DataParser format: [(None, np.ndarray)]
@@ -190,7 +171,18 @@ class LammpsArchiveWriter(MDParser):
         else:
             self._bond_list = None
 
-        simulation.model_method.append(method)
+        atoms_info = self.traj_parsers.eval('atoms_info')
+        if isinstance(atoms_info, list):
+            atoms_info = atoms_info[0] if atoms_info else None
+        atom_ids = atoms_info.get('id') if isinstance(atoms_info, dict) else None
+        method = build_force_field(
+            self._log_parser,
+            self._data_parser,
+            atom_ids,
+            get_unit(self._resolved_unit_style),
+            self.logger,
+        )
+        simulation.model_method.append(method or ModelMethod())
 
     def _source_trajectory_step(self, frame_index: int) -> int | None:
         """Return a LAMMPS step ID when the frame reader exposes one."""
@@ -1086,6 +1078,23 @@ class LammpsArchiveWriter(MDParser):
     def _parse_content_sections(self) -> None:
         self.parse_method(self.archive.data)
         self.parse_system(self.archive.data)
+        if self.archive.data.model_method and self.archive.data.model_system:
+            method = self.archive.data.model_method[-1]
+            if isinstance(method, ForceField):
+                atoms_info = self.traj_parsers.eval('atoms_info')
+                if isinstance(atoms_info, list):
+                    atoms_info = atoms_info[0] if atoms_info else None
+                atom_ids = (
+                    atoms_info.get('id') if isinstance(atoms_info, dict) else None
+                )
+                attach_particle_parameters(
+                    method,
+                    self._log_parser,
+                    self._data_parser,
+                    atom_ids,
+                    self.archive.data.model_system[0].particle_states,
+                    get_unit(self._resolved_unit_style),
+                )
 
         # TODO: uncomment when implemented
         # self.parse_input(self.archive.data)
