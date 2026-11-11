@@ -5,9 +5,25 @@ from typing import Any
 import numpy as np
 from nomad.datamodel import EntryArchive
 from nomad.parsing.parser import MatchingParser
+from nomad.units import ureg
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.model_method import ModelMethod
 from nomad_simulations.schema_packages.model_system import ModelSystem
+from nomad_simulations.schema_packages.outputs import TrajectoryOutputs, WorkflowOutputs
+from nomad_simulations.schema_packages.properties.energies import (
+    BaseEnergy,
+    KineticEnergy,
+    PotentialEnergy,
+    TotalEnergy,
+)
+from nomad_simulations.schema_packages.properties.forces import TotalForce
+from nomad_simulations.schema_packages.properties.thermodynamics import (
+    Enthalpy,
+    MassDensity,
+    Pressure,
+    Temperature,
+    Volume,
+)
 from nomad_simulations.schema_packages.workflow.molecular_dynamics import (
     MolecularDynamics,
 )
@@ -29,6 +45,19 @@ from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
 )
 from nomad_simulation_parsers.parsers.utils.mdanalysisparser import MDAnalysisParser
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
+
+_ENERGY_CONTRIBUTION_TYPES = {
+    'e_pair': 'pair',
+    'e_bond': 'bond',
+    'e_angle': 'angle',
+    'e_dihed': 'dihedral',
+    'e_impro': 'improper',
+    'e_coul': 'coulomb',
+    'e_vdwl': 'van der Waals',
+    'e_mol': 'molecular',
+    'e_long': 'kspace long range',
+    'e_tail': 'van der Waals long range',
+}
 
 
 class LammpsArchiveWriter(MDParser):
@@ -591,31 +620,261 @@ class LammpsArchiveWriter(MDParser):
         """
         pass
 
-    def parse_thermodynamic_data(self, simulation: Simulation) -> None:
-        """
-        Parse thermodynamic output data from log file.
+    def _thermo_systems_by_step(
+        self, simulation: Simulation
+    ) -> dict[int, tuple[int, ModelSystem]]:
+        """Match sampled frames by source step, excluding ambiguous duplicates."""
+        if len(self.traj_parsers._parsers) != 1:
+            # Multiple dumps can have independent frame order and coverage.
+            # The shared trajectory reader currently has no source identity
+            # for each field, so step/force joins would be ambiguous.
+            return {}
+        first_parser = self.traj_parsers[0] if self.traj_parsers._parsers else None
+        if isinstance(first_parser, MDAnalysisParser) and (
+            first_parser.options.get('format') != 'LAMMPSDUMP'
+        ):
+            # MDAnalysis reports frame ordinals as steps for DCD/XYZ. Those
+            # cannot be matched to the LAMMPS thermo step without a verified
+            # source frequency and start step.
+            return {}
+        system_by_step: dict[int, tuple[int, ModelSystem]] = {}
+        ambiguous_steps: set[int] = set()
+        frame_indices = range(
+            0, self._trajectory_frame_count, self.archive_sampling_rate
+        )
+        if len(frame_indices) == len(simulation.model_system):
+            for frame_index, system in zip(
+                frame_indices, simulation.model_system, strict=True
+            ):
+                step = self.traj_parsers.eval('get_step', frame_index)
+                if step is None:
+                    continue
+                step = int(step)
+                if step in system_by_step:
+                    ambiguous_steps.add(step)
+                else:
+                    system_by_step[step] = (frame_index, system)
+        for step in ambiguous_steps:
+            system_by_step.pop(step, None)
+        return system_by_step
 
-        TODO: Migrate from legacy parser
-        - Extract thermodynamic data from log file or aux log file
-        - Map thermodynamic quantities to TrajectoryOutputs:
-          * Step number and physical time (step * timestep)
-          * Energy contributions (kinetic, potential, pair, bond, angle, etc.)
-          * Total energy (TotEng)
-          * Pressure and temperature
-          * Forces (if available in trajectory)
-          * Calculation time (CPU)
-        - Create TrajectoryOutputs for each thermodynamic step
-        - Link outputs to corresponding model_system via model_system_ref
+    @staticmethod
+    def _set_thermo_energies(
+        output: WorkflowOutputs,
+        values: dict[str, tuple[str, float]],
+        energy_unit: Any,
+    ) -> None:
+        total = values.get('toteng')
+        if total is None:
+            if 'poteng' in values:
+                output.potential_energies.append(
+                    PotentialEnergy(
+                        name=values['poteng'][0],
+                        value=values['poteng'][1] * energy_unit,
+                    )
+                )
+            if 'kineng' in values:
+                output.kinetic_energies.append(
+                    KineticEnergy(
+                        name=values['kineng'][0],
+                        value=values['kineng'][1] * energy_unit,
+                    )
+                )
+            for key, (name, value) in values.items():
+                if key.startswith('e_'):
+                    output.potential_energies.append(
+                        PotentialEnergy(name=name, value=value * energy_unit)
+                    )
+            return
 
-        Legacy implementation: lines 971-1036 in atomisticparsers/lammps/parser.py
-        Key changes needed:
-        - Use nomad_simulations TrajectoryOutputs instead of Calculation
-        - Map energy types using self._energy_mapping
-        - Coordinate with parse_output_step in mdparserutils.py (lines 186-238)
-        - Extract timestep from log file (get_time_step method)
-        - Match thermodynamics_steps with trajectory_steps
+        energy = TotalEnergy(value=total[1] * energy_unit)
+        for key, contribution_type in (
+            ('poteng', 'potential'),
+            ('kineng', 'kinetic'),
+        ):
+            if key in values:
+                name, value = values[key]
+                energy.contributions.append(
+                    BaseEnergy(
+                        name=name,
+                        contribution_type=contribution_type,
+                        value=value * energy_unit,
+                    )
+                )
+        for key, (name, value) in values.items():
+            if key.startswith('e_'):
+                contribution_type = _ENERGY_CONTRIBUTION_TYPES.get(key, key[2:])
+                energy.contributions.append(
+                    BaseEnergy(
+                        name=name,
+                        contribution_type=contribution_type,
+                        value=value * energy_unit,
+                    )
+                )
+        output.total_energies.append(energy)
+
+    @staticmethod
+    def _set_thermo_properties(
+        output: WorkflowOutputs,
+        values: dict[str, tuple[str, float]],
+        units: dict[str, Any],
+    ) -> set[str]:
+        """Map typed scalar thermo values and report those without a unit."""
+        unsupported: set[str] = set()
+        mappings = (
+            ('press', 'pressures', Pressure, units.get('pressure')),
+            ('volume', 'volumes', Volume, units['distance'] ** 3),
+            ('density', 'mass_densities', MassDensity, units.get('density')),
+            ('enthalpy', 'enthalpies', Enthalpy, units['energy']),
+        )
+        for key, section_name, section_type, unit in mappings:
+            if key not in values:
+                continue
+            name, value = values[key]
+            if unit is None:
+                unsupported.add(name)
+                continue
+            getattr(output, section_name).append(section_type(value=value * unit))
+        return unsupported
+
+    def _set_thermo_forces(
+        self,
+        output: WorkflowOutputs,
+        frame_index: int,
+        system: ModelSystem,
+    ) -> None:
+        """Store complete force arrays only for an unambiguous source frame."""
+        raw_forces = self.traj_parsers.eval('get_forces', frame_index)
+        if raw_forces is None:
+            return
+        forces = self.apply_unit(raw_forces, 'force')
+        values = np.asarray(forces.magnitude)
+        if values.shape != (system.n_particles, 3) or not np.isfinite(values).all():
+            self.logger.warning(
+                'Skipping LAMMPS force array with inconsistent particle shape.'
+            )
+            return
+        output.total_forces.append(TotalForce(value=forces))
+
+    def parse_thermodynamic_data(  # noqa: PLR0912, PLR0915
+        self, simulation: Simulation
+    ) -> None:
+        """Store the last thermo block as ordered, source-backed outputs.
+
+        The current workflow parser selects one final run. Earlier thermo
+        blocks are not folded into that run until multi-run workflows are
+        supported. Unknown columns, including pressure, remain explicit gaps.
         """
-        pass
+        source = None
+        blocks = []
+        for reader in (self._aux_log_parser, self._log_parser):
+            blocks = reader.get_thermodynamic_blocks()
+            if blocks:
+                source = reader
+                break
+        if source is None:
+            return
+        if len(blocks) > 1:
+            self.logger.warning(
+                'Multiple LAMMPS thermo blocks found; only the last is stored.',
+                n_blocks=len(blocks),
+            )
+        records = blocks[-1]
+        units = source.units
+        system_by_step = self._thermo_systems_by_step(simulation)
+
+        step_counts: dict[int, int] = {}
+        for record in records:
+            step = record.get('Step')
+            if step is not None and np.isfinite(step) and float(step).is_integer():
+                step = int(step)
+                step_counts[step] = step_counts.get(step, 0) + 1
+
+        steps = [int(record['Step']) for record in records if 'Step' in record]
+        has_known_origin = (
+            bool(steps)
+            and steps[0] == 0
+            and all(earlier < later for earlier, later in zip(steps, steps[1:]))
+        )
+        timestep = (
+            self.archive.workflow2.method.integration_timestep
+            if isinstance(self.archive.workflow2, MolecularDynamics)
+            else None
+        )
+        output_type = (
+            TrajectoryOutputs
+            if isinstance(self.archive.workflow2, MolecularDynamics)
+            else WorkflowOutputs
+        )
+        energy_unit = units['energy']
+        temperature_unit = units['temperature']
+        unsupported_columns: set[str] = set()
+        max_step = np.iinfo(np.int32).max
+
+        for record in records:
+            raw_step = record.get('Step')
+            if (
+                raw_step is None
+                or not np.isfinite(raw_step)
+                or not float(raw_step).is_integer()
+                or raw_step < 0
+                or raw_step > max_step
+            ):
+                self.logger.warning('Skipping LAMMPS thermo row with invalid step.')
+                continue
+            step = int(raw_step)
+            values = {key.lower(): (key, value) for key, value in record.items()}
+            output = output_type(step=step)
+            if step_counts[step] == 1 and step in system_by_step:
+                frame_index, system = system_by_step[step]
+                output.model_system_ref = system
+                self._set_thermo_forces(output, frame_index, system)
+            if isinstance(output, TrajectoryOutputs):
+                if 'time' in values:
+                    output.time = values['time'][1] * units['time']
+                elif has_known_origin and timestep is not None:
+                    output.time = step * timestep
+
+            if 'temp' in values:
+                output.temperatures.append(
+                    Temperature(value=values['temp'][1] * temperature_unit)
+                )
+            if 'cpu' in values:
+                # LAMMPS CPU is elapsed seconds since the start of this run,
+                # independent of the selected physical unit style.
+                output.cpu1_end = values['cpu'][1] * ureg.second
+
+            self._set_thermo_energies(output, values, energy_unit)
+            unsupported_columns.update(
+                self._set_thermo_properties(output, values, units)
+            )
+
+            supported = {
+                'step',
+                'temp',
+                'toteng',
+                'poteng',
+                'kineng',
+                'cpu',
+                'press',
+                'volume',
+                'density',
+                'enthalpy',
+            }
+            if isinstance(output, TrajectoryOutputs):
+                supported.add('time')
+            unsupported_columns.update(
+                name
+                for key, (name, _) in values.items()
+                if key not in supported and not key.startswith('e_')
+            )
+            simulation.outputs.append(output)
+
+        if unsupported_columns:
+            self.logger.warning(
+                'LAMMPS thermo columns have no mapped output destination.',
+                columns=sorted(unsupported_columns),
+            )
 
     def parse_workflow(self, simulation: Simulation) -> None:
         """Attach method settings for the last MD run echoed in the log files."""
@@ -816,7 +1075,6 @@ class LammpsArchiveWriter(MDParser):
 
         # TODO: uncomment when implemented
         # self.parse_input(self.archive.data)
-        # self.parse_thermodynamic_data(self.archive.data)
 
     def write_to_archive(self) -> None:
         self._bond_list = None
@@ -842,6 +1100,8 @@ class LammpsArchiveWriter(MDParser):
             self._parse_content_sections()
         else:
             self._parse_input_structure(self.archive.data)
+
+        self.parse_thermodynamic_data(self.archive.data)
 
         # Close all parser instances
         self._mdanalysistraj_parser.close()
