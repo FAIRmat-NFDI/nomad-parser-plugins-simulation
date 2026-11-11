@@ -192,6 +192,26 @@ class LammpsArchiveWriter(MDParser):
 
         simulation.model_method.append(method)
 
+    def _source_trajectory_step(self, frame_index: int) -> int | None:
+        """Return a LAMMPS step ID when the frame reader exposes one."""
+        if len(self.traj_parsers._parsers) != 1:
+            return None
+        reader = self.traj_parsers._parsers[0]
+        if isinstance(reader, MDAnalysisParser) and (
+            reader.options.get('format') != 'LAMMPSDUMP'
+        ):
+            return None
+        raw_step = reader.get_step(frame_index)
+        try:
+            step = float(raw_step)
+        except (TypeError, ValueError):
+            return None
+        if not np.isfinite(step) or not step.is_integer():
+            return None
+        if step < 0 or step > np.iinfo(np.int32).max:
+            return None
+        return int(step)
+
     def _validate_trajectory_data(self) -> bool:
         """Validate that trajectory data is available and extract basic info."""
         n_traj = self.traj_parsers.eval('n_frames')
@@ -312,7 +332,13 @@ class LammpsArchiveWriter(MDParser):
                 'bond_list': self._bond_list if self._bond_list else None,
                 'dimensions': dimension,
             }
-            self.parse_trajectory_step(particles_dict, simulation)
+            source_step = self._source_trajectory_step(traj_n)
+            model_system = (
+                ModelSystem(time_step=source_step) if source_step is not None else None
+            )
+            self.parse_trajectory_step(
+                particles_dict, simulation, model_system=model_system
+            )
 
     def _create_system_node(
         self, name: str | int, branch_label: str, particle_indices: np.ndarray, **kwargs
@@ -625,17 +651,6 @@ class LammpsArchiveWriter(MDParser):
     ) -> dict[int, tuple[int, ModelSystem]]:
         """Match sampled frames by source step, excluding ambiguous duplicates."""
         if len(self.traj_parsers._parsers) != 1:
-            # Multiple dumps can have independent frame order and coverage.
-            # The shared trajectory reader currently has no source identity
-            # for each field, so step/force joins would be ambiguous.
-            return {}
-        first_parser = self.traj_parsers[0] if self.traj_parsers._parsers else None
-        if isinstance(first_parser, MDAnalysisParser) and (
-            first_parser.options.get('format') != 'LAMMPSDUMP'
-        ):
-            # MDAnalysis reports frame ordinals as steps for DCD/XYZ. Those
-            # cannot be matched to the LAMMPS thermo step without a verified
-            # source frequency and start step.
             return {}
         system_by_step: dict[int, tuple[int, ModelSystem]] = {}
         ambiguous_steps: set[int] = set()
@@ -646,10 +661,9 @@ class LammpsArchiveWriter(MDParser):
             for frame_index, system in zip(
                 frame_indices, simulation.model_system, strict=True
             ):
-                step = self.traj_parsers.eval('get_step', frame_index)
+                step = system.time_step
                 if step is None:
                     continue
-                step = int(step)
                 if step in system_by_step:
                     ambiguous_steps.add(step)
                 else:

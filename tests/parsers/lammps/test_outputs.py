@@ -46,6 +46,7 @@ def test_hexane_thermo_outputs_keep_values_and_system_links(hexane_archive):
     systems = hexane_archive.data.model_system
 
     assert len(outputs) == len(systems) == 201
+    assert systems[21].time_step == 8400
     assert outputs[0].step == 0
     assert outputs[-1].step == 80000
     assert outputs[21].model_system_ref is systems[21]
@@ -75,6 +76,7 @@ def test_methyl_thermo_outputs_do_not_invent_unsampled_systems(
 
     assert len(outputs) == 301
     assert len(systems) == 4
+    assert [system.time_step for system in systems] == [0, 10000, 20000, 30000]
     assert outputs[0].step == 0
     assert outputs[-1].step == 30000
     assert [
@@ -111,6 +113,9 @@ def test_dcd_frame_ordinals_are_not_assumed_to_be_lammps_steps(
 ):
     assert len(methane_dcd_archive.data.outputs) == 201
     assert len(methane_dcd_archive.data.model_system) == 201
+    assert all(
+        system.time_step is None for system in methane_dcd_archive.data.model_system
+    )
     assert all(
         output.model_system_ref is None for output in methane_dcd_archive.data.outputs
     )

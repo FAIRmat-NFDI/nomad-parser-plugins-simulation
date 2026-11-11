@@ -38,11 +38,14 @@ The minimization fixture intentionally does not require an MD workflow; a
 geometry-optimization workflow is separate follow-up work. `test_outputs.py`
 now verifies ordered custom/multi thermo records, temperature, energy,
 pressure, volume, density and enthalpy units, elapsed CPU seconds, and
-force-bearing dump frames,
-real-fixture output counts, sparse links to genuinely matching dump steps,
-log-only serialization, and non-MD `WorkflowOutputs`. For DCD/XYZ, the reader
-reports frame ordinals rather than source LAMMPS steps, so the test requires
-no inferred output-to-system links. These typed thermodynamic subsections and
+force-bearing dump frames, real-fixture output counts, sparse links to
+genuinely matching dump steps, log-only serialization, and non-MD
+`WorkflowOutputs`. Dump-backed systems record source `time_step` values for
+exact, unique output matching. For DCD/XYZ, the reader reports frame ordinals
+rather than source LAMMPS steps, so the parser leaves those links unset. The
+shared normalizer can still apply its positional fallback when the two series
+have equal length; those inferred links are not source-step verified. These
+typed thermodynamic subsections and
 conservative normalization of sparse output/system references require the
 `lammps-thermo-output-properties` branch in `nomad-simulations`. Unrecognized
 thermo columns remain explicitly warned about; extra force-only dump frames
