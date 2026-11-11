@@ -67,10 +67,11 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.outputs, XML_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, XML2_KEY, '.calculation')
     add_mapping_annotation(general.Simulation.outputs, OUTCAR_KEY, '.calculation')
-    # TODO: make update_mode merge@last when mapping parser is updated
-    add_mapping_annotation(VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='append')
     add_mapping_annotation(
-        general.Simulation.outputs, DOSCAR_KEY, '.@', update_mode='append'
+        VASPOutputs.m_def, CHGCAR_KEY, '.@', update_mode='merge@last'
+    )
+    add_mapping_annotation(
+        general.Simulation.outputs, DOSCAR_KEY, '.@', update_mode='merge@last'
     )
 
 

@@ -66,9 +66,10 @@ class TestAgacRelaxOutcarArchive(VASPIntegrationSuite):
             'Ac',
             'Ag',
         ]
-        assert len(simulation.outputs) == 2
+        assert len(simulation.outputs) == 1
         assert len(simulation.outputs[0].scf_steps.energies_total) == 11
-        assert simulation.outputs[-1].electronic_dos
+        dos = simulation.outputs[0].electronic_dos[0].value.to('1/eV').magnitude
+        assert dos[218] == pytest.approx(18.05)  # AgAc_relax/DOSCAR:225
 
     @pytest.mark.integration
     def test_electronic_outputs_and_convergence(self, archive):
@@ -184,7 +185,11 @@ class TestWithCHGCARArchive:
     @pytest.mark.integration
     def test_charge_density_is_mapped(self, chgcar_archive):
         outputs = chgcar_archive.data.outputs
-        assert len(outputs) == 14
+        assert len(outputs) == 13
+        forces = outputs[-1].total_forces[0].value.to('eV/angstrom').magnitude
+        assert forces[0][0] == pytest.approx(-0.001933)  # with_chgcar/OUTCAR:11684
+        energy = outputs[-1].scf_steps.energies_total[-1].to('eV').magnitude
+        assert energy == pytest.approx(-3.57467714)  # with_chgcar/OUTCAR:11451
         charge_density = outputs[-1].charge_density
         assert len(charge_density) == 1
         assert charge_density[0].value_h5_dataset is not None
