@@ -83,7 +83,11 @@ class TestInfoParserMapping:
                 'Methfessel-Paxton 2',
                 False,
             ),
-            (['Extended', 'linear', 'tetrahedron', 'method'], 'Tetrahedra', False),
+            (
+                ['Extended', 'linear', 'tetrahedron', 'method'],
+                'Tetrahedra linear',
+                False,
+            ),
             (['Square-wave', 'impulse'], 'Square-wave', False),
             ('Unknown-scheme', None, True),
             ('', None, False),

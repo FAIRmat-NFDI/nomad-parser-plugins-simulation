@@ -356,7 +356,7 @@ class TestPbIHybridsArchive(ExcitingParserIntegrationSuite):
         ]
         assert method.is_spin_polarized is True
         smearing, kspace, _ = method.numerical_settings
-        assert smearing.kind == 'Tetrahedra'
+        assert smearing.kind == 'Tetrahedra linear'
         assert smearing.width is None
         assert list(kspace.k_mesh[0].grid) == [6, 6, 4]
         assert archive.data.outputs[0].total_energies[0].value.to(

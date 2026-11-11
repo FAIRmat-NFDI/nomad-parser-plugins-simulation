@@ -362,7 +362,7 @@ class InfoParser(TextParser):
             'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
                 'Methfessel-Paxton 2'
             ),
-            'Extended linear tetrahedron method': 'Tetrahedra',
+            'Extended linear tetrahedron method': 'Tetrahedra linear',
             'Square-wave impulse': 'Square-wave',
         }.get(smearing_kind)
         if kind is None:
