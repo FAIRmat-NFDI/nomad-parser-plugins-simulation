@@ -338,7 +338,9 @@ class InfoParser(TextParser):
             self.logger.warning('Unknown exciting spin treatment: %s', spin_treatment)
         return is_spin_polarized
 
-    def get_smearing_kind(self, smearing_kind: str | list[str] | None) -> str | None:
+    def get_smearing_kind(
+        self, smearing_kind: str | list[str | int] | None
+    ) -> str | None:
         """
         Map the exciting smearing scheme onto `Smearing.kind`.
 

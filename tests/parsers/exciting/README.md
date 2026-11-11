@@ -6,10 +6,10 @@
 | Program metadata and initialization lattice | minimal `INFO.OUT` in `test_reader.py` (version hash) | not yet isolated | `C_minimal` |
 | Structure and atomic species | cell volume, atom count and species mass in `test_reader.py` | not yet isolated | `C_minimal`, `C_gs` |
 | DFT exchange-correlation method | not yet isolated | `test_maps_xc_type_to_functional` | `C_minimal`, `PbI_hybrids` |
-| Spin treatment | minimal `INFO.OUT` in `test_reader.py` | `test_maps_spin_treatment` | `C_gs`, `PbI_hybrids` |
-| Smearing kind and width | `test_extracts_method_and_system_settings` | `test_maps_smearing_kind` | `C_gs`, `PbI_hybrids` |
-| k-point mesh | `test_extracts_method_and_system_settings` | `test_maps_k_mesh` | `C_gs`, `PbI_hybrids` |
-| APW basis-set cutoff (`rgkmax`) | `test_extracts_method_and_system_settings` | not applicable (direct path) | `C_minimal`, `C_gs` |
+| Spin treatment | minimal `INFO.OUT` in `test_reader.py` | `test_maps_spin_treatment` | `C_minimal`, `PbI_hybrids` |
+| Smearing kind and width | `test_extracts_method_and_system_settings` | `test_maps_smearing_kind` | `C_minimal`, `PbI_hybrids` |
+| k-point mesh | `test_extracts_method_and_system_settings` | `test_maps_k_mesh` | `C_minimal`, `PbI_hybrids` |
+| APW basis-set cutoff (`rgkmax`) | `test_extracts_method_and_system_settings` | not applicable (direct path) | `C_minimal` |
 | Energies and SCF convergence history | charge distance in `test_reader.py` | `test_maps_scf_convergence_quantities_with_units` | `C_minimal`, `C_gs` |
 | Eigenvalues, occupations, and gaps | minimal `EIGVAL.OUT` in `test_reader.py` | `test_maps_eigenvalues_to_band_gaps` | `C_minimal` |
 | Band structure | not yet isolated | `test_maps_k_path` | `C_minimal` |
