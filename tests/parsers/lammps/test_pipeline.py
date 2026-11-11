@@ -3,6 +3,7 @@ from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
 
+from nomad_simulation_parsers.parsers.lammps.parser import LammpsArchiveWriter
 from tests.parsers.common import (
     SimulationParserPipelineTestSuite,
     approx,
@@ -68,6 +69,57 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert monomers[0].composition_formula == 'C(11)H(10)'
         assert monomers[0].particle_indices[20] == 20
         assert monomers[0].is_molecule() is True
+        assert {monomer.name for monomer in monomers} == {'0'}
+        assert len({tuple(m.particle_indices) for m in monomers}) == 54
+        assert len(normalized.workflow2.results.radial_distribution_functions) == 1
+        molecule_topology = next(
+            entry
+            for entry in normalized.results.material.topology
+            if entry.label == '0'
+        )
+        assert len(molecule_topology.indices) == 54
+
+    def test_hexane_molecule_names_identify_types(self, hexane_archive):
+        groups = hexane_archive.data.model_system[0].sub_systems
+
+        assert len(groups) == 2
+        assert sorted(len(group.sub_systems) for group in groups) == [18, 18]
+        assert {
+            group.name: {molecule.name for molecule in group.sub_systems}
+            for group in groups
+        } == {'group_0': {'0'}, 'group_1': {'1'}}
+
+        normalized = normalize_archive(hexane_archive)
+        results = normalized.workflow2.results
+        assert len(results.radial_distribution_functions) == 12
+        assert len(results.mean_squared_displacements) == 2
+        assert len(results.diffusion_constants) == 2
+        topology = {
+            entry.label: entry
+            for entry in normalized.results.material.topology
+            if entry.label in {'0', '1'}
+        }
+        assert len(topology['0'].indices) == 18
+        assert len(topology['1'].indices) == 18
+
+    def test_nested_molecule_names_stay_distinct(self):
+        particle_arrays = {
+            'molnums': np.repeat([0, 1], 6),
+            'resids': np.repeat([0, 1, 2, 3], 3),
+            'resnames': np.array(['X'] * 12),
+        }
+        writer = LammpsArchiveWriter()
+
+        molecules = [
+            writer._create_molecule(molecule, 'P', particle_arrays)
+            for molecule in (0, 1)
+        ]
+
+        assert [molecule.name for molecule in molecules] == ['0', '1']
+        assert all(len(molecule.sub_systems) == 1 for molecule in molecules)
+        assert all(
+            len(molecule.sub_systems[0].sub_systems) == 2 for molecule in molecules
+        )
 
     def test_normalization_preserves_md_method(self, methyl_naphthalene_archive):
         normalized = normalize_archive(methyl_naphthalene_archive)
