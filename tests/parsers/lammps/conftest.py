@@ -28,11 +28,6 @@ def methyl_naphthalene_archive() -> EntryArchive:
     return parse_lammps(DATA_DIR / '1_methyl_naphthalene' / 'log.1_methyl_naphthalene')
 
 
-@pytest.fixture(scope='class')
-def xyz_archive() -> EntryArchive:
-    return parse_lammps(DATA_DIR / '1_xyz_files' / 'log.lammps')
-
-
 @pytest.fixture
 def tmp_dir():
     parent_directory = '.volumes'

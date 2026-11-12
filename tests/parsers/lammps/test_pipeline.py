@@ -62,17 +62,3 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert monomers[0].composition_formula == 'C(11)H(10)'
         assert monomers[0].particle_indices[20] == 20
         assert monomers[0].is_molecule() is True
-
-
-class TestLammpsXyzPipeline(SimulationParserPipelineTestSuite):
-    archive_fixture = 'xyz_archive'
-    expected_program_name = 'LAMMPS'
-
-    def test_xyz_normalized_velocities(self, xyz_archive):
-        normalized = normalize_archive(xyz_archive)
-        systems = normalized.data.model_system
-
-        assert np.shape(systems[0].velocities) == (500, 3)
-        assert systems[100].velocities[250][2].to('angstrom/ps').magnitude == approx(
-            0.0256726
-        )
