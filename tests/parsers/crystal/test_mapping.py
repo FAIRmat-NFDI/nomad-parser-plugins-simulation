@@ -38,3 +38,35 @@ def test_maps_outputs_with_explicit_units():
     np.testing.assert_allclose(
         outputs[0]['forces'].to('hartree / bohr').magnitude, [[3.0, 4.0, 5.0]]
     )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'source, expected',
+    [
+        ({'exchange': 'BECKE', 'correlation': 'PZ'}, ['GGA_X_B88', 'LDA_C_PZ']),
+        ({'correlation': 'PZ', 'exchange': 'BECKE'}, ['GGA_X_B88', 'LDA_C_PZ']),
+        ({'exchange_correlation': 'PBE0'}, ['HYB_GGA_XC_PBEH']),
+        ({'exchange_correlation': 'PBEXC'}, ['GGA_C_PBE', 'GGA_X_PBE']),
+        (
+            {'exchange': 'PBE', 'exchange_correlation': 'PBE'},
+            ['GGA_X_PBE', 'GGA_C_PBE'],
+        ),
+        ({'exchange': 'XYZ'}, []),
+        ({}, []),
+    ],
+    ids=[
+        'exchange_then_correlation',
+        'correlation_key_first_in_source',
+        'combined_functional',
+        'multi_component_entry',
+        'duplicate_across_keys',
+        'unknown_functional',
+        'empty_source',
+    ],
+)
+def test_xc_functionals_order_is_deterministic(source, expected):
+    """Components follow the fixed key order, deduplicated, never set order."""
+    parser = CrystalOutputParser()
+
+    assert [xc['name'] for xc in parser.get_xc_functionals(source)] == expected

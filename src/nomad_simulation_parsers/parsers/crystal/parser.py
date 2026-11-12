@@ -155,10 +155,14 @@ class CrystalOutputParser(TextParser):
         return atoms or None
 
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        xc_functionals = set()
-        for key in ['exchange', 'correlation', 'exchange_correlation']:
-            xc_functionals.update(self.libxc_map.get(source.get(key), []))
-        return [dict(name=xc) for xc in xc_functionals]
+        # `dict.fromkeys` deduplicates in first-seen order; a set's iteration
+        # order varies between processes.
+        names = (
+            xc
+            for key in ('exchange', 'correlation', 'exchange_correlation')
+            for xc in self.libxc_map.get(source.get(key), [])
+        )
+        return [dict(name=xc) for xc in dict.fromkeys(names)]
 
     def get_outputs(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         outputs = []
