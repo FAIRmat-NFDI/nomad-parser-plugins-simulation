@@ -43,8 +43,8 @@ class ExcitingParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuit
 
 
 @pytest.mark.large_fixture
-class TestCMinimalArchive(ExcitingParserIntegrationSuite):
-    archive_fixture = 'c_minimal_archive'
+class TestCMinimalLargeDataArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_minimal_largedata_archive'
     workflow_name = 'SinglePoint'
 
     @pytest.mark.integration
@@ -135,6 +135,72 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert smearing.width.to('hartree').magnitude == approx(0.001)
 
     @pytest.mark.integration
+    def test_xc_functional_mapping(self, archive):
+        method = archive.data.model_method[0]
+        assert method is not None
+        assert method.xc is not None
+        assert method.xc.functional_key == 'PBESOL'
+        components = method.xc.components
+        assert len(components) == 2
+
+    @pytest.mark.integration
+    def test_atomic_states_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.particle_states is not None
+        assert len(system.particle_states) == 2
+        assert system.particle_states[0].chemical_symbol == 'C'
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(
+            21894.16673000
+        )
+
+    @pytest.mark.integration
+    def test_model_system_mapping(self, archive):
+        system = archive.data.model_system[0]
+        assert system is not None
+        assert system.lattice_vectors.shape == (3, 3)
+        assert system.lattice_vectors[0][1].to('bohr').magnitude == approx(3.3637)
+        assert list(system.periodic_boundary_conditions) == [True] * 3
+        assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
+        assert system.n_particles == 2
+        assert system.positions.shape == (2, 3)
+        assert system.positions[1][0].to('bohr').magnitude == approx(
+            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum()
+        )
+
+    @pytest.mark.integration
+    def test_electronic_outputs_mapping(self, archive):
+        output = archive.data.outputs[0]
+
+        if output.electronic_dos:
+            dos = output.electronic_dos[0]
+            assert dos.value is not None
+            assert dos.energies is not None
+            assert dos.energies.points is not None
+
+        if output.electronic_band_structures:
+            band_structure = output.electronic_band_structures[0]
+            assert band_structure.value is not None
+
+        if output.electronic_band_gaps:
+            assert output.electronic_band_gaps[0].value is not None
+
+    @pytest.mark.integration
+    def test_archive_serialization_round_trip(self, archive):
+        super().test_archive_serialization_round_trip(archive)
+        restored = EntryArchive.m_from_dict(archive.m_to_dict())
+
+        assert restored.workflow2.m_def.name == 'SinglePoint'
+        np.testing.assert_allclose(
+            restored.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
+            archive.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
+        )
+
+
+class TestCMinimalArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_minimal_archive'
+    workflow_name = 'SinglePoint'
+    @pytest.mark.integration
     def test_basis_set_mapping(self, archive):
         components_planewave = self._get_basis_set_components(
             archive, 'APWPlaneWaveBasisSet'
@@ -212,68 +278,6 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             'post-optimization',
         ]
         assert list(local_orbital.differential_order) == [0, 1]
-
-    @pytest.mark.integration
-    def test_xc_functional_mapping(self, archive):
-        method = archive.data.model_method[0]
-        assert method is not None
-        assert method.xc is not None
-        assert method.xc.functional_key == 'PBESOL'
-        components = method.xc.components
-        assert len(components) == 2
-
-    @pytest.mark.integration
-    def test_atomic_states_mapping(self, archive):
-        system = archive.data.model_system[0]
-        assert system is not None
-        assert system.particle_states is not None
-        assert len(system.particle_states) == 2
-        assert system.particle_states[0].chemical_symbol == 'C'
-        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(
-            21894.16673000
-        )
-
-    @pytest.mark.integration
-    def test_model_system_mapping(self, archive):
-        system = archive.data.model_system[0]
-        assert system is not None
-        assert system.lattice_vectors.shape == (3, 3)
-        assert system.lattice_vectors[0][1].to('bohr').magnitude == approx(3.3637)
-        assert list(system.periodic_boundary_conditions) == [True] * 3
-        assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
-        assert system.n_particles == 2
-        assert system.positions.shape == (2, 3)
-        assert system.positions[1][0].to('bohr').magnitude == approx(
-            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum()
-        )
-
-    @pytest.mark.integration
-    def test_electronic_outputs_mapping(self, archive):
-        output = archive.data.outputs[0]
-
-        if output.electronic_dos:
-            dos = output.electronic_dos[0]
-            assert dos.value is not None
-            assert dos.energies is not None
-            assert dos.energies.points is not None
-
-        if output.electronic_band_structures:
-            band_structure = output.electronic_band_structures[0]
-            assert band_structure.value is not None
-
-        if output.electronic_band_gaps:
-            assert output.electronic_band_gaps[0].value is not None
-
-    @pytest.mark.integration
-    def test_archive_serialization_round_trip(self, archive):
-        super().test_archive_serialization_round_trip(archive)
-        restored = EntryArchive.m_from_dict(archive.m_to_dict())
-
-        assert restored.workflow2.m_def.name == 'SinglePoint'
-        np.testing.assert_allclose(
-            restored.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
-            archive.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
-        )
 
 
 @pytest.mark.large_fixture
