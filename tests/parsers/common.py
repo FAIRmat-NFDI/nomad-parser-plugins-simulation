@@ -12,15 +12,13 @@ from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
 
 
-def assert_identity_populated_once(
-    archive: EntryArchive, topology_index: int = 0
-) -> None:
+def assert_identity_populated_once(archive: EntryArchive, topology_index: int) -> None:
     """Assert per-particle identity is stored on exactly one (topology) frame.
 
     In a multi-frame ``model_system`` sequence -- an MD trajectory or a
     geometry-optimization step series -- the per-particle identity
     (``particle_states``) is frame-independent and must be written only on the
-    topology/representative frame, never duplicated per frame. Duplicating it
+    topology frame, never duplicated per frame. Duplicating it
     scales the archive and the Elasticsearch index document with
     ``n_frames x n_particles`` and can push a single entry past the Elasticsearch
     payload limit, failing the whole upload (FAIRmat-NFDI/nomad-simulations#474).
@@ -60,6 +58,18 @@ def assert_approx(actual, expected, **kwargs):
         assert actual == approx(expected, **kwargs)
 
 
+def get_representative_system(archive: EntryArchive, *, default_index: int):
+    """Return the representative system from a multi-frame ``model_system``."""
+    return next(
+        (
+            system
+            for system in archive.data.model_system
+            if system.is_representative
+        ),
+        archive.data.model_system[default_index],
+    )
+
+
 class _SimulationParserSuite:
     """Configuration and fixtures shared by parser contract suites."""
 
@@ -83,6 +93,15 @@ class SimulationParserTestSuite(_SimulationParserSuite):
     required_simulation_sections = ('model_method', 'model_system', 'outputs')
     require_lattice_vectors = False
     require_periodic_boundary_conditions = False
+
+    DEFAULT_REPRESENTATIVE = -1
+    DEFAULT_TOPOLOGY = 0
+
+    def assert_identity_populated_once(self, archive: EntryArchive,
+            topology_index: int | None = None) -> None:
+        if topology_index is None:
+            topology_index = self.DEFAULT_TOPOLOGY
+        assert_identity_populated_once(archive, topology_index=topology_index)
 
     @pytest.mark.integration
     def test_archive_is_valid(self, archive):
@@ -125,41 +144,55 @@ class SimulationParserTestSuite(_SimulationParserSuite):
 
     @pytest.mark.integration
     def test_representative_system_is_complete(self, archive):
+        """Representative system must contain positions, lattice vectors, and
+        periodic boundary conditions if required by the parser contract."""
         required_sections = self.required_simulation_sections or ()
         if 'model_system' not in required_sections:
             pytest.skip('model-system contract is not required for this parser case')
-        simulation = archive.data
-        representative = next(
-            (
-                system
-                for system in simulation.model_system
-                if getattr(system, 'is_representative', False)
-            ),
-            simulation.model_system[0],
-        )
-
+        representative = get_representative_system(
+                archive, default_index=self.DEFAULT_REPRESENTATIVE)
         assert representative.positions is not None
-        assert representative.particle_states
-        assert all(
-            state.get_label() is not None for state in representative.particle_states
-        )
+
         if self.require_periodic_boundary_conditions:
             assert representative.periodic_boundary_conditions is not None
-        if self.require_lattice_vectors:
+
+        if (self.require_lattice_vectors or
+                (representative.periodic_boundary_conditions is not None
+                 and any(representative.periodic_boundary_conditions))):
             assert representative.lattice_vectors is not None
-        if representative.periodic_boundary_conditions is not None and any(
-            representative.periodic_boundary_conditions
-        ):
-            assert representative.lattice_vectors is not None
+
+    @pytest.mark.integration
+    def test_topology_frame_is_complete(self, archive):
+        """Topology frame must contain per-particle identity."""
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
+        topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
+        assert topology.particle_states
+        assert all(
+            state.get_label() is not None for state in topology.particle_states
+        )
+
+    @pytest.mark.integration
+    def test_particle_numbers_match(self, archive):
+        """Particle numbers must match between topology and representative frames."""
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
+        topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
+        representative = get_representative_system(
+                archive, default_index=self.DEFAULT_REPRESENTATIVE)
+        assert representative.positions.shape == (len(topology.particle_states), 3)
 
     @pytest.mark.integration
     def test_identity_populated_once(self, archive):
         # Per-particle identity must be stored on exactly one (topology) frame,
         # not duplicated across a trajectory / optimization sequence (see
-        # FAIRmat-NFDI/nomad-simulations#474).
+        # FAIRmat-NFDI/nomad-simulations#474, FAIRmat-NFDI/nomad-simulations#543).
         if not any(system.particle_states for system in archive.data.model_system):
             pytest.skip('fixture does not contain particle-state identities')
-        assert_identity_populated_once(archive)
+        assert_identity_populated_once(archive,
+                topology_index=self.DEFAULT_TOPOLOGY)
 
     @pytest.mark.integration
     def test_model_system_serialization_round_trip(self, archive):

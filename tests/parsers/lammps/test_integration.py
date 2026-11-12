@@ -2,11 +2,7 @@ import numpy as np
 import pytest
 from nomad.utils import get_logger
 
-from tests.parsers.common import (
-    SimulationParserTestSuite,
-    approx,
-    assert_identity_populated_once,
-)
+from tests.parsers.common import SimulationParserTestSuite, approx
 
 LOGGER = get_logger(__name__)
 
@@ -14,10 +10,6 @@ LOGGER = get_logger(__name__)
 class LammpsParserIntegrationSuite(SimulationParserTestSuite):
     expected_program_name = 'LAMMPS'
     required_simulation_sections = ('model_method', 'model_system')
-
-    def test_representative_system_is_complete(self, archive):
-        representative = archive.data.model_system[-1]
-        assert representative.positions is not None
 
 
 @pytest.mark.integration
@@ -31,7 +23,7 @@ class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
         assert simulation.model_system[0].positions.shape == (1134, 3)
         assert simulation.model_system[0].bond_list.shape[1] == 2
         assert simulation.model_system[0].particle_states[100].chemical_symbol == 'H'
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)
 
     def test_archive_has_valid_particle_indices(self, archive):
         system = archive.data.model_system[0]
@@ -57,7 +49,7 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
         assert simulation.model_system[0].particle_states[91].chemical_symbol == 'H'
         assert simulation.model_system[0].particle_states[94].chemical_symbol == 'C'
         assert simulation.model_system[0].bond_list[200, 0] == 194
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)
 
 
 @pytest.mark.integration
@@ -101,7 +93,7 @@ class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
         assert simulation.model_system[0].positions[468][0].to(
             'angstrom'
         ).magnitude == approx(4.2341122)
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)
 
 
 @pytest.mark.integration
@@ -119,7 +111,7 @@ class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
         assert simulation.model_system[56].particle_states == []
         position = simulation.model_system[56].positions[7][0].to('meter').magnitude
         assert position == approx(-1.0751316e-10)
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)
 
 
 @pytest.mark.integration
@@ -137,4 +129,4 @@ class TestLammpsMethaneXyzArchive(LammpsParserIntegrationSuite):
         assert simulation.model_system[13].particle_states == []
         position = simulation.model_system[13].positions[7][0].to('meter').magnitude
         assert position == approx(-8.00436e-10)
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)

@@ -221,6 +221,11 @@ class TestConstraintsArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'constraints_archive'
     required_simulation_sections = ('model_system', 'outputs')
 
+    @pytest.mark.integration
+    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
+    def test_particle_numbers_match(self, archive):
+        super().test_particle_numbers_match(archive)
+
 
 class TestDisplacementArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'displacement_archive'
@@ -231,6 +236,11 @@ class TestGhostsArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'ghosts_archive'
     required_simulation_sections = ('model_system', 'outputs')
 
+    @pytest.mark.integration
+    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
+    def test_particle_numbers_match(self, archive):
+        super().test_particle_numbers_match(archive)
+
 
 class TestNATArchive(CrystalParserIntegrationSuite):
     archive_fixture = 'nat_archive'
@@ -239,6 +249,11 @@ class TestNATArchive(CrystalParserIntegrationSuite):
 
 class TestSubstitutionArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'substitution_archive'
+
+    @pytest.mark.integration
+    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
+    def test_particle_numbers_match(self, archive):
+        super().test_particle_numbers_match(archive)
 
 
 class TestNanotubeGeometryOptimizationArchive(CrystalParserIntegrationSuite):
