@@ -58,6 +58,18 @@ def assert_approx(actual, expected, **kwargs):
         assert actual == approx(expected, **kwargs)
 
 
+def get_representative_system(archive: EntryArchive, *, default_index: int):
+    """Return the representative system from a multi-frame ``model_system``."""
+    return next(
+        (
+            system
+            for system in archive.data.model_system
+            if system.is_representative
+        ),
+        archive.data.model_system[default_index],
+    )
+
+
 class _SimulationParserSuite:
     """Configuration and fixtures shared by parser contract suites."""
 
@@ -137,18 +149,9 @@ class SimulationParserTestSuite(_SimulationParserSuite):
         required_sections = self.required_simulation_sections or ()
         if 'model_system' not in required_sections:
             pytest.skip('model-system contract is not required for this parser case')
-        simulation = archive.data
-        representative = next(
-            (
-                system
-                for system in simulation.model_system
-                if system.is_representative
-            ),
-            simulation.model_system[self.DEFAULT_REPRESENTATIVE],
-        )
+        representative = get_representative_system(
+                archive, default_index=self.DEFAULT_REPRESENTATIVE)
         assert representative.positions is not None
-        assert representative.positions.shape == (
-                len(simulation.model_system[self.DEFAULT_TOPOLOGY].particle_states), 3)
 
         if self.require_periodic_boundary_conditions:
             assert representative.periodic_boundary_conditions is not None
@@ -169,6 +172,17 @@ class SimulationParserTestSuite(_SimulationParserSuite):
         assert all(
             state.get_label() is not None for state in topology.particle_states
         )
+
+    @pytest.mark.integration
+    def test_particle_numbers_match(self, archive):
+        """Particle numbers must match between topology and representative frames."""
+        required_sections = self.required_simulation_sections or ()
+        if 'model_system' not in required_sections:
+            pytest.skip('model-system contract is not required for this parser case')
+        topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
+        representative = get_representative_system(
+                archive, default_index=self.DEFAULT_REPRESENTATIVE)
+        assert representative.positions.shape == (len(topology.particle_states), 3)
 
     @pytest.mark.integration
     def test_identity_populated_once(self, archive):
