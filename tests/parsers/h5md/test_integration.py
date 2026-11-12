@@ -14,31 +14,6 @@ class H5MDParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuite):
     workflow_name = 'MolecularDynamics'
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
-
-    @pytest.mark.integration
-    def test_representative_system_is_complete(self, archive):
-        """Validate H5MD topology identity and trajectory cell data separately.
-
-        H5MD stores particle identity on the topology frame only, while the
-        representative frame selected by normalization can be a later frame.
-        Consequently, the generic single-frame completeness contract does not
-        apply to this trajectory representation.
-        """
-        topology = archive.data.model_system[0]
-        assert topology.positions is not None
-        assert topology.particle_states
-        assert all(
-            state.chemical_symbol is not None for state in topology.particle_states
-        )
-
-        assert any(
-            system.lattice_vectors is not None for system in archive.data.model_system
-        )
-        assert any(
-            system.periodic_boundary_conditions is not None
-            for system in archive.data.model_system
-        )
-
     required_simulation_sections = ['model_system', 'outputs']
 
 

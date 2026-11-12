@@ -431,6 +431,15 @@ class TestHfV2Archive(LobsterParserIntegrationSuite):
         pytest.skip('HfV2 fixture contains only backup atomic identities')
 
     @pytest.mark.integration
+    def test_topology_frame_is_complete(self, archive):
+        """Here, topology frame contain atomic numbers and not labels."""
+        topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
+        assert topology.particle_states
+        assert all(
+            state.atomic_number is not None for state in topology.particle_states
+        )
+
+    @pytest.mark.integration
     def test_archive_contract(self, archive):  # noqa: PLR0915
         """
         Test non-spin-polarized HfV2 calculation with LOBSTER 2.0.0,

@@ -190,10 +190,6 @@ class TestADFArchive(AMSParserIntegrationSuite):
     required_simulation_sections = ('model_system',)
 
     @pytest.mark.integration
-    def test_representative_system_is_complete(self, archive):
-        assert archive.data.model_system
-
-    @pytest.mark.integration
     def test_archive_contract(self, archive):
         assert archive.data.program.name == 'AMS'
         assert archive.data.program.version == '98925 2021-11-25'

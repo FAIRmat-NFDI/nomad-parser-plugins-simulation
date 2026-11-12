@@ -33,7 +33,7 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert systems[0].n_particles == 1134
         assert systems[0].particle_states[100].chemical_symbol == 'H'
         assert systems[0].particle_states[100].label == 'H'
-        assert_identity_populated_once(normalized)
+        assert_identity_populated_once(normalized, topology_index=0)
         assert systems[2].positions[567][1].to('angstrom').magnitude == approx(-5.88475)
         assert systems[3].lattice_vectors[2][2].to('angstrom').magnitude == approx(
             21.468

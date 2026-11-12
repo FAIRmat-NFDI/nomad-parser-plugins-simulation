@@ -14,7 +14,6 @@ from tests.parsers.common import (
     SimulationParserTestSuite,
     WorkflowTestSuite,
     assert_approx,
-    assert_identity_populated_once,
 )
 
 
@@ -41,7 +40,7 @@ class TestGromacsWaterArchive(GromacsParserIntegrationSuite):
         assert simulation.program.name == 'GROMACS'
         assert simulation.model_system
         assert simulation.outputs
-        assert_identity_populated_once(archive)
+        self.assert_identity_populated_once(archive)
 
         system = simulation.model_system[0]
         assert system.positions is not None
@@ -384,12 +383,6 @@ class TestGromacsFeTestArchive(GromacsParserIntegrationSuite):
 class TestGromacsFreeEnergyArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'fep_archive'
     workflow_name = 'MolecularDynamics'
-
-    @pytest.mark.integration
-    def test_representative_system_is_complete(self, archive):
-        representative = archive.data.model_system[0]
-        assert representative.positions is not None
-        assert representative.particle_states
 
     def test_fep_xvg_fields_are_populated(self, archive):
         workflow = archive.workflow2
