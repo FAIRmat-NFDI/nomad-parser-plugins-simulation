@@ -9,6 +9,7 @@ import pytest
 from nomad.utils import get_logger
 
 from nomad_simulation_parsers.parsers.lammps.file_parsers import DataParser, LogParser
+from nomad_simulation_parsers.parsers.lammps.md_workflow_method import selected_run
 from nomad_simulation_parsers.parsers.lammps.trajectory_parsers import (
     TrajParser,
     TrajParsers,
@@ -24,6 +25,44 @@ LARGE_DATA_DIR = (
 )
 
 LOGGER = get_logger(__name__)
+
+
+@pytest.mark.unit
+def test_selects_last_run_from_inline_log_commands():
+    settings = selected_run(
+        [
+            'fix thermostat all nvt temp 300 300 100\n',
+            'dump trajectory all custom 25 out.dump id x y z\n',
+            'run 100 # equilibration\n',
+            'unfix thermostat\n',
+            'fix integrator all nve\n',
+            'dump_modify trajectory every 50\n',
+            'run 200 # production\n',
+        ]
+    )
+
+    assert settings['kind'] == 'md'
+    assert settings['n_steps'] == 200
+    assert settings['fixes'] == [['integrator', 'all', 'nve']]
+    assert settings['dumps'][0][-1] == 50
+
+
+@pytest.mark.unit
+def test_unresolved_and_invalid_run_settings_remain_unset():
+    settings = selected_run(
+        [
+            'fix 1 all nvt temp ${T} ${T} 100\r\n',
+            'thermo invalid\r\n',
+            'dump 1 all xyz invalid out.xyz\r\n',
+            'run invalid\r\n',
+        ]
+    )
+
+    assert settings['kind'] == 'md'
+    assert settings['fixes'] == []
+    assert settings['thermo'] is None
+    assert settings['dumps'][0][-1] is None
+    assert settings['n_steps'] is None
 
 
 @pytest.mark.unit
@@ -249,7 +288,11 @@ class TestLogParser:
 
     @pytest.mark.parametrize(
         ('read_data', 'expected_files'),
-        [([], []), (['structure.data'], ['structure.data'])],
+        [
+            ([], []),
+            (['structure.data'], ['structure.data']),
+            (['structure.data', 'CPU'], ['structure.data']),
+        ],
     )
     def test_get_data_files(self, parser, tmp_dir, read_data, expected_files):
         mainfile = os.path.join(tmp_dir, 'log.test')
@@ -264,6 +307,22 @@ class TestLogParser:
         data_files = parser.get_data_files()
 
         assert [os.path.basename(filename) for filename in data_files] == expected_files
+
+    def test_get_data_files_scans_all_patterns_once(self, parser, tmp_path):
+        mainfile = tmp_path / 'log.lammps'
+        mainfile.write_text('LAMMPS (test)\n')
+        for filename in ('first.data', 'second.dat'):
+            (tmp_path / filename).write_text('LAMMPS data file\n')
+        parser.mainfile = str(mainfile)
+        parser.logger = LOGGER
+
+        data_files = parser.get_data_files()
+
+        assert {os.path.basename(filename) for filename in data_files} == {
+            'first.data',
+            'second.dat',
+        }
+        assert len(data_files) == 2
 
     @pytest.mark.parametrize(
         ('content', 'pattern', 'expected', 'binary'),
