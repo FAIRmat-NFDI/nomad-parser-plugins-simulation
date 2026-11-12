@@ -18,7 +18,7 @@ def assert_identity_populated_once(archive: EntryArchive, topology_index: int) -
     In a multi-frame ``model_system`` sequence -- an MD trajectory or a
     geometry-optimization step series -- the per-particle identity
     (``particle_states``) is frame-independent and must be written only on the
-    topology/representative frame, never duplicated per frame. Duplicating it
+    topology frame, never duplicated per frame. Duplicating it
     scales the archive and the Elasticsearch index document with
     ``n_frames x n_particles`` and can push a single entry past the Elasticsearch
     payload limit, failing the whole upload (FAIRmat-NFDI/nomad-simulations#474).
