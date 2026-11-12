@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from tests.parsers.common import (
     SimulationParserTestSuite,
