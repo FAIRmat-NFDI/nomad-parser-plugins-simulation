@@ -13,6 +13,7 @@ versioned test data.
 | Archive-writer unit conversion | not applicable | not applicable | `test_archive_writer.py` | not applicable | not applicable |
 | Trajectory frames, positions, velocities, forces, and cells | not applicable | `test_reader.py` | not applicable | `test_integration.py` | `test_pipeline.py` |
 | Input structure when a declared dump is absent | not applicable | `test_reader.py` | not applicable | `test_input_structure.py` | not applicable |
+| Thermodynamic records and output mapping | not applicable | `test_reader.py`, `test_outputs.py` | not applicable | `test_outputs.py` | log-only round trip and normalization in `test_outputs.py` |
 | Molecular topology and particle identity | not applicable | not applicable | not applicable | `test_integration.py` | `test_pipeline.py` |
 | Archive and workflow validation and serialization | not applicable | not applicable | not applicable | `test_integration.py` | not applicable |
 
@@ -34,8 +35,21 @@ The method tests also cover canonical-sampling thermostats, Berendsen pressure
 control, anisotropic/tilted Nose–Hoover pressure, and Brownian metadata using
 small synthetic logs. These are not yet positive Central-corpus fixtures.
 The minimization fixture intentionally does not require an MD workflow; a
-geometry-optimization workflow is separate follow-up work. Thermodynamic
-`outputs` remain unimplemented.
+geometry-optimization workflow is separate follow-up work. `test_outputs.py`
+now verifies ordered custom/multi thermo records, temperature, energy,
+pressure, volume, density and enthalpy units, elapsed CPU seconds, and
+force-bearing dump frames, real-fixture output counts, sparse links to
+genuinely matching dump steps, log-only serialization, and non-MD
+`WorkflowOutputs`. Dump-backed systems record source `time_step` values for
+exact, unique output matching. For DCD/XYZ, the reader reports frame ordinals
+rather than source LAMMPS steps, so the parser leaves those links unset. The
+shared normalizer can still apply its positional fallback when the two series
+have equal length; those inferred links are not source-step verified. These
+typed thermodynamic subsections and
+conservative normalization of sparse output/system references require the
+`lammps-thermo-output-properties` branch in `nomad-simulations`. Unrecognized
+thermo columns remain explicitly warned about; extra force-only dump frames
+without a matching thermo step are not yet promoted to separate outputs.
 `test_input_structure.py` checks a source-backed, non-representative input
 system for data-only logs, redirected-log `read_data`, missing dumps, and
 non-angstrom physical units. It does not claim a final minimized or MD frame.

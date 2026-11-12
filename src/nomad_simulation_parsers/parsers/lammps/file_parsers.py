@@ -518,6 +518,79 @@ class LogParser(TextParser):
 
         return data
 
+    def get_thermodynamic_blocks(  # noqa: PLR0912, PLR0915
+        self,
+    ) -> list[list[dict[str, float]]]:
+        """Read ordered thermo records without merging distinct output blocks.
+
+        Values are raw LAMMPS numbers; the archive writer applies the resolved
+        physical units. This supplements the existing array-oriented reader,
+        which only exposes one block and is retained for its current callers.
+        """
+        if not self.mainfile or not os.path.isfile(self.mainfile):
+            return []
+
+        number = r'[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?'
+        multi_step = re.compile(r'^\s*-+\s*Step\s+([+-]?\d+)\b')
+        multi_values = re.compile(rf'([A-Za-z_]\w*)\s*=\s*({number})')
+        blocks: list[list[dict[str, float]]] = []
+        block: list[dict[str, float]] = []
+        columns: list[str] | None = None
+        multi_record: dict[str, float] | None = None
+
+        def finish_record() -> None:
+            nonlocal multi_record
+            if multi_record is not None and len(multi_record) > 1:
+                block.append(multi_record)
+            multi_record = None
+
+        def finish_block() -> None:
+            nonlocal columns
+            finish_record()
+            if block:
+                blocks.append(block.copy())
+                block.clear()
+            columns = None
+
+        with open(self.mainfile, encoding='utf-8', errors='replace') as source:
+            for line in source:
+                if line.lstrip().startswith('Loop time'):
+                    finish_block()
+                    continue
+
+                step_match = multi_step.match(line)
+                if step_match:
+                    columns = None
+                    finish_record()
+                    multi_record = {'Step': float(step_match.group(1))}
+                    for key, value in multi_values.findall(line[step_match.end() :]):
+                        multi_record[key] = float(value)
+                    continue
+
+                fields = line.split()
+                if fields and fields[0] == 'Step' and len(fields) > 1:
+                    finish_record()
+                    columns = fields
+                    continue
+
+                if columns is not None:
+                    if len(fields) == len(columns):
+                        try:
+                            values = [float(value) for value in fields]
+                        except ValueError:
+                            values = []
+                        if values and np.isfinite(values).all():
+                            block.append(dict(zip(columns, values, strict=True)))
+                            continue
+                    columns = None
+
+                if multi_record is not None:
+                    for key, value in multi_values.findall(line):
+                        multi_record[key] = float(value)
+
+        finish_block()
+        return blocks
+
     # TODO: move to utils
     def find_best_matching_file(
         self, traj_files: list[str], mainfile_basename: str
