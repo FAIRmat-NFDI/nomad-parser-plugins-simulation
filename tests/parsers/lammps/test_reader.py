@@ -28,6 +28,58 @@ LOGGER = get_logger(__name__)
 
 
 @pytest.mark.unit
+def test_fragment_types_distinguish_bond_topology():
+    mda = pytest.importorskip('MDAnalysis')
+    universe = mda.Universe.empty(9)
+    universe.add_TopologyAttr('types', ['A'] * 9)
+    universe.add_TopologyAttr(
+        'bonds', [(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (6, 8)]
+    )
+    parser = MDAnalysisParser()
+    parser._file_handler = universe
+
+    fragment_types = parser.get_fragtypes()
+
+    assert len(set(fragment_types[:3])) == 1
+    assert len(set(fragment_types[3:6])) == 1
+    assert fragment_types[0] == fragment_types[3]
+    assert fragment_types[0] != fragment_types[6]
+
+
+@pytest.mark.unit
+def test_fragment_type_labels_do_not_truncate_after_nine_types():
+    mda = pytest.importorskip('MDAnalysis')
+    universe = mda.Universe.empty(12)
+    universe.add_TopologyAttr('types', [str(i) for i in range(12)])
+    universe.add_TopologyAttr('bonds', [])
+    parser = MDAnalysisParser()
+    parser._file_handler = universe
+
+    fragment_types = parser.get_fragtypes()
+
+    assert len(set(fragment_types)) == 12
+    assert fragment_types[10] == '10'
+
+
+@pytest.mark.unit
+def test_fragment_types_distinguish_bond_type():
+    mda = pytest.importorskip('MDAnalysis')
+    universe = mda.Universe.empty(4)
+    universe.add_TopologyAttr('types', ['A'] * 4)
+    universe.add_TopologyAttr(
+        mda.core.topologyattrs.Bonds([(0, 1), (2, 3)], types=['1', '2'])
+    )
+    parser = MDAnalysisParser()
+    parser._file_handler = universe
+
+    fragment_types = parser.get_fragtypes()
+
+    assert fragment_types[0] == fragment_types[1]
+    assert fragment_types[2] == fragment_types[3]
+    assert fragment_types[0] != fragment_types[2]
+
+
+@pytest.mark.unit
 def test_selects_last_run_from_inline_log_commands():
     settings = selected_run(
         [

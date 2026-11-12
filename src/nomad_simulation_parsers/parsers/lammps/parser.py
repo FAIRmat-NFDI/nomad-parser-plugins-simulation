@@ -375,7 +375,7 @@ class LammpsArchiveWriter(MDParser):
         return system
 
     def _create_molecule(
-        self, molecule: int, i_molecule: int, particle_arrays: dict
+        self, molecule: int, moltype: str, particle_arrays: dict
     ) -> ModelSystem:
         """Create a single molecule with its residues."""
 
@@ -439,15 +439,18 @@ class LammpsArchiveWriter(MDParser):
                 sec_molecule.sub_systems.append(sec_monomer_group)
 
         particle_indices = np.where(particle_arrays['molnums'] == molecule)[0]
+        mol_resids = np.unique(particle_arrays['resids'][particle_indices])
 
         mol_system = self._create_system_node(
-            name=molecule,
+            # Results topology already misses later monomers under repeated
+            # group labels. Shared polymer names would additionally collapse
+            # their monomer-group rows until that recursion is fixed.
+            name=moltype if len(mol_resids) <= 1 else molecule,
             branch_label='molecule',
             particle_indices=particle_indices,
         )
 
         # Check if molecule has multiple residues
-        mol_resids = np.unique(particle_arrays['resids'][mol_system.particle_indices])
         if len(mol_resids) > 1:
             _add_residue_hierarchy(mol_system, particle_arrays)
 
@@ -520,10 +523,8 @@ class LammpsArchiveWriter(MDParser):
 
             # Add individual molecules
             molecules = particle_arrays['molnums']
-            for i_molecule, molecule in enumerate(
-                np.unique(molecules[molecule_group.particle_indices])
-            ):
-                mol = self._create_molecule(molecule, i_molecule, particle_arrays)
+            for molecule in np.unique(molecules[molecule_group.particle_indices]):
+                mol = self._create_molecule(molecule, moltype, particle_arrays)
                 molecule_group.sub_systems.append(mol)
 
             return molecule_group
