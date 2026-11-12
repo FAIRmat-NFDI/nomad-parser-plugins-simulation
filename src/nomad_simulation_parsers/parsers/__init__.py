@@ -279,8 +279,8 @@ yambo_parser = EntryPoint(
     description='NOMAD parser for YAMBO.',
     parser_class_name='nomad_simulation_parsers.parsers.yambo.parser.YamboParser',
     python_package='nomad_simulation_parsers',
-    mainfile_contents_re=r'Build[\s\S]+?http://www\.yambo-code\.org',
+    mainfile_contents_re=r'Build[\s\S]+?http://www\.yambo-code\.[eu|org]',
     code_name='YAMBO',
-    code_homepage='http://www.yambo-code.org/',
+    code_homepage='http://www.yambo-code.eu/',
     code_category='Atomistic code',
 )

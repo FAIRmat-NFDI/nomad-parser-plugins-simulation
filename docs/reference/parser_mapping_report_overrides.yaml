@@ -3,6 +3,15 @@
 #   nomad-sim-parser mapping-report --override this-file.yaml
 
 parsers:
+  Yambo / Spectra:
+    quantities:
+      sp_type:
+        mapped: true
+        mapping: sp_type
+      n_energies:
+        mapped: true
+        mapping: n_energies
+
   # Parser section names must match the report headings.
   # Exciting / INFO.OUT:
   #   quantities:
