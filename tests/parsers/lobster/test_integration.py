@@ -431,6 +431,10 @@ class TestHfV2Archive(LobsterParserIntegrationSuite):
         pytest.skip('HfV2 fixture contains only backup atomic identities')
 
     @pytest.mark.integration
+    def test_particle_numbers_match(self, archive):
+        pytest.skip('HfV2 fixture contains only backup atomic identities')
+
+    @pytest.mark.integration
     def test_topology_frame_is_complete(self, archive):
         """Here, topology frame contain atomic numbers and not labels."""
         topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
