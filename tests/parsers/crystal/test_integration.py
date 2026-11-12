@@ -220,9 +220,9 @@ class TestBandNoF25VariantArchive(CrystalParserIntegrationSuite):
 class TestConstraintsArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'constraints_archive'
     required_simulation_sections = ('model_system', 'outputs')
-    @pytest.mark.integration
+    @pytest.mark.xfail(strict=True)
     def test_particle_numbers_match(self, archive):
-        pytest.skip('Fix me later')  # TODO @Ksenia issue #295
+        super().test_particle_numbers_match(archive)
 
 
 class TestDisplacementArchive(CrystalParserSimulationIntegrationSuite):
@@ -233,8 +233,9 @@ class TestDisplacementArchive(CrystalParserSimulationIntegrationSuite):
 class TestGhostsArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'ghosts_archive'
     required_simulation_sections = ('model_system', 'outputs')
+    @pytest.mark.xfail(strict=True)
     def test_particle_numbers_match(self, archive):
-        pytest.skip('Fix me later')  # TODO @Ksenia issue #295
+        super().test_particle_numbers_match(archive)
 
 
 class TestNATArchive(CrystalParserIntegrationSuite):
@@ -244,8 +245,9 @@ class TestNATArchive(CrystalParserIntegrationSuite):
 
 class TestSubstitutionArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'substitution_archive'
+    @pytest.mark.xfail(strict=True)
     def test_particle_numbers_match(self, archive):
-        pytest.skip('Fix me later')  # TODO @Ksenia issue #295
+        super().test_particle_numbers_match(archive)
 
 
 class TestNanotubeGeometryOptimizationArchive(CrystalParserIntegrationSuite):
