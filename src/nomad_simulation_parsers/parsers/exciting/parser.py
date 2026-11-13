@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from pint import Quantity
 from nomad.datamodel.datamodel import EntryArchive
 from nomad.parsing import MatchingParser
 from nomad.units import ureg
@@ -32,6 +31,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
     SinglePoint,
     SinglePointMethod,
 )
+from pint import Quantity
 from structlog.stdlib import (
     BoundLogger,
 )
