@@ -798,13 +798,13 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 
 ## Exciting / INFO.OUT
 
-**Summary:** 54 mapped, 92 unmapped quantities (36.99% coverage).
+**Summary:** 57 mapped, 89 unmapped quantities (39.04% coverage).
 
 | File-parser quantity | Status | Archive mapper source |
 | --- | --- | --- |
 | `program_version` | Mapped | `program_version` |
 | `hash_id` | Mapped | `hash_id` |
-| `initialization` | Mapped | `initialization.smearing_kind`<br>`initialization.smearing_width`<br>`initialization.x_exciting_number_of_atoms`<br>`initialization.x_exciting_rgkmax`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.x_exciting_unit_cell_volume`<br>`initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
+| `initialization` | Mapped | `initialization.smearing_kind`<br>`initialization.smearing_width`<br>`initialization.species.dimensionality`<br>`initialization.species.file`<br>`initialization.species.grid`<br>`initialization.species.muffin_tin_radius`<br>`initialization.species.n_total_points`<br>`initialization.x_exciting_lmaxapw`<br>`initialization.x_exciting_number_of_atoms`<br>`initialization.x_exciting_rgkmax`<br>`initialization.x_exciting_spin_treatment`<br>`initialization.x_exciting_unit_cell_volume`<br>`initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.file`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.lattice_vectors` | Mapped | `lattice_vectors`<br>`get_configurations(lattice_vectors)` |
 | `initialization.lattice_vectors_reciprocal` | Unmapped | — |
 | `initialization.x_exciting_unit_cell_volume` | Mapped | `initialization.x_exciting_unit_cell_volume` |
@@ -821,7 +821,7 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `initialization.x_exciting_gmaxvr` | Unmapped | — |
 | `initialization.x_exciting_gvector_size` | Unmapped | — |
 | `initialization.x_exciting_gvector_total` | Unmapped | — |
-| `initialization.x_exciting_lmaxapw` | Unmapped | — |
+| `initialization.x_exciting_lmaxapw` | Mapped | `initialization.x_exciting_lmaxapw` |
 | `initialization.x_exciting_nuclear_charge` | Unmapped | — |
 | `initialization.x_exciting_electronic_charge` | Unmapped | — |
 | `initialization.x_exciting_core_charge_initial` | Unmapped | — |
@@ -834,20 +834,20 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `initialization.x_exciting_lo` | Unmapped | — |
 | `initialization.smearing_kind` | Mapped | `initialization.smearing_kind` |
 | `initialization.smearing_width` | Mapped | `initialization.smearing_width` |
-| `initialization.species` | Mapped | `get_configurations(species)` |
+| `initialization.species` | Mapped | `initialization.species.dimensionality`<br>`initialization.species.file`<br>`initialization.species.grid`<br>`initialization.species.muffin_tin_radius`<br>`initialization.species.n_total_points`<br>`get_configurations(species)` |
 | `initialization.species.number` | Unmapped | — |
 | `initialization.species.symbol` | Unmapped | — |
-| `initialization.species.file` | Unmapped | — |
+| `initialization.species.file` | Mapped | `initialization.species.file` |
 | `initialization.species.name` | Unmapped | — |
 | `initialization.species.nuclear_charge` | Unmapped | — |
 | `initialization.species.electronic_charge` | Unmapped | — |
 | `initialization.species.atomic_mass` | Unmapped | — |
-| `initialization.species.muffin_tin_radius` | Unmapped | — |
+| `initialization.species.muffin_tin_radius` | Mapped | `initialization.species.muffin_tin_radius` |
 | `initialization.species.radial_points` | Unmapped | — |
 | `initialization.species.positions_format` | Mapped | `get_configurations(positions_format)` |
 | `initialization.species.positions` | Mapped | `positions`<br>`get_configurations(positions)` |
 | `initialization.potential_mixing` | Unmapped | — |
-| `initialization.xc_functional` | Mapped | `initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
+| `initialization.xc_functional` | Mapped | `initialization.xc_functional.dimensionality`<br>`initialization.xc_functional.file`<br>`initialization.xc_functional.grid`<br>`initialization.xc_functional.n_total_points`<br>`initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.xc_functional.type` | Mapped | `initialization.xc_functional.type`<br>`initialization.xc_functional.type.libxc` |
 | `initialization.xc_functional.name_reference` | Unmapped | — |
 | `initialization.xc_functional.parameters` | Unmapped | — |

@@ -22,10 +22,29 @@ class ExcitingParserIntegrationSuite(SimulationParserTestSuite, WorkflowTestSuit
     require_lattice_vectors = True
     require_periodic_boundary_conditions = True
 
+    @staticmethod
+    def _get_basis_set_components(archive, component_name: str):
+        method = archive.data.model_method[0]
+
+        containers = [
+            setting
+            for setting in method.numerical_settings
+            if setting.m_def.name == 'BasisSetContainer'
+        ]
+        assert len(containers) == 1
+
+        components = [
+            component
+            for component in containers[0].basis_set_components
+            if component.m_def.name == component_name
+        ]
+
+        return components
+
 
 @pytest.mark.large_fixture
-class TestCMinimalArchive(ExcitingParserIntegrationSuite):
-    archive_fixture = 'c_minimal_archive'
+class TestCMinimalLargeDataArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_minimal_largedata_archive'
     workflow_name = 'SinglePoint'
 
     @pytest.mark.integration
@@ -62,7 +81,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         output.scf_steps.delta_energies_total[9].to('hartree').magnitude == 0.991184e-07
         output.scf_steps.delta_potential_rms[9].to('hartree').magnitude == 0.324873e-08
         output.scf_steps.delta_charge_abs[9].to(
-            'elementary_charge').magnitude == 0.235501e-08
+            'elementary_charge'
+        ).magnitude == 0.235501e-08
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
@@ -115,24 +135,6 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert smearing.width.to('hartree').magnitude == approx(0.001)
 
     @pytest.mark.integration
-    def test_basis_set_mapping(self, archive):
-        method = archive.data.model_method[0]
-        containers = [
-            setting
-            for setting in method.numerical_settings
-            if setting.m_def.name == 'BasisSetContainer'
-        ]
-        assert len(containers) == 1
-        components = [
-            component
-            for component in containers[0].basis_set_components
-            if component.m_def.name == 'APWPlaneWaveBasisSet'
-        ]       
-        assert len(components) == 1
-        assert components[0].cutoff_fractional == approx(7.0)
-
-
-    @pytest.mark.integration
     def test_xc_functional_mapping(self, archive):
         method = archive.data.model_method[0]
         assert method is not None
@@ -148,9 +150,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.particle_states is not None
         assert len(system.particle_states) == 2
         assert system.particle_states[0].chemical_symbol == 'C'
-        assert system.particle_states[0].mass.to(
-            'electron_mass'
-            ).magnitude == approx(21894.16673000)
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(
+            21894.16673000
+        )
 
     @pytest.mark.integration
     def test_model_system_mapping(self, archive):
@@ -163,9 +165,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.n_particles == 2
         assert system.positions.shape == (2, 3)
         assert system.positions[1][0].to('bohr').magnitude == approx(
-            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum())
-        
-
+            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum()
+        )
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
@@ -194,6 +195,89 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             restored.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
             archive.data.outputs[0].scf_steps.energies_total.to('hartree').magnitude,
         )
+
+
+class TestCMinimalArchive(ExcitingParserIntegrationSuite):
+    archive_fixture = 'c_minimal_archive'
+    workflow_name = 'SinglePoint'
+    @pytest.mark.integration
+    def test_basis_set_mapping(self, archive):
+        components_planewave = self._get_basis_set_components(
+            archive, 'APWPlaneWaveBasisSet'
+        )
+        assert len(components_planewave) == 1
+        assert components_planewave[0].cutoff_fractional == approx(7.0)
+        components_muffintin = self._get_basis_set_components(
+            archive, 'MuffinTinRegion'
+        )
+        assert len(components_muffintin) == 1
+        assert components_muffintin[0].radius.to('bohr').magnitude == approx(1.45)
+        assert components_muffintin[0].l_max == 8
+        assert len(components_muffintin[0].l_channels) == 9
+        assert len(components_muffintin[0].species_scope) == 2
+        assert components_muffintin[0].m_to_dict()['species_scope'] == [
+            '#/data/model_system/0/particle_states/0',
+            '#/data/model_system/0/particle_states/1',
+        ]
+
+    @pytest.mark.integration
+    def test_apw_orbital_mapping(self, archive):
+        components_muffintin = self._get_basis_set_components(
+            archive, 'MuffinTinRegion'
+        )
+        channel = components_muffintin[0].l_channels[0]
+        assert channel.name == 0
+        assert len(channel.orbitals) == 2
+
+        apw = channel.orbitals[0]
+
+        assert apw.m_def.name == 'APWOrbital'
+        assert apw.type == 'apw'
+        assert len(apw.energy_parameter) == 1
+        assert len(apw.energy_status) == 1
+        assert len(apw.differential_order) == 1
+        assert apw.energy_parameter.to('hartree').magnitude == pytest.approx([0.15])
+        assert list(apw.energy_status) == ['post-optimization']
+        assert list(apw.differential_order) == [0]
+
+    @pytest.mark.integration
+    def test_lapw_orbital_mapping(self, archive):
+        components_muffintin = self._get_basis_set_components(
+            archive, 'MuffinTinRegion'
+        )
+        channel = components_muffintin[0].l_channels[2]
+        assert channel.name == 2
+        assert len(channel.orbitals) == 1
+        lapw = channel.orbitals[0]
+        assert lapw.m_def.name == 'APWOrbital'
+        assert lapw.type == 'lapw'
+        assert len(lapw.energy_parameter) == 2
+        assert len(lapw.energy_status) == 2
+        assert len(lapw.differential_order) == 2
+        assert lapw.energy_parameter.to('hartree').magnitude == pytest.approx(
+            [0.15, 0.15]
+        )
+        assert list(lapw.energy_status) == ['fixed', 'fixed']
+        assert list(lapw.differential_order) == [0, 1]
+
+    @pytest.mark.integration
+    def test_local_orbital_mapping(self, archive):
+        components_muffintin = self._get_basis_set_components(
+            archive, 'MuffinTinRegion'
+        )
+        local_orbital = components_muffintin[0].l_channels[0].orbitals[1]
+        assert local_orbital.m_def.name == 'APWLocalOrbital'
+        assert len(local_orbital.energy_parameter) == 2
+        assert len(local_orbital.energy_status) == 2
+        assert len(local_orbital.differential_order) == 2
+        assert local_orbital.energy_parameter.to('hartree').magnitude == pytest.approx(
+            [0.15, 0.15]
+        )
+        assert list(local_orbital.energy_status) == [
+            'post-optimization',
+            'post-optimization',
+        ]
+        assert list(local_orbital.differential_order) == [0, 1]
 
 
 @pytest.mark.large_fixture
@@ -273,9 +357,8 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
             'hartree'
         ).magnitude == approx(0.489106e-07)
         assert output.scf_steps.delta_charge_abs[23].to(
-            'elementary_charge').magnitude == approx(
-            4.16073e-08
-        )
+            'elementary_charge'
+        ).magnitude == approx(4.16073e-08)
         assert output.scf_steps.delta_force_abs[23].to(
             'hartree / bohr'
         ).magnitude == approx(0.127181e-05)
@@ -353,3 +436,32 @@ class TestPbIHybridsArchive(ExcitingParserIntegrationSuite):
         assert archive.data.outputs[0].total_energies[0].value.to(
             'hartree'
         ).magnitude == approx(-35198.96925817)
+
+    @pytest.mark.integration
+    def test_basis_set_mapping(self, archive):
+        components_planewave = self._get_basis_set_components(
+            archive, 'APWPlaneWaveBasisSet'
+        )
+        assert len(components_planewave) == 1
+        assert components_planewave[0].cutoff_fractional == approx(8.0)
+        components_muffintin = self._get_basis_set_components(
+            archive, 'MuffinTinRegion'
+        )
+        assert len(components_muffintin) == 2
+
+        assert components_muffintin[0].radius.to('bohr').magnitude == approx(2.9)
+        assert components_muffintin[0].l_max == 8
+        assert len(components_muffintin[0].l_channels) == 9
+        assert len(components_muffintin[0].species_scope) == 1
+        assert components_muffintin[0].m_to_dict()['species_scope'] == [
+            '#/data/model_system/0/particle_states/0',
+        ]
+
+        assert components_muffintin[1].radius.to('bohr').magnitude == approx(2.9)
+        assert components_muffintin[1].l_max == 8
+        assert len(components_muffintin[1].l_channels) == 9
+        assert len(components_muffintin[1].species_scope) == 2
+        assert components_muffintin[1].m_to_dict()['species_scope'] == [
+            '#/data/model_system/0/particle_states/1',
+            '#/data/model_system/0/particle_states/2',
+        ]

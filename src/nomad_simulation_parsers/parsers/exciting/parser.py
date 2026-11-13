@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -10,6 +11,10 @@ from nomad_file_parser.mapping_parser import (
     MetainfoParser,
     TextParser,
     XMLParser,
+)
+from nomad_simulations.schema_packages.basis_set import (
+    BasisSetContainer,
+    MuffinTinRegion,
 )
 from nomad_simulations.schema_packages.general import Program, Simulation
 from nomad_simulations.schema_packages.workflow.general import (
@@ -26,6 +31,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
     SinglePoint,
     SinglePointMethod,
 )
+from pint import Quantity
 from structlog.stdlib import (
     BoundLogger,
 )
@@ -125,7 +131,7 @@ class InfoParser(TextParser):
         if functional is None:
             return []
         return [{'libxc': name} for name in functional['components']]
-       
+
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         return dict(
             forces=source.get('forces'),
@@ -164,6 +170,21 @@ class InfoParser(TextParser):
             merged.append(entry)
         return merged
 
+    @staticmethod
+    def _get_species_atoms(species_list: list[dict]) -> list[dict]:
+        atoms = []
+        exclude = {'positions', 'positions_format', 'radial_points'}
+
+        for species in species_list:
+            positions = species.get('positions')
+            if positions is None:
+                continue
+
+            atom = {k: v for k, v in species.items() if k not in exclude}
+            atoms.extend([atom] * len(positions))
+
+        return atoms
+
     def get_atoms(self, source: dict[str, Any]) -> dict[str, Any]:
         positions = source.get('positions')
         initial = self.data.get('initialization', {})
@@ -182,13 +203,10 @@ class InfoParser(TextParser):
                     )
                 positions.extend(positions_specie)
             positions = positions * lattice_vectors.units
-        atoms = []
-        exclude = ['positions', 'positions_format', 'radial_points']
-        for species in initial.get('species', []):
-            atom = {k: v for k, v in species.items() if k not in exclude}
-            atoms.extend([atom] * len(species.get('positions', [])))
+        atoms = self._get_species_atoms(initial.get('species', []))
         if not atoms:
             atoms = [dict(symbol=s) for s in source.get('symbols')]
+
         return dict(
             positions=(
                 np.array(positions, dtype=np.float64) * ureg.bohr
@@ -201,6 +219,27 @@ class InfoParser(TextParser):
             if lattice_vectors is not None
             else None,
         )
+
+    def get_muffin_tin_species_scope(self, species_file: str | None) -> list[str]:
+        """Resolve muffin-tin species references from the exciting species file."""
+        if species_file is None:
+            return []
+        species_list = self.data.get('initialization', {}).get('species', [])
+        atoms = self._get_species_atoms(species_list)
+
+        species_scope = [
+            f'#/data/model_system/0/particle_states/{i}'
+            for i, atom in enumerate(atoms)
+            if atom.get('file') == species_file
+        ]
+
+        if not species_scope:
+            self.logger.warning(
+                'Could not find matching exciting species for file: %s',
+                species_file,
+            )
+
+        return species_scope
 
     def get_geometry_convergence(
         self, source: dict[str, Any]
@@ -336,7 +375,7 @@ class InfoParser(TextParser):
             'Gaussian': 'Gaussian',
             'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': (
                 'Methfessel-Paxton 1',
-            ), 
+            ),
             'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
                 'Methfessel-Paxton 2',
             ),
@@ -511,6 +550,226 @@ class EigvalParser(TextParser):
         return band_gaps
 
 
+class SpeciesXMLParser(XMLParser):
+    @staticmethod
+    def _expand_apw_plus_lo(apw: dict, l_value: int) -> list[dict]:
+        """
+        Expand an exciting `apw+lo` definition into an APW and a local orbital.
+
+        The local orbital uses matching orders 0 and 1.
+
+        Parameters
+        ----------
+        apw
+            Parsed exciting `apw+lo` basis definition.
+        l_value
+            Angular-momentum channel index.
+
+        Returns
+        -------
+        list[dict]
+            Two orbital definitions: an APW and a local orbital.
+        """
+        orbitals = [
+            {
+                **apw,
+                '@l': str(l_value),
+                '@type': 'apw',
+            }
+        ]
+
+        wf_parameters = {
+            key: apw[key] for key in ('@trialEnergy', '@searchE') if key in apw
+        }
+
+        orbitals.append(
+            {
+                '@l': str(l_value),
+                'wf': [
+                    {
+                        '@matchingOrder': str(order),
+                        **wf_parameters,
+                    }
+                    for order in (0, 1)
+                ],
+            }
+        )
+
+        return orbitals
+
+    def build_l_channels(self, basis: dict | None) -> list[dict]:
+        """
+        Build angular-momentum channels from an exciting basis definition.
+
+        For each angular-momentum value from 0 through `lmaxapw`, create
+        a channel using the custom basis definition, if available, or the
+        default definition. Definitions of type `apw+lo` are expanded into
+        APW and local orbitals. Additional local orbitals are included
+        in their respective channels.
+
+        Parameters
+        ----------
+        basis
+            Parsed basis-set data containing the default, custom, and
+            local-orbital basis definitions. If ``None`` or empty, no
+            channels are returned.
+
+        Returns
+        -------
+        list[dict]
+            Basis-set channels indexed by angular-momentum value. Each
+            channel contains its ``l`` value and the associated orbital
+            definitions.
+        """
+        if not basis:
+            return []
+        l_max = getattr(self, 'lmaxapw', None)
+        if l_max is None:
+            self.logger.warning(
+                'Cannot build exciting angular-momentum channels: missing lmaxapw.'
+            )
+            return []
+
+        def as_list(value):
+            if value is None:
+                return []
+            return value if isinstance(value, list) else [value]
+
+        default = basis.get('default')
+
+        customs = {
+            int(item['@l']): item
+            for item in as_list(basis.get('custom'))
+            if item is not None and item.get('@l') is not None
+        }
+
+        local_orbitals = {}
+        for lo in as_list(basis.get('lo')):
+            if lo is None or lo.get('@l') is None:
+                self.logger.warning(
+                    'Skipping exciting local orbital: missing angular momentum l.'
+                )
+                continue
+
+            l_value = int(lo['@l'])
+            local_orbitals.setdefault(l_value, []).append(lo)
+
+        channels = []
+
+        for l_value in range(int(l_max) + 1):
+            orbitals = []
+            apw = customs.get(l_value, default)
+            if apw is None:
+                self.logger.warning(
+                    'Missing exciting basis definition for l=%s: '
+                    'neither default nor custom is available.',
+                    l_value,
+                )
+            elif apw.get('@type') == 'apw+lo':
+                orbitals.extend(self._expand_apw_plus_lo(apw, l_value))
+            else:
+                orbitals.append({**apw, '@l': str(l_value)})
+
+            orbitals.extend(local_orbitals.get(l_value, []))
+            channels.append(
+                {
+                    'name': l_value,
+                    'orbitals': orbitals,
+                }
+            )
+        return channels
+
+    def get_l_channel_name(self, l_value: str | None) -> int | None:
+        """Convert an angular-momentum channel value to an integer."""
+        return int(l_value) if l_value is not None else None
+
+    def _get_orbital_values(self, orbital: dict | None, key: str):
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            wf = orbital['wf']
+            if isinstance(wf, dict):
+                wf = [wf]
+            return [item.get(key) for item in wf]
+
+        orbital_type = orbital.get('@type')
+
+        n_terms = {
+            'apw': 1,
+            'lapw': 2,
+        }.get(orbital_type)
+
+        if n_terms is None:
+            if orbital_type is not None:
+                self.logger.warning(
+                    'Unknown exciting orbital type: %s',
+                    orbital_type,
+                )
+            return None
+
+        value = orbital.get(key)
+
+        if value is None or n_terms is None:
+            return None
+
+        return [value] * n_terms
+
+    def get_orbital_energy_parameter(self, orbital: dict | None) -> Quantity | None:
+        """Extract orbital energy parameters as an array with Hartree units."""
+        energies = self._get_orbital_values(orbital, '@trialEnergy')
+
+        if not energies or any(value is None for value in energies):
+            return None
+
+        return np.array([float(value) for value in energies]) * ureg.hartree
+
+    def get_energy_status(self, orbital: dict | None) -> list[str] | None:
+        """Extract orbital energy optimization statuses from exciting XML."""
+        values = self._get_orbital_values(orbital, '@searchE')
+
+        if not values:
+            return None
+
+        mapping = {
+            'false': 'fixed',
+            'true': 'post-optimization',
+        }
+        statuses = [mapping.get(str(value).lower()) for value in values]
+
+        if None in statuses:
+            self.logger.warning(
+                'Unknown exciting orbital energy search status: %s',
+                values,
+            )
+            return None
+        return None if None in statuses else statuses
+
+    def get_orbital_differential_order(self, orbital: dict | None) -> np.ndarray | None:
+        """Extract orbital differential orders from an exciting XML definition."""
+        if not orbital:
+            return None
+
+        if 'wf' in orbital:
+            orders = self._get_orbital_values(orbital, '@matchingOrder')
+        else:
+            orbital_type = orbital.get('@type')
+            orders = {
+                'apw': [0],
+                'lapw': [0, 1],
+            }.get(orbital_type)
+            if orders is None and orbital_type is not None:
+                self.logger.warning(
+                    'Unknown exciting orbital type: %s',
+                    orbital_type,
+                )
+
+        if not orders or any(order is None for order in orders):
+            return None
+
+        return np.array(orders, dtype=np.int32)
+
+
 class ExcitingArchiveWriter(ArchiveWriter):
     def write_to_archive(self) -> None:  # noqa: PLR0912, PLR0915
         maindir = os.path.dirname(self.mainfile)
@@ -524,22 +783,81 @@ class ExcitingArchiveWriter(ArchiveWriter):
             logger=self.logger, data_object=Simulation(program=Program(name='exciting'))
         )
         data_parser.annotation_key = exciting.INFO_KEY
-
         info_parser.convert(data_parser)
 
-        # Legacy exciting behavior uses INFO.OUT as the canonical source for
-        # reference energy metadata. If the selected mainfile is GW_INFO.OUT
-        # and parsing yields no payload, fallback to sibling INFO.OUT.
         if not info_parser.data:
             info_out = os.path.join(maindir, 'INFO.OUT')
+
             if os.path.isfile(info_out) and os.path.abspath(
                 info_out
             ) != os.path.abspath(self.mainfile):
                 info_parser.filepath = info_out
-                info_parser.convert(data_parser, update_mode='merge')
+                # read xc functionals from input.xml only if INFO.OUT did not already
+                # populate them
+                info_parser.convert(
+                    data_parser,
+                    update_mode='merge',
+                )
 
-        # read xc functionals from input.xml only if INFO.OUT did not already
-        # populate them
+        simulation = data_parser.data_object
+
+        regions = [
+            component
+            for method in simulation.model_method or []
+            for setting in method.numerical_settings or []
+            if isinstance(setting, BasisSetContainer)
+            for component in setting.basis_set_components or []
+            if isinstance(component, MuffinTinRegion)
+        ]
+
+        initialization = info_parser.data.get('initialization', {})
+        species_list = initialization.get('species', [])
+        if len(regions) != len(species_list):
+            self.logger.warning(
+                'Mismatch between exciting muffin-tin regions (%s) and species (%s).',
+                len(regions),
+                len(species_list),
+            )
+        else:
+            for species, region in zip(species_list, regions):
+                filename = species.get('file')
+                if not filename:
+                    self.logger.warning(
+                        'Missing exciting species XML filename: %s',
+                        species,
+                    )
+
+                xml_path = Path(maindir) / filename.strip()
+
+                if not xml_path.is_file():
+                    continue
+
+                xml_parser = SpeciesXMLParser(filepath=str(xml_path))
+                xml_parser.lmaxapw = region.l_max
+
+                xml_target = ExcitingMetainfoParser(
+                    logger=self.logger,
+                    data_object=MuffinTinRegion(),
+                )
+                xml_target.annotation_key = exciting.SPECIES_XML_KEY
+
+                try:
+                    xml_parser.convert(xml_target, update_mode='merge')
+                    new_channels = xml_target.data_object.l_channels
+
+                    if not new_channels:
+                        self.logger.warning(
+                            'No angular-momentum channels parsed '
+                            'from exciting species XML: %s',
+                            xml_path,
+                        )
+                        continue
+                    region.l_channels.clear()
+                    region.l_channels.extend(xml_target.data_object.l_channels)
+                finally:
+                    xml_parser.close()
+                    xml_target.close()
+
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
             if not self.archive.m_xpath('data.model_method[0].xc.components')
@@ -550,10 +868,10 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 filepath=input_xml_files[0], logger=self.logger
             )
             data_parser.annotation_key = exciting.INPUT_XML_KEY
+            data_parser.data_object = simulation
             input_xml_parser.convert(data_parser)
             input_xml_parser.close()
 
-        # eigenvalues from eigval.out
         eigval_files = search_files('EIGVAL.OUT', maindir, re_pattern=mainbase)
         if eigval_files:
             eigval_parser = EigvalParser(
@@ -562,6 +880,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 text_parser=EigvalFileParser(),
             )
             data_parser.annotation_key = exciting.EIGVAL_KEY
+            data_parser.data_object = data_parser.data_object
             eigval_parser.convert(data_parser, update_mode='merge')
             eigval_parser.close()
 
