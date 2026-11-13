@@ -51,6 +51,27 @@ class TestCMinimalLargeDataPipeline(SimulationParserPipelineTestSuite):
 
 
     @pytest.mark.pipeline
+    def test_model_system_normalization(self, normalized_archive):
+        system = normalized_archive.data.model_system[0]
+        assert system is not Nonegi
+        assert system.is_representative is True
+        assert system.branch_depth == 0
+        assert system.composition_formula == 'C(2)'
+        assert system.particle_states[0].atomic_number == 6
+       
+    
+class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
+    archive_fixture = 'c_minimal_archive'
+    expected_program_name = 'exciting'
+
+    @pytest.fixture(scope='class')
+    def normalized_archive(self, archive):
+        normalized = EntryArchive.m_from_dict(archive.m_to_dict())
+        normalized.metadata = EntryMetadata()
+        normalize_all(normalized, logger=get_logger(__name__))
+        return normalized
+
+    @pytest.mark.pipeline
     def test_basis_set_container_normalization(self, normalized_archive):
         method = normalized_archive.data.model_method[0]
         assert method is not None
@@ -68,26 +89,6 @@ class TestCMinimalLargeDataPipeline(SimulationParserPipelineTestSuite):
         ]
         assert len(components) == 1
         assert components[0].label == "g-mesh"
-    
-    def test_model_system_normalization(self, normalized_archive):
-        system = normalized_archive.data.model_system[0]
-        assert system is not None
-        assert system.is_representative is True
-        assert system.branch_depth == 0
-        assert system.composition_formula == 'C(2)'
-        assert system.particle_states[0].atomic_number == 6
-       
-    
-class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
-    archive_fixture = 'c_minimal_archive'
-    expected_program_name = 'exciting'
-
-    @pytest.fixture(scope='class')
-    def normalized_archive(self, archive):
-        normalized = EntryArchive.m_from_dict(archive.m_to_dict())
-        normalized.metadata = EntryMetadata()
-        normalize_all(normalized, logger=get_logger(__name__))
-        return normalized
 
     @pytest.mark.pipeline
     def test_orbital_counts_normalization(self, normalized_archive):
