@@ -6,18 +6,18 @@ from nomad.utils import get_logger
 from tests.parsers.common import SimulationParserPipelineTestSuite
 
 
+@pytest.fixture(scope='class')
+def normalized_archive(archive):
+    normalized = EntryArchive.m_from_dict(archive.m_to_dict())
+    normalized.metadata = EntryMetadata()
+    normalize_all(normalized, logger=get_logger(__name__))
+    return normalized
+
+
 @pytest.mark.large_fixture
 class TestCMinimalLargeDataPipeline(SimulationParserPipelineTestSuite):
     archive_fixture = 'c_minimal_largedata_archive'
     expected_program_name = 'exciting'
-
-    @pytest.fixture(scope='class')
-    def normalized_archive(self, archive):
-        normalized = EntryArchive.m_from_dict(archive.m_to_dict())
-        normalized.metadata = EntryMetadata()
-        normalize_all(normalized, logger=get_logger(__name__))
-        return normalized
-
 
     @pytest.mark.pipeline
     def test_xc_functional_normalization(self, normalized_archive):
@@ -28,7 +28,7 @@ class TestCMinimalLargeDataPipeline(SimulationParserPipelineTestSuite):
         assert xc is not None
         assert xc.functional_key == 'PBESOL'
         assert len(xc.components) == 2
-        
+
         components = {
             component.canonical_label: component for component in xc.components
         }
@@ -49,27 +49,19 @@ class TestCMinimalLargeDataPipeline(SimulationParserPipelineTestSuite):
         assert exchange.family == 'GGA'
         assert exchange.kind == 'exchange'
 
-
     @pytest.mark.pipeline
     def test_model_system_normalization(self, normalized_archive):
         system = normalized_archive.data.model_system[0]
-        assert system is not Nonegi
+        assert system is not None
         assert system.is_representative is True
         assert system.branch_depth == 0
         assert system.composition_formula == 'C(2)'
         assert system.particle_states[0].atomic_number == 6
-       
-    
+
+
 class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
     archive_fixture = 'c_minimal_archive'
     expected_program_name = 'exciting'
-
-    @pytest.fixture(scope='class')
-    def normalized_archive(self, archive):
-        normalized = EntryArchive.m_from_dict(archive.m_to_dict())
-        normalized.metadata = EntryMetadata()
-        normalize_all(normalized, logger=get_logger(__name__))
-        return normalized
 
     @pytest.mark.pipeline
     def test_basis_set_container_normalization(self, normalized_archive):
@@ -88,7 +80,7 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
             if component.m_def.name == 'APWPlaneWaveBasisSet'
         ]
         assert len(components) == 1
-        assert components[0].label == "g-mesh"
+        assert components[0].label == 'g-mesh'
 
     @pytest.mark.pipeline
     def test_orbital_counts_normalization(self, normalized_archive):
@@ -125,4 +117,3 @@ class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
         assert local_orbital.n_terms == 2
         assert len(local_orbital.energy_parameter) == local_orbital.n_terms
         assert len(local_orbital.differential_order) == local_orbital.n_terms
-
