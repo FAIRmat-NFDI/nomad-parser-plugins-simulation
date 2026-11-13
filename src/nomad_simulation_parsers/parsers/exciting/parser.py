@@ -693,10 +693,12 @@ class SpeciesXMLParser(XMLParser):
                 wf = [wf]
             return [item.get(key) for item in wf]
 
+        orbital_type = orbital.get('@type')
+
         n_terms = {
             'apw': 1,
             'lapw': 2,
-        }.get(orbital.get('@type'))
+        }.get(orbital_type)
 
         if n_terms is None:
             if orbital_type is not None:
@@ -845,7 +847,8 @@ class ExcitingArchiveWriter(ArchiveWriter):
 
                     if not new_channels:
                         self.logger.warning(
-                            'No angular-momentum channels parsed from exciting species XML: %s',
+                            'No angular-momentum channels parsed '
+                            'from exciting species XML: %s',
                             xml_path,
                         )
                         continue
