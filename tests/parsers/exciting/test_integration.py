@@ -237,7 +237,7 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert len(apw.energy_status) == 1
         assert len(apw.differential_order) == 1
         assert apw.energy_parameter.to('hartree').magnitude == pytest.approx([0.15])
-        assert list(apw.energy_status) == ['post-optimization']
+        assert list(apw.energy_status) == ['initial']
         assert list(apw.differential_order) == [0]
 
     @pytest.mark.integration
@@ -274,8 +274,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             [0.15, 0.15]
         )
         assert list(local_orbital.energy_status) == [
-            'post-optimization',
-            'post-optimization',
+            'initial',
+            'initial',
         ]
         assert list(local_orbital.differential_order) == [0, 1]
 

@@ -733,7 +733,7 @@ class SpeciesXMLParser(XMLParser):
 
         mapping = {
             'false': 'fixed',
-            'true': 'post-optimization',
+            'true': 'initial',
         }
         statuses = [mapping.get(str(value).lower()) for value in values]
 

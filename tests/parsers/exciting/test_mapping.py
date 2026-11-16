@@ -390,7 +390,7 @@ class TestSpeciesXMLParserMapping:
             ),
             (
                 {'@type': 'lapw', '@searchE': 'true'},
-                ['post-optimization', 'post-optimization'],
+                ['initial', 'initial'],
             ),
             (
                 {'wf': {'@searchE': 'false'}},
@@ -403,7 +403,7 @@ class TestSpeciesXMLParserMapping:
                         {'@searchE': 'true'},
                     ]
                 },
-                ['fixed', 'post-optimization'],
+                ['fixed', 'initial'],
             ),
             (
                 {'@type': 'apw', '@searchE': 'unknown'},
@@ -414,7 +414,7 @@ class TestSpeciesXMLParserMapping:
         ],
         ids=[
             'apw-fixed',
-            'lapw-post-optimization',
+            'lapw-initial',
             'single-wavefunction',
             'mixed-wavefunctions',
             'unknown-status',
