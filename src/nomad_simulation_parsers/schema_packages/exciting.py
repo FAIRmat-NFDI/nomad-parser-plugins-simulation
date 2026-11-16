@@ -137,8 +137,11 @@ class Smearing(numerical_settings.Smearing):
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotations(
         (numerical_settings.KSpace.m_def,INFO_KEY,'.@'),
-        (numerical_settings.KSpace.k_mesh,INFO_KEY,
-        ('get_k_mesh', [])),
+        (
+            numerical_settings.KSpace.k_mesh,
+            INFO_KEY,
+            ('get_k_mesh', ['initialization']),
+        ),
         (numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
         (numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY,'.@'),
     )

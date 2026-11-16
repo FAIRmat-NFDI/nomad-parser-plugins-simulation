@@ -125,7 +125,7 @@ class InfoParser(TextParser):
         if functional is None:
             return []
         return [{'libxc': name} for name in functional['components']]
-       
+
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         return dict(
             forces=source.get('forces'),
@@ -319,41 +319,78 @@ class InfoParser(TextParser):
                 return fermi
         return None
 
-    def get_is_spin_polarized(self, spin_treatment: str | None) -> bool:
-        return {
+    def get_is_spin_polarized(self, spin_treatment: str | None) -> bool | None:
+        """
+        Map the exciting spin treatment onto `ModelMethod.is_spin_polarized`.
+
+        Returns:
+            `True` or `False` for `'spin-polarised'` or `'spin-unpolarised'`.
+            `None` without a warning when `spin_treatment` is absent.
+            `None` with a warning when the `spin_treatment` is not recognised.
+        """
+        if spin_treatment is None:
+            return None
+        is_spin_polarized = {
             'spin-unpolarised': False,
             'spin-polarised': True,
         }.get(spin_treatment)
+        if is_spin_polarized is None:
+            self.logger.warning('Unknown exciting spin treatment: %s', spin_treatment)
+        return is_spin_polarized
 
-    def get_smearing_kind(self, smearing_kind: str | None) -> str | None:
-        if smearing_kind is None:
+    def get_smearing_kind(
+        self, smearing_kind: str | list[str | int] | None
+    ) -> str | None:
+        """
+        Map the exciting smearing scheme onto `Smearing.kind`.
+
+        Returns:
+            The matching `Smearing.kind` value for a recognised scheme.
+            `None` without a warning when the scheme is absent or empty.
+            `None` with a warning when the scheme is not recognised.
+        """
+        # the reader returns a multi-word scheme as a list of tokens
+        if isinstance(smearing_kind, list):
+            smearing_kind = ' '.join(str(token) for token in smearing_kind)
+        if not smearing_kind:
             return None
-        if isinstance(smearing_kind, (list, tuple)):
-            smearing_kind = ' '.join(str(item) for item in smearing_kind)
         smearing_kind = ' '.join(smearing_kind.split())
-        return {
+        kind = {
             'Fermi-Dirac': 'Fermi-Dirac',
             'Gaussian': 'Gaussian',
             'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': (
-                'Methfessel-Paxton 1',
-            ), 
-            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
-                'Methfessel-Paxton 2',
+                'Methfessel-Paxton 1'
             ),
-            'Extended linear tetrahedron method': 'Tetrahedra-extended',
-            'Square-wave impulse': 'Square-wave impulse',
+            'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
+                'Methfessel-Paxton 2'
+            ),
+            'Extended linear tetrahedron method': 'Tetrahedra linear',
+            'Square-wave impulse': 'Square-wave',
         }.get(smearing_kind)
+        if kind is None:
+            self.logger.warning('Unknown exciting smearing scheme: %s', smearing_kind)
+        return kind
 
-    def get_k_mesh(self) -> list[dict[str, Any]]:
-        initialization = self.data.get('initialization', {})
+    def get_k_mesh(self, initialization: dict[str, Any]) -> list[dict[str, Any]]:
+        """
+        Map the exciting k-point grid onto `KSpace.k_mesh`.
+
+        Returns:
+            A one-element list with the `KMesh` `grid`, `n_total_points`,
+            `n_reduced_points` and `dimensionality` when `initialization` holds a
+            `kpoint_grid`; `n_reduced_points` awaits its `KMesh` quantity and is
+            `None` when the reduced count is absent.
+            An empty list, so that no `KMesh` is created, when the grid is absent.
+        """
         grid = initialization.get('kpoint_grid')
-        n_points = initialization.get('x_exciting_number_kpoints')
+        if grid is None:
+            return []
         return [
             {
-                'grid': grid if grid is not None else None,
-                'n_total_points': np.prod(grid) if grid is not None else None,
-                'n_reduced_points': n_points if n_points is not None else None,
-                'dimensionality': len(grid) if grid is not None else None,
+                'grid': grid,
+                'n_total_points': int(np.prod(grid)),
+                'n_reduced_points': initialization.get('x_exciting_number_kpoints'),
+                'dimensionality': len(grid),
             }
         ]
 

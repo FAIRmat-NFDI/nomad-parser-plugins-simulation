@@ -59,10 +59,15 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         )
 
         output = simulation.outputs[0]
-        output.scf_steps.delta_energies_total[9].to('hartree').magnitude == 0.991184e-07
-        output.scf_steps.delta_potential_rms[9].to('hartree').magnitude == 0.324873e-08
-        output.scf_steps.delta_charge_abs[9].to(
-            'elementary_charge').magnitude == 0.235501e-08
+        assert output.scf_steps.delta_energies_total[9].to(
+            'hartree'
+        ).magnitude == approx(0.991184e-07)
+        assert output.scf_steps.delta_potential_rms[9].to(
+            'hartree'
+        ).magnitude == approx(0.324873e-08)
+        assert output.scf_steps.delta_charge_abs[9].to(
+            'elementary_charge'
+        ).magnitude == approx(0.235501e-08)
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
@@ -127,10 +132,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             component
             for component in containers[0].basis_set_components
             if component.m_def.name == 'APWPlaneWaveBasisSet'
-        ]       
+        ]
         assert len(components) == 1
         assert components[0].cutoff_fractional == approx(7.0)
-
 
     @pytest.mark.integration
     def test_xc_functional_mapping(self, archive):
@@ -138,8 +142,10 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert method is not None
         assert method.xc is not None
         assert method.xc.functional_key == 'PBESOL'
-        components = method.xc.components
-        assert len(components) == 2
+        assert [component.canonical_label for component in method.xc.components] == [
+            'GGA_C_PBE_SOL',
+            'GGA_X_PBE_SOL',
+        ]
 
     @pytest.mark.integration
     def test_atomic_states_mapping(self, archive):
@@ -148,9 +154,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.particle_states is not None
         assert len(system.particle_states) == 2
         assert system.particle_states[0].chemical_symbol == 'C'
-        assert system.particle_states[0].mass.to(
-            'electron_mass'
-            ).magnitude == approx(21894.16673000)
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(
+            21894.16673000
+        )
 
     @pytest.mark.integration
     def test_model_system_mapping(self, archive):
@@ -162,10 +168,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.volume.to('bohr ** 3').magnitude == approx(76.117017)
         assert system.n_particles == 2
         assert system.positions.shape == (2, 3)
-        assert system.positions[1][0].to('bohr').magnitude == approx(
-            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum())
-        
-
+        # INFO.OUT lists the atom at (0.25, 0.25, 0.25) in lattice coordinates;
+        # the parser converts it to Cartesian
+        assert system.positions[1][0].to('bohr').magnitude == approx(1.68185)
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
@@ -273,9 +278,8 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
             'hartree'
         ).magnitude == approx(0.489106e-07)
         assert output.scf_steps.delta_charge_abs[23].to(
-            'elementary_charge').magnitude == approx(
-            4.16073e-08
-        )
+            'elementary_charge'
+        ).magnitude == approx(4.16073e-08)
         assert output.scf_steps.delta_force_abs[23].to(
             'hartree / bohr'
         ).magnitude == approx(0.127181e-05)
@@ -346,10 +350,15 @@ class TestPbIHybridsArchive(ExcitingParserIntegrationSuite):
     def test_method_mapping(self, archive):
         method = archive.data.model_method[0]
         assert method.xc is not None
-        assert any(
-            component.canonical_label == 'HYB_GGA_XC_HSE06'
-            for component in method.xc.components
-        )
+        assert method.xc.functional_key == 'HSE06'
+        assert [component.canonical_label for component in method.xc.components] == [
+            'HYB_GGA_XC_HSE06'
+        ]
+        assert method.is_spin_polarized is True
+        smearing, kspace, _ = method.numerical_settings
+        assert smearing.kind == 'Tetrahedra linear'
+        assert smearing.width is None
+        assert list(kspace.k_mesh[0].grid) == [6, 6, 4]
         assert archive.data.outputs[0].total_energies[0].value.to(
             'hartree'
         ).magnitude == approx(-35198.96925817)
