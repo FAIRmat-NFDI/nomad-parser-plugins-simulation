@@ -63,6 +63,13 @@ PARSER_REPORT_SPECS = (
         'INFO_KEY',
     ),
     ParserReportSpec(
+        'Exciting / species (*.xml)',
+        'nomad_simulation_parsers.parsers.exciting.parser',
+        'SpeciesXMLParser',
+        'nomad_simulation_parsers.schema_packages.exciting',
+        'SPECIES_XML_KEY',
+    ),
+    ParserReportSpec(
         'Exciting / EIGVAL.OUT',
         'nomad_simulation_parsers.parsers.exciting.eigval_parser',
         'EigvalFileParser',

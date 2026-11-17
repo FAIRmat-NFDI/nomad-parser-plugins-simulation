@@ -949,6 +949,10 @@ Optional manual corrections can be supplied with `nomad-sim-parser mapping-repor
 | `hybrids.forces` | Mapped | `forces`<br>`get_forces(forces)` |
 | `total_time` | Unmapped | — |
 
+## Exciting / species (*.xml)
+
+**Coverage:** Not available. A reliable coverage report cannot be generated because this parser does not expose reportable file-parser quantities.
+
 ## Exciting / EIGVAL.OUT
 
 **Summary:** 2 mapped, 2 unmapped quantities (50.00% coverage).
