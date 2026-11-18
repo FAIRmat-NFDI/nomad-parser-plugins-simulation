@@ -136,7 +136,7 @@ class CrystalOutputParser(TextParser):
             # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
             normalized = raw % 100
             if normalized == 0:
-                return None
+                return 0
 
             if 0 < normalized < len(chemical_symbols):
                 return normalized

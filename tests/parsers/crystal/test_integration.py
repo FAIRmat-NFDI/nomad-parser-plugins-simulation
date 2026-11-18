@@ -222,9 +222,8 @@ class TestConstraintsArchive(CrystalParserSimulationIntegrationSuite):
     required_simulation_sections = ('model_system', 'outputs')
 
     @pytest.mark.integration
-    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
-    def test_particle_numbers_match(self, archive):
-        super().test_particle_numbers_match(archive)
+    def test_topology_frame_is_complete(self, archive):
+        self._test_topology_frame_has_numbers(archive)
 
 
 class TestDisplacementArchive(CrystalParserSimulationIntegrationSuite):
@@ -237,9 +236,8 @@ class TestGhostsArchive(CrystalParserSimulationIntegrationSuite):
     required_simulation_sections = ('model_system', 'outputs')
 
     @pytest.mark.integration
-    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
-    def test_particle_numbers_match(self, archive):
-        super().test_particle_numbers_match(archive)
+    def test_topology_frame_is_complete(self, archive):
+        self._test_topology_frame_has_numbers(archive)
 
 
 class TestNATArchive(CrystalParserIntegrationSuite):
@@ -251,9 +249,8 @@ class TestSubstitutionArchive(CrystalParserSimulationIntegrationSuite):
     archive_fixture = 'substitution_archive'
 
     @pytest.mark.integration
-    @pytest.mark.xfail(strict=True, reason='FAIRmat-NFDI/nomad-file-parser#37')
-    def test_particle_numbers_match(self, archive):
-        super().test_particle_numbers_match(archive)
+    def test_topology_frame_is_complete(self, archive):
+        self._test_topology_frame_has_numbers(archive)
 
 
 class TestNanotubeGeometryOptimizationArchive(CrystalParserIntegrationSuite):
