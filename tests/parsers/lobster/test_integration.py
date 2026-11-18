@@ -437,11 +437,7 @@ class TestHfV2Archive(LobsterParserIntegrationSuite):
     @pytest.mark.integration
     def test_topology_frame_is_complete(self, archive):
         """Here, topology frame contain atomic numbers and not labels."""
-        topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
-        assert topology.particle_states
-        assert all(
-            state.atomic_number is not None for state in topology.particle_states
-        )
+        self._test_topology_frame_has_numbers(archive)
 
     @pytest.mark.integration
     def test_archive_contract(self, archive):  # noqa: PLR0915
