@@ -1,13 +1,18 @@
 """Tests for common parser utilities in parsers/utils/general.py"""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
+from nomad.datamodel.context import ServerContext
 from nomad.units import ureg
 
 from nomad_simulation_parsers.parsers.utils.general import (
     OCCUPATION_THRESHOLD,
+    SourceFile,
     calculate_band_gap_from_occupations,
     create_mapping_table,
+    write_parsed_blocks,
 )
 
 
@@ -17,6 +22,66 @@ class TestOccupationThreshold:
     def test_threshold_value(self):
         """Verify occupation threshold is 0.5 as per DFT convention."""
         assert OCCUPATION_THRESHOLD == 0.5
+
+
+@pytest.mark.skipif(
+    SourceFile is None,
+    reason='requires SourceFile in nomad.datamodel',
+)
+def test_write_parsed_blocks_uses_visualizer_blocks_and_relative_file_names():
+    parser = SimpleNamespace(
+        mainfile='/raw/calculations/auxiliary.out',
+        visualize=lambda **kwargs: SimpleNamespace(
+            blocks=[
+                SimpleNamespace(start=12, end=28),
+                SimpleNamespace(start=40, end=46),
+            ]
+        ),
+    )
+    archive = SimpleNamespace(
+        metadata=SimpleNamespace(source_files=[]),
+        m_context=SimpleNamespace(
+            get_relative_path=lambda path: path.removeprefix('/raw/')
+        ),
+    )
+
+    write_parsed_blocks(archive, parser)
+
+    assert [file.m_to_dict() for file in archive.metadata.source_files] == [
+        {
+            'file_name': 'calculations/auxiliary.out',
+            'parser': 'SimpleNamespace',
+            'parsed_blocks': [
+                {'start': 12, 'end': 28},
+                {'start': 40, 'end': 46},
+            ],
+        }
+    ]
+
+
+@pytest.mark.skipif(SourceFile is None, reason='requires SourceFile in nomad.datamodel')
+def test_write_parsed_blocks_ignores_server_files_outside_upload(tmp_path):
+    raw_dir = tmp_path / 'raw'
+    context = ServerContext()
+    context.raw_path = lambda: raw_dir
+    parsers = [
+        SimpleNamespace(
+            mainfile=path,
+            visualize=lambda **kwargs: SimpleNamespace(
+                blocks=[SimpleNamespace(start=0, end=4)]
+            ),
+        )
+        for path in (raw_dir / 'calculations' / 'OUTCAR', tmp_path / 'OUTCAR')
+    ]
+    archive = SimpleNamespace(
+        metadata=SimpleNamespace(source_files=[]), m_context=context
+    )
+
+    write_parsed_blocks(archive, parsers)
+
+    assert [source.file_name for source in archive.metadata.source_files] == [
+        'calculations/OUTCAR'
+    ]
 
 
 class _Quantity:
