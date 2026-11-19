@@ -282,8 +282,7 @@ class OutParser(MappingTextParser):
 
         # keep particle states only in the first structure with valid particle states
         valid_atoms_id = next(
-                (i for i, a in enumerate(atoms) if a['particle_states'] is not None),
-                None)
+                (i for i, a in enumerate(atoms) if a['particle_states']), None)
         if valid_atoms_id is not None:
             for i in range(valid_atoms_id+1, len(atoms)):
                 atoms[i]['particle_states'] = None
