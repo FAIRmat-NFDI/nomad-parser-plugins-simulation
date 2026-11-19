@@ -18,6 +18,7 @@ import h5py
 import parmed as chem
 import MDAnalysis as mda
 from pint import UnitRegistry
+
 ureg = UnitRegistry()
 ```
 
@@ -43,7 +44,7 @@ periodicity = [True, True, True]
 
 time_unit = 1.0 * ureg.picosecond
 length_unit = 1.0 * ureg.angstrom
-energy_unit = 1000. * ureg.joule
+energy_unit = 1000.0 * ureg.joule
 mass_unit = 1.0 * ureg.amu
 charge_unit = 1.0 * ureg.e
 temperature_unit = 1.0 * ureg.K
@@ -144,7 +145,9 @@ position_group_all['value'].attrs['unit_factor'] = length_unit.magnitude
 Set the particle-specific metadata:
 ```python
 particles_group_all['species_label'] = universe_toponly.atoms.types  # shape = (n_atoms)
-particles_group_all['force_field_label'] = universe_toponly.atoms.names  # shape = (n_atoms)
+particles_group_all['force_field_label'] = (
+    universe_toponly.atoms.names
+)  # shape = (n_atoms)
 particles_group_all['mass'] = universe_toponly.atoms.masses  # shape = (n_atoms)
 particles_group_all['mass'].attrs['unit'] = str(mass_unit.units)
 particles_group_all['mass'].attrs['unit_factor'] = mass_unit.magnitude
@@ -167,7 +170,6 @@ edges['time'].attrs['unit_factor'] = time_unit.magnitude
 edges['value'] = lattice_vectors
 edges['value'].attrs['unit'] = str(length_unit.units)
 edges['value'].attrs['unit_factor'] = length_unit.magnitude
-
 ```
 
 ### [Connectivity Group](h5md_expl.md#the-connectivity-group)
@@ -201,7 +203,7 @@ types = ['configurational', 'ensemble_average', 'correlation_function']
 
 Fabricated data:
 ```python
-temperatures = 300. * np.ones(n_frames)
+temperatures = 300.0 * np.ones(n_frames)
 potential_energies = 1.0 * np.ones(n_frames)
 kinetic_energies = 2.0 * np.ones(n_frames)
 ```
@@ -275,7 +277,7 @@ rdfs = {
         'value': rdf_XX[:, 1],
         'type': 'molecular',
         'frame_start': 0,
-        'frame_end': n_frames-1
+        'frame_end': n_frames - 1,
     },
     'MOLX-MOLY': {
         'n_bins': len(rdf_XY[:, 0]),
@@ -283,7 +285,7 @@ rdfs = {
         'value': rdf_XY[:, 1],
         'type': 'molecular',
         'frame_start': 0,
-        'frame_end': n_frames-1
+        'frame_end': n_frames - 1,
     },
     'MOLY-MOLY': {
         'n_bins': len(rdf_YY[:, 0]),
@@ -291,14 +293,16 @@ rdfs = {
         'value': rdf_YY[:, 1],
         'type': 'molecular',
         'frame_start': 0,
-        'frame_end': n_frames-1
-    }
+        'frame_end': n_frames - 1,
+    },
 }
 ```
 
 Now create the `radial_distribution_functions` group under `observables` and store each imported rdf:
 ```python
-radial_distribution_functions = observables.create_group('radial_distribution_functions')
+radial_distribution_functions = observables.create_group(
+    'radial_distribution_functions'
+)
 for key in rdfs.keys():
     rdf = radial_distribution_functions.create_group(key)
     rdf.attrs['type'] = types[1]
@@ -318,13 +322,13 @@ Ds = {
     'MOLX': {
         'value': 1.0,
         'error_type': 'Pearson_correlation_coefficient',
-        'errors': 0.98
+        'errors': 0.98,
     },
     'MOLY': {
         'value': 2.0,
         'error_type': 'Pearson_correlation_coefficient',
-        'errors': 0.95
-    }
+        'errors': 0.95,
+    },
 }
 ```
 
@@ -382,7 +386,7 @@ msds = {
         'direction': 'xyz',
         'error_type': 'standard_deviation',
         'errors': np.zeros(len(msd_Y[:, 0])),
-    }
+    },
 }
 ```
 
@@ -451,7 +455,9 @@ def get_parameters_recursive(parameter_group, parameter_dict):
     return parameter_group
 
 
-force_calculations = get_parameters_recursive(force_calculations, force_calculation_parameters)
+force_calculations = get_parameters_recursive(
+    force_calculations, force_calculation_parameters
+)
 workflow = get_parameters_recursive(workflow, workflow_parameters)
 ```
 
@@ -466,6 +472,7 @@ The following functions are useful for accessing data from your H5MD-NOMAD file:
 ```python
 def apply_unit(quantity, unit, unit_factor):
     from pint import UnitRegistry
+
     ureg = UnitRegistry()
 
     if quantity is None:
@@ -477,21 +484,27 @@ def apply_unit(quantity, unit, unit_factor):
 
     return quantity
 
+
 def decode_hdf5_bytes(dataset):
     if dataset is None:
         return
     elif type(dataset).__name__ == 'ndarray':
         if dataset == []:
             return dataset
-        dataset = np.array([val.decode("utf-8") for val in dataset]) if type(dataset[0]) == bytes else dataset
+        dataset = (
+            np.array([val.decode('utf-8') for val in dataset])
+            if type(dataset[0]) == bytes
+            else dataset
+        )
     else:
-        dataset = dataset.decode("utf-8") if type(dataset) == bytes else dataset
+        dataset = dataset.decode('utf-8') if type(dataset) == bytes else dataset
     return dataset
 
+
 def hdf5_attr_getter(source, path, attribute, default=None):
-    '''
+    """
     Extracts attribute from object based on path, and returns default if not defined.
-    '''
+    """
     section_segments = path.split('.')
     for section in section_segments:
         try:
@@ -504,10 +517,11 @@ def hdf5_attr_getter(source, path, attribute, default=None):
     source = decode_hdf5_bytes(source) if source is not None else default
     return source
 
+
 def hdf5_getter(source, path, default=None):
-    '''
+    """
     Extracts attribute from object based on path, and returns default if not defined.
-    '''
+    """
     section_segments = path.split('.')
     for section in section_segments:
         try:
@@ -616,25 +630,33 @@ The following functions will be useful for creating the topology:
 
 ```python
 def get_composition(children_names):
-    '''
+    """
     Given a list of children, return a compositional formula as a function of
     these children. The format is <child_1>(n_child_1)<child_2>(n_child_2)...
-    '''
+    """
     children_count_tup = np.unique(children_names, return_counts=True)
     formula = ''.join([f'{name}({count})' for name, count in zip(*children_count_tup)])
     return formula
 
 
-def get_molecules_from_bond_list(n_particles: int, bond_list: List[int], particle_types: List[str] = None, particles_typeid=None):
-    '''
+def get_molecules_from_bond_list(
+    n_particles: int,
+    bond_list: List[int],
+    particle_types: List[str] = None,
+    particles_typeid=None,
+):
+    """
     Returns a dictionary with molecule info from the list of bonds
-    '''
+    """
 
     import networkx
 
     system_graph = networkx.empty_graph(n_particles)
     system_graph.add_edges_from([(i[0], i[1]) for i in bond_list])
-    molecules = [system_graph.subgraph(c).copy() for c in networkx.connected_components(system_graph)]
+    molecules = [
+        system_graph.subgraph(c).copy()
+        for c in networkx.connected_components(system_graph)
+    ]
     mol_dict = []
     for i_mol, mol in enumerate(molecules):
         mol_dict.append({})
@@ -643,19 +665,25 @@ def get_molecules_from_bond_list(n_particles: int, bond_list: List[int], particl
         mol_dict[i_mol]['type'] = 'molecule'
         mol_dict[i_mol]['is_molecule'] = True
         if particles_typeid is None and len(particle_types) == n_particles:
-            mol_dict[i_mol]['names'] = [particle_types[int(x)] for x in sorted(np.array(mol_dict[i_mol]['indices']))]
+            mol_dict[i_mol]['names'] = [
+                particle_types[int(x)]
+                for x in sorted(np.array(mol_dict[i_mol]['indices']))
+            ]
         if particle_types is not None and particles_typeid is not None:
-            mol_dict[i_mol]['names'] = [particle_types[particles_typeid[int(x)]] for x in sorted(np.array(mol_dict[i_mol]['indices']))]
+            mol_dict[i_mol]['names'] = [
+                particle_types[particles_typeid[int(x)]]
+                for x in sorted(np.array(mol_dict[i_mol]['indices']))
+            ]
         mol_dict[i_mol]['formula'] = get_composition(mol_dict[i_mol]['names'])
 
     return mol_dict
 
 
 def is_same_molecule(mol_1: dict, mol_2: dict):
-    '''
+    """
     Checks whether the 2 input molecule dictionaries represent the same
     molecule type, i.e., same particle types and corresponding bond connections.
-    '''
+    """
 
     if sorted(mol_1['names']) == sorted(mol_2['names']):
         mol_1_shift = np.min(mol_1['indices'])
@@ -663,14 +691,28 @@ def is_same_molecule(mol_1: dict, mol_2: dict):
         mol_1_bonds_shift = mol_1['bonds'] - mol_1_shift
         mol_2_bonds_shift = mol_2['bonds'] - mol_2_shift
 
-        bond_list_1 = [sorted((mol_1['names'][i], mol_1['names'][j])) for i, j in mol_1_bonds_shift]
-        bond_list_2 = [sorted((mol_2['names'][i], mol_2['names'][j])) for i, j in mol_2_bonds_shift]
+        bond_list_1 = [
+            sorted((mol_1['names'][i], mol_1['names'][j])) for i, j in mol_1_bonds_shift
+        ]
+        bond_list_2 = [
+            sorted((mol_2['names'][i], mol_2['names'][j])) for i, j in mol_2_bonds_shift
+        ]
 
-        bond_list_names_1, bond_list_counts_1 = np.unique(bond_list_1, axis=0, return_counts=True)
-        bond_list_names_2, bond_list_counts_2 = np.unique(bond_list_2, axis=0, return_counts=True)
+        bond_list_names_1, bond_list_counts_1 = np.unique(
+            bond_list_1, axis=0, return_counts=True
+        )
+        bond_list_names_2, bond_list_counts_2 = np.unique(
+            bond_list_2, axis=0, return_counts=True
+        )
 
-        bond_list_dict_1 = {bond[0] + '-' + bond[1]: bond_list_counts_1[i_bond] for i_bond, bond in enumerate(bond_list_names_1)}
-        bond_list_dict_2 = {bond[0] + '-' + bond[1]: bond_list_counts_2[i_bond] for i_bond, bond in enumerate(bond_list_names_2)}
+        bond_list_dict_1 = {
+            bond[0] + '-' + bond[1]: bond_list_counts_1[i_bond]
+            for i_bond, bond in enumerate(bond_list_names_1)
+        }
+        bond_list_dict_2 = {
+            bond[0] + '-' + bond[1]: bond_list_counts_2[i_bond]
+            for i_bond, bond in enumerate(bond_list_names_2)
+        }
         if bond_list_dict_1 == bond_list_dict_2:
             return True
 
@@ -683,7 +725,12 @@ Then, we can create the topology structure from the MDAnalysis universe:
 
 ```python
 bond_list = universe_toponly.bonds._bix
-molecules = get_molecules_from_bond_list(n_atoms, bond_list, particle_types=universe_toponly.atoms.types, particles_typeid=None)
+molecules = get_molecules_from_bond_list(
+    n_atoms,
+    bond_list,
+    particle_types=universe_toponly.atoms.types,
+    particles_typeid=None,
+)
 
 # create the topology
 mol_groups = []
@@ -708,7 +755,9 @@ for mol in molecules[1:]:
 
 
 for i_mol_group, mol_group in enumerate(mol_groups):
-    mol_groups[i_mol_group]['formula'] = molecule_labels[i_mol_group] + '(' + str(len(mol_group['molecules'])) + ')'
+    mol_groups[i_mol_group]['formula'] = (
+        molecule_labels[i_mol_group] + '(' + str(len(mol_group['molecules'])) + ')'
+    )
     mol_groups[i_mol_group]['label'] = 'group_' + str(molecule_labels[i_mol_group])
     mol_group_indices = []
     for i_molecule, molecule in enumerate(mol_group['molecules']):
@@ -722,9 +771,15 @@ for i_mol_group, mol_group in enumerate(mol_groups):
         res_dict = []
         for i_resid, resid in enumerate(mol_resids):
             res_dict.append({})
-            res_dict[i_resid]['indices'] = np.where( universe_toponly.atoms.resindices[mol_indices] == resid)[0]
-            res_dict[i_resid]['label'] = universe_toponly.atoms.resnames[res_dict[i_resid]['indices'][0]]
-            res_dict[i_resid]['formula'] = get_composition(universe_toponly.atoms.names[res_dict[i_resid]['indices']])
+            res_dict[i_resid]['indices'] = np.where(
+                universe_toponly.atoms.resindices[mol_indices] == resid
+            )[0]
+            res_dict[i_resid]['label'] = universe_toponly.atoms.resnames[
+                res_dict[i_resid]['indices'][0]
+            ]
+            res_dict[i_resid]['formula'] = get_composition(
+                universe_toponly.atoms.names[res_dict[i_resid]['indices']]
+            )
             res_dict[i_resid]['is_molecule'] = False
             res_dict[i_resid]['type'] = 'monomer'
 
@@ -747,13 +802,20 @@ for i_mol_group, mol_group in enumerate(mol_groups):
                 res_groups[-1]['residues'] = []
                 res_groups[-1]['residues'].append(res)
                 res_groups[-1]['label'] = 'group_' + res['label']
-                res_groups[-1]['formula'] = get_composition(universe_toponly.atoms.names[res['indices']])
+                res_groups[-1]['formula'] = get_composition(
+                    universe_toponly.atoms.names[res['indices']]
+                )
                 res_groups[-1]['type'] = 'monomer_group'
                 res_groups[-1]['is_molecule'] = False
 
         molecule['formula'] = ''
         for res_group in res_groups:
-            res_group['formula'] = res_group['residues'][0]['label'] + '(' + str(len(res_group['residues'])) + ')'
+            res_group['formula'] = (
+                res_group['residues'][0]['label']
+                + '('
+                + str(len(res_group['residues']))
+                + ')'
+            )
             molecule['formula'] += res_group['formula']
             res_group_indices = []
             for res in res_group['residues']:
@@ -763,7 +825,6 @@ for i_mol_group, mol_group in enumerate(mol_groups):
         mol_group['indices'] = np.concatenate(mol_group_indices)
 
         molecule['residue_groups'] = res_groups
-
 ```
 
 ### Writing the topology to an H5MD-NOMAD file
@@ -772,7 +833,14 @@ Here we assume an H5MD-NOMAD file has already been created, as demonstrated on t
 
 Now, create the `particles_group` group under `connectivity` within our HDF5-NOMAD file:
 ```python
-topology_keys = ['type', 'formula', 'particles_group', 'label', 'is_molecule', 'indices']
+topology_keys = [
+    'type',
+    'formula',
+    'particles_group',
+    'label',
+    'is_molecule',
+    'indices',
+]
 custom_keys = ['molecules', 'residue_groups', 'residues']
 
 topology = connectivity.create_group('particles_group')
@@ -796,16 +864,26 @@ for i_mol_group, mol_group in enumerate(mol_groups):
                     else:
                         hdf5_residue_groups = hdf5_mol.create_group('particles_group')
                         for i_res_group, res_group in enumerate(molecule[mol_key]):
-                            hdf5_res_group = hdf5_residue_groups.create_group('residue_group_' + str(i_res_group))
+                            hdf5_res_group = hdf5_residue_groups.create_group(
+                                'residue_group_' + str(i_res_group)
+                            )
                             for res_group_key in res_group.keys():
                                 if res_group_key not in topology_keys + custom_keys:
                                     continue
                                 if res_group_key != 'residues':
-                                    hdf5_res_group[res_group_key] = res_group[res_group_key]
+                                    hdf5_res_group[res_group_key] = res_group[
+                                        res_group_key
+                                    ]
                                 else:
-                                    hdf5_residues = hdf5_res_group.create_group('particles_group')
-                                    for i_res, res in enumerate(res_group[res_group_key]):
-                                        hdf5_res = hdf5_residues.create_group('residue_' + str(i_res))
+                                    hdf5_residues = hdf5_res_group.create_group(
+                                        'particles_group'
+                                    )
+                                    for i_res, res in enumerate(
+                                        res_group[res_group_key]
+                                    ):
+                                        hdf5_res = hdf5_residues.create_group(
+                                            'residue_' + str(i_res)
+                                        )
                                         for res_key in res.keys():
                                             if res_key not in topology_keys:
                                                 continue

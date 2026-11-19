@@ -56,13 +56,13 @@ import MDAnalysis as mda
 
 # Set up trajectory and topology files and locations for the conversion
 
-dir_path = '/path/to/original/gromacs/files' # Path to the directory containing the trajectory and topology files
-top_file = f'{dir_path}/<original>.tpr' # Topology file
-traj_file = f'{dir_path}/<original>.xtc' # Trajectory file
-new_name = '<modified>' # Name for the modified trajectory
-solvent = 'SOL' # Name of your solvent you want to remove (resname)
-mol_name = 'POL' # Name of one molecule you want to retain (resname)
-lig_name = 'LIG' # Name of a second molecule you want to retain (resname)
+dir_path = '/path/to/original/gromacs/files'  # Path to the directory containing the trajectory and topology files
+top_file = f'{dir_path}/<original>.tpr'  # Topology file
+traj_file = f'{dir_path}/<original>.xtc'  # Trajectory file
+new_name = '<modified>'  # Name for the modified trajectory
+solvent = 'SOL'  # Name of your solvent you want to remove (resname)
+mol_name = 'POL'  # Name of one molecule you want to retain (resname)
+lig_name = 'LIG'  # Name of a second molecule you want to retain (resname)
 
 # Load the trajectory and topology files as a MDAnalysis Universe object
 u = mda.Universe(top_file, traj_file)
@@ -76,7 +76,9 @@ solutes = u.select_atoms(f'not resname {solvent}')
 
 # Write a new trajectory where each frame only contains the solute molecules
 with mda.Writer(f'{dir_path}/{new_name}.xtc', n_atoms=solutes.n_atoms) as w:
-    for ts in u.trajectory[:]: # Using the python slicing operator [start:stop:step], the number of frames can be reduced at this point
+    for ts in u.trajectory[
+        :
+    ]:  # Using the python slicing operator [start:stop:step], the number of frames can be reduced at this point
         w.write(solutes)
 
 # Write a new gro file containing only the solute molecules
@@ -86,7 +88,9 @@ with mda.Writer(f'{dir_path}/{new_name}.gro') as w:
 # Optional: Write a new index file containing only the solute molecules:
 
 # If multiple individual solute groups are needed, they need to be individually written to the index file.
-with mda.selections.gromacs.SelectionWriter(f'{dir_path}/{new_name}.ndx', mode='w') as ndx:
+with mda.selections.gromacs.SelectionWriter(
+    f'{dir_path}/{new_name}.ndx', mode='w'
+) as ndx:
     ndx.write(u.select_atoms(f'resname {mol_name}'), name=f'{mol_name}')
     ndx.write(u.select_atoms(f'resname {lig_name}'), name=f'{lig_name}')
 ```

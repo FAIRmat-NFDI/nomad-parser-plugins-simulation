@@ -125,7 +125,7 @@ class InfoParser(TextParser):
         if functional is None:
             return []
         return [{'libxc': name} for name in functional['components']]
-       
+
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         return dict(
             forces=source.get('forces'),
@@ -336,7 +336,7 @@ class InfoParser(TextParser):
             'Gaussian': 'Gaussian',
             'Methfessel-Paxton order 1, Phys. Rev. B 40, 3616 (1989)': (
                 'Methfessel-Paxton 1',
-            ), 
+            ),
             'Methfessel-Paxton order 2, Phys. Rev. B 40, 3616 (1989)': (
                 'Methfessel-Paxton 2',
             ),

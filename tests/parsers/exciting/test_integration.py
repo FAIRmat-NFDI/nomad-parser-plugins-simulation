@@ -62,7 +62,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         output.scf_steps.delta_energies_total[9].to('hartree').magnitude == 0.991184e-07
         output.scf_steps.delta_potential_rms[9].to('hartree').magnitude == 0.324873e-08
         output.scf_steps.delta_charge_abs[9].to(
-            'elementary_charge').magnitude == 0.235501e-08
+            'elementary_charge'
+        ).magnitude == 0.235501e-08
         assert output.total_energies[0].value.to('hartree').magnitude == approx(
             -75.88903685
         )
@@ -127,10 +128,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             component
             for component in containers[0].basis_set_components
             if component.m_def.name == 'APWPlaneWaveBasisSet'
-        ]       
+        ]
         assert len(components) == 1
         assert components[0].cutoff_fractional == approx(7.0)
-
 
     @pytest.mark.integration
     def test_xc_functional_mapping(self, archive):
@@ -148,9 +148,9 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.particle_states is not None
         assert len(system.particle_states) == 2
         assert system.particle_states[0].chemical_symbol == 'C'
-        assert system.particle_states[0].mass.to(
-            'electron_mass'
-            ).magnitude == approx(21894.16673000)
+        assert system.particle_states[0].mass.to('electron_mass').magnitude == approx(
+            21894.16673000
+        )
 
     @pytest.mark.integration
     def test_model_system_mapping(self, archive):
@@ -163,9 +163,8 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
         assert system.n_particles == 2
         assert system.positions.shape == (2, 3)
         assert system.positions[1][0].to('bohr').magnitude == approx(
-            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum())
-        
-
+            0.25 * system.lattice_vectors[:][0].to('bohr').magnitude.sum()
+        )
 
     @pytest.mark.integration
     def test_electronic_outputs_mapping(self, archive):
@@ -273,9 +272,8 @@ class TestGaOSodiumGeometryOptimization(ExcitingParserIntegrationSuite):
             'hartree'
         ).magnitude == approx(0.489106e-07)
         assert output.scf_steps.delta_charge_abs[23].to(
-            'elementary_charge').magnitude == approx(
-            4.16073e-08
-        )
+            'elementary_charge'
+        ).magnitude == approx(4.16073e-08)
         assert output.scf_steps.delta_force_abs[23].to(
             'hartree / bohr'
         ).magnitude == approx(0.127181e-05)

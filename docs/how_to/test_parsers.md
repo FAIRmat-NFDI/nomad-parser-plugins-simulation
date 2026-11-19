@@ -137,9 +137,7 @@ from tests.parsers.common import (
 )
 
 
-class TestExampleParserSuite(
-    SimulationParserTestSuite, WorkflowTestSuite
-):
+class TestExampleParserSuite(SimulationParserTestSuite, WorkflowTestSuite):
     archive_fixture = 'example_archive'
     expected_program_name = 'ExampleCode'
 ```
