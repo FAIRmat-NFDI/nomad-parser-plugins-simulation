@@ -243,16 +243,15 @@ class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuit
         assert len(simulation.model_system) == self.n_steps
         assert len(simulation.outputs) == self.n_steps
         assert simulation.model_system[-1].is_representative
-        assert [
-            len(system.particle_states) for system in simulation.model_system
-        ] == [self.n_atoms] + [0] * (self.n_steps - 1)
+        assert [len(system.particle_states) for system in simulation.model_system] == [
+            self.n_atoms
+        ] + [0] * (self.n_steps - 1)
         assert all(
             system.positions.shape == (self.n_atoms, 3)
             for system in simulation.model_system
         )
         assert [
-            output.model_system_ref.m_proxy_value
-            for output in simulation.outputs
+            output.model_system_ref.m_proxy_value for output in simulation.outputs
         ] == [f'/data/model_system/{i}' for i in range(self.n_steps)]
 
     @pytest.mark.integration
@@ -260,8 +259,7 @@ class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuit
         outputs = archive.data.outputs
 
         assert [
-            output.total_energies[0].value.to('hartree').magnitude
-            for output in outputs
+            output.total_energies[0].value.to('hartree').magnitude for output in outputs
         ] == pytest.approx(self.energies)
         assert [
             len(output.scf_steps.energies_total) for output in outputs
@@ -318,12 +316,12 @@ class TestOrca6GeometryOptimization(OrcaGeometryOptimizationSuite):
     n_steps = 6
     n_atoms = 3
     energies = [
-    -76.365745915290,
-    -76.366381764866,
-    -76.366429652180,
-    -76.366444025963,
-    -76.366444062916,
-    -76.366444063527,
+        -76.365745915290,
+        -76.366381764866,
+        -76.366429652180,
+        -76.366444025963,
+        -76.366444062916,
+        -76.366444063527,
     ]
     scf_iterations = [15, 9, 7, 6, 3, 2]
     force_threshold = 0.0001000000
@@ -342,12 +340,12 @@ class TestOrca4GeometryOptimization(OrcaGeometryOptimizationSuite):
     n_steps = 6
     n_atoms = 3
     energies = [
-    -76.365725501042,
-    -76.366356332856,
-    -76.366403888790,
-    -76.366419828387,
-    -76.366419849341,
-    -76.366419841490,
+        -76.365725501042,
+        -76.366356332856,
+        -76.366403888790,
+        -76.366419828387,
+        -76.366419849341,
+        -76.366419841490,
     ]
     scf_iterations = [13, 9, 6, 5, 3, 1]
     force_threshold = 0.0001000000

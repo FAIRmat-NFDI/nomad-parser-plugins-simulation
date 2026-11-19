@@ -57,22 +57,22 @@ add_mapping_annotation(workflow.GeometryOptimization.m_def, GEOM_OPT_KEY, '.@')
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.m_def,
     GEOM_OPT_KEY,
-    ('get_geometry_optimization_method', ['@'])
+    ('get_geometry_optimization_method', ['@']),
 )
 add_mapping_annotation(
-workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
+    workflow.geometry_optimization.GeometryOptimizationMethod.optimization_method,
     GEOM_OPT_KEY,
-    '.optimization_method'
+    '.optimization_method',
 )
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.optimization_type,
     GEOM_OPT_KEY,
-    '.optimization_type'
+    '.optimization_type',
 )
 add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationMethod.sampling_frequency,
     GEOM_OPT_KEY,
-    '.sampling_frequency'
+    '.sampling_frequency',
 )
 
 add_mapping_annotation(

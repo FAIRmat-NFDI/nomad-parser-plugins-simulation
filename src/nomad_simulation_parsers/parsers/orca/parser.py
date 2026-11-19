@@ -46,7 +46,7 @@ AO_ROW_RE = re.compile(r'\d+[A-Z][a-z]?$')
 
 
 def empty_or_nones(x: list[Any]) -> bool:
-    return len(x)==0 or all(xi is None for xi in x)
+    return len(x) == 0 or all(xi is None for xi in x)
 
 
 def str_to_cartesian_coordinates(
@@ -232,9 +232,7 @@ class OutParser(MappingTextParser):
         return value
 
     def _get_charge_and_multiplicity(self, source: dict[str, Any]) -> dict[str, int]:
-        scf_settings = self._navigate(
-            source, 'self_consistent', 'scf_settings'
-        )
+        scf_settings = self._navigate(source, 'self_consistent', 'scf_settings')
         result = {}
         total_charge = self._to_scalar(scf_settings.get('total_charge'))
         if total_charge is not None:
@@ -275,16 +273,17 @@ class OutParser(MappingTextParser):
         ]
 
         # set the last valid structure representative
-        for i in range(len(atoms)-1, -1, -1):
+        for i in range(len(atoms) - 1, -1, -1):
             if atoms[i]['particle_states'] and atoms[i]['positions'] is not None:
                 atoms[i]['is_representative'] = True
                 break
 
         # keep particle states only in the first structure with valid particle states
         valid_atoms_id = next(
-                (i for i, a in enumerate(atoms) if a['particle_states']), None)
+            (i for i, a in enumerate(atoms) if a['particle_states']), None
+        )
         if valid_atoms_id is not None:
-            for i in range(valid_atoms_id+1, len(atoms)):
+            for i in range(valid_atoms_id + 1, len(atoms)):
                 atoms[i]['particle_states'] = None
 
         return atoms
@@ -785,7 +784,9 @@ class OutParser(MappingTextParser):
             self._single_points = self._get_single_points(self.text_parser)
         return self._single_points
 
-    def get_scf_iterations(self, point: dict[str, Any]) -> dict[str, list[float|None]]:
+    def get_scf_iterations(
+        self, point: dict[str, Any]
+    ) -> dict[str, list[float | None]]:
         iterations = self._navigate(point, 'self_consistent', 'scf_iterations')
         if not iterations:
             return {}
@@ -810,10 +811,11 @@ class OutParser(MappingTextParser):
                 parsed_keys = [
                     key.replace('-', '').lower().replace('(sec)', '')
                     for key in iter_header
-                    if not (key.startswith('(') and key.endswith(')'))]
+                    if not (key.startswith('(') and key.endswith(')'))
+                ]
                 ikey = parsed_keys.index(key) if key in parsed_keys else None
                 for values in iter_values:
-                    if ikey is not None and len(values)>ikey:
+                    if ikey is not None and len(values) > ikey:
                         value = values[ikey]
                     else:
                         value = None
@@ -829,11 +831,11 @@ class OutParser(MappingTextParser):
         points = self.single_points
         energies = [point.get('energy_total') if point else None for point in points]
         molecular_orbitals = [
-                self.get_molecular_orbitals(point, src) if point else []
-            for point in points]
+            self.get_molecular_orbitals(point, src) if point else [] for point in points
+        ]
         scf_steps = [
-                self.get_scf_iterations(point) if point else []
-            for point in points]
+            self.get_scf_iterations(point) if point else [] for point in points
+        ]
 
         if not any(molecular_orbitals) and not any(energies) and not any(scf_steps):
             return []
@@ -870,7 +872,7 @@ class OutParser(MappingTextParser):
         return result
 
     def get_geometry_optimization_results(
-            self, source: dict[str, Any]
+        self, source: dict[str, Any]
     ) -> dict[str, Any]:
         geometry_optimization = self._navigate(source, 'geometry_optimization')
         cycles = geometry_optimization.get('cycle', [])
@@ -903,8 +905,12 @@ class OutParser(MappingTextParser):
         ]
 
     def _get_scf_convergence_targets(self) -> list[EnergyConvergenceTarget] | None:
-        threshold = self._navigate(self.single_points[0], 'self_consistent',
-            'scf_settings', 'energy_change_tolerance')
+        threshold = self._navigate(
+            self.single_points[0],
+            'self_consistent',
+            'scf_settings',
+            'energy_change_tolerance',
+        )
         if threshold is None:
             return None
         return [

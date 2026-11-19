@@ -4,13 +4,13 @@ import numpy as np
 from nomad.units import ureg
 from nomad_file_parser import Quantity, TextParser
 
-GOConv = namedtuple("GOConv", "key tol_pattern step_pattern unit")
+GOConv = namedtuple('GOConv', 'key tol_pattern step_pattern unit')
 geometry_optimization_conv_params = [
-    GOConv('energy_change',      'Energy Change'    , 'Energy change', 'hartree'),
-    GOConv('max_gradient',       'Max. Gradient'    , 'MAX gradient', 'hartree/bohr'),
-    GOConv('rms_gradient',       'RMS Gradient'     , 'RMS gradient', 'hartree/bohr'),
-    GOConv('max_displacement',   'Max. Displacement', 'MAX step', 'bohr'),
-    GOConv('rms_displacement',   'RMS Displacement' , 'RMS step', 'bohr'),
+    GOConv('energy_change', 'Energy Change', 'Energy change', 'hartree'),
+    GOConv('max_gradient', 'Max. Gradient', 'MAX gradient', 'hartree/bohr'),
+    GOConv('rms_gradient', 'RMS Gradient', 'RMS gradient', 'hartree/bohr'),
+    GOConv('max_displacement', 'Max. Displacement', 'MAX step', 'bohr'),
+    GOConv('rms_displacement', 'RMS Displacement', 'RMS step', 'bohr'),
 ]
 
 
@@ -456,17 +456,17 @@ class OutReader(TextParser):
 
         # Orbital energies quantity
         orbital_energies_quantity = Quantity(
-                'orbital_energies',
-                (
-                    rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
-                    rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
-                    rf'{re_float}\s*\n)+)'
-                ),
-                str_operation=lambda x: np.array(
-                    [v.split()[:4] for v in x.splitlines() if v.strip()],
-                    dtype=float,
-                ),
-                repeats=True,
+            'orbital_energies',
+            (
+                rf'ORBITAL ENERGIES\s*\-+\s*NO\s*OCC\s*E\(Eh\)\s*'
+                rf'E\(eV\)\s*((?:\s*\d+\s+{re_float}\s+{re_float}\s+'
+                rf'{re_float}\s*\n)+)'
+            ),
+            str_operation=lambda x: np.array(
+                [v.split()[:4] for v in x.splitlines() if v.strip()],
+                dtype=float,
+            ),
+            repeats=True,
         )
 
         # Population analysis quantities
@@ -676,27 +676,26 @@ class OutReader(TextParser):
                 r'((?:Iteration|ITER)\b[\s\S]*?)(?='
                 r'(?:Iteration|ITER)\b|\*{10,}|\Z)',
                 repeats=True,
-                sub_parser = TextParser(
-                    quantities=
-                    [
-                    Quantity(
-                        'header',
-                        r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
-                        repeats=False,
-                        dtype=str,
+                sub_parser=TextParser(
+                    quantities=[
+                        Quantity(
+                            'header',
+                            r'(?:\A|\n)(?:ITER|Iteration)([^\r\n]*)',
+                            repeats=False,
+                            dtype=str,
                         ),
-                    Quantity(
-                        'values',
-                        rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
-                        rf'[ \t]+({re_float})[ \t]+({re_float})'
-                        rf'[ \t]+({re_float})[ \t]+({re_float})'
-                        rf'(?:[ \t]+({re_float}))?',
-                        repeats=True,
-                        dtype=float,
+                        Quantity(
+                            'values',
+                            rf'\n *\d+[ \t]+({re_float})[ \t]+({re_float})'
+                            rf'[ \t]+({re_float})[ \t]+({re_float})'
+                            rf'[ \t]+({re_float})[ \t]+({re_float})'
+                            rf'(?:[ \t]+({re_float}))?',
+                            repeats=True,
+                            dtype=float,
                         ),
                     ],
-                    ),
                 ),
+            ),
             Quantity(
                 'final_grid',
                 r'Setting up the final grid:([\s\S]+?)\-{10}',
@@ -1165,11 +1164,11 @@ class OutReader(TextParser):
                 # Thus we first try to find version 6-specific block beginning with
                 # the SHARK header and ending with timing info.
                 (
-                r'('
-                r'-+\r?\nSHARK INTEGRAL PACKAGE\r?\n-+[\s\S]*?Total SCF time:'
-                r'|'
-                r'(?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z)'
-                r')'
+                    r'('
+                    r'-+\r?\nSHARK INTEGRAL PACKAGE\r?\n-+[\s\S]*?Total SCF time:'
+                    r'|'
+                    r'(?:ORCA SCF|DFT GRID GENERATION)\s*\-+[\s\S]+?(?:\-{70}|\Z)'
+                    r')'
                 ),
                 sub_parser=TextParser(quantities=self_consistent_quantities),
             ),
@@ -1286,7 +1285,7 @@ class OutReader(TextParser):
             ),
             Quantity(
                 'casscf_results',
-                # for now, capture only orbinal energies
+                # for now, capture only orbital energies
                 r'-+\r?\nCASSCF RESULTS\r?\n-+([\s\S]*?)'
                 r'-{45}\r?\nCAS-SCF STATES FOR BLOCK',
                 sub_parser=TextParser(
@@ -1328,14 +1327,12 @@ class OutReader(TextParser):
             Quantity('coords_choice', r'Choice of coordinates\s*(\w+)\s*\.+\s*(.+)'),
             Quantity('initial_hessian', r'Initial Hessian\s*(\w+)\s*\.+\s*(.+)'),
             Quantity(
-                'is_converged',
-                r'(THE OPTIMIZATION HAS CONVERGED)',
-                convert=False
+                'is_converged', r'(THE OPTIMIZATION HAS CONVERGED)', convert=False
             ),
             Quantity(
                 'is_not_converged',
                 r'(The optimization did not converge)',
-                convert=False
+                convert=False,
             ),
         ]
 
