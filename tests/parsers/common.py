@@ -159,15 +159,28 @@ class SimulationParserTestSuite(_SimulationParserSuite):
         ):
             assert representative.lattice_vectors is not None
 
-    @pytest.mark.integration
-    def test_topology_frame_is_complete(self, archive):
-        """Topology frame must contain per-particle identity."""
+    def _test_topology_frame_has_particle_states(self, validator, archive):
         required_sections = self.required_simulation_sections or ()
         if 'model_system' not in required_sections:
             pytest.skip('model-system contract is not required for this parser case')
         topology = archive.data.model_system[self.DEFAULT_TOPOLOGY]
         assert topology.particle_states
-        assert all(state.get_label() is not None for state in topology.particle_states)
+        assert all(validator(state) for state in topology.particle_states)
+
+    @pytest.mark.integration
+    def test_topology_frame_is_complete(self, archive):
+        """Topology frame must contain per-particle identity."""
+        self._test_topology_frame_has_particle_states(
+            (lambda state: state.get_label() is not None), archive
+        )
+
+    def _test_topology_frame_has_numbers(self, archive):
+        """For special parsers/cases where topology frame contain atomic numbers
+        and not labels. Can be used to override the default
+        test_topology_frame_is_complete() in subclasses in a consistent way."""
+        self._test_topology_frame_has_particle_states(
+            (lambda state: state.atomic_number is not None), archive
+        )
 
     @pytest.mark.integration
     def test_particle_numbers_match(self, archive):

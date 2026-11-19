@@ -3209,8 +3209,8 @@ wheels = [
 
 [[package]]
 name = "nomad-file-parser"
-version = "0.1.dev53+g138382681"
-source = { git = "https://github.com/FAIRmat-NFDI/nomad-file-parser.git?rev=develop#1383826813b47ec16e5185e98c2965aba81b6cf3" }
+version = "0.1.dev53+ga91d71196"
+source = { git = "https://github.com/FAIRmat-NFDI/nomad-file-parser.git?rev=develop#a91d71196cd815307c7755a4383c4be2a7e81d62" }
 dependencies = [
     { name = "h5py" },
     { name = "jmespath" },
