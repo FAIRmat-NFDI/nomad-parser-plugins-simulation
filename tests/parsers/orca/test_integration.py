@@ -235,6 +235,7 @@ class TestDLPNOCoupledCluster(OrcaParserIntegrationSuite, WorkflowTestSuite):
 
 class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuite):
     workflow_name = 'GeometryOptimization'
+    is_converged = True
 
     @pytest.mark.integration
     def test_geometry_optimization_trajectory(self, archive):
@@ -300,7 +301,7 @@ class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuit
         assert energy_target.threshold_type == 'absolute'
         assert energy_target.threshold.to('hartree').magnitude == approx(1e-8)
 
-        assert workflow.results.is_converged
+        assert workflow.results.is_converged is self.is_converged
         assert workflow.results.n_steps == self.n_steps
         assert list(workflow.results.steps) == list(range(self.n_steps))
         assert workflow.results.final_force_maximum.to('hartree / bohr').magnitude == (
@@ -333,6 +334,18 @@ class TestOrca6GeometryOptimization(OrcaGeometryOptimizationSuite):
         assert [
             len(output.scf_steps.durations) for output in archive.data.outputs
         ] == self.scf_iterations
+
+
+class TestOrca6UnconvergedGeometryOptimization(OrcaGeometryOptimizationSuite):
+    archive_fixture = 'orca_6_unconverged_optimization_archive'
+    is_converged = False
+    n_steps = 2
+    n_atoms = 3
+    energies = [-76.365745915290, -76.366381764866]
+    scf_iterations = [15, 9]
+    force_threshold = 0.0001000000
+    final_force = 0.0042659240
+    final_displacement = 0.0148658788
 
 
 class TestOrca4GeometryOptimization(OrcaGeometryOptimizationSuite):

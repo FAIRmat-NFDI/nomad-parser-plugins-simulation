@@ -64,6 +64,11 @@ def orca_6_optimization_archive() -> EntryArchive:
 
 
 @pytest.fixture(scope='module')
+def orca_6_unconverged_optimization_archive() -> EntryArchive:
+    return parse_orca('geometry_optimization_water_unconverged_v6.out')
+
+
+@pytest.fixture(scope='module')
 def orca_4_optimization_archive() -> EntryArchive:
     return parse_orca('geometry_optimization_water_v4.out')
 
