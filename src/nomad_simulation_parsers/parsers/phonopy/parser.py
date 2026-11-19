@@ -18,6 +18,8 @@ from nomad_simulations.schema_packages.outputs import Outputs
 from phonopy.physical_units import get_physical_units
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
+
 from .calculator import PhononProperties
 
 THzToEv = get_physical_units().THzToEv
@@ -223,10 +225,8 @@ class PhonopyParser(MatchingParser):
     archive_writer = PhonopyArchiveWriter()
 
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger):
-        # run the old parser
-        # TODO remove
-        from workflowparsers.phonopy.parser import PhonopyParser  # noqa
-
-        PhonopyParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('workflowparsers.phonopy.parser.PhonopyParser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger)

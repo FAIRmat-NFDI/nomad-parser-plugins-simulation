@@ -13,6 +13,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
 )
@@ -219,10 +220,8 @@ class GPAWParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        # run the old parser
-        # TODO remove
-        from electronicparsers.gpaw.parser import GPAWParser  # noqa
-
-        GPAWParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.gpaw.parser.GPAWParser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)
