@@ -775,10 +775,10 @@ class OutParser(MappingTextParser):
             geometry_optimization = self._navigate(src, 'geometry_optimization')
             cycles = geometry_optimization.get('cycle', [])
             final = self._navigate(geometry_optimization, 'final_energy_evaluation')
-            return cycles + [final]
+            return cycles + [final] if final else cycles
         else:
             single_point = self._navigate(src, 'single_point')
-            return [single_point]
+            return [single_point] if single_point else []
 
     @property
     def single_points(self) -> list[dict[str, Any]]:
