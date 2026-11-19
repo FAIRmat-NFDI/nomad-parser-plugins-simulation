@@ -5,10 +5,14 @@ from nomad_simulation_parsers.parsers import yambo_parser
 
 @pytest.mark.unit
 class TestYamboRecognition:
-    def test_recognizes_yambo_report(self, tmp_path):
-        contents = (
-            'Version 5.0.4 Revision 1\nMPI+HDF5_IO Build\nhttp://www.yambo-code.org\n'
-        )
+    @pytest.mark.parametrize(
+        'contents', [
+            'Version 5.0.4 Revision 1\nMPI+HDF5_IO Build\nhttp://www.yambo-code.org\n',
+            ('Version 5.3.0 Revision 23927 Hash (prev commit) 1730222ea\n'
+            'Branch is \n' 'Serial+HDF5_IO Build\n' 'http://www.yambo-code.eu\n'),
+        ]
+    )
+    def test_recognizes_yambo_report(self, tmp_path, contents):
         mainfile = tmp_path / 'r-example'
         mainfile.write_text(contents)
 

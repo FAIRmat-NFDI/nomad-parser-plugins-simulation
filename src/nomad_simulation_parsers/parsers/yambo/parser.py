@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -18,9 +17,10 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import yambo
 
-from .file_parsers import MainfileParser, NetCDFParser
+from .file_parsers import MainfileParser, NetCDFParser, SpectraParser
 
 
 class YamboMetainfoParser(MetainfoParser):
@@ -309,6 +309,39 @@ class YamboMainfileParser(TextParser):
         return [dict(value=value)]
 
 
+class YamboSpectraParser(TextParser):
+    def to_dict(self) -> dict[str, Any]:
+        spectra_files = search_files('o*', os.path.dirname(self.filepath))
+        spectra = []
+        for spectra_file in spectra_files:
+            self.text_parser.mainfile = spectra_file
+            self.text_parser.parse()
+            # TODO fix data text parser so parse includes data
+            self.text_parser.get('data')
+            spectra.append(self.text_parser._results)
+        return dict(spectra=spectra)
+
+    def get_energies(self, data: np.ndarray | None) -> np.ndarray | None:
+        if data is None or data.shape[1] < 2:  # noqa: PLR2004
+            return None
+        return data[:, 0] * ureg.eV
+
+    def get_intensities(self, data: np.ndarray | None) -> np.ndarray | None:
+        if data is None or data.shape[1] < 2:  # noqa: PLR2004
+            return None
+
+        return data[:, 1]
+
+    def get_spectrum_type(self, parsed: str | None) -> str | None:
+        if parsed is None:
+            return None
+        return {
+            'Absorption': 'dielectric_function',
+            'EELS': 'energy_loss_spectrum',
+            'Polarizability': 'polarizability',
+        }.get(parsed.strip())
+
+
 class YamboArchiveWriter(ArchiveWriter):
     def write_to_archive(self):
         data = Simulation(program=Program(name='YAMBO'))
@@ -344,9 +377,18 @@ class YamboArchiveWriter(ArchiveWriter):
             data_parser.annotation_key = yambo.NETCDF_KEY
             netcdf_parser.convert(data_parser)
 
+        # spectra files
+        spectra_parser = YamboSpectraParser(
+            logger=self.logger, text_parser=SpectraParser()
+        )
+        spectra_parser.filepath = self.mainfile
+        data_parser.annotation_key = yambo.SPECTRA_KEY
+        spectra_parser.convert(data_parser)
+
         data_parser.close()
         if netcdf_parser is not None:
             netcdf_parser.close()
+        spectra_parser.close()
 
 
 class YamboParser(MatchingParser):
@@ -359,7 +401,4 @@ class YamboParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        # reload schema to load yambo annotations
-        reload(yambo)
-
         self.archive_writer.write(mainfile, archive, logger, child_archives)

@@ -1,16 +1,19 @@
-from nomad.metainfo import SchemaPackage
+from nomad.metainfo import Quantity, SchemaPackage
 from nomad_simulations.schema_packages import (
     general,
     model_method,
     model_system,
     numerical_settings,
     outputs,
+    properties,
+    variables,
 )
 
 from nomad_simulation_parsers.schema_packages.utils import add_mapping_annotation
 
 OUT_KEY = 'yambo_out'
 NETCDF_KEY = 'yambo_netcdf'
+SPECTRA_KEY = 'yambo_spectra'
 
 m_package = SchemaPackage()
 
@@ -79,6 +82,32 @@ class ElectronicBandGap(outputs.ElectronicBandGap):
     )
 
 
+class Energy2(variables.Energy2):
+    add_mapping_annotation(variables.Energy2.points, SPECTRA_KEY, '.@')
+
+
+class AbsorptionSpectrum(properties.AbsorptionSpectrum):
+    add_mapping_annotation(
+        properties.AbsorptionSpectrum.value,
+        SPECTRA_KEY,
+        ('get_intensities', ['.data']),
+    )
+    add_mapping_annotation(
+        properties.AbsorptionSpectrum.energies, SPECTRA_KEY, ('get_energies', ['.data'])
+    )
+    # TODO redundant with label
+    sp_type = Quantity(type=str, description='Spectrum type')
+    n_energies = Quantity(type=int, description='Number of energies in the spectrum')
+    add_mapping_annotation(sp_type, SPECTRA_KEY, '.sp_type')
+    add_mapping_annotation(n_energies, SPECTRA_KEY, '.n_energies')
+    add_mapping_annotation(properties.AbsorptionSpectrum.label, SPECTRA_KEY, '.sp_type')
+    add_mapping_annotation(
+        properties.AbsorptionSpectrum.type,
+        SPECTRA_KEY,
+        ('get_spectrum_type', ['.sp_type']),
+    )
+
+
 class Outputs(outputs.Outputs):
     add_mapping_annotation(
         outputs.Outputs.electronic_eigenvalues,
@@ -107,6 +136,7 @@ class Outputs(outputs.Outputs):
             ['.valence_conduction', '.valence', '.conduction'],
         ),
     )
+    add_mapping_annotation(AbsorptionSpectrum.m_def, SPECTRA_KEY, '.spectra')
 
 
 class Simulation(general.Simulation):
@@ -129,10 +159,12 @@ class Simulation(general.Simulation):
             ],
         ),
     )
+    add_mapping_annotation(Outputs.m_def, SPECTRA_KEY, '.@')
 
 
 add_mapping_annotation(general.Simulation.m_def, OUT_KEY, '@')
 add_mapping_annotation(general.Simulation.m_def, NETCDF_KEY, '@')
+add_mapping_annotation(general.Simulation.m_def, SPECTRA_KEY, '@')
 
 
 try:
