@@ -26,6 +26,10 @@ from nomad_simulations.schema_packages.workflow.general import (
     EnergyConvergenceTarget,
     ForceConvergenceTarget,
 )
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointResults,
+)
 
 from nomad_simulation_parsers.schema_packages import orca
 
@@ -942,23 +946,43 @@ class OutParser(MappingTextParser):
             if not any(isinstance(method, HF) for method in methods) or not any(
                 isinstance(method, CC) for method in methods
             ):
-                return None
+                name = type(methods[0]).__name__ if methods else 'Unknown'
+                output = (
+                    Link(name='Outputs', section=simulation.outputs[-1])
+                    if simulation.outputs
+                    else None
+                )
+                archive.workflow2 = SinglePoint(
+                    name=name,
+                    outputs=[output],
+                    tasks=[
+                        Task(
+                            name=name,
+                            outputs=[Link(name='Outputs', section=output)],
+                        )
+                    ],
+                    results=SinglePointResults(),
+                )
 
-            tasks = [Task(name='HF')]
-            if any(isinstance(method, OrbitalLocalization) for method in methods):
-                tasks.append(Task(name='Orbital localization'))
-            if any(isinstance(method, PerturbationMethod) for method in methods):
-                tasks.append(Task(name='Local MP2'))
-            outputs = (
-                [Link(name='Outputs', section=simulation.outputs[-1])]
-                if simulation.outputs
-                else []
-            )
-            cc = next(method for method in methods if isinstance(method, CC))
-            tasks.append(
-                Task(name='Local CC' if cc.local_correlation else 'CC', outputs=outputs)
-            )
-            archive.workflow2 = SerialWorkflow(tasks=tasks)
+            else:
+                tasks = [Task(name='HF')]
+                if any(isinstance(method, OrbitalLocalization) for method in methods):
+                    tasks.append(Task(name='Orbital localization'))
+                if any(isinstance(method, PerturbationMethod) for method in methods):
+                    tasks.append(Task(name='Local MP2'))
+                outputs = (
+                    [Link(name='Outputs', section=simulation.outputs[-1])]
+                    if simulation.outputs
+                    else []
+                )
+                cc = next(method for method in methods if isinstance(method, CC))
+                tasks.append(
+                    Task(
+                        name='Local CC' if cc.local_correlation else 'CC',
+                        outputs=outputs,
+                    )
+                )
+                archive.workflow2 = SerialWorkflow(tasks=tasks)
         archive.workflow2.normalize(archive, logger)
         return archive.workflow2
 
