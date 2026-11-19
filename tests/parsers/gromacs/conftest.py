@@ -28,9 +28,7 @@ def protein_small_archive() -> EntryArchive:
 
 @pytest.fixture(scope='class')
 def hierarchy_disambiguation_archive() -> EntryArchive:
-    return parse_gromacs(
-        DATA_DIR / 'hierarchy_disambiguation' / 'frame49-mini.log'
-    )
+    return parse_gromacs(DATA_DIR / 'hierarchy_disambiguation' / 'frame49-mini.log')
 
 
 @pytest.fixture(scope='class')

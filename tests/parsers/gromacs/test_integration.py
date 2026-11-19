@@ -132,6 +132,7 @@ class TestGromacsProteinSmallArchive(GromacsParserIntegrationSuite):
                     for monomer in monomer_group.sub_systems or []:
                         assert monomer.branch_label == 'monomer'
 
+
 @pytest.mark.integration
 class TestGromacsHierarchyDisambiguationArchive(GromacsParserIntegrationSuite):
     archive_fixture = 'hierarchy_disambiguation_archive'
@@ -140,9 +141,7 @@ class TestGromacsHierarchyDisambiguationArchive(GromacsParserIntegrationSuite):
     def test_preserves_coarse_grained_particle_identities(self, archive):
         topology, *trajectory_frames = archive.data.model_system
 
-        assert all(
-            isinstance(state, CGBeadState) for state in topology.particle_states
-        )
+        assert all(isinstance(state, CGBeadState) for state in topology.particle_states)
         assert [state.get_label() for state in topology.particle_states] == [
             'WN1',
             'WP1',
