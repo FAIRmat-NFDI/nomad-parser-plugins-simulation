@@ -158,6 +158,8 @@ class CrystalOutputParser(TextParser):
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         # `dict.fromkeys` deduplicates in first-seen order; a set's iteration
         # order varies between processes.
+        if source is None:
+            return []
         names = (
             xc
             for key in ('exchange', 'correlation', 'exchange_correlation')
