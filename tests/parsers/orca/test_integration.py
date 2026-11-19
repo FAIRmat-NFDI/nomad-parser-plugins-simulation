@@ -241,19 +241,21 @@ class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuit
     def test_geometry_optimization_trajectory(self, archive):
         simulation = archive.data
 
-        assert len(simulation.model_system) == self.n_steps
-        assert len(simulation.outputs) == self.n_steps
+        n_single_points = self.n_steps + int(self.is_converged)
+
+        assert len(simulation.model_system) == n_single_points
+        assert len(simulation.outputs) == n_single_points
         assert simulation.model_system[-1].is_representative
         assert [len(system.particle_states) for system in simulation.model_system] == [
             self.n_atoms
-        ] + [0] * (self.n_steps - 1)
+        ] + [0] * (n_single_points - 1)
         assert all(
             system.positions.shape == (self.n_atoms, 3)
             for system in simulation.model_system
         )
         assert [
             output.model_system_ref.m_proxy_value for output in simulation.outputs
-        ] == [f'/data/model_system/{i}' for i in range(self.n_steps)]
+        ] == [f'/data/model_system/{i}' for i in range(n_single_points)]
 
     @pytest.mark.integration
     def test_per_step_energy_and_scf_data(self, archive):
@@ -314,7 +316,7 @@ class OrcaGeometryOptimizationSuite(OrcaParserIntegrationSuite, WorkflowTestSuit
 
 class TestOrca6GeometryOptimization(OrcaGeometryOptimizationSuite):
     archive_fixture = 'orca_6_optimization_archive'
-    n_steps = 6
+    n_steps = 5
     n_atoms = 3
     energies = [
         -76.365745915290,
@@ -350,7 +352,7 @@ class TestOrca6UnconvergedGeometryOptimization(OrcaGeometryOptimizationSuite):
 
 class TestOrca4GeometryOptimization(OrcaGeometryOptimizationSuite):
     archive_fixture = 'orca_4_optimization_archive'
-    n_steps = 6
+    n_steps = 5
     n_atoms = 3
     energies = [
         -76.365725501042,
