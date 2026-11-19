@@ -86,6 +86,11 @@ add_mapping_annotation(
     '.is_converged',
 )
 add_mapping_annotation(
+    workflow.geometry_optimization.GeometryOptimizationResults.n_steps,
+    GEOM_OPT_KEY,
+    '.n_steps',
+)
+add_mapping_annotation(
     workflow.geometry_optimization.GeometryOptimizationResults.steps,
     GEOM_OPT_KEY,
     '.steps',

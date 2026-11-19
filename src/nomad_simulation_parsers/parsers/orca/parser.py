@@ -873,9 +873,10 @@ class OutParser(MappingTextParser):
     def get_geometry_optimization_results(
             self, source: dict[str, Any]
     ) -> dict[str, Any]:
-        n_steps = len(self.single_points)
         geometry_optimization = self._navigate(source, 'geometry_optimization')
-        last_cycle = geometry_optimization.get('cycle', [{}])[-1]
+        cycles = geometry_optimization.get('cycle', [])
+        last_cycle = cycles[-1] if cycles else {}
+        n_steps = len(cycles)
         if geometry_optimization.get('is_converged'):
             converged = True
         elif geometry_optimization.get('is_not_converged'):
@@ -884,6 +885,7 @@ class OutParser(MappingTextParser):
             converged = None
         return {
             'is_converged': converged,
+            'n_steps': n_steps,
             'steps': list(range(n_steps)),
             'final_force_maximum': last_cycle.get('geom_opt_max_gradient'),
             'final_displacement_maximum': last_cycle.get('geom_opt_max_displacement'),
