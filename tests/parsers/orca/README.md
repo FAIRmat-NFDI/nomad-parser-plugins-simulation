@@ -5,6 +5,8 @@
 | Mainfile recognition | `test_recognition.py` | not applicable | not applicable |
 | Structure and atomic species | `CARTESIAN COORDINATES` fragment in `test_reader.py` | not yet isolated (`get_atoms` is a root aggregator) | `RI_MP2_water` |
 | SCF settings (charge, multiplicity, reference) | SCF-settings fragment in `test_reader.py` | `TestDFTMapping` (reference form) | `RI_MP2_water`, `dft-print-MOs` |
+| SCF iteration history (ORCA 4 and 6) | Iteration headers and rows in `test_reader.py` | `TestSCFStepsMapping` | Water geometry optimizations |
+| Geometry optimization (cycle values and convergence) | Cycle and banner fragments in `test_reader.py` | `TestGeometryOptimizationMapping` | Converged ORCA 4 and 6 and unconverged ORCA 6 water optimizations |
 | DFT exchange-correlation | not yet isolated | `TestDFTMapping` | `dft-print-MOs` |
 | HF reference | not yet isolated | not yet isolated (`get_hf_methods`) | `dlpno-coupled-cluster` |
 | MP2 / perturbation (SCS, local correlation) | not yet isolated | `TestPerturbationMapping` | `RI_MP2_water`, `dlpno-coupled-cluster` |
