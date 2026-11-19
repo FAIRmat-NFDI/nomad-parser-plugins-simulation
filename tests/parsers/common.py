@@ -71,6 +71,8 @@ class _SimulationParserSuite:
 
     archive_fixture: str
     expected_program_name: str
+    DEFAULT_REPRESENTATIVE = -1
+    DEFAULT_TOPOLOGY = 0
 
     @pytest.fixture(scope='class')
     @classmethod
@@ -89,9 +91,6 @@ class SimulationParserTestSuite(_SimulationParserSuite):
     required_simulation_sections = ('model_method', 'model_system', 'outputs')
     require_lattice_vectors = False
     require_periodic_boundary_conditions = False
-
-    DEFAULT_REPRESENTATIVE = -1
-    DEFAULT_TOPOLOGY = 0
 
     def assert_identity_populated_once(
         self, archive: EntryArchive, topology_index: int | None = None
@@ -221,6 +220,8 @@ class WorkflowTestSuite(_SimulationParserSuite):
 class SimulationParserPipelineTestSuite(_SimulationParserSuite):
     """Common NOMAD normalization compatibility contract for a parser."""
 
+    composition_formula: str | None = None
+
     @pytest.mark.pipeline
     def test_normalizer_consumes_archive(self, archive):
         normalized = EntryArchive.m_from_dict(archive.m_to_dict())
@@ -238,3 +239,7 @@ class SimulationParserPipelineTestSuite(_SimulationParserSuite):
         assert normalized.data.model_system[representative_index].is_representative
         assert normalized.results is not None
         assert normalized.results.properties is not None
+
+        if self.composition_formula is not None:
+            topology = normalized.data.model_system[self.DEFAULT_TOPOLOGY]
+            assert topology.composition_formula == self.composition_formula
