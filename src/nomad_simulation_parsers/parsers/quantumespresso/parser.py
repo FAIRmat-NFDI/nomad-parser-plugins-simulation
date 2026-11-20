@@ -29,6 +29,7 @@ from nomad_simulations.schema_packages.workflow import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import (
     link_outputs_to_model_systems,
     search_files,
@@ -570,6 +571,32 @@ class QuantumEspressoParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
         self.level = len(child_archives)
+        program_name = get_program_types(mainfile)
+        if not program_name:
+            return
+
+        parser = {
+            'pwscf': (
+                'electronicparsers.quantumespresso.parser.'
+                'QuantumEspressoParser'
+            ),
+            'epw': (
+                'workflowparsers.quantum_espresso_epw.parser.'
+                'QuantumEspressoEPWParser'
+            ),
+            'phonon': (
+                'workflowparsers.quantum_espresso_phonon.parser.'
+                'QuantumEspressoPhononParser'
+            ),
+            'xspectra': (
+                'workflowparsers.quantum_espresso_xspectra.parser.'
+                'QuantumEspressoXSpectraParser'
+            ),
+        }.get(program_name[0].lower())
+
+        if parser is not None:
+            LegacyParserRunner(parser).run(mainfile, archive, logger)
+
         archive_writer = QuantumEspressoArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 

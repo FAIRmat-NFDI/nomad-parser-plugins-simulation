@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from importlib import reload
 from typing import Any
 
 import numpy as np
@@ -18,6 +17,7 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.schema_packages import yambo
 
 from .file_parsers import MainfileParser, NetCDFParser
@@ -359,7 +359,8 @@ class YamboParser(MatchingParser):
         logger: BoundLogger,
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
-        # reload schema to load yambo annotations
-        reload(yambo)
+        LegacyParserRunner('electronicparsers.yambo.parser.YamboParser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)

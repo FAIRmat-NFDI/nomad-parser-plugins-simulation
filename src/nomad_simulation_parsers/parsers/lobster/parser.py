@@ -17,6 +17,7 @@ from nomad_file_parser.mapping_parser import (
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.parsers.vasp.doscar_parser import (
     DOSCARFileParser,
@@ -350,5 +351,9 @@ class LobsterArchiveWriter(ArchiveWriter):
 
 class LobsterParser(MatchingParser):
     def parse(self, mainfile: str, archive: EntryArchive, logger: BoundLogger) -> None:
+        LegacyParserRunner('workflowparsers.lobster.parser.LobsterParser').run(
+            mainfile, archive, logger
+        )
+
         archive_writer = LobsterArchiveWriter()
         archive_writer.write(mainfile, archive, logger)

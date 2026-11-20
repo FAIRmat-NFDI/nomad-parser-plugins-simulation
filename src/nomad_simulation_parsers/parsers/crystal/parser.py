@@ -24,6 +24,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
@@ -381,4 +382,8 @@ class CrystalParser(MatchingParser):
         logger: BoundLogger,
         child_arhives: dict[str, EntryArchive] = {},
     ):
+
+        LegacyParserRunner('electronicparsers.crystal.parser.CrystalParser').run(
+            mainfile, archive, logger
+        )
         self.archive_writer.write(mainfile, archive, logger, child_arhives)

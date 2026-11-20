@@ -10,6 +10,7 @@ from nomad.utils import get_logger
 from nomad_file_parser.mapping_parser import HDF5Parser, MetainfoParser, Path
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.mdparserutils import MDParser
 from nomad_simulation_parsers.schema_packages import h5md
 
@@ -544,4 +545,8 @@ class H5MDParser(MatchingParser):
         logger: BoundLogger | None = None,
         child_archives: dict[str, EntryArchive] | None = None,
     ) -> None:
+        LegacyParserRunner('atomisticparsers.h5md.parser.H5MDParser').run(
+            mainfile, archive, logger
+        )
+
         self.archive_writer.write(mainfile, archive, logger, child_archives or {})
