@@ -35,6 +35,7 @@ from nomad_simulation_parsers.parsers.fhiaims.out_parser import (
     FHIAimsOutFileParser,
     FHIAimsOutFileParserLine,
 )
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.phonopy.parser import phonopy_obj_to_archive
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
@@ -889,18 +890,16 @@ class FHIAimsParser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, EntryArchive] = None,
     ) -> None:
-        from electronicparsers.fhiaims.parser import (  # noqa: PLC0415
-            FHIAimsParser as LegacyFHIAimsParser,
-        )
+        def prepare(legacy_parser):
+            if hasattr(legacy_parser, 'out_parser'):
+                _extend_legacy_out_parser(legacy_parser.out_parser)
+            if child_archives is not None:
+                legacy_parser._child_archives = child_archives
 
-        legacy_parser = LegacyFHIAimsParser()
-        if hasattr(legacy_parser, 'out_parser'):
-            _extend_legacy_out_parser(legacy_parser.out_parser)
-        if child_archives is not None:
-            legacy_parser._child_archives = child_archives
-
+        legacy_parser = LegacyParserRunner(
+            'electronicparsers.fhiaims.parser.FHIAimsParser'
+        ).run(mainfile, archive, logger, prepare=prepare)
         writer = self.archive_writer
-        legacy_parser.parse(mainfile, archive, logger)
         writer.parsed_text_parser = getattr(legacy_parser, 'out_parser', None)
         try:
             writer.write(mainfile, archive, logger, child_archives)

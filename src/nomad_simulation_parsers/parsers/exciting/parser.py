@@ -30,6 +30,7 @@ from structlog.stdlib import (
     BoundLogger,
 )
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     search_files,
@@ -683,10 +684,8 @@ class ExcitingParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = None,
     ):
 
-        # run the old parser
-        # TODO remove
-        from electronicparsers.exciting.parser import ExcitingParser  # noqa
-
-        ExcitingParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.exciting.parser.ExcitingParser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)

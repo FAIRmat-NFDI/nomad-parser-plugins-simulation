@@ -25,6 +25,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
     link_outputs_to_model_systems,
@@ -355,9 +356,7 @@ class AMSParser(MatchingParser):
         logger: BoundLogger = None,
         child_archives: dict[str, EntryArchive] = {},
     ):
-        # run the old parser
-        # TODO remove
-        from electronicparsers.ams.parser import AMSParser  # noqa
-
-        AMSParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.ams.parser.AMSParser').run(
+            mainfile, archive, logger
+        )
         self.archive_writer.write(mainfile, archive, logger, child_archives)

@@ -17,6 +17,7 @@ from nomad_simulations.schema_packages.workflow import SinglePoint
 from nomad_simulations.schema_packages.workflow.dmft import DFTTBDMFTWorkflow
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import search_files
 from nomad_simulation_parsers.schema_packages import wannier90
 
@@ -584,10 +585,8 @@ class Wannier90Parser(MatchingParser):
         logger: 'BoundLogger',
         child_archives: dict[str, 'EntryArchive'] = {},
     ) -> None:
-        # run the old parser
-        # TODO remove
-        from electronicparsers.wannier90.parser import Wannier90Parser  # noqa
-
-        Wannier90Parser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.wannier90.parser.Wannier90Parser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)

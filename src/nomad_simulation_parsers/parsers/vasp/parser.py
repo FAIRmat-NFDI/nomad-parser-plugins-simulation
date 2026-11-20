@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 from nomad.parsing import MatchingParser
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
+
 from .outcar_parser import OutcarArchiveWriter
 from .xml_parser import XMLArchiveWriter
 
@@ -26,8 +28,6 @@ class VASPParser(MatchingParser):
             archive_writer = XMLArchiveWriter()
         archive_writer.write(mainfile, archive, logger, child_archives)
 
-        # run the old parser
-        # TODO remove
-        from electronicparsers.vasp.parser import VASPParser  # noqa
-
-        VASPParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.vasp.parser.VASPParser').run(
+            mainfile, archive, logger
+        )

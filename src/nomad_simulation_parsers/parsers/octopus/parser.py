@@ -11,6 +11,7 @@ from nomad_file_parser.mapping_parser import MetainfoParser, TextParser
 from nomad_simulations.schema_packages.general import Program, Simulation
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.legacy import LegacyParserRunner
 from nomad_simulation_parsers.parsers.utils.general import (
     calculate_band_gap_from_occupations,
 )
@@ -543,10 +544,8 @@ class OctopusParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = {},
     ) -> None:
 
-        # run the old parser
-        # TODO remove
-        from electronicparsers.octopus.parser import OctopusParser  # noqa
-
-        OctopusParser().parse(mainfile, archive, logger)
+        LegacyParserRunner('electronicparsers.octopus.parser.OctopusParser').run(
+            mainfile, archive, logger
+        )
 
         self.archive_writer.write(mainfile, archive, logger, child_archives)
