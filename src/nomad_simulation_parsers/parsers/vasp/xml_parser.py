@@ -233,9 +233,7 @@ class VasprunParser(XMLParser):
 
     def get_forces(self, source: dict[str, Any]) -> dict[str, Any]:
         value = self.get_data(source, path='.varray.v')
-        if value is None:
-            return {}
-        return dict(forces=value, npoints=len(value), rank=[3])
+        return {'forces': value} if value is not None else {}
 
     def reshape_array(self, source: np.ndarray, shape_rest: tuple = (3,)) -> np.ndarray:
         if source is None:
