@@ -51,7 +51,7 @@ class TestCMinimalArchive(ExcitingParserIntegrationSuite):
             'EnergyConvergenceTarget',
             'DensityConvergenceTarget',
         ]
-        assert targets[0].threshold_type == 'rms'
+        assert targets[0].threshold_type == 'absolute'
         assert targets[1].threshold_type == 'absolute'
         assert targets[2].threshold_type == 'absolute'
         assert targets[0].threshold.to('hartree').magnitude == approx(

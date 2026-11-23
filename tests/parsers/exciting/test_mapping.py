@@ -2,7 +2,15 @@ from unittest.mock import PropertyMock, patch
 
 import numpy as np
 import pytest
+from nomad.datamodel import EntryArchive
 from nomad.units import ureg
+from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.outputs import Outputs, SCFSteps
+from nomad_simulations.schema_packages.workflow.single_point import (
+    SinglePoint,
+    SinglePointMethod,
+)
 
 from nomad_simulation_parsers.parsers.exciting.parser import (
     BandstructureXMLParser,
@@ -54,6 +62,93 @@ class TestInfoParserMapping:
         assert result['delta_energies_total'][-1].to(
             'hartree'
         ).magnitude == pytest.approx(5e-6)
+
+    @pytest.mark.parametrize(
+        ('scf_history', 'thresholds', 'expected_targets', 'expected_converged'),
+        [
+            pytest.param(
+                # Total energy, RMS potential change, absolute charge change in a.u.
+                [
+                    (-470.41895633, 0, 0),
+                    (-469.77639935, 16.3619, 0.00426985),
+                    (-469.42507007, 12.0457, 0.00241697),
+                    (-470.20883560, 0.086184, 0.00457412),
+                    (-467.88686660, 0.107, 0.014833),
+                    (-469.12499436, 0.00445151, 0.00796641),
+                    (-469.21422156, 0.00310446, 0.00055505),
+                    (-469.15655455, 0.000436029, 0.000364686),
+                    (-469.16327297, 6.80138e-6, 4.16918e-5),
+                    (-469.16317864, 3.39085e-6, 3.36169e-7),
+                    (-469.16315587, 3.42312e-7, 2.16994e-7),
+                    (-469.16316142, 7.43429e-8, 4.63388e-8),
+                    (-469.16316077, 1.25638e-8, 5.26988e-9),
+                    (-469.16316066, 3.71179e-9, 8.62576e-10),
+                ],
+                # Threshold values and residual column indices.
+                {
+                    'x_exciting_energy_convergence': (1e-6 * ureg.hartree, -1),
+                    'x_exciting_effective_potential_convergence': (
+                        1e-6 * ureg.hartree,
+                        1,
+                    ),
+                    'x_exciting_charge_convergence': (1e-5 * ureg.elementary_charge, 2),
+                },
+                [
+                    ('PotentialConvergenceTarget', True),
+                    ('EnergyConvergenceTarget', True),
+                    ('DensityConvergenceTarget', True),
+                ],
+                True,
+                id='all-targets-met',
+            ),
+        ],
+    )
+    def test_scf_convergence(
+        self, scf_history, thresholds, expected_targets, expected_converged
+    ):
+        # Add a column for the energy change between iterations
+        scf_history = np.pad(
+            scf_history,
+            ((0, 0), (0, 1)),
+            mode='constant',
+            constant_values=0.0,
+        )
+        scf_history[1:, -1] = np.abs(np.diff(scf_history[:, 0], axis=0))
+
+        iterations = []
+        for step, iter_data in enumerate(scf_history):
+            iteration = {
+                'energy_total': iter_data[0] * ureg.hartree,
+                'time_physical': (step + 1) * ureg.second,
+            }
+            if step > 0:
+                for key, (threshold, icol) in thresholds.items():
+                    iteration[key] = (
+                        np.array([iter_data[icol], threshold.magnitude])
+                        * threshold.units
+                    )
+            iterations.append(iteration)
+
+        source = {'groundstate': {'scf_iteration': iterations}}
+        parser = InfoParser()
+        result = parser.get_scf_steps(source)
+
+        workflow = SinglePoint(
+            method=SinglePointMethod(
+                convergence_targets=parser.get_single_point_convergence(source)
+            )
+        )
+        archive = EntryArchive(
+            data=Simulation(outputs=[Outputs(scf_steps=SCFSteps(**result))]),
+            workflow2=workflow,
+        )
+        workflow.normalize(archive, get_logger(__name__))
+
+        assert [
+            (entry.convergence_target_ref.m_def.name, entry.is_reached)
+            for entry in workflow.results.convergence
+        ] == expected_targets
+        assert workflow.results.is_converged is expected_converged
 
     def test_maps_smearing_kind(self):
         parser = InfoParser()
