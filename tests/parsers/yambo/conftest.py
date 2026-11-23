@@ -39,3 +39,8 @@ def aluminum_archive() -> EntryArchive:
 @pytest.fixture(scope='module')
 def ch4_archive() -> EntryArchive:
     return parse_yambo(DATA_DIR / 'CH4_db_minimal' / 'r_setup')
+
+
+@pytest.fixture(scope='module')
+def spectra_archive() -> EntryArchive:
+    return parse_yambo(DATA_DIR / 'spectra' / 'r_setup')
