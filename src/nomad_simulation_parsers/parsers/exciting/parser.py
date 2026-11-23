@@ -42,7 +42,7 @@ from .info_parser import InfoFileParser
 convergence_threshold_mapping = {
     'x_exciting_effective_potential_convergence': {
         'class': PotentialConvergenceTarget,
-        'threshold_type': 'rms',
+        'threshold_type': 'absolute',
     },
     'x_exciting_energy_convergence': {
         'class': EnergyConvergenceTarget,
