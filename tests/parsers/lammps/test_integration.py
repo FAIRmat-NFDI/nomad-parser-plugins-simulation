@@ -117,6 +117,34 @@ class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
         ).magnitude == approx(4.2341122)
         self.assert_identity_populated_once(archive)
 
+    def test_polymer_occurrences_share_type_names(self, archive):
+        group = archive.data.model_system[0].sub_systems[0]
+        molecules = group.sub_systems
+
+        assert group.name == 'group_molecule_1'
+        assert len(molecules) == 100
+        assert {molecule.name for molecule in molecules} == {'molecule_1'}
+        assert len({tuple(molecule.particle_indices) for molecule in molecules}) == 100
+        first_groups = molecules[0].sub_systems
+        assert [subgroup.name for subgroup in first_groups] == [
+            'group_monomer_1',
+            'group_monomer_2',
+            'group_monomer_3',
+        ]
+        for molecule in molecules:
+            assert [subgroup.name for subgroup in molecule.sub_systems] == [
+                subgroup.name for subgroup in first_groups
+            ]
+            assert [len(subgroup.sub_systems) for subgroup in molecule.sub_systems] == [
+                1,
+                8,
+                1,
+            ]
+            for subgroup in molecule.sub_systems:
+                assert len({monomer.name for monomer in subgroup.sub_systems}) == 1
+                assert subgroup.name == f'group_{subgroup.sub_systems[0].name}'
+                assert set(subgroup.particle_indices) <= set(molecule.particle_indices)
+
 
 @pytest.mark.integration
 class TestLammpsDcdArchive(LammpsMDIntegrationSuite):
