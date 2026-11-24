@@ -599,7 +599,7 @@ class FHIAimsArchiveWriter(ArchiveWriter):
         out_parser.text_parser.line_parsing = self.line_parsing
         out_parser.text_parser.allow_overlap = self.line_parsing
         out_parser.filepath = self.mainfile
-        text_parsers  = [out_parser.data_object]
+        text_parsers = [out_parser.data_object]
 
         archive_handler = FHIAimsMetainfoParser(logger=self.logger)
         archive_handler.annotation_key = self.annotation_key
