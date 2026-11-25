@@ -639,8 +639,7 @@ class LogParser(TextParser):
         read_data = self.get('read_data') or []
         if isinstance(read_data, str):
             read_data = [read_data]
-        # Runtime output can create a spurious `read_data CPU` match. Retain
-        # genuine commands instead of discarding them and scanning the directory.
+        # Ignore spurious `read_data CPU` matches from runtime output.
         read_data = [file for file in read_data if file != 'CPU']
         if not read_data:
             self.logger.warning(self._file_scan_warning.format('Data'))

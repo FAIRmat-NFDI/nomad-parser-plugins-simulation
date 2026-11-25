@@ -444,10 +444,9 @@ class LammpsArchiveWriter(MDParser):
             simulation.model_system[-1].is_representative = True
 
     def _parse_input_structure(self, simulation: Simulation) -> None:
-        """Store a known input structure when no trajectory was found.
+        """Store the initial structure from ``read_data`` when no trajectory exists.
 
-        This is the structure supplied to LAMMPS by ``read_data``, not an
-        inferred post-run or post-minimization configuration.
+        These coordinates describe the input state; the final state is unavailable.
         """
         data_file = self._data_parser.mainfile
         if data_file is None or not os.path.isfile(data_file):
