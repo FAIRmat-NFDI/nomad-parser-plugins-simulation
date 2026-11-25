@@ -2,7 +2,11 @@ import numpy as np
 import pytest
 from nomad.utils import get_logger
 
-from tests.parsers.common import SimulationParserTestSuite, approx
+from tests.parsers.common import (
+    SimulationParserTestSuite,
+    WorkflowTestSuite,
+    approx,
+)
 
 LOGGER = get_logger(__name__)
 
@@ -12,9 +16,32 @@ class LammpsParserIntegrationSuite(SimulationParserTestSuite):
     required_simulation_sections = ('model_method', 'model_system')
 
 
+class LammpsMDIntegrationSuite(LammpsParserIntegrationSuite, WorkflowTestSuite):
+    workflow_name = 'MolecularDynamics'
+
+
 @pytest.mark.integration
-class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethylNaphthaleneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methyl_naphthalene_archive'
+
+    def test_npt_method_from_main_and_auxiliary_logs(self, archive):
+        method = archive.workflow2.method
+        assert method.thermodynamic_ensemble == 'NPT'
+        assert method.integrator_type == 'velocity_verlet'
+        assert method.integration_timestep.to('fs').magnitude == approx(2)
+        assert method.n_steps == 30000
+        assert method.coordinate_save_frequency == 10000
+        assert method.thermodynamics_save_frequency == 100
+        assert method.thermostat_parameters[0].coupling_constant.to(
+            'fs'
+        ).magnitude == approx(100)
+        assert method.barostat_parameters[0].coupling_type == 'isotropic'
+        assert np.diag(
+            method.barostat_parameters[0].coupling_constant.to('fs').magnitude
+        ) == approx([1000, 1000, 1000])
+        assert method.barostat_parameters[0].reference_pressure.to(
+            'atm'
+        ).magnitude == approx(np.eye(3) * 800)
 
     def test_archive_contains_trajectory_and_topology(self, archive):
         simulation = archive.data
@@ -34,8 +61,23 @@ class TestLammpsMethylNaphthaleneArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
+class TestLammpsHexaneArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'hexane_archive'
+
+    def test_nvt_method_from_main_and_auxiliary_logs(self, archive):
+        method = archive.workflow2.method
+        assert method.thermodynamic_ensemble == 'NVT'
+        assert method.integration_timestep.to('fs').magnitude == approx(0.25)
+        assert method.n_steps == 80000
+        assert method.coordinate_save_frequency == 400
+        assert method.thermodynamics_save_frequency == 400
+        assert method.thermostat_parameters[0].thermostat_type == 'nose_hoover'
+        assert method.thermostat_parameters[0].reference_temperature.to(
+            'K'
+        ).magnitude == approx(300)
+        assert method.thermostat_parameters[0].coupling_constant.to(
+            'fs'
+        ).magnitude == approx(100)
 
     def test_archive_contains_nvt_structure(self, archive):
         simulation = archive.data
@@ -52,7 +94,6 @@ class TestLammpsHexaneArchive(LammpsParserIntegrationSuite):
         self.assert_identity_populated_once(archive)
 
 
-@pytest.mark.integration
 @pytest.mark.large_fixture
 class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
     archive_fixture = 'polymer_melt_minimization_archive'
@@ -78,7 +119,7 @@ class TestLammpsPolymerMeltArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
+class TestLammpsDcdArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_dcd_archive'
 
     def test_reads_dcd_trajectory(self, archive):
@@ -96,7 +137,7 @@ class TestLammpsDcdArchive(LammpsParserIntegrationSuite):
 
 
 @pytest.mark.integration
-class TestLammpsMethaneXyzArchive(LammpsParserIntegrationSuite):
+class TestLammpsMethaneXyzArchive(LammpsMDIntegrationSuite):
     archive_fixture = 'methane_xyz_archive'
 
     def test_reads_xyz_trajectory(self, archive):
