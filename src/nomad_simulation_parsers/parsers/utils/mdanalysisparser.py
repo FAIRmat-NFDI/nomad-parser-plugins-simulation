@@ -207,33 +207,27 @@ class MDAnalysisParser(FileParser):
         self._results['n_frames'] = len(self.universe.trajectory)
 
     def get_fragtypes(self):
-        # TODO put description otherwise, make private or put under parse method
-        """ """
-        atoms_fragtypes = np.empty(self.universe.atoms.types.shape, dtype=str)
-        ctr_fragtype = 0
-        atoms_fragtypes[self.universe.atoms.fragments[0].ix] = ctr_fragtype
-        frag_unique_atomtypes = [
-            self.universe.atoms.types[self.universe.atoms.fragments[0].ix]
-        ]
-        ctr_fragtype += 1
-        for i_frag in range(1, self.universe.atoms.n_fragments):
-            types_i_frag = self.universe.atoms.types[
-                self.universe.atoms.fragments[i_frag].ix
-            ]
-            flag_fragtype_exists = False
-            for j_frag in range(len(frag_unique_atomtypes) - 1, -1, -1):
-                types_j_frag = frag_unique_atomtypes[j_frag]
-                if len(types_i_frag) != len(types_j_frag):
-                    continue
-                elif np.all(types_i_frag == types_j_frag):
-                    atoms_fragtypes[self.universe.atoms.fragments[i_frag].ix] = j_frag
-                    flag_fragtype_exists = True
-            if not flag_fragtype_exists:
-                atoms_fragtypes[self.universe.atoms.fragments[i_frag].ix] = ctr_fragtype
-                frag_unique_atomtypes.append(
-                    self.universe.atoms.types[self.universe.atoms.fragments[i_frag].ix]
-                )
-                ctr_fragtype += 1
+        """Assign one type label to fragments with matching ordered topology."""
+        atoms_fragtypes = np.empty(self.universe.atoms.n_atoms, dtype=object)
+        type_by_signature: dict[tuple, str] = {}
+
+        for fragment in self.universe.atoms.fragments:
+            local_index = {
+                int(atom_index): slot for slot, atom_index in enumerate(fragment.ix)
+            }
+            bonds = []
+            for bond in fragment.bonds:
+                first, second = (local_index[int(index)] for index in bond.indices)
+                bonds.append((min(first, second), max(first, second), str(bond.type)))
+
+            signature = (
+                tuple(str(atom_type) for atom_type in fragment.types),
+                tuple(sorted(bonds)),
+            )
+            if signature not in type_by_signature:
+                type_by_signature[signature] = str(len(type_by_signature))
+            atoms_fragtypes[fragment.ix] = type_by_signature[signature]
+
         return atoms_fragtypes
 
     class RDFParams(NamedTuple):
