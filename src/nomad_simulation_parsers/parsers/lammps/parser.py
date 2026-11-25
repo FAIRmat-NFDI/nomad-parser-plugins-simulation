@@ -206,9 +206,8 @@ class LammpsArchiveWriter(MDParser):
                 self._bond_list = None
                 return
 
-            # LAMMPS Bonds contain atom IDs, not zero-based indices into the
-            # sorted trajectory arrays. Do not guess a mapping when IDs are
-            # absent or inconsistent with the selected trajectory reader.
+            # Map LAMMPS bond atom IDs through the selected trajectory's ID order.
+            # Skip bonds when this mapping is incomplete or inconsistent.
             atoms_info = self.traj_parsers.eval('atoms_info')
             if isinstance(atoms_info, list):
                 atoms_info = atoms_info[0] if atoms_info else None
