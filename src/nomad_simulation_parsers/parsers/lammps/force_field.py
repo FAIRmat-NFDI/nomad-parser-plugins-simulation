@@ -1,4 +1,4 @@
-"""Source-backed LAMMPS force-field settings and simple potentials."""
+"""Map LAMMPS force-field settings and typed interaction coefficients."""
 
 from collections import defaultdict
 from typing import Any
@@ -68,7 +68,7 @@ def _coefficients(log: Any, data: Any, kind: str) -> dict[int, list[float]]:
 def _typed_rows(  # noqa: PLR0911
     data: Any, kind: str, atom_ids: Any
 ) -> dict[int, list[list[int]]]:
-    """Map data-file atom IDs to zero-based trajectory positions when exact."""
+    """Return interaction rows with zero-based trajectory particle indices."""
     if data.mainfile is None or atom_ids is None:
         return {}
     sections = data.get(f'{kind.title()}s') or []
@@ -383,7 +383,7 @@ def attach_particle_parameters(  # noqa: PLR0913, PLR0917, PLR0912
     particle_states: Any,
     units: dict[str, Any],
 ) -> None:
-    """Attach data-file masses and partial charges to exact particle refs."""
+    """Attach data-file masses and partial charges to matching particle states."""
     if data.mainfile is None or atom_ids is None or not particle_states:
         return
     style_command = _last_command(log, 'atom_style')
