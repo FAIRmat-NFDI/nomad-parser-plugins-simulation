@@ -222,13 +222,17 @@ class SimulationParserPipelineTestSuite(_SimulationParserSuite):
 
     composition_formula: str | None = None
 
-    @pytest.mark.pipeline
-    def test_normalizer_consumes_archive(self, archive):
+    @pytest.fixture(scope='class')
+    @classmethod
+    def normalized_archive(cls, archive: EntryArchive) -> EntryArchive:
         normalized = EntryArchive.m_from_dict(archive.m_to_dict())
         normalized.metadata = EntryMetadata()
-
         normalize_all(normalized, logger=get_logger(__name__))
+        return normalized
 
+    @pytest.mark.pipeline
+    def test_normalizer_consumes_archive(self, normalized_archive):
+        normalized = normalized_archive
         representative_index = normalized.data.representative_system_index
         assert representative_index is not None
         assert (
@@ -240,6 +244,8 @@ class SimulationParserPipelineTestSuite(_SimulationParserSuite):
         assert normalized.results is not None
         assert normalized.results.properties is not None
 
+    @pytest.mark.pipeline
+    def test_composition_formula(self, normalized_archive):
         if self.composition_formula is not None:
-            topology = normalized.data.model_system[self.DEFAULT_TOPOLOGY]
+            topology = normalized_archive.data.model_system[self.DEFAULT_TOPOLOGY]
             assert topology.composition_formula == self.composition_formula

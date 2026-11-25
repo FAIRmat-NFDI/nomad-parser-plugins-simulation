@@ -1,7 +1,4 @@
 import pytest
-from nomad.client import normalize_all
-from nomad.datamodel import EntryArchive, EntryMetadata
-from nomad.utils import get_logger
 
 from tests.parsers.common import SimulationParserPipelineTestSuite
 
@@ -10,13 +7,6 @@ from tests.parsers.common import SimulationParserPipelineTestSuite
 class TestCMinimalPipeline(SimulationParserPipelineTestSuite):
     archive_fixture = 'c_minimal_archive'
     expected_program_name = 'exciting'
-
-    @pytest.fixture(scope='class')
-    def normalized_archive(self, archive):
-        normalized = EntryArchive.m_from_dict(archive.m_to_dict())
-        normalized.metadata = EntryMetadata()
-        normalize_all(normalized, logger=get_logger(__name__))
-        return normalized
 
     @pytest.mark.pipeline
     def test_xc_functional_normalization(self, normalized_archive):
