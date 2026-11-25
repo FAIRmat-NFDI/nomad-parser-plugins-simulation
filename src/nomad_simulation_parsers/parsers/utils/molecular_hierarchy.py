@@ -1,4 +1,4 @@
-"""Construct molecular hierarchies from format-independent particle topology."""
+"""Build molecule and monomer hierarchies from particle arrays."""
 
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -23,10 +23,10 @@ def group_indices_by_value(
 
 
 def disambiguate_system_names(systems: Iterable[dict[str, Any]]) -> None:
-    """Disambiguate type names reused across different roles, sizes, or parents.
+    """Disambiguate names across hierarchy roles, particle counts, and parents.
 
-    Equivalent occurrences retain the same name. Numeric suffixes identify
-    incompatible hierarchy contexts, not individual molecule or residue IDs.
+    Equivalent occurrences retain the same name. Numeric suffixes distinguish
+    conflicting hierarchy contexts.
     """
     systems = list(systems)
     reserved_names = set()
@@ -81,9 +81,9 @@ def infer_residue_types(
 
     The caller must supply bonds in the same global particle-index ordering as
     the arrays. Internal connectivity and typed boundary bonds distinguish end
-    groups from repeated interior residues. Different particle orderings remain
-    separate; this is deliberately not a graph-isomorphism test. If typed bonds
-    or particle types are unavailable, preserve the original residue labels.
+    groups from repeated interior residues. Particle ordering is part of the
+    signature. If typed bonds or particle types are unavailable, preserve the
+    original residue labels.
     """
     names = np.asarray(particle_arrays['resnames'], dtype=object).copy()
     types = particle_arrays['types']
@@ -132,8 +132,8 @@ def build_molecular_hierarchy(
     """Build molecule/type groups with one section per physical occurrence.
 
     ``moltypes``, ``molnums``, ``resids``, and ``resnames`` must be aligned
-    per-particle arrays. IDs determine membership; names identify types and do
-    not enumerate occurrences. All indices remain global, including interleaved
+    per-particle arrays. ``molnums`` and ``resids`` determine occurrence membership;
+    names identify component types. All indices remain global, including interleaved
     memberships and residue IDs reused in different molecules. The optional
     formula callback supplies format-specific chemistry for terminal sections.
     """
