@@ -38,10 +38,10 @@ class LammpsArchiveWriter(MDParser):
         self._resolved_unit_style: str | None = None
 
     def _require_physical_unit_style(self) -> str:
-        """Resolve units from commands or same-log runtime evidence.
+        """Resolve a physical unit style from the selected log.
 
-        A neighboring input is not sufficient evidence that it produced this
-        log. Different command and runtime styles are also unsafe to combine.
+        Echoed ``units`` commands and runtime ``Unit style`` records must agree.
+        Missing, reduced, conflicting, or unsupported styles raise ``ValueError``.
         """
         unit_reader = LogParser()
         unit_reader.mainfile = self.mainfile
