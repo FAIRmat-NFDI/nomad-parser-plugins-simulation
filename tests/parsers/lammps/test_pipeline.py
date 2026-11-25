@@ -1,8 +1,12 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 from nomad.client import normalize_all
 from nomad.datamodel import EntryArchive, EntryMetadata
 from nomad.utils import get_logger
+from nomad_simulations.schema_packages.general import Simulation
+from nomad_simulations.schema_packages.model_system import ModelSystem
 
 from nomad_simulation_parsers.parsers.lammps.parser import LammpsArchiveWriter
 from tests.parsers.common import (
@@ -58,20 +62,20 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
 
         assert len(groups) == 1
         assert groups[0].particle_states == []
-        assert groups[0].name == 'group_0'
+        assert groups[0].name == 'group_molecule_1'
         assert groups[0].branch_label == 'molecule_group'
-        assert groups[0].composition_formula == '0(54)'
+        assert groups[0].composition_formula == 'molecule_1(54)'
         assert groups[0].particle_indices[13] == 13
         assert groups[0].is_molecule() is False
 
         monomers = groups[0].sub_systems
         assert len(monomers) == 54
-        assert monomers[0].name == '0'
+        assert monomers[0].name == 'molecule_1'
         assert monomers[0].branch_label == 'molecule'
         assert monomers[0].composition_formula == 'C(11)H(10)'
         assert monomers[0].particle_indices[20] == 20
         assert monomers[0].is_molecule() is True
-        assert {monomer.name for monomer in monomers} == {'0'}
+        assert {monomer.name for monomer in monomers} == {'molecule_1'}
         assert len({tuple(m.particle_indices) for m in monomers}) == 54
         assert len(normalized.workflow2.results.radial_distribution_functions) == 1
 
@@ -83,7 +87,10 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert {
             group.name: {molecule.name for molecule in group.sub_systems}
             for group in groups
-        } == {'group_0': {'0'}, 'group_1': {'1'}}
+        } == {
+            'group_molecule_1': {'molecule_1'},
+            'group_molecule_2': {'molecule_2'},
+        }
 
         normalized = normalize_archive(hexane_archive)
         results = normalized.workflow2.results
@@ -91,24 +98,29 @@ class TestLammpsPipeline(SimulationParserPipelineTestSuite):
         assert len(results.mean_squared_displacements) == 2
         assert len(results.diffusion_constants) == 2
 
-    def test_nested_molecule_names_stay_distinct(self):
-        particle_arrays = {
-            'molnums': np.repeat([0, 1], 6),
-            'resids': np.repeat([0, 1, 2, 3], 3),
-            'resnames': np.array(['X'] * 12),
+    def test_source_molecule_type_label_is_preserved(self):
+        particles_info = {
+            'moltypes': ['PEO'] * 4,
+            'molnums': [0, 0, 1, 1],
+            'resids': [1, 1, 2, 2],
+            'resnames': ['PEO'] * 4,
+            'types': ['C'] * 4,
+            'elements': ['C'] * 4,
         }
         writer = LammpsArchiveWriter()
-
-        molecules = [
-            writer._create_molecule(molecule, 'P', particle_arrays)
-            for molecule in (0, 1)
-        ]
-
-        assert [molecule.name for molecule in molecules] == ['0', '1']
-        assert all(len(molecule.sub_systems) == 1 for molecule in molecules)
-        assert all(
-            len(molecule.sub_systems[0].sub_systems) == 2 for molecule in molecules
+        writer._mdanalysistraj_parser = SimpleNamespace(
+            universe=None,
+            get=lambda key, default=None: (
+                particles_info if key == 'atoms_info' else default
+            ),
         )
+        simulation = Simulation(model_system=[ModelSystem()])
+
+        writer._parse_molecular_hierarchy(simulation)
+
+        group = simulation.model_system[0].sub_systems[0]
+        assert group.name == 'group_PEO'
+        assert [molecule.name for molecule in group.sub_systems] == ['PEO', 'PEO']
 
     def test_normalization_preserves_md_method(self, methyl_naphthalene_archive):
         normalized = normalize_archive(methyl_naphthalene_archive)
