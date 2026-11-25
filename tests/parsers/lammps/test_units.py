@@ -96,6 +96,29 @@ def test_same_log_runtime_units_are_used_for_conversion(tmp_path, unit_style):
     writer._log_parser.close()
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize('unit_style', ['real', 'metal'])
+def test_runtime_only_units_are_used_for_md_workflow(tmp_path, unit_style):
+    mainfile = tmp_path / 'log.lammps'
+    mainfile.write_text(
+        f'LAMMPS (test)\n  Unit style    : {unit_style}\n'
+        'fix md all nvt temp 300 300 100\n'
+        'timestep 0.5\nrun 10\n'
+    )
+    archive = EntryArchive()
+
+    LammpsParser().parse(str(mainfile), archive, LOGGER)
+
+    method = archive.workflow2.method
+    time_unit = 'fs' if unit_style == 'real' else 'ps'
+    assert method.thermodynamic_ensemble == 'NVT'
+    assert method.integration_timestep.to(time_unit).magnitude == pytest.approx(0.5)
+    assert method.thermostat_parameters[0].coupling_constant.to(
+        time_unit
+    ).magnitude == pytest.approx(100)
+    assert 'integration_timestep' in archive.m_to_dict()['workflow2']['method']
+
+
 @pytest.mark.unit
 def test_matching_command_and_runtime_units_are_accepted(tmp_path):
     mainfile = tmp_path / 'log.lammps'
