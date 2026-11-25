@@ -441,9 +441,8 @@ class LammpsArchiveWriter(MDParser):
         mol_resids = np.unique(particle_arrays['resids'][particle_indices])
 
         mol_system = self._create_system_node(
-            # Results topology already misses later monomers under repeated
-            # group labels. Shared polymer names would additionally collapse
-            # their monomer-group rows until that recursion is fixed.
+            # Single-residue molecules share a type name; multi-residue
+            # molecules retain their source molecule identifier.
             name=moltype if len(mol_resids) <= 1 else molecule,
             branch_label='molecule',
             particle_indices=particle_indices,
