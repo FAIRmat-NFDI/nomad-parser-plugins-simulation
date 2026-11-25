@@ -46,8 +46,9 @@ rather than source LAMMPS steps, so the parser leaves those links unset. The
 shared normalizer can still apply its positional fallback when the two series
 have equal length; those inferred links are not source-step verified. These
 typed thermodynamic subsections and
-conservative normalization of sparse output/system references require the
-`lammps-thermo-output-properties` branch in `nomad-simulations`. Unrecognized
+step-aware normalization of sparse output/system references are available in
+merged `nomad-simulations` PR #544. The lockfile pins a merged schema revision
+for CI. Unrecognized
 thermo columns remain explicitly warned about; extra force-only dump frames
 without a matching thermo step are not yet promoted to separate outputs.
 `test_input_structure.py` checks a source-backed, non-representative input

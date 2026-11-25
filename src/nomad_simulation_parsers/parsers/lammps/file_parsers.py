@@ -521,11 +521,10 @@ class LogParser(TextParser):
     def get_thermodynamic_blocks(  # noqa: PLR0912, PLR0915
         self,
     ) -> list[list[dict[str, float]]]:
-        """Read ordered thermo records without merging distinct output blocks.
+        """Read ordered thermo records grouped by output block.
 
         Values are raw LAMMPS numbers; the archive writer applies the resolved
-        physical units. This supplements the existing array-oriented reader,
-        which only exposes one block and is retained for its current callers.
+        physical units. Each returned list contains the records from one block.
         """
         if not self.mainfile or not os.path.isfile(self.mainfile):
             return []

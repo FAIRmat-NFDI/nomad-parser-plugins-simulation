@@ -771,11 +771,10 @@ class LammpsArchiveWriter(MDParser):
     def parse_thermodynamic_data(  # noqa: PLR0912, PLR0915
         self, simulation: Simulation
     ) -> None:
-        """Store the last thermo block as ordered, source-backed outputs.
+        """Store ordered thermo records from the final output block.
 
-        The current workflow parser selects one final run. Earlier thermo
-        blocks are not folded into that run until multi-run workflows are
-        supported. Unknown columns, including pressure, remain explicit gaps.
+        Use the auxiliary log when it contains thermo records, otherwise use
+        the main log. Unsupported columns are reported and omitted.
         """
         source = None
         blocks = []
