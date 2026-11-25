@@ -32,6 +32,10 @@ LAMMPS populates a `MolecularDynamics` workflow and method for a selected MD
 run. `test_md_workflow_method.py` checks command-order selection and direct-parser edge
 cases; `test_mapping.py` maps controlled settings to schema quantities without
 reading a log. MD integration fixtures compose the shared workflow contract.
+`test_pipeline.py` checks schema normalization and derived-analysis grouping.
+Its two results-topology checks additionally require the `nomad-results-normalizer`
+plugin and are skipped when that plugin is not installed; parser/schema
+assertions still run in the pipeline stage.
 The method tests also cover canonical-sampling thermostats, Berendsen pressure
 control, anisotropic/tilted Nose–Hoover pressure, and Brownian metadata using
 small synthetic logs. These are not yet positive Central-corpus fixtures.
