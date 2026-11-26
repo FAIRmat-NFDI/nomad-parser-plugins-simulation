@@ -193,3 +193,16 @@ yambo_schema_package = "nomad_simulation_parsers.schema_packages:yambo_schema_pa
 [tool.cruft]
 # Avoid updating workflow files, this leads to permissions issues
 skip = [".github/*"]
+
+
+# run with `MYPYPATH=../nomad-FAIR uv run mypy src`
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["nomad", "nomad.*"]
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+module = ["nomad_file_parser", "nomad_file_parser.*", "nomad_simulations", "nomad_simulations.*", "nomad_nmr_schema", "nomad_nmr_schema.*"]
+follow_untyped_imports = true

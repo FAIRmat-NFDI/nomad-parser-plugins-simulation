@@ -365,7 +365,7 @@ add_mapping_annotation(outputs.SCFSteps.delta_density_matrix_rms, OUT_KEY, '.rms
 add_mapping_annotation(outputs.SCFSteps.durations, OUT_KEY, '.time')
 
 add_mapping_annotation(TotalEnergy.m_def, OUT_KEY, '.total_energy')
-add_mapping_annotation(TotalEnergy.m_def.all_quantities['value'], OUT_KEY, '.value')
+add_mapping_annotation(TotalEnergy.m_def.all_quantities['value'], OUT_KEY, '.value')  # type: ignore[union-attr]
 
 add_mapping_annotation(
     molecular_orbitals.MolecularOrbitals.m_def,
@@ -382,7 +382,7 @@ add_mapping_annotation(
 # `value` overrides the `PhysicalProperty.value` placeholder; its class-attribute
 # access can resolve to `None`, so read the quantity from the `m_def` registry.
 add_mapping_annotation(
-    molecular_orbitals.MolecularOrbitals.m_def.all_quantities['value'],
+    molecular_orbitals.MolecularOrbitals.m_def.all_quantities['value'],  # type: ignore[union-attr]
     OUT_KEY,
     '.energies',
 )
