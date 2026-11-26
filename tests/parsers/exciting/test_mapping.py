@@ -308,19 +308,6 @@ class TestSpeciesXMLParserMapping:
         parser = SpeciesXMLParser()
         assert parser._expand_apw_plus_lo(apw, l_value) == expected
 
-    @pytest.mark.parametrize(
-        ('l_value', 'expected'),
-        [
-            ('0', 0),
-            ('1', 1),
-            ('8', 8),
-            (None, None),
-        ],
-        ids=['s', 'p', 'high-angular-momentum', 'absent'],
-    )
-    def test_maps_l_channel_name(self, l_value, expected):
-        parser = SpeciesXMLParser()
-        assert parser.get_l_channel_name(l_value) == expected
 
     @pytest.mark.parametrize(
         ('orbital', 'expected'),

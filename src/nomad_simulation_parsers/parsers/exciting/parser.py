@@ -679,10 +679,6 @@ class SpeciesXMLParser(XMLParser):
             )
         return channels
 
-    def get_l_channel_name(self, l_value: str | None) -> int | None:
-        """Convert an angular-momentum channel value to an integer."""
-        return int(l_value) if l_value is not None else None
-
     def _get_orbital_values(self, orbital: dict | None, key: str):
         if not orbital:
             return None
