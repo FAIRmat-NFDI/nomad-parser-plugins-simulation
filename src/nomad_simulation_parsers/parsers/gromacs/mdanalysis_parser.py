@@ -126,17 +126,14 @@ class GromacsMDAnalysisParser(MDAnalysisParser):
                 for _ in contexts:
                     unique_name = f'{base_name}_{counter}'
                     while (
-                        unique_name in reserved_names
-                        or unique_name in assigned_names
+                        unique_name in reserved_names or unique_name in assigned_names
                     ):
                         counter += 1
                         unique_name = f'{base_name}_{counter}'
                     unique_names.append(unique_name)
                     counter += 1
 
-            for matching_systems, unique_name in zip(
-                contexts.values(), unique_names
-            ):
+            for matching_systems, unique_name in zip(contexts.values(), unique_names):
                 assigned_names.add(unique_name)
                 for system in matching_systems:
                     system['name'] = unique_name

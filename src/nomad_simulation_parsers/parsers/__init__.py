@@ -107,7 +107,7 @@ gaussian_parser = EntryPoint(
     python_package='nomad_simulation_parsers',
     mainfile_name_re=r'^.*\.(log|out)$',
     mainfile_contents_re=r'\s*Cite this work as:\s*Gaussian [0-9]+, '
-        r'Revision [A-Za-z0-9\.]*,',
+    r'Revision [A-Za-z0-9\.]*,',
     parser_class_name='nomad_simulation_parsers.parsers.gaussian.parser.GaussianParser',
     code_name='Gaussian',
     code_homepage='https://gaussian.com/',

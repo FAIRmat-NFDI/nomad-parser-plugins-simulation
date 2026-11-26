@@ -6,7 +6,6 @@ from tests.parsers.common import (
     WorkflowTestSuite,
     approx,
     assert_approx,
-    assert_identity_populated_once,
 )
 
 
@@ -24,7 +23,7 @@ class QuantumEspressoIntegrationSuite(SimulationParserTestSuite, WorkflowTestSui
         if self.identity_policy == 'every':
             assert all(system.particle_states for system in systems)
         else:
-            assert_identity_populated_once(archive)
+            self.assert_identity_populated_once(archive)
 
 
 class TestPWSCFTextArchive(QuantumEspressoIntegrationSuite):

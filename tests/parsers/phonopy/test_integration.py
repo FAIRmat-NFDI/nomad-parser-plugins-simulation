@@ -20,6 +20,10 @@ class TestVaspPhonopyArchive(PhonopyParserIntegrationSuite):
         assert all(system.particle_states for system in archive.data.model_system)
 
     @pytest.mark.integration
+    def test_particle_numbers_match(self, archive):
+        pytest.skip('The unit cell and supercell have different numbers of particles.')
+
+    @pytest.mark.integration
     def test_archive_contract(self, archive):
         simulation = archive.data
 

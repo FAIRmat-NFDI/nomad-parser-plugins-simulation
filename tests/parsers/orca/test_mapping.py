@@ -1,9 +1,6 @@
 """Layer 3 mapping-contract tests.
 
-Each ORCA `get_*` transformer is a pure `dict -> dict/list` function of an
-in-memory source subtree, so it is exercised here with small hand-built inputs
-(no reader, no archive, no normalizer). Units are applied later by the schema
-mapping, so these assert the raw mapped values and structure.
+Use small hand-built inputs to test the ORCA transformers directly.
 """
 
 import pytest
@@ -150,3 +147,103 @@ class TestBasisSetMapping:
             ('def2-SVP', 'orbital'),
             ('def2/J', 'auxiliary_scf'),
         ]
+
+
+@pytest.mark.unit
+class TestSCFStepsMapping:
+    @pytest.mark.parametrize(
+        ('headers', 'rows', 'durations'),
+        [
+            pytest.param(
+                [
+                    'Energy Delta-E Max-DP RMS-DP [F,P] Damp',
+                    'Energy Delta-E Grad Rot Max-DP RMS-DP',
+                ],
+                [
+                    [-76.28, 0.0, 0.04, 0.005, 0.29, 0.85],
+                    [-76.31, -0.03, 0.001, 0.002, 0.003, 0.0004],
+                ],
+                None,
+                id='orca4',
+            ),
+            pytest.param(
+                [
+                    'Energy (Eh) Delta-E RMSDP MaxDP DIISErr Damp Time(sec)',
+                    'Energy (Eh) Delta-E RMSDP MaxDP MaxGrad Time(sec)',
+                ],
+                [
+                    [-76.28, 0.0, 0.005, 0.04, 0.29, 0.85, 0.0],
+                    [-76.31, -0.03, 0.0004, 0.003, 0.001, 0.2],
+                ],
+                [0.0, 0.2],
+                id='orca6',
+            ),
+        ],
+    )
+    def test_maps_scf_columns_across_iteration_blocks(self, headers, rows, durations):
+        blocks = [
+            {'header': header.split(), 'values': [row]}
+            for header, row in zip(headers, rows, strict=True)
+        ]
+        steps = OutParser().get_scf_iterations(
+            {'self_consistent': {'scf_iterations': blocks}}
+        )
+        assert [value.magnitude for value in steps['energy']] == pytest.approx(
+            [-76.28, -76.31]
+        )
+        assert [value.magnitude for value in steps['deltae']] == pytest.approx(
+            [0.0, -0.03]
+        )
+        assert steps['maxdp'] == pytest.approx([0.04, 0.003])
+        assert steps['rmsdp'] == pytest.approx([0.005, 0.0004])
+        if durations is None:
+            assert 'time' not in steps
+        else:
+            assert [value.magnitude for value in steps['time']] == pytest.approx(
+                durations
+            )
+
+
+@pytest.mark.unit
+class TestGeometryOptimizationMapping:
+    @pytest.mark.parametrize(
+        ('banner', 'is_converged'),
+        [
+            ({'is_converged': ['THE', 'OPTIMIZATION', 'HAS', 'CONVERGED']}, True),
+            (
+                {'is_not_converged': ['The', 'optimization', 'did', 'not', 'converge']},
+                False,
+            ),
+            ({}, None),
+        ],
+        ids=['converged', 'unconverged', 'absent'],
+    )
+    def test_maps_workflow_method_and_last_cycle_results(self, banner, is_converged):
+        source = {
+            'geometry_optimization': {
+                'update_method': ['Update', 'BFGS'],
+                'cycle': [
+                    {
+                        'geom_opt_max_gradient': 0.04,
+                        'geom_opt_max_displacement': 0.15,
+                    },
+                    {
+                        'geom_opt_max_gradient': 0.004,
+                        'geom_opt_max_displacement': 0.01,
+                    },
+                ],
+                **banner,
+            }
+        }
+        parser = OutParser()
+        assert parser.get_geometry_optimization_method(source) == {
+            'optimization_type': 'atomic',
+            'optimization_method': 'BFGS',
+            'sampling_frequency': 1,
+        }
+        results = parser.get_geometry_optimization_results(source)
+        assert results['is_converged'] is is_converged
+        assert results['n_steps'] == 2
+        assert results['steps'] == [0, 1]
+        assert results['final_force_maximum'] == pytest.approx(0.004)
+        assert results['final_displacement_maximum'] == pytest.approx(0.01)

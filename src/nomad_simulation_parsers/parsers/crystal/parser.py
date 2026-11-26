@@ -24,6 +24,7 @@ from nomad_simulations.schema_packages.workflow.single_point import (
 )
 from structlog.stdlib import BoundLogger
 
+from nomad_simulation_parsers.parsers.utils.general import write_parsed_blocks
 from nomad_simulation_parsers.schema_packages import crystal
 
 from .file_parser import F25Parser, OutputParser
@@ -136,7 +137,7 @@ class CrystalOutputParser(TextParser):
             # Example: 238 -> 38 (Sr), and ghost atoms remain 0.
             normalized = raw % 100
             if normalized == 0:
-                return 0
+                return None
 
             if 0 < normalized < len(chemical_symbols):
                 return normalized
@@ -155,10 +156,14 @@ class CrystalOutputParser(TextParser):
         return atoms or None
 
     def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        xc_functionals = set()
-        for key in ['exchange', 'correlation', 'exchange_correlation']:
-            xc_functionals.update(self.libxc_map.get(source.get(key), []))
-        return [dict(name=xc) for xc in xc_functionals]
+        # `dict.fromkeys` deduplicates in first-seen order; a set's iteration
+        # order varies between processes.
+        names = (
+            xc
+            for key in ('exchange', 'correlation', 'exchange_correlation')
+            for xc in self.libxc_map.get(source.get(key), [])
+        )
+        return [dict(name=xc) for xc in dict.fromkeys(names)]
 
     def get_outputs(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         outputs = []
@@ -365,6 +370,14 @@ class CrystalArchiveWriter(ArchiveWriter):
                 os.path.dirname(self.mainfile), os.path.basename(f25_filepath)
             )
             self.f25_parser.convert(self.archive_parser)
+
+        write_parsed_blocks(
+            self.archive,
+            [
+                self.output_parser.data_object,
+                *([self.f25_parser.data_object] if self.f25_parser.data_object else []),
+            ],
+        )
 
 
 class CrystalParser(MatchingParser):

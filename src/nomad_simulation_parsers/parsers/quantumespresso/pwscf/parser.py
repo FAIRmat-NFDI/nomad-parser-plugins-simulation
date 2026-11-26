@@ -28,9 +28,6 @@ from nomad_simulation_parsers.schema_packages.quantumespresso import common, pws
 from ..parser import MainfileTextParser, MainfileXMLParser
 from .file_parser import PWSCFDOSTextParser, PWSCFFileParser
 
-MIN_DOS_COLUMNS = 2
-DOS_ARRAY_NDIM = 2
-
 
 class PWSCFMainfileTextParser(MainfileTextParser):
     def get_force_contributions(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -231,46 +228,6 @@ class PWSCFMainfileTextParser(MainfileTextParser):
             )
         return band_structures
 
-    # DOS payload cache: `get_dos` runs once per configuration, but the .dos
-    # sidecar files only need to be read once per mainfile.
-    _dos_cache_key: str | None = None
-    _cached_dos_payload: dict[str, Any] | None = None
-
-    def get_dos(self, source: dict[str, Any]) -> list[dict[str, Any]]:
-        mainfile = getattr(self, 'filepath', None)
-        if not isinstance(mainfile, str) or not mainfile:
-            return []
-        if self._dos_cache_key != mainfile:
-            self._dos_cache_key = mainfile
-            self._cached_dos_payload = None
-            dos_files = search_files(pattern='*.dos', basedir=os.path.dirname(mainfile))
-            for dos_file in dos_files:
-                try:
-                    data = np.loadtxt(dos_file, comments='#')
-                except Exception:
-                    continue
-                if data is None:
-                    continue
-                if data.ndim == 1 and data.size >= MIN_DOS_COLUMNS:
-                    data = data.reshape(1, -1)
-                if data.ndim == DOS_ARRAY_NDIM and data.shape[1] >= MIN_DOS_COLUMNS:
-                    energies = data[:, 0] * ureg.eV
-                    values = np.abs(data[:, 1]) / ureg.eV
-                    self._cached_dos_payload = dict(
-                        value=values,
-                        energies=dict(points=energies),
-                    )
-                    break
-
-        if self._cached_dos_payload is None:
-            return []
-
-        result = dict(self._cached_dos_payload)
-        reference_energy = self.get_reference_energy(source)
-        if reference_energy is not None:
-            result['energies_origin'] = reference_energy
-        return [result]
-
     def build_workflow(self):
         if self.data.get('bfgs_geometry_optimization') is not None:
             workflow = GeometryOptimization()
@@ -418,12 +375,14 @@ class DOSParser(TextParser):
         return []
 
     def load_file(self):
+        self.source_data_objects = []
         self.text_parser.mainfile = None
         for dos_file in search_files(
             pattern='*.dos', basedir=os.path.dirname(self.filepath)
         ):
             self.text_parser.mainfile = dos_file
             if self.text_parser.energies is not None:
+                self.source_data_objects.append(self.text_parser)
                 break
         return self.text_parser
 
@@ -435,6 +394,12 @@ class PWSCFArchiveWriter(QuantumEspressoArchiveWriter):
     _text_parser = PWSCFMainfileTextParser(text_parser=PWSCFFileParser())
     _xml_parser = PWSCFMainfileXMLParser()
     dos_parser = DOSParser(text_parser=PWSCFDOSTextParser())
+
+    def parsed_text_parsers(self) -> list[Any]:
+        return [
+            *super().parsed_text_parsers(),
+            *self.dos_parser.source_data_objects,
+        ]
 
     def parse_program(self, archive: EntryArchive, index: int) -> None:  # noqa: PLR0912, PLR0915
         super().parse_program(archive, index)
