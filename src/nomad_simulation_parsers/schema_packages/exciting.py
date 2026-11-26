@@ -50,13 +50,11 @@ class Simulation(general.Simulation):
         ('get_configurations', ['.@']),
         cache=True,
     )
-    (
-        add_mapping_annotation(
-            general.Simulation.model_method,
-            INFO_KEY,
-            '.initialization.xc_functional',
-            m_def=model_method.DFT.m_def,
-        ),
+    add_mapping_annotation(
+        general.Simulation.model_method,
+        INFO_KEY,
+        '.initialization.xc_functional',
+        m_def=model_method.DFT.m_def,
     )
     add_mapping_annotations(
         (
@@ -366,15 +364,13 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
 
 
 class VariablesEnergy2(variables.Energy2):
-    (
-        add_mapping_annotation(
-            variables.Energy2.points,
-            DOS_XML_KEY,
-            ('to_float', [r'.point[*]."@e"']),
-            unit='hartree',
-        ),
+    add_mapping_annotation(
+        variables.Energy2.points,
+        DOS_XML_KEY,
+        ('to_float', [r'.point[*]."@e"']),
+        unit='hartree',
     )
-    (add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@'),)
+    add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@')
 
 
 class KLinePath(numerical_settings.KLinePath):
@@ -396,13 +392,11 @@ class KLinePath(numerical_settings.KLinePath):
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    (
-        add_mapping_annotation(
-            outputs.ElectronicDensityOfStates.value,
-            DOS_XML_KEY,
-            ('to_float', [r'.point[*]."@dos"']),
-            unit='1/hartree',
-        ),
+    add_mapping_annotation(
+        outputs.ElectronicDensityOfStates.value,
+        DOS_XML_KEY,
+        ('to_float', [r'.point[*]."@dos"']),
+        unit='1/hartree',
     )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.projected_dos,

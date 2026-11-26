@@ -49,7 +49,7 @@ class ModelSystem(model_system.ModelSystem):
             )
         )
     )
-    model_system.Representation.m_def.m_annotations.setdefault(
+    model_system.Representation.m_def.m_annotations.setdefault(  # type: ignore[union-attr]
         MAPPING_ANNOTATION_KEY, {}
     ).update(dict(ams_out=Mapper(mapper='.lattice_vectors')))
 

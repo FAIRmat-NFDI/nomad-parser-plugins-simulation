@@ -323,14 +323,14 @@ class CustomProperty(physical_property.PhysicalProperty):
         This is more surgical than overriding the whole method.
         """
         # Temporarily hide the class name to prevent overwrite
-        original_name = self.m_def.name
-        self.m_def.name = None
+        original_name = self.m_def.name  # type: ignore[union-attr]
+        self.m_def.name = None  # type: ignore[union-attr]
 
         # Call parent normalization
         super().normalize(*args, **kwargs)
 
         # Restore the class name for future use
-        self.m_def.name = original_name
+        self.m_def.name = original_name  # type: ignore[union-attr]
 
 
 # Add mapping annotation for the inherited name field
