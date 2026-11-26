@@ -24,6 +24,7 @@ DOS_XML_KEY = 'dos_xml'
 GEO_OPT_KEY = 'geo_opt'
 SPECIES_XML_KEY = 'species_xml'
 
+
 def add_mapping_annotations(*args):
     for mapping_tuple in args:
         add_mapping_annotation(*mapping_tuple)
