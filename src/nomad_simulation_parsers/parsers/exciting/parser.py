@@ -743,7 +743,7 @@ class SpeciesXMLParser(XMLParser):
                 values,
             )
             return None
-        return None if None in statuses else statuses
+        return statuses
 
     def get_orbital_differential_order(self, orbital: dict | None) -> np.ndarray | None:
         """Extract orbital differential orders from an exciting XML definition."""
@@ -860,7 +860,7 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 finally:
                     xml_parser.close()
                     xml_target.close()
-                    
+
         # read xc functionals from input.xml only if INFO.OUT did not already
         # populate them
         input_xml_files = (
