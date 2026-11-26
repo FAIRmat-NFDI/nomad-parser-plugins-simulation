@@ -701,11 +701,6 @@ class SpeciesXMLParser(XMLParser):
         }.get(orbital_type)
 
         if n_terms is None:
-            if orbital_type is not None:
-                self.logger.warning(
-                    'Unknown exciting orbital type: %s',
-                    orbital_type,
-                )
             return None
 
         value = orbital.get(key)
