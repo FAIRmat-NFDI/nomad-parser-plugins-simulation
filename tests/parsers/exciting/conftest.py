@@ -29,6 +29,11 @@ def parse_exciting(mainfile: Path) -> EntryArchive:
 
 @pytest.fixture(scope='module')
 def c_minimal_archive() -> EntryArchive:
+    return parse_exciting(DATA_DIR / 'C_minimal' / 'INFO.OUT')
+
+
+@pytest.fixture(scope='module')
+def c_minimal_largedata_archive() -> EntryArchive:
     return parse_exciting(LARGE_DATA_DIR / 'C_minimal' / 'INFO.OUT')
 
 

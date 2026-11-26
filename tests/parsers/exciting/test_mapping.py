@@ -17,6 +17,7 @@ from nomad_simulation_parsers.parsers.exciting.parser import (
     DosXMLParser,
     EigvalParser,
     InfoParser,
+    SpeciesXMLParser,
 )
 
 
@@ -250,3 +251,516 @@ class TestEigvalParserMapping:
         for gap, reference in zip(gaps, expected):
             assert gap['value'] == pytest.approx(reference['value'])
             assert gap.get('spin_channel') == reference.get('spin_channel')
+
+
+@pytest.mark.unit
+class TestSpeciesXMLParserMapping:
+    @pytest.mark.parametrize(
+        ('basis', 'lmaxapw', 'expected'),
+        [
+            (None, 2, []),
+            ({}, 2, []),
+            ({'default': {'@type': 'apw'}}, None, []),
+            (
+                {'default': {'@type': 'lapw'}},
+                1,
+                [
+                    {
+                        'name': 0,
+                        'orbitals': [{'@type': 'lapw', '@l': '0'}],
+                    },
+                    {
+                        'name': 1,
+                        'orbitals': [{'@type': 'lapw', '@l': '1'}],
+                    },
+                ],
+            ),
+            (
+                {
+                    'default': {'@type': 'lapw'},
+                    'custom': [{'@l': '1', '@type': 'apw'}],
+                    'lo': {
+                        '@l': '1',
+                        'wf': {'@matchingOrder': '0'},
+                    },
+                },
+                1,
+                [
+                    {
+                        'name': 0,
+                        'orbitals': [{'@type': 'lapw', '@l': '0'}],
+                    },
+                    {
+                        'name': 1,
+                        'orbitals': [
+                            {'@l': '1', '@type': 'apw'},
+                            {
+                                '@l': '1',
+                                'wf': {'@matchingOrder': '0'},
+                            },
+                        ],
+                    },
+                ],
+            ),
+            (
+                {'default': {'@type': 'apw+lo'}},
+                0,
+                [
+                    {
+                        'name': 0,
+                        'orbitals': [
+                            {'@type': 'apw', '@l': '0'},
+                            {
+                                '@l': '0',
+                                'wf': [
+                                    {'@matchingOrder': '0'},
+                                    {'@matchingOrder': '1'},
+                                ],
+                            },
+                        ],
+                    }
+                ],
+            ),
+        ],
+        ids=[
+            'missing-basis',
+            'empty-basis',
+            'missing-lmaxapw',
+            'default-basis',
+            'custom-basis-and-local-orbital',
+            'apw-plus-lo',
+        ],
+    )
+    def test_builds_l_channels(self, basis, lmaxapw, expected):
+        parser = SpeciesXMLParser()
+        parser.lmaxapw = lmaxapw
+
+        assert parser.build_l_channels(basis) == expected
+
+    @pytest.mark.parametrize(
+        ('apw', 'l_value', 'expected'),
+        [
+            (
+                {
+                    '@type': 'apw+lo',
+                    '@trialEnergy': '0.15',
+                    '@searchE': 'true',
+                },
+                2,
+                [
+                    {
+                        '@type': 'apw',
+                        '@l': '2',
+                        '@trialEnergy': '0.15',
+                        '@searchE': 'true',
+                    },
+                    {
+                        '@l': '2',
+                        'wf': [
+                            {
+                                '@matchingOrder': '0',
+                                '@trialEnergy': '0.15',
+                                '@searchE': 'true',
+                            },
+                            {
+                                '@matchingOrder': '1',
+                                '@trialEnergy': '0.15',
+                                '@searchE': 'true',
+                            },
+                        ],
+                    },
+                ],
+            ),
+            (
+                {'@type': 'apw+lo'},
+                0,
+                [
+                    {'@type': 'apw', '@l': '0'},
+                    {
+                        '@l': '0',
+                        'wf': [
+                            {'@matchingOrder': '0'},
+                            {'@matchingOrder': '1'},
+                        ],
+                    },
+                ],
+            ),
+        ],
+        ids=['with-energy-parameters', 'without-energy-parameters'],
+    )
+    def test_expands_apw_plus_lo(self, apw, l_value, expected):
+        parser = SpeciesXMLParser()
+        assert parser._expand_apw_plus_lo(apw, l_value) == expected
+
+    @pytest.mark.parametrize(
+        ('orbital', 'expected'),
+        [
+            (
+                {'@type': 'apw', '@trialEnergy': '0.15'},
+                [0.15],
+            ),
+            (
+                {'@type': 'lapw', '@trialEnergy': '0.15'},
+                [0.15, 0.15],
+            ),
+            (
+                {'wf': {'@trialEnergy': '-0.25'}},
+                [-0.25],
+            ),
+            (
+                {
+                    'wf': [
+                        {'@trialEnergy': '-0.25'},
+                        {'@trialEnergy': '0.40'},
+                    ]
+                },
+                [-0.25, 0.40],
+            ),
+            (
+                {
+                    'wf': [
+                        {'@trialEnergy': '0.15'},
+                        {'@matchingOrder': '1'},
+                    ]
+                },
+                None,
+            ),
+            ({'@type': 'apw'}, None),
+            (None, None),
+        ],
+        ids=[
+            'apw',
+            'lapw',
+            'single-wavefunction',
+            'multiple-wavefunctions',
+            'incomplete-wavefunctions',
+            'missing-trial-energy',
+            'absent',
+        ],
+    )
+    def test_maps_orbital_energy_parameter(self, orbital, expected):
+        parser = SpeciesXMLParser()
+
+        result = parser.get_orbital_energy_parameter(orbital)
+
+        if expected is None:
+            assert result is None
+        else:
+            np.testing.assert_allclose(
+                result.to('hartree').magnitude,
+                expected,
+            )
+
+    @pytest.mark.parametrize(
+        ('orbital', 'expected'),
+        [
+            (
+                {'@type': 'apw', '@searchE': 'false'},
+                ['fixed'],
+            ),
+            (
+                {'@type': 'lapw', '@searchE': 'true'},
+                ['initial', 'initial'],
+            ),
+            (
+                {'wf': {'@searchE': 'false'}},
+                ['fixed'],
+            ),
+            (
+                {
+                    'wf': [
+                        {'@searchE': 'false'},
+                        {'@searchE': 'true'},
+                    ]
+                },
+                ['fixed', 'initial'],
+            ),
+            (
+                {'@type': 'apw', '@searchE': 'unknown'},
+                None,
+            ),
+            ({'@type': 'lapw'}, None),
+            (None, None),
+        ],
+        ids=[
+            'apw-fixed',
+            'lapw-initial',
+            'single-wavefunction',
+            'mixed-wavefunctions',
+            'unknown-status',
+            'missing-status',
+            'absent',
+        ],
+    )
+    def test_maps_energy_status(self, orbital, expected):
+        parser = SpeciesXMLParser()
+        assert parser.get_energy_status(orbital) == expected
+
+    @pytest.mark.parametrize(
+        ('orbital', 'expected'),
+        [
+            (
+                {'@type': 'apw'},
+                [0],
+            ),
+            (
+                {'@type': 'lapw'},
+                [0, 1],
+            ),
+            (
+                {'wf': {'@matchingOrder': '2'}},
+                [2],
+            ),
+            (
+                {
+                    'wf': [
+                        {'@matchingOrder': '0'},
+                        {'@matchingOrder': '1'},
+                    ]
+                },
+                [0, 1],
+            ),
+            (
+                {
+                    'wf': [
+                        {'@matchingOrder': '0'},
+                        {},
+                    ]
+                },
+                None,
+            ),
+            ({'@type': 'unknown'}, None),
+            (None, None),
+        ],
+        ids=[
+            'apw',
+            'lapw',
+            'single-wavefunction',
+            'multiple-wavefunctions',
+            'incomplete-wavefunctions',
+            'unknown-orbital',
+            'absent',
+        ],
+    )
+    def test_maps_orbital_differential_order(self, orbital, expected):
+        parser = SpeciesXMLParser()
+
+        result = parser.get_orbital_differential_order(orbital)
+
+        if expected is None:
+            assert result is None
+        else:
+            np.testing.assert_array_equal(result, expected)
+            assert result.dtype == np.int32
+
+    @pytest.mark.parametrize(
+        ('species_file', 'atoms', 'expected'),
+        [
+            (
+                'C.xml',
+                [
+                    {'file': 'C.xml'},
+                    {'file': 'O.xml'},
+                    {'file': 'C.xml'},
+                ],
+                [
+                    '#/data/model_system/0/particle_states/0',
+                    '#/data/model_system/0/particle_states/2',
+                ],
+            ),
+            (
+                'I.xml',
+                [
+                    {'file': 'Pb.xml'},
+                    {'file': 'I.xml'},
+                    {'file': 'I.xml'},
+                ],
+                [
+                    '#/data/model_system/0/particle_states/1',
+                    '#/data/model_system/0/particle_states/2',
+                ],
+            ),
+            (
+                'C.xml',
+                [{'file': 'O.xml'}],
+                [],
+            ),
+            (
+                'C.xml',
+                [],
+                [],
+            ),
+            (
+                None,
+                [{'file': 'C.xml'}],
+                [],
+            ),
+            (
+                'C.xml',
+                None,
+                [],
+            ),
+        ],
+        ids=[
+            'non-consecutive-atoms',
+            'multiple-atoms-same-species',
+            'no-matching-species',
+            'empty-atoms',
+            'absent-species-file',
+            'absent-species-list',
+        ],
+    )
+    def test_maps_muffin_tin_species_scope(self, species_file, atoms, expected):
+        parser = InfoParser()
+
+        species_list = (
+            [{'file': atom['file']} for atom in atoms] if atoms is not None else None
+        )
+
+        with patch.object(
+            parser, '_get_species_atoms', return_value=atoms
+        ) as mock_atoms:
+            result = parser.get_muffin_tin_species_scope(species_file, species_list)
+
+            assert result == expected
+
+            if species_file is None or species_list is None:
+                mock_atoms.assert_not_called()
+            else:
+                mock_atoms.assert_called_once_with(species_list)
+
+    @pytest.mark.parametrize(
+        ('species_list', 'expected'),
+        [
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [
+                            [0.0, 0.0, 0.0],
+                            [0.5, 0.5, 0.5],
+                        ],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'Pb',
+                        'file': 'Pb.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                    {
+                        'name': 'I',
+                        'file': 'I.xml',
+                        'positions': [
+                            [0.5, 0.0, 0.0],
+                            [0.0, 0.5, 0.0],
+                        ],
+                    },
+                ],
+                [
+                    {'name': 'Pb', 'file': 'Pb.xml'},
+                    {'name': 'I', 'file': 'I.xml'},
+                    {'name': 'I', 'file': 'I.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C_1.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                    {
+                        'name': 'C',
+                        'file': 'C_2.xml',
+                        'positions': [[0.5, 0.5, 0.5]],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C_1.xml'},
+                    {'name': 'C', 'file': 'C_2.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                        'positions_format': 'lattice',
+                        'radial_points': 300,
+                        'muffin_tin_radius': 1.5,
+                    },
+                ],
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'muffin_tin_radius': 1.5,
+                    },
+                ],
+            ),
+            (
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+                [],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': None,
+                    },
+                ],
+                [],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [],
+                    },
+                ],
+                [],
+            ),
+            (
+                [],
+                [],
+            ),
+        ],
+        ids=[
+            'single-atom',
+            'multiple-atoms',
+            'multiple-species',
+            'same-element-different-species-files',
+            'exclude-species-fields',
+            'missing-positions',
+            'none-positions',
+            'empty-positions',
+            'empty-species-list',
+        ],
+    )
+    def test_get_species_atoms(self, species_list, expected):
+        assert InfoParser._get_species_atoms(species_list) == expected
