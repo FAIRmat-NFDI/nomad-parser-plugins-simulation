@@ -710,7 +710,7 @@ class SpeciesXMLParser(XMLParser):
 
         value = orbital.get(key)
 
-        if value is None or n_terms is None:
+        if value is None:
             return None
 
         return [value] * n_terms
