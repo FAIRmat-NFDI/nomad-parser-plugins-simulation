@@ -1,0 +1,69 @@
+# Maintainer-owned metadata overrides and manual additions.
+# This file is never machine-overwritten after creation.
+# Use null/empty values as placeholders; only non-empty values override auto output.
+# list[str] domain/topic tags (e.g. "simulations", "spectroscopy")
+subject:
+  - simulations
+  - electronic-structure
+  - molecular-dynamics
+  - atomistic-modeling
+# enum {alpha, beta, stable, archived}
+maturity: beta
+# str, e.g. "main"
+repository_default_branch: develop
+
+# Deployment flags.
+deployment:
+  # boolean
+  on_central: false
+  # boolean
+  on_example_oasis: true
+  # boolean
+  on_pypi: null
+  # str (PyPI package name)
+  pypi_package: null
+
+# Suggested usages for registry filtering/discovery.
+suggested_usages:
+  -
+    id: parse-electronic-structure-outputs
+    title: Parse electronic-structure simulation outputs
+    user_intent: Import outputs from major electronic-structure codes into NOMAD
+    domain_category: simulations
+    technique: electronic-structure
+    audience: intermediate
+    maturity: stable
+    tags:
+      - dft
+      - simulation
+      - parser
+  -
+    id: parse-molecular-dynamics-outputs
+    title: Parse molecular-dynamics trajectories and logs
+    user_intent: Import molecular-dynamics outputs for analysis and FAIR sharing
+    domain_category: simulations
+    technique: molecular-dynamics
+    audience: intermediate
+    maturity: stable
+    tags:
+      - md
+      - trajectory
+      - parser
+
+# Optional file format metadata enrichments.
+file_format_support:
+  -
+    # str (stable ID), e.g. "csv"
+    id: null
+    # str display label, e.g. ".csv"
+    label: null
+    # list[str] extensions including dot, e.g. [".csv", ".txt"]
+    extensions: []
+    # list[str], e.g. ["text/csv"]
+    mime_types: []
+    # str, e.g. "CIF", "NeXus"
+    standard: null
+    # str, instrument or context label
+    instrument_context: null
+    # str free text notes
+    notes: null
