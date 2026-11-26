@@ -824,8 +824,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 if not filename:
                     self.logger.warning(
                         'Missing exciting species XML filename: %s',
-                        species,
+                        species.get('name'),
                     )
+                    continue
 
                 xml_path = Path(maindir) / filename.strip()
 
