@@ -273,23 +273,11 @@ class APWOrbital(basis_set.APWOrbital):
 
 
 class APWLocalOrbital(basis_set.APWLocalOrbital):
-    add_mapping_annotations(
-        (
+    add_mapping_annotation(
             basis_set.APWLocalOrbital.m_def,
             SPECIES_XML_KEY,
             '.orbitals[?wf]',
-        ),
-        (
-            basis_set.APWOrbital.energy_parameter,
-            SPECIES_XML_KEY,
-            ('get_orbital_energy_parameter', ['.@']),
-        ),
-        (
-            basis_set.APWOrbital.differential_order,
-            SPECIES_XML_KEY,
-            ('get_orbital_differential_order', ['.@']),
-        ),
-    )
+        )
 
 class Outputs(outputs.Outputs):
     add_mapping_annotations(
