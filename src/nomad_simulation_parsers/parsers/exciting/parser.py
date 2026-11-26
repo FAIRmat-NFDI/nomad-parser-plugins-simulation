@@ -792,8 +792,6 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 info_out
             ) != os.path.abspath(self.mainfile):
                 info_parser.filepath = info_out
-                # read xc functionals from input.xml only if INFO.OUT did not already
-                # populate them
                 info_parser.convert(
                     data_parser,
                     update_mode='merge',
@@ -862,7 +860,9 @@ class ExcitingArchiveWriter(ArchiveWriter):
                 finally:
                     xml_parser.close()
                     xml_target.close()
-
+                    
+        # read xc functionals from input.xml only if INFO.OUT did not already
+        # populate them
         input_xml_files = (
             search_files('input.xml', maindir, re_pattern=mainbase)
             if not self.archive.m_xpath('data.model_method[0].xc.components')
