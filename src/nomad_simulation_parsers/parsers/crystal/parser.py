@@ -155,7 +155,9 @@ class CrystalOutputParser(TextParser):
 
         return atoms or None
 
-    def get_xc_functionals(self, source: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_xc_functionals(self, source: dict[str, Any] | None) -> list[dict[str, Any]]:
+        if source is None:
+            return []
         # `dict.fromkeys` deduplicates in first-seen order; a set's iteration
         # order varies between processes.
         names = (
