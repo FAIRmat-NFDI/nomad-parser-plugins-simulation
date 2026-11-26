@@ -1,0 +1,1157 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A repository for housing NOMAD's collection of simulation parser plugins.">
+      
+      
+        <meta name="author" content="Joseph Rudzinski">
+      
+      
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-8.1.1">
+    
+    
+      
+        <title>Exchange-correlation functionals - nomad-simulation-parsers</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.23b6d78a.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.e6a45f82.min.css">
+        
+          
+          
+          <meta name="theme-color" content="">
+        
+      
+    
+    
+    
+      
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web:300,400,400i,700%7C&display=fallback">
+        <style>:root{--md-text-font:"Titillium Web";--md-code-font:""}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="" data-md-color-primary="#2a4cdf" data-md-color-accent="#008a67">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#exchangecorrelation-functionals" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="https://nomad-lab.eu" title="nomad-simulation-parsers" class="md-header__button md-logo" aria-label="nomad-simulation-parsers" data-md-component="logo">
+      
+  <img src="../assets/nomad-plugin-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            nomad-simulation-parsers
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Exchange-correlation functionals
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/FAIRmat-NFDI/nomad-simulation-parsers" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="https://nomad-lab.eu" title="nomad-simulation-parsers" class="md-nav__button md-logo" aria-label="nomad-simulation-parsers" data-md-component="logo">
+      
+  <img src="../assets/nomad-plugin-logo.png" alt="logo">
+
+    </a>
+    nomad-simulation-parsers
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/FAIRmat-NFDI/nomad-simulation-parsers" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        Home
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2" type="checkbox" id="__nav_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2">
+          How-to guides
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="How-to guides" data-md-level="1">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          How-to guides
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how_to/install_this_plugin.html" class="md-nav__link">
+        Install this Plugin
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how_to/use_this_plugin.html" class="md-nav__link">
+        Use this Plugin
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how_to/contribute_to_this_plugin.html" class="md-nav__link">
+        Contribute to this plugin
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how_to/contribute_to_the_documentation.html" class="md-nav__link">
+        Contribute to the documentation
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" type="checkbox" id="__nav_3" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3">
+          Parsers
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Parsers" data-md-level="1">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Parsers
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3_1" type="checkbox" id="__nav_3_1" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3_1">
+          FHI-aims
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="FHI-aims" data-md-level="2">
+        <label class="md-nav__title" for="__nav_3_1">
+          <span class="md-nav__icon md-icon"></span>
+          FHI-aims
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/fhi-aims/fhi-aims_about.html" class="md-nav__link">
+        About
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3_2" type="checkbox" id="__nav_3_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3_2">
+          Gromacs
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Gromacs" data-md-level="2">
+        <label class="md-nav__title" for="__nav_3_2">
+          <span class="md-nav__icon md-icon"></span>
+          Gromacs
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/gromacs/gromacs_about.html" class="md-nav__link">
+        About
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3_3" type="checkbox" id="__nav_3_3" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3_3">
+          H5MD
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="H5MD" data-md-level="2">
+        <label class="md-nav__title" for="__nav_3_3">
+          <span class="md-nav__icon md-icon"></span>
+          H5MD
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/h5md/h5md_about.html" class="md-nav__link">
+        About
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/h5md/h5md_howto.html" class="md-nav__link">
+        How-to store data
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/h5md/h5md_expl.html" class="md-nav__link">
+        The H5MD Schema
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/h5md/h5md_ref.html" class="md-nav__link">
+        H5MD Reference
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3_4" type="checkbox" id="__nav_3_4" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3_4">
+          VASP
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="VASP" data-md-level="2">
+        <label class="md-nav__title" for="__nav_3_4">
+          <span class="md-nav__icon md-icon"></span>
+          VASP
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/vasp/vasp_about.html" class="md-nav__link">
+        About
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_4" type="checkbox" id="__nav_4" checked>
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_4">
+          Explanation
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Explanation" data-md-level="1">
+        <label class="md-nav__title" for="__nav_4">
+          <span class="md-nav__icon md-icon"></span>
+          Explanation
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explanation.html" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Exchange-correlation functionals
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="xc-functionals.html" class="md-nav__link md-nav__link--active">
+        Exchange-correlation functionals
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-each-code-expresses-xc" class="md-nav__link">
+    How each code expresses XC
+  </a>
+  
+    <nav class="md-nav" aria-label="How each code expresses XC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abinit" class="md-nav__link">
+    ABINIT
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ams-adf" class="md-nav__link">
+    AMS / ADF
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crystal" class="md-nav__link">
+    CRYSTAL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exciting" class="md-nav__link">
+    exciting
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fhi-aims" class="md-nav__link">
+    FHI-aims
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpaw" class="md-nav__link">
+    GPAW
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#octopus" class="md-nav__link">
+    octopus
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quantum-espresso" class="md-nav__link">
+    Quantum ESPRESSO
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vasp" class="md-nav__link">
+    VASP
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    Known limitations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    References
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_5">
+          Reference
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Reference" data-md-level="1">
+        <label class="md-nav__title" for="__nav_5">
+          <span class="md-nav__icon md-icon"></span>
+          Reference
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/references.html" class="md-nav__link">
+        General
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/parser_mapping_report.html" class="md-nav__link">
+        Parser file-mapping report
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-each-code-expresses-xc" class="md-nav__link">
+    How each code expresses XC
+  </a>
+  
+    <nav class="md-nav" aria-label="How each code expresses XC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abinit" class="md-nav__link">
+    ABINIT
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ams-adf" class="md-nav__link">
+    AMS / ADF
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crystal" class="md-nav__link">
+    CRYSTAL
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exciting" class="md-nav__link">
+    exciting
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fhi-aims" class="md-nav__link">
+    FHI-aims
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpaw" class="md-nav__link">
+    GPAW
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#octopus" class="md-nav__link">
+    octopus
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quantum-espresso" class="md-nav__link">
+    Quantum ESPRESSO
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vasp" class="md-nav__link">
+    VASP
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    Known limitations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    References
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content" data-md-component="content">
+            <article class="md-content__inner md-typeset">
+              
+                
+
+<h1 id="exchangecorrelation-functionals">Exchange–correlation functionals<a class="headerlink" href="#exchangecorrelation-functionals" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Every DFT code records the exchange–correlation (XC) functional in its own way —
+an input tag, an integer code, or a human-readable line in the output — and only
+rarely as a single canonical name. The simulation parsers reduce that variety to
+one of two forms that the <code>nomad-simulations</code> schema understands, and leave the
+<a href="https://libxc.gitlab.io/functionals/">LibXC</a> taxonomy (family, kind, and the
+derived Jacob's ladder rung) to the schema rather than reconstructing it per
+parser.</p>
+<p>A parser produces either:</p>
+<ul>
+<li>a <strong>canonical name</strong> in <code>XCFunctional.functional_key</code> — used when the code
+  names the functional, or when its tags reduce cleanly to a standard name
+  (<code>PBE</code>, <code>HSE06</code>, <code>B3LYP5</code>, …). The schema's alias table
+  (<code>nomad_simulations/.../libxc/aliases.json</code>) expands the name into LibXC
+  components; or</li>
+<li><strong>free-form components</strong> in <code>XCFunctional.components</code> — used when the code
+  reports the exchange and correlation parts individually (as LibXC labels or
+  ids). The schema resolves each component from the LibXC registry, filling its
+  family and kind.</li>
+</ul>
+<p>The choice reflects what the code actually reports: a name where one exists, the
+raw parts otherwise. Either way the parser never hard-codes LibXC family/kind
+data. A component that the registry cannot resolve is retained and flagged
+<code>unidentified</code> instead of being dropped, so a functional's composition is never
+silently misrepresented as complete.</p>
+<p>This page explains the non-obvious conventions behind each code's mapping. It is
+deliberately not an exhaustive list of supported functionals — the maps in the
+parser sources are authoritative for that. It focuses on the setups where the
+code's XC specification is indirect or easy to misread.</p>
+<h2 id="how-each-code-expresses-xc">How each code expresses XC<a class="headerlink" href="#how-each-code-expresses-xc" title="Permanent link">&para;</a></h2>
+<h3 id="abinit">ABINIT<a class="headerlink" href="#abinit" title="Permanent link">&para;</a></h3>
+<p>ABINIT identifies XC by the single integer <code>ixc</code>. A non-negative <code>ixc</code> selects a
+built-in preset (<code>1</code> = Teter93 LDA, <code>11</code> = PBE, <code>14</code> = revPBE, <code>15</code> = RPBE,
+<code>23</code> = Wu–Cohen, …), mapped through a small table. A <strong>negative</strong> <code>ixc</code> packs two
+LibXC functional ids positionally as <code>-(1000·id_x + id_c)</code> — for example
+<code>ixc = -101130</code> is LibXC <code>101</code> (<code>XC_GGA_X_PBE</code>) plus <code>130</code> (<code>XC_GGA_C_PBE</code>),
+i.e. PBE. The parser emits those ids as components and lets the schema registry
+resolve them, which also covers ids the local table does not list.</p>
+<h3 id="ams-adf">AMS / ADF<a class="headerlink" href="#ams-adf" title="Permanent link">&para;</a></h3>
+<p>AMS reports the active functional per Jacob's-ladder rung in its density-functional
+block (<code>LDA:</code>, <code>Gradient Corrections:</code>, <code>Meta-GGA:</code>). The highest present rung is
+the functional in effect. A two-word gradient-correction entry names the exchange
+and correlation authors together (<code>Becke Perdew</code> = BP86).</p>
+<h3 id="crystal">CRYSTAL<a class="headerlink" href="#crystal" title="Permanent link">&para;</a></h3>
+<p>CRYSTAL names the exchange and correlation keywords separately (<code>BECKE</code>, <code>PZ</code>,
+<code>PBE</code>, <code>PWGGA</code>, …); the parser maps each keyword to its LibXC label(s) and lets
+the schema assemble the functional.</p>
+<h3 id="exciting">exciting<a class="headerlink" href="#exciting" title="Permanent link">&para;</a></h3>
+<p>exciting's INFO file gives an integer <code>xctype</code> code that the parser maps to LibXC
+labels; the XML output gives LibXC labels directly. The integer codes track a
+specific exciting/LibXC version (see <em>Known limitations</em>).</p>
+<h3 id="fhi-aims">FHI-aims<a class="headerlink" href="#fhi-aims" title="Permanent link">&para;</a></h3>
+<p>FHI-aims prints a descriptive control string per functional, which the parser
+maps to the corresponding standard name.</p>
+<h3 id="gpaw">GPAW<a class="headerlink" href="#gpaw" title="Permanent link">&para;</a></h3>
+<p>GPAW records a standard functional name directly and the parser passes it
+through unchanged.</p>
+<h3 id="octopus">octopus<a class="headerlink" href="#octopus" title="Permanent link">&para;</a></h3>
+<p>octopus prints the exchange and correlation parts as separate descriptive lines
+(<code>Slater exchange</code>, <code>Perdew &amp; Zunger (Modified)</code>), which the parser maps to LibXC
+short-labels. The <code>XCFunctional</code> input variable is additionally an integer that
+is the <em>sum</em> of per-piece codes; when present it is decoded as a fallback to
+recover parts the descriptions did not name.</p>
+<h3 id="quantum-espresso">Quantum ESPRESSO<a class="headerlink" href="#quantum-espresso" title="Permanent link">&para;</a></h3>
+<p>QE prints XC either as a single name (<code>PBE</code>) or as its four DFT slot codes —
+exchange, correlation, gradient-exchange, gradient-correlation. <code>SLA PW PBX PBC</code>
+is Slater exchange + Perdew–Wang correlation + PBE gradient terms, i.e. PBE;
+<code>SLA PZ</code> is the Perdew–Zunger LDA. The parser recognises the common slot
+combinations and, for anything else, keeps the raw slot string so the reported
+XC is preserved rather than dropped.</p>
+<h3 id="vasp">VASP<a class="headerlink" href="#vasp" title="Permanent link">&para;</a></h3>
+<p>VASP emits no functional name, so the canonical name is reconstructed from the
+input tags in the order VASP itself resolves them: an explicit hybrid setup
+wins, then <code>METAGGA</code>, then <code>GGA</code>.</p>
+<p>The <code>GGA</code> and <code>METAGGA</code> tags are short two-letter codes (<code>PE</code> → PBE, <code>PS</code> →
+PBEsol, <code>RP</code> → RPBE, <code>RE</code> → revPBE, …). A few subtleties are worth stating:</p>
+<ul>
+<li><strong>Hybrids</strong> (<code>LHFCALC = .TRUE.</code>) are decided from <code>HFSCREEN</code>, <code>GGA</code> and <code>AEXX</code>
+  together, not from the screening length alone. <code>HFSCREEN = 0.2</code>/<code>0.3</code> give the
+  screened HSE hybrids, but the base GGA sets the variant: a PBE base gives
+  HSE06/HSE03, whereas <code>GGA = PS</code> (PBEsol) gives <strong>HSEsol</strong>. The unscreened
+  global hybrid <strong>PBE0</strong> additionally requires that screening is off, i.e.
+  <code>HFSCREEN = 0</code> — which is VASP's default, so it holds whether the tag is
+  explicitly zero or absent. <code>AEXX = 1</code> with no DFT correlation is pure
+  Hartree–Fock, not a DFT functional.</li>
+<li><code>GGA = B3</code> and <code>GGA = B5</code> are both B3LYP but with <strong>different correlation</strong> —
+  VWN3 (<code>B3</code> → <code>B3LYP</code>) versus VWN5 (<code>B5</code> → <code>B3LYP5</code>) — so they must not collapse
+  to one key.</li>
+<li>When <code>GGA</code> is unset the effective functional is the <strong>POTCAR default</strong>, carried
+  by <code>LEXCH</code> (e.g. <code>LEXCH = CA</code> is the Ceperley–Alder LDA in the Perdew–Zunger
+  parametrisation, <code>PZ81</code>). PBE is assumed only when neither <code>GGA</code> nor <code>LEXCH</code>
+  is present.</li>
+</ul>
+<h2 id="known-limitations">Known limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
+<p>Some codes tie their XC identifiers to a specific LibXC (or code) release, so a
+mapping that is correct for one version can drift in another — ABINIT's negative
+<code>ixc</code> LibXC ids and exciting's integer <code>xctype</code> codes are the main examples.
+Mappings should be cross-checked against the LibXC version the code is built with
+when in doubt. Open verification items are tracked in the parser repository's
+issues.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<p>The LibXC label taxonomy and each code's XC-input documentation:</p>
+<ul>
+<li>LibXC functional list — <a href="https://libxc.gitlab.io/functionals/">https://libxc.gitlab.io/functionals/</a></li>
+<li>ABINIT — the <a href="https://docs.abinit.org/variables/basic/#ixc"><code>ixc</code></a> input variable</li>
+<li>AMS / ADF — <a href="https://www.scm.com/doc/ADF/Input/Density_Functional.html">Density Functionals (XC)</a></li>
+<li>CRYSTAL — the <code>DFT</code>/<code>EXCHANGE</code>/<code>CORRELAT</code> keywords in the
+  <a href="https://www.crystal.unito.it/include/manuals/crystal23.pdf">CRYSTAL23 user's manual</a></li>
+<li>exciting — the <a href="http://exciting-code.org/ref:groundstate"><code>groundstate</code>/<code>xctype</code></a> reference</li>
+<li>FHI-aims — the <code>xc</code> keyword (<a href="https://fhi-aims.org/uploads/manual/Ch3/S3.html">manual §3.3</a>)</li>
+<li>GPAW — <a href="https://gpaw.readthedocs.io/documentation/xc/functionals.html">exchange–correlation functionals</a></li>
+<li>octopus — the <a href="https://octopus-code.org/documentation/13/variables/hamiltonian/xc/xcfunctional/"><code>XCFunctional</code></a> variable</li>
+<li>Quantum ESPRESSO — <a href="https://www.quantum-espresso.org/Doc/INPUT_PW.html"><code>input_dft</code></a>
+  (the slot codes are defined in <code>Modules/funct.f90</code> / <code>XClib</code>)</li>
+<li>VASP — <a href="https://www.vasp.at/wiki/index.php/GGA"><code>GGA</code></a>,
+  <a href="https://www.vasp.at/wiki/index.php/METAGGA"><code>METAGGA</code></a>,
+  <a href="https://www.vasp.at/wiki/index.php/LHFCALC"><code>LHFCALC</code></a> and the
+  <a href="https://www.vasp.at/wiki/index.php/List_of_hybrid_functionals">list of hybrid functionals</a></li>
+</ul>
+
+              
+            </article>
+          </div>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    <nav class="md-footer__inner md-grid" aria-label="Footer">
+      
+        
+        <a href="explanation.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Overview
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../reference/references.html" class="md-footer__link md-footer__link--next" aria-label="Next: General" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              General
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant"], "search": "../assets/javascripts/workers/search.c7dec7e7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.da79ceb7.min.js"></script>
+      
+        <script src="../javascript.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
