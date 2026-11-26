@@ -224,7 +224,7 @@ class MuffinTinRegion(basis_set.MuffinTinRegion):
             INFO_KEY,
             (
                 'get_muffin_tin_species_scope',
-                ['.file'],
+                ['.file', 'initialization.species'],
             ),
         ),
         )

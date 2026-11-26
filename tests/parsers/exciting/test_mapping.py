@@ -470,6 +470,7 @@ class TestSpeciesXMLParserMapping:
             np.testing.assert_array_equal(result, expected)
             assert result.dtype == np.int32
     
+
     @pytest.mark.parametrize(
         ('species_file', 'atoms', 'expected'),
         [
@@ -512,6 +513,11 @@ class TestSpeciesXMLParserMapping:
                 [{'file': 'C.xml'}],
                 [],
             ),
+            (
+                'C.xml',
+                None,
+                [],
+            ),
         ],
         ids=[
             'non-consecutive-atoms',
@@ -519,29 +525,166 @@ class TestSpeciesXMLParserMapping:
             'no-matching-species',
             'empty-atoms',
             'absent-species-file',
+            'absent-species-list',
         ],
     )
     def test_maps_muffin_tin_species_scope(
         self, species_file, atoms, expected
     ):
         parser = InfoParser()
-        species_list = [{'file': atom['file']} for atom in atoms]
 
-        with (
-            patch.object(InfoParser, 'data', new_callable=PropertyMock) as mock_data,
-            patch.object(
-                parser, '_get_species_atoms', return_value=atoms
-            ) as mock_atoms,
-        ):
-            mock_data.return_value = {
-                'initialization': {'species': species_list}
-            }
+        species_list = (
+            [{'file': atom['file']} for atom in atoms]
+            if atoms is not None
+            else None
+        )
 
-            result = parser.get_muffin_tin_species_scope(species_file)
+        with patch.object(
+            parser, '_get_species_atoms', return_value=atoms
+        ) as mock_atoms:
+            result = parser.get_muffin_tin_species_scope(
+                species_file, species_list
+            )
 
             assert result == expected
 
-            if species_file is None:
+            if species_file is None or species_list is None:
                 mock_atoms.assert_not_called()
             else:
                 mock_atoms.assert_called_once_with(species_list)
+    
+    @pytest.mark.parametrize(
+        ('species_list', 'expected'),
+        [
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [
+                            [0.0, 0.0, 0.0],
+                            [0.5, 0.5, 0.5],
+                        ],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'Pb',
+                        'file': 'Pb.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                    {
+                        'name': 'I',
+                        'file': 'I.xml',
+                        'positions': [
+                            [0.5, 0.0, 0.0],
+                            [0.0, 0.5, 0.0],
+                        ],
+                    },
+                ],
+                [
+                    {'name': 'Pb', 'file': 'Pb.xml'},
+                    {'name': 'I', 'file': 'I.xml'},
+                    {'name': 'I', 'file': 'I.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C_1.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                    },
+                    {
+                        'name': 'C',
+                        'file': 'C_2.xml',
+                        'positions': [[0.5, 0.5, 0.5]],
+                    },
+                ],
+                [
+                    {'name': 'C', 'file': 'C_1.xml'},
+                    {'name': 'C', 'file': 'C_2.xml'},
+                ],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [[0.0, 0.0, 0.0]],
+                        'positions_format': 'lattice',
+                        'radial_points': 300,
+                        'muffin_tin_radius': 1.5,
+                    },
+                ],
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'muffin_tin_radius': 1.5,
+                    },
+                ],
+            ),
+            (
+                [
+                    {'name': 'C', 'file': 'C.xml'},
+                ],
+                [],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': None,
+                    },
+                ],
+                [],
+            ),
+            (
+                [
+                    {
+                        'name': 'C',
+                        'file': 'C.xml',
+                        'positions': [],
+                    },
+                ],
+                [],
+            ),
+            (
+                [],
+                [],
+            ),
+        ],
+        ids=[
+            'single-atom',
+            'multiple-atoms',
+            'multiple-species',
+            'same-element-different-species-files',
+            'exclude-species-fields',
+            'missing-positions',
+            'none-positions',
+            'empty-positions',
+            'empty-species-list',
+        ],
+    )
+    def test_get_species_atoms(self, species_list, expected):
+        assert InfoParser._get_species_atoms(species_list) == expected

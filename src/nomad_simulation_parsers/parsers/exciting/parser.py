@@ -220,11 +220,10 @@ class InfoParser(TextParser):
             else None,
         )
 
-    def get_muffin_tin_species_scope(self, species_file: str | None) -> list[str]:
+    def get_muffin_tin_species_scope(self, species_file: str | None, species_list: list[dict]| None) -> list[str]:
         """Resolve muffin-tin species references from the exciting species file."""
-        if species_file is None:
+        if species_file is None or species_list is None:
             return []
-        species_list = self.data.get('initialization', {}).get('species', [])
         atoms = self._get_species_atoms(species_list)
 
         species_scope = [
@@ -998,3 +997,5 @@ class ExcitingParser(MatchingParser):
         child_archives: dict[str, EntryArchive] = None,
     ):
         self.archive_writer.write(mainfile, archive, logger, child_archives)
+
+    
