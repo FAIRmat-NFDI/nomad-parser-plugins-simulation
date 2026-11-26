@@ -2,14 +2,19 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from nomad.utils import get_logger
+from phonopy.structure.atoms import PhonopyAtoms
 
 from nomad_simulation_parsers.parsers.phonopy import calculator
 from nomad_simulation_parsers.parsers.phonopy.calculator import (
     EvTokJmol,
     PhononProperties,
     generate_kpath_parameters,
+    generate_kpath_seekpath,
     read_kpath,
 )
+
+LOGGER = get_logger(__name__)
 
 
 @pytest.mark.unit
@@ -36,6 +41,33 @@ def test_reads_fractional_band_path_file(tmp_path):
     assert len(parameters) == 1
     assert parameters[0]['npoints'] == 25
     np.testing.assert_allclose(parameters[0]['kend'], [0.5, 0.0, 0.0])
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'cell, expected_n_segments',
+    [
+        pytest.param(np.diag([4.0] * 3), 6, id='cubic_canonical'),
+        # Non-canonical orthorhombic cell (b < a < c) from a crashing upload:
+        # ASE's canonical-cell matcher rejected this lattice-vector ordering,
+        # while SeeKpath classifies it via spglib regardless of the ordering.
+        pytest.param(
+            np.diag([9.91421472, 4.39275307, 11.33757198]),
+            12,
+            id='orthorhombic_non_canonical',
+        ),
+    ],
+)
+def test_generate_kpath_seekpath(cell: np.ndarray, expected_n_segments: int):
+    atoms = PhonopyAtoms(symbols=['Si'], cell=cell, scaled_positions=[[0.0, 0.0, 0.0]])
+
+    parameters = generate_kpath_seekpath(atoms, 1e-5, LOGGER)
+
+    assert len(parameters) == expected_n_segments
+    for segment in parameters:
+        assert {'npoints', 'startname', 'kstart', 'endname', 'kend'} <= segment.keys()
+        assert segment['npoints'] == 100
+    assert parameters[0]['startname'] == 'Γ'
 
 
 class FakePhonopyObject:
@@ -91,7 +123,7 @@ def test_get_bandstructure_uses_generated_kpath(monkeypatch):
             'kend': np.array([0.5, 0.0, 0.0]),
         }
     ]
-    monkeypatch.setattr(calculator, 'generate_kpath_ase', lambda *args: parameters)
+    monkeypatch.setattr(calculator, 'generate_kpath_seekpath', lambda *args: parameters)
     monkeypatch.setattr(calculator, 'BandStructure', FakeBandStructure)
 
     frequencies, bands, labels = properties.get_bandstructure()
