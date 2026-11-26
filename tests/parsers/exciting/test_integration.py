@@ -200,6 +200,7 @@ class TestCMinimalLargeDataArchive(ExcitingParserIntegrationSuite):
 class TestCMinimalArchive(ExcitingParserIntegrationSuite):
     archive_fixture = 'c_minimal_archive'
     workflow_name = 'SinglePoint'
+
     @pytest.mark.integration
     def test_basis_set_mapping(self, archive):
         components_planewave = self._get_basis_set_components(

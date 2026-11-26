@@ -45,17 +45,19 @@ class Simulation(general.Simulation):
     add_mapping_annotation(general.Simulation.program, INFO_KEY, '.@')
 
     add_mapping_annotation(
-            general.Simulation.model_system,
-            INFO_KEY,
-            ('get_configurations', ['.@']),
-            cache = True,
-        )
-    add_mapping_annotation(
+        general.Simulation.model_system,
+        INFO_KEY,
+        ('get_configurations', ['.@']),
+        cache=True,
+    )
+    (
+        add_mapping_annotation(
             general.Simulation.model_method,
             INFO_KEY,
             '.initialization.xc_functional',
             m_def=model_method.DFT.m_def,
         ),
+    )
     add_mapping_annotations(
         (
             general.Simulation.outputs,
@@ -67,14 +69,14 @@ class Simulation(general.Simulation):
         (general.Simulation.outputs, DOS_XML_KEY, '.@'),
     )
 
-    #add_mapping_annotation(
+    # add_mapping_annotation(
     #       general.Simulation.model_method,
     #       INPUT_XML_KEY,
     #       '.input.groundstate',
     #       m_def=model_method.DFT.m_def,
     # )
 
-    #add_mapping_annotation(
+    # add_mapping_annotation(
     #    model_method.DFT.m_def,
     #     INPUT_XML_KEY,
     #     '.input.groundstate',
@@ -84,7 +86,7 @@ class Simulation(general.Simulation):
 class Program(general.Program):
     add_mapping_annotations(
         (general.Program.version, INFO_KEY, '.program_version'),
-        (general.Program.version_internal, INFO_KEY, '.hash_id')
+        (general.Program.version_internal, INFO_KEY, '.hash_id'),
     )
 
 
@@ -130,44 +132,66 @@ class XCComponent(model_method.XCComponent):
 class Smearing(numerical_settings.Smearing):
     add_mapping_annotations(
         (numerical_settings.Smearing.m_def, INFO_KEY, '.@'),
-        (numerical_settings.Smearing.kind,INFO_KEY,('get_smearing_kind', 
-        ['initialization.smearing_kind'])),
+        (
+            numerical_settings.Smearing.kind,
+            INFO_KEY,
+            ('get_smearing_kind', ['initialization.smearing_kind']),
+        ),
         (numerical_settings.Smearing.width, INFO_KEY, 'initialization.smearing_width'),
     )
 
 
 class KSpace(numerical_settings.KSpace):
     add_mapping_annotations(
-        (numerical_settings.KSpace.m_def,INFO_KEY,'.@'),
-        (numerical_settings.KSpace.k_mesh,INFO_KEY,
-        ('get_k_mesh', [])),
+        (numerical_settings.KSpace.m_def, INFO_KEY, '.@'),
+        (numerical_settings.KSpace.k_mesh, INFO_KEY, ('get_k_mesh', [])),
         (numerical_settings.KSpace.m_def, BANDSTRUCTURE_XML_KEY, '.@'),
-        (numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY,'.@'),
+        (numerical_settings.KSpace.k_line_path, BANDSTRUCTURE_XML_KEY, '.@'),
     )
 
 
 class KMesh(numerical_settings.KMesh):
     add_mapping_annotations(
-        (numerical_settings.KMesh.grid, INFO_KEY, '.grid',),
-        (numerical_settings.KMesh.n_points, INFO_KEY, '.n_total_points',),
-        (numerical_settings.KMesh.dimensionality, INFO_KEY, '.dimensionality',)
+        (
+            numerical_settings.KMesh.grid,
+            INFO_KEY,
+            '.grid',
+        ),
+        (
+            numerical_settings.KMesh.n_points,
+            INFO_KEY,
+            '.n_total_points',
+        ),
+        (
+            numerical_settings.KMesh.dimensionality,
+            INFO_KEY,
+            '.dimensionality',
+        ),
     )
 
 
 class BasisSetContainer(basis_set.BasisSetContainer):
     add_mapping_annotations(
-        (basis_set.BasisSetContainer.m_def,
-        INFO_KEY,
-        '.@',),
-         (basis_set.BasisSetContainer.m_def,
+        (
+            basis_set.BasisSetContainer.m_def,
+            INFO_KEY,
+            '.@',
+        ),
+        (
+            basis_set.BasisSetContainer.m_def,
             SPECIES_XML_KEY,
             '.@',
-        ))
+        ),
+    )
 
 
 class APWPlaneWaveBasisSet(basis_set.APWPlaneWaveBasisSet):
     add_mapping_annotations(
-        (basis_set.APWPlaneWaveBasisSet.m_def, INFO_KEY, '.@',),
+        (
+            basis_set.APWPlaneWaveBasisSet.m_def,
+            INFO_KEY,
+            '.@',
+        ),
         (
             basis_set.APWPlaneWaveBasisSet.cutoff_fractional,
             INFO_KEY,
@@ -182,7 +206,7 @@ class ModelSystem(model_system.ModelSystem):
         (
             model_system.ModelSystem.n_particles,
             INFO_KEY,
-            'initialization.x_exciting_number_of_atoms'
+            'initialization.x_exciting_number_of_atoms',
         ),
     )
 
@@ -211,6 +235,7 @@ class AtomsState(atoms_state.AtomsState):
         (atoms_state.AtomsState.mass, INFO_KEY, '.atomic_mass'),
     )
 
+
 class MuffinTinRegion(basis_set.MuffinTinRegion):
     add_mapping_annotations(
         (basis_set.MuffinTinRegion.m_def, INFO_KEY, 'initialization.species'),
@@ -228,20 +253,25 @@ class MuffinTinRegion(basis_set.MuffinTinRegion):
                 ['.file', 'initialization.species'],
             ),
         ),
-        )
+    )
 
     add_mapping_annotations(
-         (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, '.@'),
+        (basis_set.MuffinTinRegion.m_def, SPECIES_XML_KEY, '.@'),
         (
             basis_set.MuffinTinRegion.l_channels,
             SPECIES_XML_KEY,
-            ('build_l_channels',['spdb.sp.basis'] ) 
-        ),)
+            ('build_l_channels', ['spdb.sp.basis']),
+        ),
+    )
+
+
 class APWLChannel(basis_set.APWLChannel):
     add_mapping_annotations(
         (basis_set.APWLChannel.m_def, SPECIES_XML_KEY, '.@'),
-        (basis_set.APWLChannel.name, SPECIES_XML_KEY, '.name'),)
-        
+        (basis_set.APWLChannel.name, SPECIES_XML_KEY, '.name'),
+    )
+
+
 class APWOrbital(basis_set.APWOrbital):
     add_mapping_annotations(
         (
@@ -264,7 +294,7 @@ class APWOrbital(basis_set.APWOrbital):
             SPECIES_XML_KEY,
             ('get_orbital_differential_order', ['.@']),
         ),
-                (
+        (
             basis_set.APWOrbital.energy_status,
             SPECIES_XML_KEY,
             ('get_energy_status', ['.@']),
@@ -274,10 +304,11 @@ class APWOrbital(basis_set.APWOrbital):
 
 class APWLocalOrbital(basis_set.APWLocalOrbital):
     add_mapping_annotation(
-            basis_set.APWLocalOrbital.m_def,
-            SPECIES_XML_KEY,
-            '.orbitals[?wf]',
-        )
+        basis_set.APWLocalOrbital.m_def,
+        SPECIES_XML_KEY,
+        '.orbitals[?wf]',
+    )
+
 
 class Outputs(outputs.Outputs):
     add_mapping_annotations(
@@ -335,13 +366,16 @@ class ElectronicBandStructure(outputs.ElectronicBandStructure):
 
 
 class VariablesEnergy2(variables.Energy2):
-    add_mapping_annotation(
+    (
+        add_mapping_annotation(
             variables.Energy2.points,
             DOS_XML_KEY,
             ('to_float', [r'.point[*]."@e"']),
             unit='hartree',
         ),
-    add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@'),
+    )
+    (add_mapping_annotation(variables.Energy2.m_def, DOS_XML_KEY, '.@'),)
+
 
 class KLinePath(numerical_settings.KLinePath):
     add_mapping_annotations(
@@ -362,17 +396,20 @@ class KLinePath(numerical_settings.KLinePath):
 
 
 class ElectronicDensityOfStates(outputs.ElectronicDensityOfStates):
-    add_mapping_annotation(
-        outputs.ElectronicDensityOfStates.value,
-        DOS_XML_KEY,
-        ('to_float', [r'.point[*]."@dos"']),
-        unit='1/hartree',
-    ),
+    (
+        add_mapping_annotation(
+            outputs.ElectronicDensityOfStates.value,
+            DOS_XML_KEY,
+            ('to_float', [r'.point[*]."@dos"']),
+            unit='1/hartree',
+        ),
+    )
     add_mapping_annotation(
         outputs.ElectronicDensityOfStates.projected_dos,
         DOS_XML_KEY,
         'dos.partialdos.diagram',
     )
+
 
 class OutputsSCFSteps(outputs.SCFSteps):
     add_mapping_annotations(

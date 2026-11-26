@@ -56,11 +56,12 @@ class TestInfoParserMapping:
             'hartree'
         ).magnitude == pytest.approx(5e-6)
 
-
     def test_maps_smearing_kind(self):
         parser = InfoParser()
-        assert parser.get_smearing_kind('Extended linear tetrahedron method'
-            ) == 'Tetrahedra-extended'
+        assert (
+            parser.get_smearing_kind('Extended linear tetrahedron method')
+            == 'Tetrahedra-extended'
+        )
 
     def test_maps_k_mesh(self):
         parser = InfoParser()
@@ -71,24 +72,25 @@ class TestInfoParserMapping:
             }
         }
 
-        with patch.object(
-            InfoParser, 'data', new_callable=PropertyMock
-        ) as mock_data:
+        with patch.object(InfoParser, 'data', new_callable=PropertyMock) as mock_data:
             mock_data.return_value = source
             result = parser.get_k_mesh()
 
-        assert result  == [
-            {'grid': [4, 4, 4], 
-            'n_total_points': 64, 
-            'n_reduced_points': 8, 
-            'dimensionality': 3}
-            ]
+        assert result == [
+            {
+                'grid': [4, 4, 4],
+                'n_total_points': 64,
+                'n_reduced_points': 8,
+                'dimensionality': 3,
+            }
+        ]
         print(result)
 
     def test_maps_is_spin_polarization(self):
         parser = InfoParser()
         assert parser.get_is_spin_polarized('spin-unpolarised') is False
         assert parser.get_is_spin_polarized('spin-polarised') is True
+
 
 @pytest.mark.unit
 class TestBandstructureXMLParserMapping:
@@ -168,6 +170,7 @@ class TestEigvalParserMapping:
         for gap, reference in zip(gaps, expected):
             assert gap['value'] == pytest.approx(reference['value'])
             assert gap.get('spin_channel') == reference.get('spin_channel')
+
 
 @pytest.mark.unit
 class TestSpeciesXMLParserMapping:
@@ -307,7 +310,6 @@ class TestSpeciesXMLParserMapping:
     def test_expands_apw_plus_lo(self, apw, l_value, expected):
         parser = SpeciesXMLParser()
         assert parser._expand_apw_plus_lo(apw, l_value) == expected
-
 
     @pytest.mark.parametrize(
         ('orbital', 'expected'),
@@ -469,7 +471,6 @@ class TestSpeciesXMLParserMapping:
         else:
             np.testing.assert_array_equal(result, expected)
             assert result.dtype == np.int32
-    
 
     @pytest.mark.parametrize(
         ('species_file', 'atoms', 'expected'),
@@ -528,23 +529,17 @@ class TestSpeciesXMLParserMapping:
             'absent-species-list',
         ],
     )
-    def test_maps_muffin_tin_species_scope(
-        self, species_file, atoms, expected
-    ):
+    def test_maps_muffin_tin_species_scope(self, species_file, atoms, expected):
         parser = InfoParser()
 
         species_list = (
-            [{'file': atom['file']} for atom in atoms]
-            if atoms is not None
-            else None
+            [{'file': atom['file']} for atom in atoms] if atoms is not None else None
         )
 
         with patch.object(
             parser, '_get_species_atoms', return_value=atoms
         ) as mock_atoms:
-            result = parser.get_muffin_tin_species_scope(
-                species_file, species_list
-            )
+            result = parser.get_muffin_tin_species_scope(species_file, species_list)
 
             assert result == expected
 
@@ -552,7 +547,7 @@ class TestSpeciesXMLParserMapping:
                 mock_atoms.assert_not_called()
             else:
                 mock_atoms.assert_called_once_with(species_list)
-    
+
     @pytest.mark.parametrize(
         ('species_list', 'expected'),
         [
